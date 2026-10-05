@@ -1,0 +1,22 @@
+# AGENTS.md
+
+muxtower: approve and drive coding agents running in tmux on a remote machine, from a phone. Server-side, headless, API-first; one Bearer token; works behind any reverse proxy. Architecture and the reasoning behind it: `docs/design.md` — read it before changing the API, auth, or state detection.
+
+## Layout
+
+- `daemon/` — Python package `muxtower` (CLI `muxtower`, daemon `muxtowerd`). Rules: `daemon/AGENTS.md`.
+- `app/` — `muxtower-app`, Vite + React PWA. Rules: `app/AGENTS.md`.
+- `openapi.json` — the API contract, generated from the daemon, consumed by the app. Never edit by hand.
+
+## Commands (from the repo root)
+
+- Regenerate the contract after any API change: `./tasks.sh contract` (exports `openapi.json`, regenerates `app/src/lib/api/schema.d.ts`). CI runs `./tasks.sh contract-check` and fails on a diff.
+- Everything CI runs: `./tasks.sh check`.
+- Build the wheel with the UI inside: `./tasks.sh wheel` (builds `app/dist`, copies it into `daemon/src/muxtower/web/`, runs `poetry build`).
+
+## Rules for every change
+
+- This repo is generic, public-facing software. No personal names, hostnames, domains, IPs, tokens, or references to any predecessor project in code, docs, tests, fixtures, or commit messages. Examples use `example.com`, `app.example`, `127.0.0.1`.
+- English only, in UI strings and docs.
+- An API change lands in the same commit as its regenerated `openapi.json` and the app code that uses it.
+- No secret in logs, error messages, URLs written to logs, or git history.

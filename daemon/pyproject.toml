@@ -1,0 +1,54 @@
+[project]
+name = "muxtower"
+version = "0.1.0.dev0"
+description = "Approve and drive coding agents running in tmux on a remote machine, from your phone. Headless daemon + API, one Bearer token, works behind any reverse proxy."
+readme = "README.md"
+requires-python = ">=3.11,<4.0"
+keywords = ["tmux", "claude-code", "codex", "coding-agent", "remote", "approval", "pwa"]
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pydantic>=2.7",
+    "libtmux>=0.61",
+    "pywebpush>=2.0",
+    "segno>=1.6",
+]
+
+[project.scripts]
+muxtower = "muxtower.cli.main:main"
+muxtowerd = "muxtower.cli.daemon:main"
+
+[tool.poetry]
+packages = [{ include = "muxtower", from = "src" }]
+# The built UI is copied into src/muxtower/web/ by `make wheel`; it is git-ignored, so include it explicitly.
+include = [{ path = "src/muxtower/web/**/*", format = ["sdist", "wheel"] }]
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3"
+pytest-asyncio = "^0.24"
+httpx = "^0.27"
+ruff = "^0.7"
+mypy = "^1.13"
+
+[build-system]
+requires = ["poetry-core>=2.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "BLE"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S105", "S106"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.mypy]
+strict = true
+ignore_missing_imports = true

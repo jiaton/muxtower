@@ -1,0 +1,57 @@
+/* The only file allowed to define colors, type scale, radii and shadows (see app/AGENTS.md). */
+@import 'tailwindcss';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme {
+  --color-*: initial;
+
+  --color-bg: oklch(0.985 0.002 260);
+  --color-surface: oklch(1 0 0);
+  --color-surface-muted: oklch(0.955 0.004 260);
+  --color-border: oklch(0.9 0.006 260);
+  --color-fg: oklch(0.22 0.01 260);
+  --color-fg-muted: oklch(0.5 0.012 260);
+  --color-accent: oklch(0.55 0.17 255);
+  --color-accent-fg: oklch(0.99 0 0);
+  --color-danger: oklch(0.58 0.2 27);
+  --color-danger-fg: oklch(0.99 0 0);
+  --color-focus: oklch(0.62 0.17 255);
+
+  /* Agent states */
+  --color-state-permission: oklch(0.72 0.16 70);
+  --color-state-question: oklch(0.6 0.16 300);
+  --color-state-error: oklch(0.58 0.2 27);
+  --color-state-busy: oklch(0.6 0.13 230);
+  --color-state-idle: oklch(0.62 0.01 260);
+
+  --color-terminal-bg: oklch(0.18 0.01 260);
+  --color-terminal-fg: oklch(0.92 0.005 260);
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+
+  --shadow-card: 0 1px 2px oklch(0 0 0 / 0.06), 0 1px 3px oklch(0 0 0 / 0.08);
+}
+
+@layer base {
+  :root[data-theme='dark'] {
+    --color-bg: oklch(0.17 0.008 260);
+    --color-surface: oklch(0.21 0.01 260);
+    --color-surface-muted: oklch(0.25 0.012 260);
+    --color-border: oklch(0.31 0.012 260);
+    --color-fg: oklch(0.94 0.005 260);
+    --color-fg-muted: oklch(0.68 0.012 260);
+    --color-accent: oklch(0.68 0.15 255);
+    --color-accent-fg: oklch(0.16 0.01 260);
+    --shadow-card: 0 1px 2px oklch(0 0 0 / 0.4);
+  }
+
+  body {
+    @apply bg-bg text-fg font-sans antialiased;
+  }
+}
