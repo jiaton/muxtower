@@ -4,15 +4,15 @@ muxtower: approve and drive coding agents running in tmux on a remote machine, f
 
 ## Layout
 
-- `daemon/` — Python package `muxtower` (CLI `muxtower`, daemon `muxtowerd`). Rules: `daemon/AGENTS.md`.
+- `daemon/` — Python package `muxtower` (one command, `muxtower`; `muxtower serve` runs the daemon). Rules: `daemon/AGENTS.md`.
 - `app/` — `muxtower-app`, Vite + React PWA. Rules: `app/AGENTS.md`.
 - `openapi.json` — the API contract, generated from the daemon, consumed by the app. Never edit by hand.
 
 ## Commands (from the repo root)
 
-- Regenerate the contract after any API change: `./tasks.sh contract` (exports `openapi.json`, regenerates `app/src/lib/api/schema.d.ts`). CI runs `./tasks.sh contract-check` and fails on a diff.
-- Everything CI runs: `./tasks.sh check`.
-- Build the wheel with the UI inside: `./tasks.sh wheel` (builds `app/dist`, copies it into `daemon/src/muxtower/web/`, runs `poetry build`).
+- Regenerate the contract after any API change: `make contract` (exports `openapi.json`, regenerates `app/src/lib/api/schema.d.ts`). CI runs `make contract-check` and fails on a diff.
+- Everything CI runs: `make check`.
+- Build the wheel with the UI inside: `make wheel` (builds `app/dist`, copies it into `daemon/src/muxtower/web/`, runs `poetry build`).
 
 ## Rules for every change
 

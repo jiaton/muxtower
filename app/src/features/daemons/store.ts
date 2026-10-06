@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { randomId } from '@/lib/id'
 import type { Daemon } from './types'
 
 interface DaemonsState {
@@ -22,7 +23,7 @@ export const useDaemonsStore = create<DaemonsState>()(
           get().update(existing.id, { ...input, url })
           return { ...existing, ...input, url }
         }
-        const daemon: Daemon = { ...input, url, id: crypto.randomUUID() }
+        const daemon: Daemon = { ...input, url, id: randomId() }
         set((s) => ({ daemons: [...s.daemons, daemon] }))
         return daemon
       },

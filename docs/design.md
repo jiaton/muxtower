@@ -1,14 +1,13 @@
 # muxtower design
 
-muxtower lets coding agents running in tmux on a remote machine be approved and driven from a phone. It is server-side and headless: `muxtowerd` runs next to the agents, exposes a typed HTTP + WebSocket API behind a single Bearer token, and is meant to sit behind any reverse proxy. The web app is a client of that API, nothing more.
+muxtower lets coding agents running in tmux on a remote machine be approved and driven from a phone. It is server-side and headless: `muxtower serve` runs next to the agents, exposes a typed HTTP + WebSocket API behind a single Bearer token, and is meant to sit behind any reverse proxy. The web app is a client of that API, nothing more.
 
 ## Pieces
 
 | piece | what | ships as |
 |---|---|---|
-| `muxtower` | CLI: launch an agent in a managed tmux session, attach, manage tokens, open pairing | console script in the `muxtower` Python package |
-| `muxtowerd` | the daemon: session registry, state detection, approvals, push, API | console script in the same package |
-| `muxtower-app` | PWA client (Vite + React); talks to one or many daemons | built into the wheel and served by `muxtowerd` at `/`; also a standalone static build / container |
+| `muxtower` | the one command. `muxtower serve` runs the daemon (session registry, state detection, approvals, push, API); `muxtower run`, `token`, `pair` manage it locally. `muxtower run` starts the daemon in the background if it is not running | console script in the `muxtower` Python package |
+| `muxtower-app` | PWA client (Vite + React); talks to one or many daemons | built into the wheel and served by `muxtower serve` at `/`; also a standalone static build / container |
 
 `pipx install muxtower` gives a working daemon **and** UI. The bundled UI is the recommended way to use it (same origin as the API, no CORS, works on plain-HTTP LANs). A separately hosted app is supported for people who want one UI across several daemons.
 
@@ -54,7 +53,7 @@ Approval is always explicit: approve re-reads the live state right before sendin
 ## CORS and origins
 
 - The bundled UI is same-origin: no CORS needed.
-- A separately hosted app must be allowed explicitly: `cors.allowed_origins = ["https://app.example"]` (or `muxtowerd --allow-origin`). Default is empty. Bearer tokens only, no cookies, so `allow_credentials` is false; allowed headers are `Authorization`, `Content-Type`; preflight cached 10 min.
+- A separately hosted app must be allowed explicitly: `cors.allowed_origins = ["https://app.example"]` (or `muxtower serve --allow-origin`). Default is empty. Bearer tokens only, no cookies, so `allow_credentials` is false; allowed headers are `Authorization`, `Content-Type`; preflight cached 10 min.
 - Browsers do not apply CORS to WebSockets, so `/v1/stream` checks the `Origin` header against the same list (plus same-origin) before accepting.
 - A hosted HTTPS app cannot reach a plain-HTTP or private-IP daemon (mixed content, Local Network Access). Docs point those users to the bundled UI.
 - A reverse proxy or gate in front must let `OPTIONS` preflights through untouched, since they carry no credentials.
@@ -68,4 +67,4 @@ Web Push with a per-daemon VAPID key. The subscription belongs to the app's orig
 - Vite + React + TypeScript PWA; Tailwind v4 tokens; shadcn/ui primitives; TanStack Router, TanStack Query, Zustand; xterm.js for the terminal.
 - Daemons are first class: a persisted list `{id, name, url, token}`; one typed client per daemon; every query key starts with the daemon id.
 - Screens: **Inbox** (everything waiting on a human, across all daemons), **Session** (terminal, pending action card with approve/deny/options, input bar, keys), **Daemons** (add by pairing link/QR or by hand, per-daemon push settings).
-- No configuration is baked into the bundle. An optional `/config.json` next to `index.html` supplies default daemons; the bundled copy served by `muxtowerd` advertises its own daemon.
+- No configuration is baked into the bundle. An optional `/config.json` next to `index.html` supplies default daemons; the bundled copy served by the daemon advertises its own daemon.

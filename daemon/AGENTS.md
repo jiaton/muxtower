@@ -1,14 +1,14 @@
 # AGENTS.md — daemon
 
-Python package `muxtower`: the `muxtowerd` daemon (FastAPI) and the `muxtower` CLI. It owns agent sessions in tmux on a dedicated socket (`-L muxtower`), detects what each agent is waiting for (Claude Code HTTP hooks first, configurable screen rules as fallback), and exposes sessions, terminal I/O, approvals and Web Push over `/v1`. Talks to: tmux (libtmux), SQLite, Web Push endpoints. Design: `../docs/design.md`.
+Python package `muxtower`: one command, `muxtower`: `muxtower serve` runs the daemon (FastAPI), the other subcommands manage it locally. It owns agent sessions in tmux on a dedicated socket (`-L muxtower`), detects what each agent is waiting for (Claude Code HTTP hooks first, configurable screen rules as fallback), and exposes sessions, terminal I/O, approvals and Web Push over `/v1`. Talks to: tmux (libtmux), SQLite, Web Push endpoints. Design: `../docs/design.md`.
 
 ## Setup / Test / Run
 
 - Install: `poetry install`
-- Run the daemon (dev, reload): `poetry run muxtowerd --dev` (binds `127.0.0.1:8731`, state in `./.dev-state/`)
+- Run the daemon (dev, reload): `poetry run muxtower serve --dev` (binds `127.0.0.1:8731`, state in `./.dev-state/`)
 - Tests: `poetry run pytest`
 - Lint/typecheck: `poetry run ruff check . && poetry run ruff format --check . && poetry run mypy src`
-- Export the contract: `poetry run muxtowerd export-openapi > ../openapi.json` (or `./tasks.sh contract` at the root)
+- Export the contract: `poetry run muxtower openapi > ../openapi.json` (or `make contract` at the root)
 
 ## Stack
 
@@ -29,7 +29,7 @@ src/muxtower/
   infra/      tmux adapter, SQLite connection + migrations, event bus
   config.py   settings (TOML + MUXTOWER_* env)
   app.py      FastAPI factory: routers, CORS, lifespan, static UI
-  cli/        `muxtower` and `muxtowerd` entry points
+  cli/        the `muxtower` entry point and its subcommands
 ```
 
 Each domain folder keeps four roles in separate files: `routes.py` (parse, call service, shape response), `service.py` (logic; never imports FastAPI request/response or a concrete driver), `ports.py` (Protocols), and adapters (`repository.py` / `*_client.py`, the only code touching SQLite, tmux or the network). Services get their ports injected through FastAPI dependencies built in `app.py`; no module-level mutable state (no global `enabled` flags, no module-level caches), so tests can build an isolated app.
@@ -39,7 +39,7 @@ Split a file past 250 lines or once it mixes two domains.
 ## FE/BE type contract
 
 - `/openapi.json` from FastAPI is the source of truth; `openapi.json` at the repo root is its committed export; the app generates types with `openapi-typescript` and calls through `openapi-fetch`.
-- CI regenerates and fails on diff (`./tasks.sh contract-check`).
+- CI regenerates and fails on diff (`make contract-check`).
 - Request/response bodies are Pydantic models, never raw dicts. No `dict[str, Any]` fields (they collapse to `Record<string, never>`); give them a model. Enums are `StrEnum` and must show up as string unions in the generated types — check the output when adding one.
 - WebSocket frames are Pydantic models too, listed in the schema through a `GET /v1/stream/schema` route so they reach the generated types.
 

@@ -43,5 +43,6 @@
     "openapi-typescript": {
       "typescript": "$typescript"
     }
-  }
+  },
+  "license": "Apache-2.0"
 }

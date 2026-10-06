@@ -1,6 +1,6 @@
 # AGENTS.md — app
 
-`muxtower-app`: a PWA for phones and desktops that connects to one or more `muxtowerd` daemons. Shows every agent session waiting on a human across all daemons (Inbox), a live terminal per session with approve/deny/option buttons and an input bar, and Web Push when an agent needs attention. Talks only to daemon `/v1` APIs. Served by the daemon at `/` (recommended) or hosted separately as static files.
+`muxtower-app`: a PWA for phones and desktops that connects to one or more muxtower daemons. Shows every agent session waiting on a human across all daemons (Inbox), a live terminal per session with approve/deny/option buttons and an input bar, and Web Push when an agent needs attention. Talks only to daemon `/v1` APIs. Served by the daemon at `/` (recommended) or hosted separately as static files.
 
 ## Setup / Test / Run
 

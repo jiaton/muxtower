@@ -1,4 +1,4 @@
-from muxtower.cli.daemon import RedactTokenFilter
+from muxtower.cli.serve import RedactTokenFilter
 
 
 def test_access_log_redacts_query_token() -> None:

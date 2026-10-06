@@ -3,6 +3,7 @@ name = "muxtower"
 version = "0.1.0.dev0"
 description = "Approve and drive coding agents running in tmux on a remote machine, from your phone. Headless daemon + API, one Bearer token, works behind any reverse proxy."
 readme = "README.md"
+license = "Apache-2.0"
 requires-python = ">=3.11,<4.0"
 keywords = ["tmux", "claude-code", "codex", "coding-agent", "remote", "approval", "pwa"]
 dependencies = [
@@ -16,7 +17,6 @@ dependencies = [
 
 [project.scripts]
 muxtower = "muxtower.cli.main:main"
-muxtowerd = "muxtower.cli.daemon:main"
 
 [tool.poetry]
 packages = [{ include = "muxtower", from = "src" }]

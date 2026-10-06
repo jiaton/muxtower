@@ -20,4 +20,4 @@ jobs:
       - run: pipx install poetry
       - run: cd daemon && poetry install
       - run: cd app && npm ci
-      - run: ./tasks.sh check
+      - run: make check

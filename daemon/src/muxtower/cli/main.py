@@ -1,10 +1,12 @@
-"""`muxtower`: the local CLI. Talks to the state directory directly, so it needs local access."""
+"""`muxtower`: the one command. `muxtower serve` runs the daemon; every other subcommand is local
+management that talks to the state directory directly, so it needs local access."""
 
 import argparse
 import sys
 
 from muxtower.app import build_token_service
 from muxtower.auth.service import TokenNameTaken
+from muxtower.cli.serve import add_serve_parser
 from muxtower.config import load_settings
 
 
@@ -31,6 +33,7 @@ def _cmd_token(args: argparse.Namespace) -> int:
 def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(prog="muxtower", description="Run and control coding agents in tmux")
     sub = p.add_subparsers(dest="command", required=True)
+    add_serve_parser(sub)
 
     token = sub.add_parser("token", help="manage device tokens")
     token_sub = token.add_subparsers(dest="action", required=True)

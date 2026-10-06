@@ -2,7 +2,7 @@
 
 **Approve and drive the coding agents running on your remote machine — from your phone.**
 
-muxtower is server-side and headless. `muxtowerd` runs next to your agents (Claude Code, Codex, …) in tmux, knows which one is waiting on you and for what, and exposes it all through a typed HTTP + WebSocket API behind a single Bearer token. Put it behind any reverse proxy; open the bundled web app on your phone; approve, answer, or type into any session.
+muxtower is server-side and headless. `muxtower serve` runs next to your agents (Claude Code, Codex, …) in tmux, knows which one is waiting on you and for what, and exposes it all through a typed HTTP + WebSocket API behind a single Bearer token. Put it behind any reverse proxy; open the bundled web app on your phone; approve, answer, or type into any session.
 
 > Status: early development. Not ready for use yet.
 
@@ -11,7 +11,7 @@ muxtower is server-side and headless. `muxtowerd` runs next to your agents (Clau
 ```sh
 pipx install muxtower
 muxtower token add phone      # prints a token once
-muxtowerd --public-url https://daemon.example
+muxtower serve --public-url https://daemon.example
 ```
 
 Open the daemon's URL in a browser: the web app is served from the daemon itself (recommended — same origin, no CORS, works on a plain-HTTP LAN). A separately hosted app can connect too once its origin is allowed with `--allow-origin`.
@@ -24,6 +24,6 @@ Open the daemon's URL in a browser: the web app is served from the daemon itself
 
 ## Repository
 
-- `daemon/` — the `muxtower` Python package (`muxtowerd`, `muxtower`)
+- `daemon/` — the `muxtower` Python package (the `muxtower` command)
 - `app/` — the web app (Vite + React PWA)
 - `docs/design.md` — architecture

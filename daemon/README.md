@@ -1,8 +1,8 @@
-# muxtower (daemon)
+# muxtower (Python package)
 
-`pipx install muxtower` installs two commands:
+`pipx install muxtower` installs one command, `muxtower`:
 
-- `muxtowerd` — the daemon. Serves the API under `/v1` and the web app at `/`.
-- `muxtower` — the CLI: run an agent in a managed tmux session, manage tokens, pair a phone.
+- `muxtower serve` — run the daemon: the API under `/v1` and the web app at `/`.
+- `muxtower token add|list|revoke` — manage device tokens.
 
 See the repository README and `docs/design.md`.

@@ -28,6 +28,6 @@ def mount_ui(app: FastAPI, public_url: str | None, daemon_name: str) -> None:
         if index.is_file():
             return FileResponse(index, headers={"Cache-Control": "no-cache"})
         return JSONResponse(
-            {"detail": "web UI not bundled in this build; run `./tasks.sh wheel` or use a hosted app"},
+            {"detail": "web UI not bundled in this build; run `make wheel` or use a hosted app"},
             status_code=404,
         )

@@ -11,7 +11,7 @@ export default defineConfig({
   plugins: [tanstackRouter({ target: 'react', autoCodeSplitting: true }), react(), tailwindcss()],
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   server: {
-    // Same-origin in dev, exactly like the bundled UI served by muxtowerd: no CORS involved.
+    // Same-origin in dev, exactly like the bundled UI served by `muxtower serve`: no CORS involved.
     proxy: {
       '/v1': { target: DEV_DAEMON, ws: true },
       '/config.json': DEV_DAEMON,
