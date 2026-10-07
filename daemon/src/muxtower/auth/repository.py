@@ -6,9 +6,7 @@ from muxtower.infra.db import Database
 
 
 def _row(row: sqlite3.Row) -> DeviceToken:
-    return DeviceToken(
-        id=row["id"], name=row["name"], created_at=row["created_at"], last_used_at=row["last_used_at"]
-    )
+    return DeviceToken(id=row["id"], name=row["name"], created_at=row["created_at"], last_used_at=row["last_used_at"])
 
 
 class SqliteTokenRepository:

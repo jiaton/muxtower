@@ -30,8 +30,9 @@ class CorsSettings(BaseModel):
 
 class PairingSettings(BaseModel):
     mode: PairingMode = PairingMode.DEVICE
-    shared_token_name: str | None = None
-    window_seconds: int = 600
+    # Shared mode: the token value every claim hands out (it is also accepted as a device named "shared").
+    shared_token: str | None = None
+    code_ttl_seconds: int = 300
 
 
 class Settings(BaseModel):
@@ -43,12 +44,21 @@ class Settings(BaseModel):
     config_dir: Path = DEFAULT_CONFIG_DIR
     serve_ui: bool = True
     tmux_socket: str = "muxtower"
+    # Other tmux servers to scan for agents started outside muxtower ("default" = the user's own tmux).
+    adopt_sockets: list[str] = Field(default_factory=lambda: ["default"])
+    tick_seconds: float = 1.0
     cors: CorsSettings = Field(default_factory=CorsSettings)
     pairing: PairingSettings = Field(default_factory=PairingSettings)
 
     @property
     def db_path(self) -> Path:
         return self.state_dir / "muxtower.db"
+
+    @property
+    def local_url(self) -> str:
+        """How processes on this machine (hooks, the CLI) reach the daemon."""
+        host = "127.0.0.1" if self.host in ("0.0.0.0", "::", "") else self.host  # noqa: S104
+        return f"http://{host}:{self.port}"
 
 
 # Flat env var -> nested settings key. Lists are comma-separated.
@@ -61,8 +71,12 @@ _ENV_KEYS: dict[str, tuple[str, ...]] = {
     "MUXTOWER_TMUX_SOCKET": ("tmux_socket",),
     "MUXTOWER_CORS_ALLOWED_ORIGINS": ("cors", "allowed_origins"),
     "MUXTOWER_PAIRING_MODE": ("pairing", "mode"),
-    "MUXTOWER_PAIRING_SHARED_TOKEN_NAME": ("pairing", "shared_token_name"),
+    "MUXTOWER_PAIRING_SHARED_TOKEN": ("pairing", "shared_token"),
+    "MUXTOWER_ADOPT_SOCKETS": ("adopt_sockets",),
 }
+
+
+_LIST_KEYS = {"allowed_origins", "adopt_sockets"}
 
 
 def _set_nested(data: dict[str, Any], keys: tuple[str, ...], value: Any) -> None:
@@ -86,9 +100,7 @@ def load_settings(
     for var, keys in _ENV_KEYS.items():
         if var in env:
             raw = env[var]
-            value: Any = (
-                [o.strip() for o in raw.split(",") if o.strip()] if keys[-1] == "allowed_origins" else raw
-            )
+            value: Any = [o.strip() for o in raw.split(",") if o.strip()] if keys[-1] in _LIST_KEYS else raw
             _set_nested(data, keys, value)
 
     for dotted, value in (overrides or {}).items():

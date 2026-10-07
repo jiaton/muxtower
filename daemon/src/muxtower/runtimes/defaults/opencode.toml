@@ -1,0 +1,4 @@
+# opencode: launch, terminal and input work; no screen rules ship yet, so state stays "unknown".
+# Add rules in ~/.config/muxtower/runtimes/opencode.toml (see claude-code.toml for the format).
+name = "opencode"
+binary = "opencode"

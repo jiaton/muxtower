@@ -1,0 +1,75 @@
+# Claude Code. Hooks (http) are the primary state source; these screen rules are the fallback for
+# sessions without hooks (adopted panes) and a cross-check. Rules are tried in order, first match wins.
+# Override by copying this file to ~/.config/muxtower/runtimes/claude-code.toml.
+name = "claude-code"
+binary = "claude"
+hooks = "claude-code"
+default_state = "idle"
+auto_approve_states = ["needs_permission", "needs_trust"]
+
+[[rules]]
+name = "tool-permission"
+state = "needs_permission"
+pattern = 'Tab\s+to\s+amend.*ctrl\+e\s+to\s+explain'
+
+[[rules]]
+name = "tool-permission-generic"
+state = "needs_permission"
+pattern = 'Do\s+you\s+want\s+to.*?\n\s*❯?\s*1\.\s*Yes'
+
+[[rules]]
+name = "question"
+state = "needs_answer"
+pattern = '↑/↓\s+to\s+navigate'
+
+[[rules]]
+name = "question-multi-step"
+state = "needs_answer"
+pattern = '☐.*✔\s*Submit'
+
+[[rules]]
+name = "mcp-server-trust"
+state = "needs_trust"
+pattern = '(?=.*MCP\s+server)(?=.*Enter\s+to\s+confirm)'
+
+[[rules]]
+name = "workspace-trust"
+state = "needs_trust"
+pattern = '(?=.*trust\s+this\s+folder)(?=.*Enter\s+to\s+confirm)'
+
+[[rules]]
+name = "plan-review"
+state = "plan_review"
+pattern = 'How\s+would\s+you\s+like\s+to\s+proceed\?'
+
+[[rules]]
+name = "choice-dialog"
+state = "needs_answer"
+pattern = 'Enter\s+to\s+confirm\s+·\s+Esc\s+to\s+cancel'
+
+[[rules]]
+name = "api-error"
+state = "error"
+pattern = 'API\s+Error:'
+
+[[rules]]
+name = "working"
+state = "busy"
+pattern = 'esc\s+to\s+interrupt'
+
+[menu]
+# The glyph that marks the highlighted choice. Change it if your theme draws something else.
+cursor = "❯"
+
+[approve]
+# Options are chosen by label, then selected with the arrow keys and confirmed with Enter.
+default = ['^Yes\b']
+
+[approve.prefer]
+# A broader "Yes, allow ... during this session" grants the same access without asking again.
+needs_permission = ['^Yes,\s*allow\b.*\bduring\s+this\s+session', '^Yes\b']
+needs_trust = ['^Yes\b']
+plan_review = ['^Yes\b']
+
+[deny]
+send = [{ key = "Escape" }]

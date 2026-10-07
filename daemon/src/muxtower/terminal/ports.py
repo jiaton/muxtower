@@ -1,0 +1,31 @@
+from dataclasses import dataclass
+from typing import Protocol
+
+
+@dataclass(frozen=True)
+class PaneInfo:
+    socket: str
+    pane_id: str
+    session_name: str
+    command: str
+    cwd: str
+
+
+@dataclass(frozen=True)
+class PaneRef:
+    """Where a session's pane lives: a tmux server (socket name, "default" = the user's own) + pane id."""
+
+    socket: str
+    pane_id: str
+
+
+class TmuxPort(Protocol):
+    def new_session(
+        self, socket: str, name: str, cwd: str, argv: list[str], env: dict[str, str], cols: int, rows: int
+    ) -> PaneRef: ...
+    def list_panes(self, socket: str) -> list[PaneInfo]: ...
+    def capture(self, pane: PaneRef, ansi: bool = False, history: int = 0) -> str | None: ...
+    def send_text(self, pane: PaneRef, text: str) -> None: ...
+    def send_key(self, pane: PaneRef, key: str) -> None: ...
+    def resize(self, pane: PaneRef, cols: int, rows: int) -> None: ...
+    def kill_session(self, socket: str, name: str) -> None: ...

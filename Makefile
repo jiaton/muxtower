@@ -1,7 +1,7 @@
 .PHONY: contract contract-check check wheel
 
 contract:
-	cd daemon && poetry run muxtower openapi > ../openapi.json
+	cd daemon && poetry run python -c "from muxtower.cli.serve import print_openapi; print_openapi()" > ../openapi.json
 	cd app && npm run --silent gen:api
 
 contract-check: contract

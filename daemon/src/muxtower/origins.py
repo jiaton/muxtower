@@ -15,3 +15,10 @@ class OriginPolicy:
         if origin.rstrip("/") in self.allowed:
             return True
         return urlsplit(origin).netloc == host
+
+    def same_origin(self, origin: str | None, host: str | None) -> bool:
+        """Strict check for cookie-authenticated sockets: the page's origin is this daemon's own host
+        (or an explicitly listed origin; the "*" default does not count)."""
+        if origin is None:
+            return False
+        return urlsplit(origin).netloc == host or origin.rstrip("/") in (self.allowed - {"*"})

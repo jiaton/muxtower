@@ -20,9 +20,7 @@ class RedactTokenFilter(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
         if isinstance(record.args, tuple):
-            record.args = tuple(
-                self._pattern.sub(r"\1[redacted]", a) if isinstance(a, str) else a for a in record.args
-            )
+            record.args = tuple(self._pattern.sub(r"\1[redacted]", a) if isinstance(a, str) else a for a in record.args)
         return True
 
 
@@ -36,9 +34,6 @@ def add_serve_parser(sub: "argparse._SubParsersAction[argparse.ArgumentParser]")
     p.add_argument("--no-ui", action="store_true", help="do not serve the bundled web app")
     p.add_argument("--dev", action="store_true", help="keep state in ./.dev-state")
     p.set_defaults(func=cmd_serve)
-
-    o = sub.add_parser("openapi", help="print the API's OpenAPI schema")
-    o.set_defaults(func=cmd_openapi)
 
 
 def _settings(args: argparse.Namespace) -> Settings:
@@ -55,13 +50,25 @@ def _settings(args: argparse.Namespace) -> Settings:
 
 def cmd_serve(args: argparse.Namespace) -> int:
     settings = _settings(args)
+    exposed = settings.host not in ("127.0.0.1", "localhost", "::1")
+    if exposed and not (settings.public_url or "").startswith("https://"):
+        print(
+            f"warning: listening on {settings.host} without an https public_url. Put HTTPS in front "
+            "(Tailscale serve, Cloudflare Tunnel, Caddy): the app needs it to install and to push.",
+            file=sys.stderr,
+        )
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     logging.getLogger("uvicorn.access").addFilter(RedactTokenFilter())
     uvicorn.run(create_app(settings), host=settings.host, port=settings.port, proxy_headers=True)
     return 0
 
 
-def cmd_openapi(args: argparse.Namespace) -> int:
-    app = create_app(load_settings().model_copy(update={"serve_ui": False}))
-    json.dump(app.openapi(), sys.stdout, indent=2, sort_keys=True)
-    sys.stdout.write("\n")
-    return 0
+def print_openapi() -> None:
+    """Dev entry point for `make contract` (not a user-facing subcommand)."""
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as state:
+        settings = load_settings(env={}, overrides={"state_dir": Path(state), "serve_ui": False})
+        app = create_app(settings, run_loops=False)
+        json.dump(app.openapi(), sys.stdout, indent=2, sort_keys=True)
+        sys.stdout.write("\n")
