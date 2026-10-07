@@ -45,18 +45,39 @@ Approval is always explicit: approve re-reads the live state right before sendin
 
 ## Auth
 
-- **Tokens.** Named, revocable device tokens (`muxtower token add phone`, `token list`, `token revoke`), stored hashed. One token is enough to run it; several are there so a lost phone can be revoked alone.
-- **Transport.** HTTP: `Authorization: Bearer`. WebSocket (browsers cannot set headers): `Sec-WebSocket-Protocol: muxtower, bearer.<token>` preferred, `?token=` accepted for proxies that only pass query tokens. Logs never include either.
-- **Pairing.** `muxtower pair` opens a 10-minute window and prints a QR code in the terminal for `<app-url>/pair#u=<daemon-url>&c=<one-time-code>`. The fragment never reaches a server. The app redeems the code at `POST /v1/pair/claim` for a device token. `pairing.mode = "shared"` hands out an existing named token instead, for setups where a front gate must already know every token.
-- **Public URL.** `public_url` in config is what pairing and the bundled `/config.json` advertise; the daemon never guesses its own address from the request when running behind a proxy.
+- **No accounts.** A daemon has one owner; the app keeps its daemon list (URL + token) only in the browser that added it. There is no server-side user store anywhere.
+- **Device tokens.** Every paired device gets its own named token, stored hashed on the daemon, so a lost phone is revoked alone (from the app's daemon page, or `muxtower pair --revoke <name>`).
+- **Transport.** HTTP: `Authorization: Bearer`. WebSocket (browsers cannot set headers): the app first offers the token as a subprotocol, `Sec-WebSocket-Protocol: muxtower, bearer.<token>`, which keeps it out of URLs and logs; if that handshake is refused (some proxies and gates only accept a query token), it retries once with `?token=` and remembers that for the daemon. The daemon redacts `token=` from access logs.
+- **Pairing = one-time codes.** A device never receives a token by being shown it. Instead a short-lived (5 min), single-use pairing code is shown as a QR for `<app-url>/pair#u=<daemon-url>&c=<code>` (the fragment never reaches a server), and the new device redeems it at `POST /v1/pair/claim` for its own fresh token. Two ways to get a code:
+  - `muxtower pair` on the daemon's machine (first device);
+  - **from an already-paired device**: the app's "Add another device" shows one QR carrying a fresh code for every daemon it knows, so a phone that is paired once can pair a laptop in one scan. A photographed QR is useless once redeemed or expired.
+- **Shared mode.** `pairing.mode = "shared"` makes claims hand out one existing named token instead, for setups where a front gate must already know every token it lets through.
+- **Public URL.** `public_url` in config is what pairing and the bundled `/config.json` advertise; behind a proxy the daemon never guesses its own address from the request.
 
 ## CORS and origins
 
-- The bundled UI is same-origin: no CORS needed.
-- A separately hosted app must be allowed explicitly: `cors.allowed_origins = ["https://app.example"]` (or `muxtower serve --allow-origin`). Default is empty. Bearer tokens only, no cookies, so `allow_credentials` is false; allowed headers are `Authorization`, `Content-Type`; preflight cached 10 min.
-- Browsers do not apply CORS to WebSockets, so `/v1/stream` checks the `Origin` header against the same list (plus same-origin) before accepting.
-- A hosted HTTPS app cannot reach a plain-HTTP or private-IP daemon (mixed content, Local Network Access). Docs point those users to the bundled UI.
+- Default `cors.allowed_origins = ["*"]`. This is safe because auth is bearer-only: no cookies are ever sent, so a foreign page can call nothing but `/v1/health` and `/v1/pair/claim` without a token. Listing origins only tightens it. `allow_credentials` is false; allowed headers are `Authorization`, `Content-Type`; preflights are cached 10 minutes.
+- Browsers do not apply CORS to WebSockets; `/v1/stream` checks `Origin` against the same list (any origin by default) and always requires the token.
 - A reverse proxy or gate in front must let `OPTIONS` preflights through untouched, since they carry no credentials.
+- The app never goes through a proxy of its own: a hosted app talks to daemons directly from the browser, so the host never sees tokens or terminal contents.
+
+## HTTPS
+
+HTTPS is the expected setup, not an extra: service workers, installing the PWA and Web Push only work in a secure context (localhost excepted). `muxtower serve` binds `127.0.0.1` by default and warns when it binds anything else while `public_url` is not `https://`. Documented ways to put HTTPS in front:
+
+1. **Tailscale** (personal use): `tailscale serve --bg 8731` → `https://<machine>.<tailnet>.ts.net`, certificate managed by Tailscale, no domain or open port.
+2. **Cloudflare Tunnel**: a public hostname, no open port, TLS at Cloudflare.
+3. **Caddy** (own domain): `reverse_proxy 127.0.0.1:8731`, certificates issued automatically.
+
+A hosted HTTPS app cannot reach a plain-HTTP or private-IP daemon (mixed content, Local Network Access); such daemons use their bundled UI.
+
+## Hosting the app
+
+The app is a static SPA; the same build runs anywhere.
+
+- **Bundled** (recommended): served by `muxtower serve` at `/`, same origin as its daemon.
+- **Your own static host**: one-click "Deploy to Cloudflare" (Workers static assets, SPA fallback via `not_found_handling`) or fork + GitHub Pages (Actions workflow; base path from `MUXTOWER_BASE`). Add daemons by pairing.
+- **A public instance** run by the project, for convenience only. It is built and deployed by public CI from tagged releases, so users can check what they run; the docs still recommend the bundled UI, because whoever serves the JS could read the tokens in that browser.
 
 ## Push
 

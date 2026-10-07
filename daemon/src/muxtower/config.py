@@ -23,7 +23,9 @@ class PairingMode(StrEnum):
 
 
 class CorsSettings(BaseModel):
-    allowed_origins: list[str] = Field(default_factory=list)
+    # "*" is safe as the default because auth is bearer-only: no cookies ride along, so a foreign page
+    # gets nothing without a token. List origins here only to tighten it.
+    allowed_origins: list[str] = Field(default_factory=lambda: ["*"])
 
 
 class PairingSettings(BaseModel):
