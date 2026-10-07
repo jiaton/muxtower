@@ -1,0 +1,117 @@
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
+import { ArrowLeft, Pencil, Power } from 'lucide-react'
+import { useState } from 'react'
+import { QueryState } from '@/components/query-state'
+import { Banner } from '@/components/ui/banner'
+import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { EmptyState } from '@/components/ui/empty-state'
+import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
+import { PendingActionCard } from '@/features/approval/components/pending-action-card'
+import { useTerminateSession, useUpdateSession } from '@/features/sessions/api/use-session-mutations'
+import { useSession } from '@/features/sessions/api/use-sessions'
+import { StateBadge } from '@/features/sessions/components/state-badge'
+import { useResize, useScreen } from '@/features/terminal/api/use-terminal'
+import { InputBar } from '@/features/terminal/components/input-bar'
+import { TerminalView } from '@/features/terminal/components/terminal-view'
+import type { Session } from '@/lib/api/types'
+
+export const Route = createFileRoute('/d/$daemonId/s/$sessionId')({ component: SessionPage })
+
+function SessionPage() {
+  const { daemonId, sessionId } = Route.useParams()
+  const query = useSession(daemonId, sessionId)
+  return (
+    <QueryState query={query}>
+      {() =>
+        query.session ? (
+          <SessionView daemonId={daemonId} session={query.session} />
+        ) : (
+          <EmptyState title="This session has ended">
+            <Link to="/" className="text-accent underline">
+              Back to the inbox
+            </Link>
+          </EmptyState>
+        )
+      }
+    </QueryState>
+  )
+}
+
+function SessionView({ daemonId, session }: { daemonId: string; session: Session }) {
+  const screen = useScreen(daemonId, session.id)
+  const resize = useResize(daemonId, session.id)
+  const update = useUpdateSession(daemonId, session.id)
+  const terminate = useTerminateSession(daemonId, session.id)
+  const navigate = useNavigate()
+  const [renaming, setRenaming] = useState(false)
+  const [name, setName] = useState(session.name)
+  const launched = session.source === 'launched'
+
+  return (
+    <div className="-mx-4 -mt-4 flex min-h-0 flex-1 flex-col gap-3 px-3 pt-3">
+      <header className="flex items-center gap-2">
+        <Button asChild variant="ghost" size="icon-sm" aria-label="Back to inbox">
+          <Link to="/">
+            <ArrowLeft />
+          </Link>
+        </Button>
+        <h1 className="min-w-0 truncate text-lg font-semibold">{session.name}</h1>
+        <StateBadge state={session.state} />
+        <div className="ml-auto flex items-center gap-1">
+          <Button variant="ghost" size="icon-sm" aria-label="Rename" onClick={() => setRenaming(true)}>
+            <Pencil />
+          </Button>
+          {launched ? (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Stop session"
+              onClick={() => {
+                if (confirm(`Stop ${session.name}? This kills its tmux session.`))
+                  terminate.mutate(undefined, { onSuccess: () => void navigate({ to: '/' }) })
+              }}
+            >
+              <Power />
+            </Button>
+          ) : null}
+        </div>
+      </header>
+
+      {session.can_auto_approve ? (
+        <label className="flex items-center justify-between gap-3 text-sm">
+          <span className="text-fg-muted">Auto-approve tool permissions and trust prompts</span>
+          <Switch checked={session.auto_approve} onCheckedChange={(on) => update.mutate({ auto_approve: on })} />
+        </label>
+      ) : null}
+
+      {session.needs_attention && session.pending ? (
+        <div className="rounded-lg border border-state-permission bg-surface p-3">
+          <PendingActionCard daemonId={daemonId} sessionId={session.id} pending={session.pending} />
+        </div>
+      ) : null}
+
+      {screen.isError ? <Banner tone="error">{screen.error.message}</Banner> : null}
+      <TerminalView ansi={screen.data} onSize={launched ? (size) => resize.mutate(size) : undefined} />
+      <InputBar daemonId={daemonId} sessionId={session.id} />
+
+      <Dialog open={renaming} onOpenChange={setRenaming}>
+        <DialogContent title="Rename session">
+          <form
+            className="flex flex-col gap-3"
+            onSubmit={(e) => {
+              e.preventDefault()
+              update.mutate({ name: name.trim() }, { onSuccess: () => setRenaming(false) })
+            }}
+          >
+            <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} required aria-label="Session name" />
+            <Button type="submit" disabled={update.isPending}>
+              Save
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}

@@ -16,7 +16,8 @@ def mount_ui(app: FastAPI, public_url: str | None, daemon_name: str) -> None:
     @app.get("/config.json", include_in_schema=False)
     def config(request: Request) -> JSONResponse:
         url = public_url or str(request.base_url).rstrip("/")
-        return JSONResponse({"bundled_daemon": {"name": daemon_name, "url": url}})
+        # The bundled UI offers to pair with the daemon that served it. Never includes a token.
+        return JSONResponse({"daemons": [{"name": daemon_name, "url": url}]})
 
     @app.get("/{path:path}", include_in_schema=False)
     def spa(path: str) -> Response:

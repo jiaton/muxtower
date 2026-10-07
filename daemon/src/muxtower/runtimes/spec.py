@@ -139,12 +139,17 @@ class Runtime:
         while last + 1 < len(lines) and kind(lines[last + 1]) is not None:
             last += 1
 
+        # A line as wide as the screen was cut by the terminal, possibly mid-word (long paths). The width is
+        # taken from lines outside the menu: real screens have a full-width separator above it.
+        outside = [len(line.rstrip()) for j, line in enumerate(lines) if not first <= j <= last]
+        width = max(outside, default=0)
         labels: list[str] = []
         cursor_index = 0
         for i in range(first, last + 1):
             text = lines[i][column:].strip()
             if kind(lines[i]) == "more" and labels:
-                labels[-1] += " " + text
+                cut = abs(len(lines[i - 1].rstrip()) - width) <= 1
+                labels[-1] += ("" if cut else " ") + text
                 continue
             if i == at:
                 cursor_index = len(labels)

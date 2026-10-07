@@ -4,7 +4,6 @@ Auth, in order: the stream cookie (same-origin app only), `Sec-WebSocket-Protoco
 bearer.<token>`, then `?token=` for proxies that only forward query tokens."""
 
 import asyncio
-import contextlib
 import logging
 from typing import Annotated, Any, Literal
 
@@ -168,12 +167,13 @@ async def stream(ws: WebSocket) -> None:
     try:
         done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
         for task in done:
+            if task.cancelled():
+                continue
             exc = task.exception()
             if exc and not isinstance(exc, WebSocketDisconnect | RuntimeError):
                 logger.error("stream for %s failed", device, exc_info=exc)
     finally:
+        # No awaiting here: this also runs when the handler itself is being cancelled.
         for task in tasks:
             task.cancel()
-        with contextlib.suppress(Exception):
-            await asyncio.gather(*tasks, return_exceptions=True)
         conn.close()

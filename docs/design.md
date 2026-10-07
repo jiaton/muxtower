@@ -6,7 +6,7 @@ muxtower lets coding agents running in tmux on a remote machine be approved and 
 
 | piece | what | ships as |
 |---|---|---|
-| `muxtower` | the one command. `muxtower serve` runs the daemon (session registry, state detection, approvals, push, API); `muxtower run`, `token`, `pair` manage it locally. `muxtower run` starts the daemon in the background if it is not running | console script in the `muxtower` Python package |
+| `muxtower` | the one command. `muxtower serve` runs the daemon (session registry, state detection, approvals, push, API); `muxtower` (status), `run`, `attach`, `pair` manage it locally through a 0600 CLI token; `run` starts the daemon in the background if it is not running. Five commands, nothing more | console script in the `muxtower` Python package |
 | `muxtower-app` | PWA client (Vite + React); talks to one or many daemons | built into the wheel and served by `muxtower serve` at `/`; also a standalone static build / container |
 
 `pipx install muxtower` gives a working daemon **and** UI. The bundled UI is the recommended way to use it (same origin as the API, no CORS, works on plain-HTTP LANs). A separately hosted app is supported for people who want one UI across several daemons.
@@ -33,21 +33,21 @@ Sources, in priority order:
    - `PermissionRequest` → state `needs_permission`, with `tool_name` / `tool_input` / `permission_rule` shown on the phone. The daemon answers immediately with an empty body (v0.1: report only, the dialog still appears in the terminal and is answered by keystroke). Holding the request open and answering `allow`/`deny` from the phone is a later, opt-in mode.
    - `Notification` (`permission_prompt`, `idle_prompt`, `elicitation_dialog`, `agent_needs_input`) → needs-attention states.
    - `PreToolUse` / `PostToolUse` → `busy`; `Stop` → `idle` + `last_assistant_message` (replaces scraping the reply off the screen); `SessionStart` / `SessionEnd` → lifecycle.
-2. **Screen rules (fallback / custom).** A capture-pane loop classifies the screen with an ordered rule list loaded from TOML (`runtimes/<name>.toml` shipped as defaults, overridden by `$XDG_CONFIG_HOME/muxtower/runtimes/<name>.toml`). Rules are data, not code: regex, resulting state, optional "option picker" regex for numbered choices, the keys to send for approve/deny. Used when a runtime has no hooks, a hook has not fired yet, or a user's theme/harness version differs. `muxtower rules test <session>` prints which rule matches the live screen.
+2. **Screen rules (fallback / custom).** A capture loop classifies every pane with an ordered rule list loaded from TOML (`runtimes/defaults/<name>.toml`, replaced file-by-file by `$XDG_CONFIG_HOME/muxtower/runtimes/<name>.toml`). Rules are data, not code: a regex and the state it means. A `[menu]` section names the cursor glyph; the menu parser reads the block of choices around it (numbered or not, wrapped labels joined). Used for runtimes without hooks, adopted panes, and as the cross-check that clears a stale hook state. The session view exposes `matched_rule`.
 
-Approval is always explicit: approve re-reads the live state right before sending keys and refuses (409) when nothing approvable is on screen. Auto-approve is a per-session policy (`off` by default), never inferred.
+Approval is always explicit. Approve re-reads the live screen, parses the menu, picks the requested option (or the runtime's `[approve.prefer]` choice, exposed as `pending.recommended`), and moves there with arrow keys before Enter. It never types digits, so a stray key cannot land in the next dialog. It refuses (409) when no dialog is on screen; a hook-only dialog is acted on only after it has had a second to render and its menu is readable. Auto-approve is a per-session switch, limited to the runtime's `auto_approve_states`, and acts only on dialogs the screen rules recognise.
 
 ## API
 
 - Versioned under `/v1`. FastAPI's OpenAPI schema is exported to `openapi.json` at the repo root and is the contract for the app (`openapi-typescript` + `openapi-fetch`); CI fails if it is stale.
-- One WebSocket, `/v1/stream`: the client sends `subscribe` messages (`sessions`, `screen:<id>`), the server pushes typed frames. Replaces one socket per pane.
+- One WebSocket, `/v1/stream`: the client sends `{"type":"subscribe","topic":"sessions"}` or `{"type":"subscribe","topic":"screen","session_id":…,"history":N}`; the server pushes `sessions` and `screen` frames (shapes in the OpenAPI schema via `/v1/stream/schema`).
 - Health: `GET /v1/health` is public and returns only `{status, version}`.
 
 ## Auth
 
 - **No accounts.** A daemon has one owner; the app keeps its daemon list (URL + token) only in the browser that added it. There is no server-side user store anywhere.
 - **Device tokens.** Every paired device gets its own named token, stored hashed on the daemon, so a lost phone is revoked alone (from the app's daemon page, or `muxtower pair --revoke <name>`).
-- **Transport.** HTTP: `Authorization: Bearer`. WebSocket (browsers cannot set headers): the app first offers the token as a subprotocol, `Sec-WebSocket-Protocol: muxtower, bearer.<token>`, which keeps it out of URLs and logs; if that handshake is refused (some proxies and gates only accept a query token), it retries once with `?token=` and remembers that for the daemon. The daemon redacts `token=` from access logs.
+- **Transport.** HTTP: `Authorization: Bearer`. WebSocket (browsers cannot set headers): when the app is served by the daemon itself, an HttpOnly, SameSite=Strict cookie scoped to `/v1/stream` (minted by `POST /v1/stream/cookie`, accepted only with a same-origin `Origin`, never read by REST routes). Otherwise the app offers the token as a subprotocol, `Sec-WebSocket-Protocol: muxtower, bearer.<token>`, which keeps it out of URLs and logs; if that handshake is refused (some proxies and gates only accept a query token), it retries once with `?token=` and remembers that for the daemon. The daemon redacts `token=` from access logs.
 - **Pairing = one-time codes.** A device never receives a token by being shown it. Instead a short-lived (5 min), single-use pairing code is shown as a QR for `<app-url>/pair#u=<daemon-url>&c=<code>` (the fragment never reaches a server), and the new device redeems it at `POST /v1/pair/claim` for its own fresh token. Two ways to get a code:
   - `muxtower pair` on the daemon's machine (first device);
   - **from an already-paired device**: the app's "Add another device" shows one QR carrying a fresh code for every daemon it knows, so a phone that is paired once can pair a laptop in one scan. A photographed QR is useless once redeemed or expired.
@@ -81,11 +81,11 @@ The app is a static SPA; the same build runs anywhere.
 
 ## Push
 
-Web Push with a per-daemon VAPID key. The subscription belongs to the app's origin; the notification payload carries `daemon_id` and `session_id`, and a click opens `/d/<daemon>/s/<session>`. Filters per subscription: which states notify, muted sessions.
+Web Push with a per-daemon VAPID key. A browser registration holds one subscription, so the app registers its service worker once per daemon (scope `<base>push/<daemonId>/`, same script). The subscription belongs to the app's origin; the notification payload carries `daemon_id` and `session_id`, and a click opens `/d/<daemon>/s/<session>`. Filters per subscription: which states notify, muted sessions.
 
 ## App
 
 - Vite + React + TypeScript PWA; Tailwind v4 tokens; shadcn/ui primitives; TanStack Router, TanStack Query, Zustand; xterm.js for the terminal.
 - Daemons are first class: a persisted list `{id, name, url, token}`; one typed client per daemon; every query key starts with the daemon id.
 - Screens: **Inbox** (everything waiting on a human, across all daemons), **Session** (terminal, pending action card with approve/deny/options, input bar, keys), **Daemons** (add by pairing link/QR or by hand, per-daemon push settings).
-- No configuration is baked into the bundle. An optional `/config.json` next to `index.html` supplies default daemons; the bundled copy served by the daemon advertises its own daemon.
+- No configuration is baked into the bundle. An optional `/config.json` (`{"daemons": [{name, url, token?}], "acknowledge_public_tokens"?}`) next to `index.html` supplies default daemons, written at build time from `MUXTOWER_APP_CONFIG`; a preset token requires the acknowledgement and shows a warning. The bundled copy served by the daemon advertises its own daemon.

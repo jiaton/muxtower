@@ -310,6 +310,18 @@
             "title": "Options",
             "type": "array"
           },
+          "recommended": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "option key approve picks when none is given",
+            "title": "Recommended"
+          },
           "state": {
             "$ref": "#/components/schemas/AgentState"
           },

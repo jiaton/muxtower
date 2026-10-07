@@ -27,9 +27,14 @@ export class ApiError extends Error {
 
 /** Unwraps an openapi-fetch result so TanStack Query sees a thrown error on non-2xx. */
 export function unwrap<T>(result: { data?: T; error?: unknown; response: Response }): T {
-  if (result.data === undefined) {
+  if (!result.response.ok) {
     const detail = (result.error as { detail?: unknown } | undefined)?.detail
     throw new ApiError(result.response.status, detail)
   }
-  return result.data
+  return result.data as T
+}
+
+/** For 204 responses: throws on error, returns nothing. */
+export function check(result: { error?: unknown; response: Response }): void {
+  unwrap({ ...result, data: undefined })
 }

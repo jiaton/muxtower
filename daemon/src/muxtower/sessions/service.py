@@ -69,6 +69,8 @@ class SessionService:
         live = self.live.setdefault(record.id, LiveSession())
         eff = self.effective(record)
         runtime = self.runtime_of(record)
+        if eff.pending is not None and runtime is not None and eff.pending.options:
+            eff.pending.recommended = runtime.choose_option(eff.state, eff.pending.options)
         return Session(
             id=record.id,
             name=record.name,

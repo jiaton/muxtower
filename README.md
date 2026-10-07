@@ -2,28 +2,156 @@
 
 **Approve and drive the coding agents running on your remote machine — from your phone.**
 
-muxtower is server-side and headless. `muxtower serve` runs next to your agents (Claude Code, Codex, …) in tmux, knows which one is waiting on you and for what, and exposes it all through a typed HTTP + WebSocket API behind a single Bearer token. Put it behind any reverse proxy; open the bundled web app on your phone; approve, answer, or type into any session.
+muxtower is server-side and headless. A small daemon runs next to your agents (Claude Code, Codex, …) in tmux, knows which one is waiting on you and for what, and exposes it through a typed HTTP + WebSocket API behind a Bearer token. Put it behind any reverse proxy or tunnel, open the web app on your phone, and approve, answer, or type into any session.
 
-> Status: early development. Not ready for use yet.
+- **Knows what the agent is asking.** Claude Code reports through its own hooks, so a permission request arrives with the exact command. Other agents, and themes muxtower does not know yet, are read off the screen with rules you can edit.
+- **Safe by construction.** Approving re-reads the live screen and moves to the chosen option with the arrow keys; nothing is typed blindly. Every device has its own revocable token. Pairing uses one-time codes.
+- **Yours to host.** One `pipx install`, and the daemon serves the app itself. No account, no cloud service.
 
-## Install
+> Status: early development (0.1). Interfaces may change.
+
+## Quick start
 
 ```sh
 pipx install muxtower
-muxtower token add phone      # prints a token once
-muxtower serve --public-url https://daemon.example
+cd ~/code/my-project
+muxtower run claude          # starts the daemon if needed, opens Claude Code in a managed tmux session
+muxtower pair                # shows a QR code: scan it with your phone
 ```
 
-Open the daemon's URL in a browser: the web app is served from the daemon itself (recommended — same origin, no CORS, works on a plain-HTTP LAN). A separately hosted app can connect too once its origin is allowed with `--allow-origin`.
+Detach with the usual tmux keys (`Ctrl-b d`); the agent keeps running. Agents you already started in plain tmux are picked up automatically.
+
+## Commands
+
+| | |
+|---|---|
+| `muxtower` | status: is the daemon running, which sessions need you |
+| `muxtower run AGENT [ARGS…]` | start an agent (`claude`, `codex`, …) in a managed tmux session; `-d` to stay detached, `-n` to name it |
+| `muxtower attach [NAME]` | open a session in this terminal |
+| `muxtower pair` | add a device: QR code + one-time code. `--revoke NAME` removes one |
+| `muxtower serve` | run the daemon in the foreground (systemd, Docker). `muxtower run` starts it for you otherwise |
+
+## Reach it from your phone over HTTPS
+
+The daemon listens on `127.0.0.1:8731`. Put HTTPS in front of it: the app needs a secure context to install on the home screen and to receive notifications. Then tell the daemon its address, so pairing codes point there:
+
+```toml
+# ~/.config/muxtower/config.toml
+public_url = "https://muxtower.example.com"
+```
+
+Pick one:
+
+1. **Tailscale** (simplest for personal use; no domain, no open port):
+   ```sh
+   tailscale serve --bg 8731     # → https://<machine>.<tailnet>.ts.net
+   ```
+2. **Cloudflare Tunnel** (reachable from anywhere, no open port):
+   ```sh
+   cloudflared tunnel --url http://127.0.0.1:8731      # quick try; use a named tunnel for a stable hostname
+   ```
+3. **Caddy** (your own domain; certificates are automatic):
+   ```
+   muxtower.example.com {
+       reverse_proxy 127.0.0.1:8731
+   }
+   ```
+
+Any gate in front (Cloudflare Access, an SSO proxy, your own) must let `OPTIONS` requests through unauthenticated and pass `Authorization: Bearer` (or the `?token=` query parameter, for WebSockets) to the daemon.
+
+## The web app
+
+**Recommended: the one the daemon serves.** Open your daemon's URL; it offers to pair with itself. Same origin as the API, so nothing to configure.
+
+**One app for several daemons, on your own hosting.** The app is a static site; the daemons it talks to are added on each device by pairing, and stay in that browser.
+
+- *Cloudflare Workers*: fork this repository, then in the Cloudflare dashboard **Workers & Pages → Create → Import a repository**, root directory `app`, build command `npm run build`, deploy command `npx wrangler deploy`.
+- *GitHub Pages*: fork, set **Settings → Pages → Source** to *GitHub Actions*, add the repository variable `DEPLOY_PAGES=true`, and run the `pages` workflow.
+
+Daemons accept requests from any origin by default. That is safe because every request needs a token and no cookies are involved; set `cors.allowed_origins` to limit it to your app's origin.
+
+**Preset daemons (skip pairing).** A deployment can ship a default daemon list in `config.json`, generated at build time from the `MUXTOWER_APP_CONFIG` build variable or secret:
+
+```json
+{ "daemons": [{ "name": "build box", "url": "https://muxtower.example.com" }] }
+```
+
+Adding `"token"` to an entry skips pairing entirely, but anyone who can load the site can then read that token. The build refuses unless you also set `"acknowledge_public_tokens": true`, and the app shows a warning. Only do this behind an access gate such as Cloudflare Access or your own SSO.
+
+**Moving to another device.** On a paired phone, *Daemons → Add another device* shows one QR code that pairs the other device with every daemon at once. It carries one-time codes, not tokens: each device gets its own token, and the QR stops working after one use or five minutes.
+
+## Agents and screen rules
+
+| agent | state from | approve from the phone |
+|---|---|---|
+| Claude Code | hooks (exact tool and command) + screen rules | yes |
+| Codex, OpenCode | none yet: terminal and input only | add screen rules |
+
+For Claude Code, `muxtower run claude` passes `--settings` with HTTP hooks pointing at the daemon; nothing is written to your own `settings.json`.
+
+Screen rules are plain TOML. Copy the shipped file to change it, for example after an agent update or with a custom theme:
+
+```sh
+mkdir -p ~/.config/muxtower/runtimes
+python -c "import muxtower, pathlib; print(pathlib.Path(muxtower.__file__).parent / 'runtimes/defaults/claude-code.toml')"
+```
+
+A file in `~/.config/muxtower/runtimes/` replaces the shipped one with the same name; a new file adds an agent. Each rule maps a regex to a state (`needs_permission`, `needs_answer`, `needs_trust`, `plan_review`, `error`, `busy`, `idle`). The `[menu]` section sets the cursor glyph that marks the highlighted choice, and `[approve.prefer]` sets which choice "approve" picks. The session page shows which rule matched.
+
+Sessions that muxtower did not start (found in your own tmux) can be watched, answered and approved, but never killed.
+
+## Configuration
+
+`~/.config/muxtower/config.toml`. Every key can also be set with an environment variable, and the common ones with `muxtower serve` flags.
+
+| key | env | default | |
+|---|---|---|---|
+| `host` / `port` | `MUXTOWER_HOST` / `MUXTOWER_PORT` | `127.0.0.1` / `8731` | listen address |
+| `public_url` | `MUXTOWER_PUBLIC_URL` | — | the HTTPS address devices use |
+| `cors.allowed_origins` | `MUXTOWER_CORS_ALLOWED_ORIGINS` | `["*"]` | restrict which app origins may call the API |
+| `adopt_sockets` | `MUXTOWER_ADOPT_SOCKETS` | `["default"]` | other tmux servers to scan for agents |
+| `tmux_socket` | `MUXTOWER_TMUX_SOCKET` | `muxtower` | tmux server for sessions muxtower starts |
+| `pairing.mode` | `MUXTOWER_PAIRING_MODE` | `device` | `shared`: every pairing hands out `pairing.shared_token` (for gates that must know each token) |
+| `state_dir` | `MUXTOWER_STATE_DIR` | `~/.local/state/muxtower` | database, keys |
+| `serve_ui` | `MUXTOWER_SERVE_UI` | `true` | serve the web app at `/` |
+
+Run it as a service:
+
+```ini
+# ~/.config/systemd/user/muxtower.service
+[Unit]
+Description=muxtower
+
+[Service]
+ExecStart=%h/.local/bin/muxtower serve
+Restart=on-failure
+
+[Install]
+WantedBy=default.target
+```
+
+```sh
+systemctl --user enable --now muxtower && loginctl enable-linger "$USER"
+```
+
+## Security model
+
+- One daemon has one owner. Each paired device holds its own token, stored hashed on the daemon. Revoke a device from the app or with `muxtower pair --revoke`.
+- Pairing codes are single-use, expire after five minutes, and are rate-limited. They travel in the URL fragment, which browsers never send to a server.
+- The web app's WebSocket authenticates with an HttpOnly cookie when it is served by the daemon itself. Otherwise it sends the token as a WebSocket subprotocol, and falls back to `?token=` only for proxies that need it. Access logs redact `token=`.
+- The API never runs shell strings. It starts only the binaries defined by runtime files, and approval keys are sent only after the live screen shows the dialog.
+- Every action (input, approve, deny, create, terminate, pair, revoke) is written to an audit log with the device name. Typed text is never logged.
 
 ## How it compares
 
-- [claude-squad](https://github.com/smtg-ai/claude-squad) — a terminal UI for running many agents locally. muxtower has no TUI; it is a daemon + API for reaching agents remotely.
-- [TmuxDeck](https://github.com/ctliz/TmuxDeck) — the closest idea: find the tmux pane that needs a human. TmuxDeck is a desktop app with a LAN-only mobile page; muxtower is headless, API-first, and built to sit behind a proxy on the open internet.
-- ttyd / gotty — browser terminals. muxtower shows terminals too, but its point is knowing what each agent is waiting for.
+- [claude-squad](https://github.com/smtg-ai/claude-squad) is a terminal UI for running many agents on your own machine. muxtower has no TUI; it is a daemon and API for reaching agents remotely.
+- [TmuxDeck](https://github.com/ctliz/TmuxDeck) is the closest idea: find the tmux pane that needs a human. It is a desktop app with a LAN-only mobile page. muxtower is headless and API-first, and built to sit behind a proxy on the open internet.
+- ttyd and gotty are browser terminals. muxtower shows terminals too, but its point is knowing what each agent is waiting for.
 
-## Repository
+## Development
 
-- `daemon/` — the `muxtower` Python package (the `muxtower` command)
-- `app/` — the web app (Vite + React PWA)
-- `docs/design.md` — architecture
+`daemon/` holds the Python package, `app/` the web app, and `docs/design.md` the architecture. Run `make check` for everything CI runs, `make contract` after an API change, and `make wheel` to build the package with the app inside. See `AGENTS.md`.
+
+## License
+
+Apache-2.0

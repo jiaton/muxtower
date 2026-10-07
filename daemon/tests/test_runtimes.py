@@ -54,6 +54,18 @@ def test_wrapped_labels_and_custom_cursor(tmp_path: Path) -> None:
     assert menu.cursor == 1
 
 
+def test_mid_word_wrap_at_full_width_is_joined_without_a_space() -> None:
+    screen = (
+        "─" * len("   2. Yes, allow /tmp/abc/very-lo") + "\n"  # the separator spans the screen width
+        " ❯ 1. Yes\n"
+        "   2. Yes, allow /tmp/abc/very-lo\n"
+        "      ng/path from here\n"
+        "   3. No\n"
+    )
+    menu = claude().parse_menu(screen)
+    assert menu and menu.options[1].label == "Yes, allow /tmp/abc/very-long/path from here"
+
+
 def test_user_file_replaces_builtin_and_bad_file_is_ignored(tmp_path: Path) -> None:
     (tmp_path / "claude-code.toml").write_text(
         'name = "claude-code"\nbinary = "claude"\n[[rules]]\nname = "custom"\nstate = "busy"\npattern = "WORKING"\n'

@@ -63,3 +63,13 @@ def test_hook_only_dialog_waits_until_settled(app: FastAPI, tmux: FakeTmux) -> N
     assert approvals.approve(record.id, None).option == "1"  # settled, rules miss, menu readable -> allowed
     with pytest.raises(Conflict, match="not on screen"):
         approvals.approve(record.id, None, strict=True)  # auto-approve never acts on hooks alone
+
+
+def test_pending_marks_the_recommended_option(
+    app: FastAPI, client: TestClient, auth: dict[str, str], tmux: FakeTmux
+) -> None:
+    sid, pane = _adopt(app, client, auth, tmux)
+    pane.screen = screens.PERMISSION
+    app.state.monitor.tick()
+    pending = client.get(f"/v1/sessions/{sid}", headers=auth).json()["pending"]
+    assert pending["recommended"] == "2"

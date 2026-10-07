@@ -22,6 +22,7 @@ class PendingAction(BaseModel):
     tool_name: str | None = None
     detail: str | None = None
     options: list[Option] = Field(default_factory=list)
+    recommended: str | None = Field(default=None, description="option key approve picks when none is given")
 
 
 class Session(BaseModel):

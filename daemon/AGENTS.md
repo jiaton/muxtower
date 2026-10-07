@@ -5,10 +5,10 @@ Python package `muxtower`: one command, `muxtower`: `muxtower serve` runs the da
 ## Setup / Test / Run
 
 - Install: `poetry install`
-- Run the daemon (dev, reload): `poetry run muxtower serve --dev` (binds `127.0.0.1:8731`, state in `./.dev-state/`)
+- Run the daemon (dev): `poetry run muxtower serve --dev` (binds `127.0.0.1:8731`, state in `./.dev-state/`); the app's `npm run dev` proxies to it
 - Tests: `poetry run pytest`
 - Lint/typecheck: `poetry run ruff check . && poetry run ruff format --check . && poetry run mypy src`
-- Export the contract: `poetry run muxtower openapi > ../openapi.json` (or `make contract` at the root)
+- Export the contract: `make contract` at the repo root
 
 ## Stack
 
@@ -26,7 +26,10 @@ src/muxtower/
   hooks/      ingest endpoints for agent hook events
   notify/     Web Push (VAPID, subscriptions, dispatcher)
   auth/       device tokens, pairing, request/WS auth dependencies
-  infra/      tmux adapter, SQLite connection + migrations, event bus
+  infra/      tmux adapter (subprocess, argv only), SQLite (one shared connection) + migrations, event bus, audit log
+  system/     health, /v1/me
+  errors.py   domain errors (NotFound/Invalid/Conflict/Forbidden) mapped to HTTP in app.py
+  origins.py  CORS + WebSocket Origin policy
   config.py   settings (TOML + MUXTOWER_* env)
   app.py      FastAPI factory: routers, CORS, lifespan, static UI
   cli/        the `muxtower` entry point and its subcommands
@@ -67,8 +70,8 @@ Split a file past 250 lines or once it mixes two domains.
 ## Testing
 
 - pytest + httpx `AsyncClient` against an app built by the factory with a temp state dir.
-- tmux is mocked at the `TmuxPort` boundary in unit tests; `tests/integration/` runs against a real tmux server on a throwaway socket (skipped when tmux is missing).
-- Screen rules are tested against captured screen fixtures in `tests/fixtures/screens/<runtime>/`; a new rule or a rule fix adds a fixture.
+- tmux is replaced at the `TmuxPort` boundary by `tests/fakes.py` in unit tests; `tests/integration/` runs against a real tmux server on a throwaway socket (skipped when tmux is missing). Never touch the user's real tmux servers in tests.
+- Screen rules are tested against screen samples in `tests/screens.py`, shaped like real captures (no side borders, full-width separators); a new rule or a rule fix adds a sample. Never commit a real capture: it contains someone's conversation.
 - A bug fixed gets a regression test.
 
 ## Forbidden

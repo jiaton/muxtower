@@ -475,6 +475,11 @@ export interface components {
             detail?: string | null;
             /** Options */
             options?: components["schemas"]["Option"][];
+            /**
+             * Recommended
+             * @description option key approve picks when none is given
+             */
+            recommended?: string | null;
             state: components["schemas"]["AgentState"];
             /** Tool Name */
             tool_name?: string | null;

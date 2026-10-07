@@ -9,12 +9,14 @@
 - Tests: `npm test` (Vitest) · E2E: `npm run e2e` (Playwright)
 - Lint/typecheck: `npm run lint && npm run typecheck` (includes `npm run check:tokens`)
 - Regenerate API types: `npm run gen:api` (reads `../openapi.json`)
-- Build: `npm run build` → `dist/`
+- Route tree: `npm run routes` (also run by build/typecheck; `src/routeTree.gen.ts` is committed)
+- Build: `npm run build` → `dist/` (`MUXTOWER_BASE=/sub/path/` for sub-path hosting; `MUXTOWER_APP_CONFIG` writes `dist/config.json`)
+- Deploy: `wrangler.jsonc` (Cloudflare Workers static assets), `.github/workflows/pages.yml` (GitHub Pages)
 
 ## Stack
 
 - Vite + React 19 + TypeScript (strict)
-- UI primitives: shadcn/ui (Radix) copied into `src/components/ui/`
+- UI primitives: shadcn/ui-style components (Radix + class-variance-authority + tailwind-merge) in `src/components/ui/`, written against our tokens rather than shadcn's color names
 - Styling: Tailwind CSS v4; tokens in `src/styles/tokens.css` (`@theme`), light and dark
 - Routing: TanStack Router (file routes in `src/routes/`)
 - Server state: TanStack Query · Client state: Zustand (persisted) — Zustand only, no Context stores
@@ -26,20 +28,22 @@
 1. `src/components/ui/` — primitives only. The only place a new visual style is defined.
 2. `src/features/<name>/` — `daemons`, `sessions`, `terminal`, `approval`, `push`, `pairing`. Each owns `api/`, `hooks/`, `components/`, `types.ts`. No imports into another feature's internals; share through `src/lib/`.
 3. `src/routes/` — compose features into pages: `/` (Inbox), `/d/$daemonId/s/$sessionId`, `/daemons`, `/pair`. Layout and wiring only.
-4. `src/lib/` — `api/` (client factory per daemon, generated `schema.d.ts`, stream socket), `query.ts`, shared utilities.
+4. `src/lib/` — shared by every feature: `daemons/` (the persisted daemon list + `useDaemonClient`), `api/` (client factory, generated `schema.d.ts` + `types.ts` aliases, `stream.ts`/`streams.ts`), `runtime-config.ts`, `query.ts`, `agent-state.ts`.
+5. `src/sw.ts` — the service worker (own tsconfig: `tsconfig.sw.json`).
 
 Split before 250 lines or once a file mixes two domains.
 
 ## Daemons are plural
 
-- The daemon list lives in the `daemons` Zustand store (persisted): `{id, name, url, token}`. Nothing about a daemon is baked into the bundle; defaults come only from an optional runtime `/config.json`.
+- The daemon list lives in `src/lib/daemons/store.ts` (Zustand, persisted): `{id, name, url, token, preset?, streamAuth?, pushSubscriptionId?}`. Nothing about a daemon is baked into the bundle; defaults come only from the runtime `/config.json`. Selectors that build arrays use `useShallow`.
 - Get a client with `useDaemonClient(daemonId)`; never construct `fetch` calls or URLs in components.
 - Every query key starts with `['daemon', daemonId, ...]`. The Inbox merges per-daemon queries; it never assumes one daemon.
-- One `/v1/stream` socket per daemon, owned by `src/lib/api/stream.ts`, which writes frames into the query cache. Components never open sockets.
+- One `/v1/stream` socket per daemon, owned by `src/lib/api/streams.ts` (auth order: same-origin cookie, subprotocol, query token), which writes frames into the query cache. Components subscribe with `useStreamSubscription`; they never open sockets. Queries poll only while their daemon's stream is down.
+- Features compose through slots, not imports: e.g. `DaemonCard` takes `actions`, and the daemons route passes pairing and push UI into it.
 
 ## Styling — token discipline
 
-- Colors, font sizes, radii, shadows only from `src/styles/tokens.css`. No hex, no `rgb()`, no Tailwind palette classes (`bg-zinc-900`), no arbitrary values (`text-[#fff]`, `w-[13px]`), no inline `style` colors. Enforced by `npm run check:tokens` (`scripts/check-tokens.mjs`) in lint.
+- Colors, font sizes, radii, shadows only from `src/styles/tokens.css` (`@theme static`, so tokens read from JS exist too). No hex, no `rgb()`/`oklch()`, no Tailwind palette classes (`bg-zinc-900`), no arbitrary visual values (`text-[#fff]`, `rounded-[3px]`), no inline `style` colors. Arbitrary layout values (`max-h-[90dvh]`) and variants (`data-[state=open]:`) are fine. Libraries that need concrete colors (xterm.js) get them from `lib/css-color.ts`, which resolves tokens. Enforced by `npm run check:tokens` (`scripts/check-tokens.mjs`) in lint.
 - Layout utilities (`flex`, `gap-2`, `p-4`) are fine anywhere.
 - Need a new color? Add the token (both themes) first.
 - Agent state colors are tokens too (`--color-state-permission`, `--color-state-question`, `--color-state-busy`, ...).

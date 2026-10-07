@@ -11,10 +11,10 @@ describe('daemons store', () => {
     expect(useDaemonsStore.getState().daemons.map((d) => d.url)).toEqual(['https://a.example', 'https://b.example'])
   })
 
-  it('re-adding the same url updates instead of duplicating', () => {
+  it('re-adding the same url updates instead of duplicating, and never drops a token', () => {
     const { add } = useDaemonsStore.getState()
-    add({ name: 'a', url: 'https://a.example', token: null })
-    add({ name: 'a', url: 'https://a.example/', token: 'paired' })
+    add({ name: 'a', url: 'https://a.example', token: 'paired' })
+    add({ name: 'a', url: 'https://a.example/', token: null })
     const { daemons } = useDaemonsStore.getState()
     expect(daemons).toHaveLength(1)
     expect(daemons[0].token).toBe('paired')

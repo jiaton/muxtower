@@ -1,0 +1,51 @@
+import { Check, X } from 'lucide-react'
+import { Banner } from '@/components/ui/banner'
+import { Button } from '@/components/ui/button'
+import type { PendingAction } from '@/lib/api/types'
+import { useApprove, useDeny } from '../api/use-approval'
+
+/** What the agent is waiting for, with one button per choice on screen and Deny (Esc). */
+export function PendingActionCard({ daemonId, sessionId, pending }: { daemonId: string; sessionId: string; pending: PendingAction }) {
+  const approve = useApprove(daemonId, sessionId)
+  const deny = useDeny(daemonId, sessionId)
+  const busy = approve.isPending || deny.isPending
+  const error = approve.error ?? deny.error
+  const options = pending.options ?? []
+
+  return (
+    <div className="flex flex-col gap-3">
+      {pending.tool_name || pending.detail ? (
+        <div className="flex flex-col gap-1">
+          {pending.tool_name ? <p className="text-xs font-medium tracking-wide text-fg-muted uppercase">{pending.tool_name}</p> : null}
+          {pending.detail ? (
+            <pre className="max-h-40 overflow-auto rounded-md bg-surface-muted px-3 py-2 font-mono text-sm whitespace-pre-wrap">
+              {pending.detail}
+            </pre>
+          ) : null}
+        </div>
+      ) : null}
+      {options.length ? (
+        <div className="flex flex-col gap-2">
+          {options.map((option) => (
+            <Button
+              key={option.key}
+              variant={option.key === pending.recommended ? 'approve' : 'outline'}
+              className="h-auto min-h-10 justify-start py-2 text-left whitespace-normal"
+              disabled={busy}
+              onClick={() => approve.mutate(option.key)}
+            >
+              {option.key === pending.recommended ? <Check /> : null}
+              {option.label}
+            </Button>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-fg-muted">Waiting for the choices to appear on screen…</p>
+      )}
+      <Button variant="ghost" className="self-start" disabled={busy} onClick={() => deny.mutate()}>
+        <X /> Deny (Esc)
+      </Button>
+      {error ? <Banner tone="error">{error.message}</Banner> : null}
+    </div>
+  )
+}

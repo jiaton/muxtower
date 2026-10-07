@@ -3,7 +3,7 @@
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
-@theme {
+@theme static {
   --color-*: initial;
 
   --color-bg: oklch(0.985 0.002 260);
@@ -13,10 +13,16 @@
   --color-fg: oklch(0.22 0.01 260);
   --color-fg-muted: oklch(0.5 0.012 260);
   --color-accent: oklch(0.55 0.17 255);
+  --color-accent-hover: oklch(0.5 0.17 255);
   --color-accent-fg: oklch(0.99 0 0);
   --color-danger: oklch(0.58 0.2 27);
+  --color-danger-hover: oklch(0.53 0.2 27);
   --color-danger-fg: oklch(0.99 0 0);
+  --color-success: oklch(0.58 0.14 155);
+  --color-success-hover: oklch(0.53 0.14 155);
+  --color-success-fg: oklch(0.99 0 0);
   --color-focus: oklch(0.62 0.17 255);
+  --color-overlay: oklch(0.15 0.01 260 / 0.5);
 
   /* Agent states */
   --color-state-permission: oklch(0.72 0.16 70);
@@ -24,6 +30,10 @@
   --color-state-error: oklch(0.58 0.2 27);
   --color-state-busy: oklch(0.6 0.13 230);
   --color-state-idle: oklch(0.62 0.01 260);
+  --color-state-permission-soft: oklch(0.95 0.05 80);
+  --color-state-question-soft: oklch(0.95 0.04 300);
+  --color-state-error-soft: oklch(0.95 0.04 27);
+  --color-state-busy-soft: oklch(0.95 0.03 230);
 
   --color-terminal-bg: oklch(0.18 0.01 260);
   --color-terminal-fg: oklch(0.92 0.005 260);
@@ -47,11 +57,24 @@
     --color-fg: oklch(0.94 0.005 260);
     --color-fg-muted: oklch(0.68 0.012 260);
     --color-accent: oklch(0.68 0.15 255);
+    --color-accent-hover: oklch(0.73 0.14 255);
     --color-accent-fg: oklch(0.16 0.01 260);
+    --color-success: oklch(0.66 0.14 155);
+    --color-success-hover: oklch(0.71 0.13 155);
+    --color-success-fg: oklch(0.16 0.01 260);
+    --color-state-permission: oklch(0.8 0.14 75);
+    --color-state-question: oklch(0.75 0.13 300);
+    --color-state-error: oklch(0.7 0.17 27);
+    --color-state-busy: oklch(0.74 0.11 230);
+    --color-state-permission-soft: oklch(0.3 0.06 75);
+    --color-state-question-soft: oklch(0.3 0.06 300);
+    --color-state-error-soft: oklch(0.3 0.07 27);
+    --color-state-busy-soft: oklch(0.3 0.04 230);
     --shadow-card: 0 1px 2px oklch(0 0 0 / 0.4);
   }
 
   body {
-    @apply bg-bg text-fg font-sans antialiased;
+    @apply bg-bg font-sans text-fg antialiased;
+    -webkit-tap-highlight-color: transparent;
   }
 }

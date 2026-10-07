@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DaemonsRouteImport } from './routes/daemons'
+import { Route as PairRouteImport } from './routes/pair'
+import { Route as DDaemonIdSSessionIdRouteImport } from './routes/d.$daemonId.s.$sessionId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +24,49 @@ const DaemonsRoute = DaemonsRouteImport.update({
   path: '/daemons',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PairRoute = PairRouteImport.update({
+  id: '/pair',
+  path: '/pair',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DDaemonIdSSessionIdRoute = DDaemonIdSSessionIdRouteImport.update({
+  id: '/d/$daemonId/s/$sessionId',
+  path: '/d/$daemonId/s/$sessionId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/daemons': typeof DaemonsRoute
+  '/pair': typeof PairRoute
+  '/d/$daemonId/s/$sessionId': typeof DDaemonIdSSessionIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/daemons': typeof DaemonsRoute
+  '/pair': typeof PairRoute
+  '/d/$daemonId/s/$sessionId': typeof DDaemonIdSSessionIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/daemons': typeof DaemonsRoute
+  '/pair': typeof PairRoute
+  '/d/$daemonId/s/$sessionId': typeof DDaemonIdSSessionIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/daemons'
+  fullPaths: '/' | '/daemons' | '/pair' | '/d/$daemonId/s/$sessionId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/daemons'
-  id: '__root__' | '/' | '/daemons'
+  to: '/' | '/daemons' | '/pair' | '/d/$daemonId/s/$sessionId'
+  id: '__root__' | '/' | '/daemons' | '/pair' | '/d/$daemonId/s/$sessionId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DaemonsRoute: typeof DaemonsRoute
+  PairRoute: typeof PairRoute
+  DDaemonIdSSessionIdRoute: typeof DDaemonIdSSessionIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +85,28 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DaemonsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/pair': {
+      id: '/pair'
+      path: '/pair'
+      fullPath: '/pair'
+      preLoaderRoute: typeof PairRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/d/$daemonId/s/$sessionId': {
+      id: '/d/$daemonId/s/$sessionId'
+      path: '/d/$daemonId/s/$sessionId'
+      fullPath: '/d/$daemonId/s/$sessionId'
+      preLoaderRoute: typeof DDaemonIdSSessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DaemonsRoute: DaemonsRoute,
+  PairRoute: PairRoute,
+  DDaemonIdSSessionIdRoute: DDaemonIdSSessionIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -4,14 +4,16 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 const ROOT = new URL('../src', import.meta.url).pathname
-const ALLOWED = new Set(['styles/tokens.css', 'lib/api/schema.d.ts'])
+// css-color.ts converts tokens to rgb() for libraries that need it; it defines no colors.
+const ALLOWED = new Set(['styles/tokens.css', 'lib/api/schema.d.ts', 'lib/css-color.ts'])
 const PALETTE =
   'slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|black|white'
 const RULES = [
   [/#[0-9a-fA-F]{3,8}\b/, 'raw hex color'],
   [/\b(?:rgba?|hsla?|oklch)\(/, 'raw color function'],
   [new RegExp(`\\b[a-z-]+-(?:${PALETTE})(?:-\\d{2,3})?\\b`), 'Tailwind palette class'],
-  [/\b[a-z-]+-\[[^\]]+\]/, 'arbitrary Tailwind value'],
+  // Arbitrary values are fine for layout (h-[90dvh]) and variants (data-[state=open]:), never for visuals.
+  [/\b(?:bg|text|border|ring|outline|shadow|rounded|fill|stroke|font|decoration|caret|accent|from|via|to)-\[/, 'arbitrary visual value'],
 ]
 
 const files = []

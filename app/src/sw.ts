@@ -1,0 +1,55 @@
+/// <reference lib="webworker" />
+// One script, several registrations: the root one caches the app shell; one per daemon (scope
+// <base>push/<daemonId>/) holds that daemon's push subscription, since each daemon has its own VAPID key
+// and a registration can only hold one subscription.
+import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching'
+
+declare const self: ServiceWorkerGlobalScope
+
+precacheAndRoute(self.__WB_MANIFEST)
+cleanupOutdatedCaches()
+
+interface PushPayload {
+  client_ref: string
+  session_id: string
+  session_name: string
+  title: string
+  body: string
+}
+
+const appBase = () => {
+  const scope = new URL(self.registration.scope)
+  return scope.pathname.replace(/push\/[^/]+\/$/, '')
+}
+
+self.addEventListener('push', (event) => {
+  const data = event.data?.json() as PushPayload | undefined
+  if (!data) return
+  const url = `${appBase()}d/${encodeURIComponent(data.client_ref)}/s/${encodeURIComponent(data.session_id)}`
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      tag: `${data.client_ref}:${data.session_id}`,
+      data: { url },
+      icon: `${appBase()}icon.svg`,
+    }),
+  )
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const url = (event.notification.data as { url: string }).url
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      for (const client of windows) {
+        if ('focus' in client) {
+          await client.focus()
+          await client.navigate(url).catch(() => client.postMessage({ type: 'navigate', url }))
+          return
+        }
+      }
+      await self.clients.openWindow(url)
+    })(),
+  )
+})
