@@ -1,6 +1,6 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { ArrowLeft, Pencil, Power } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { QueryState } from '@/components/query-state'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -12,9 +12,12 @@ import { PendingActionCard } from '@/features/approval/components/pending-action
 import { useTerminateSession, useUpdateSession } from '@/features/sessions/api/use-session-mutations'
 import { useSession } from '@/features/sessions/api/use-sessions'
 import { StateBadge } from '@/features/sessions/components/state-badge'
-import { useResize, useScreen } from '@/features/terminal/api/use-terminal'
+import { HISTORY_STEPS, usePaneSize, useScreen } from '@/features/terminal/api/use-terminal'
 import { InputBar } from '@/features/terminal/components/input-bar'
+import { TerminalToolbar } from '@/features/terminal/components/terminal-toolbar'
 import { TerminalView } from '@/features/terminal/components/terminal-view'
+import { useTerminalPrefs } from '@/features/terminal/store'
+import { useDaemon } from '@/lib/daemons/store'
 import type { Session } from '@/lib/api/types'
 
 export const Route = createFileRoute('/d/$daemonId/s/$sessionId')({ component: SessionPage })
@@ -40,8 +43,7 @@ function SessionPage() {
 }
 
 function SessionView({ daemonId, session }: { daemonId: string; session: Session }) {
-  const screen = useScreen(daemonId, session.id)
-  const resize = useResize(daemonId, session.id)
+  const terminal = useTerminal(daemonId, session)
   const update = useUpdateSession(daemonId, session.id)
   const terminate = useTerminateSession(daemonId, session.id)
   const navigate = useNavigate()
@@ -92,8 +94,15 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
         </div>
       ) : null}
 
-      {screen.isError ? <Banner tone="error">{screen.error.message}</Banner> : null}
-      <TerminalView ansi={screen.data} onSize={launched ? (size) => resize.mutate(size) : undefined} />
+      <TerminalToolbar sessionId={session.id} fit={terminal.fit} />
+      {terminal.error ? <Banner tone="error">{terminal.error.message}</Banner> : null}
+      <TerminalView
+        ansi={terminal.ansi}
+        fontSize={terminal.fontSize}
+        onNeedMore={terminal.loadMore}
+        loadingMore={terminal.loadingMore}
+        onFit={terminal.fit ? terminal.onFit : undefined}
+      />
       <InputBar daemonId={daemonId} sessionId={session.id} />
 
       <Dialog open={renaming} onOpenChange={setRenaming}>
@@ -114,4 +123,49 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
       </Dialog>
     </div>
   )
+}
+
+/** Screen, history depth and pane sizing for the session page. */
+function useTerminal(daemonId: string, session: Session) {
+  const daemon = useDaemon(daemonId)
+  const fontSize = useTerminalPrefs((s) => s.fontSize)
+  const fit = useTerminalPrefs((s) => s.fit[session.id]) ?? session.source === 'launched'
+  const [history, setHistory] = useState<number>(HISTORY_STEPS[0])
+  const [waitingOn, setWaitingOn] = useState<string | undefined>(undefined)
+  const screen = useScreen(daemonId, session.id, history)
+  const paneSize = usePaneSize(daemonId, session.id)
+  const mutate = useRef(paneSize.mutate)
+  mutate.current = paneSize.mutate
+
+  const lineCount = screen.data ? screen.data.split('\n').length : 0
+  const next = HISTORY_STEPS.find((step) => step > history)
+  const canLoadMore = next !== undefined && lineCount >= history
+  const loadingMore = waitingOn !== undefined && screen.data === waitingOn
+
+  const loadMore = useCallback(() => {
+    if (!canLoadMore || next === undefined) return
+    setWaitingOn(screen.data)
+    setHistory(next)
+  }, [canLoadMore, next, screen.data])
+
+  const onFit = useCallback((size: { cols: number; rows: number }) => mutate.current(size), [])
+
+  // While fitting, the pane is sized for this screen; give the size back when fitting stops, the page
+  // is left, or the tab closes (keepalive request, since the page is going away).
+  useEffect(() => {
+    if (!fit || !daemon?.token) return
+    const release = () =>
+      void fetch(`${daemon.url}/v1/sessions/${encodeURIComponent(session.id)}/resize/release`, {
+        method: 'POST',
+        keepalive: true,
+        headers: { Authorization: `Bearer ${daemon.token}` },
+      }).catch(() => undefined)
+    window.addEventListener('pagehide', release)
+    return () => {
+      window.removeEventListener('pagehide', release)
+      mutate.current(null)
+    }
+  }, [fit, daemon?.url, daemon?.token, session.id])
+
+  return { ansi: screen.data, error: screen.error, fontSize, fit, onFit, loadMore, loadingMore }
 }

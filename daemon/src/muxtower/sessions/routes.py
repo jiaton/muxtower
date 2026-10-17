@@ -101,6 +101,11 @@ def resize(session_id: str, body: Resize, _: CurrentDevice, terminal: Terminal) 
     terminal.resize(session_id, body)
 
 
+@router.post("/sessions/{session_id}/resize/release", status_code=204)
+def release_size(session_id: str, _: CurrentDevice, terminal: Terminal) -> None:
+    terminal.release(session_id)
+
+
 @router.post("/sessions/{session_id}/approve")
 def approve(
     session_id: str, body: Approve, device: CurrentDevice, approvals: Approvals, audit: Audit

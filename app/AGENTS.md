@@ -21,7 +21,7 @@
 - Routing: TanStack Router (file routes in `src/routes/`)
 - Server state: TanStack Query · Client state: Zustand (persisted) — Zustand only, no Context stores
 - Contract: `openapi-typescript` types from `../openapi.json` + `openapi-fetch`
-- Terminal: `@xterm/xterm` · PWA/push: `vite-plugin-pwa` (injectManifest, own service worker)
+- Terminal: our own view (`features/terminal`): ANSI → HTML lines (`lib/ansi.ts`) in a natively scrolling box, diffed line by line (`features/terminal/lines.ts`); no xterm.js · PWA/push: `vite-plugin-pwa` (injectManifest, own service worker)
 
 ## Architecture (layered — do not collapse)
 
@@ -52,7 +52,7 @@ Split before 250 lines or once a file mixes two domains.
 
 - Composition over prop lists; one responsibility per component; check `components/ui/` before styling something new.
 - Function components and hooks only. Hooks named `use-kebab-case.ts`.
-- `useEffect` only to sync with external systems (xterm, service worker, socket); never to fetch or derive state.
+- `useEffect` only to sync with external systems (the terminal DOM, service worker, socket); never to fetch or derive state.
 - No prop drilling past two levels.
 
 ## State management

@@ -1,6 +1,5 @@
-from muxtower.errors import Conflict, NotFound
+from muxtower.errors import NotFound
 from muxtower.sessions.monitor import Monitor
-from muxtower.sessions.ports import SessionSource
 from muxtower.sessions.service import SessionService
 from muxtower.terminal.models import Resize, Screen, SendInput
 
@@ -35,7 +34,11 @@ class TerminalService:
             tmux.send_key(record.pane, body.key)
 
     def resize(self, session_id: str, body: Resize) -> None:
+        """Fit the pane to a viewer. Any session may be resized because release() gives the size back."""
         record = self.sessions.record(session_id)
-        if record.source != SessionSource.LAUNCHED:
-            raise Conflict("only sessions started by muxtower can be resized")
         self.sessions.tmux.resize(record.pane, body.cols, max(body.rows, MIN_ROWS))
+
+    def release(self, session_id: str) -> None:
+        """The viewer left or stopped fitting: hand the size back to attached terminals."""
+        record = self.sessions.record(session_id)
+        self.sessions.tmux.release_size(record.pane)

@@ -1567,6 +1567,41 @@
         ]
       }
     },
+    "/v1/sessions/{session_id}/resize/release": {
+      "post": {
+        "operationId": "release_size_v1_sessions__session_id__resize_release_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Release Size",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
     "/v1/sessions/{session_id}/screen": {
       "get": {
         "operationId": "get_screen_v1_sessions__session_id__screen_get",

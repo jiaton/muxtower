@@ -4,8 +4,9 @@ import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 const ROOT = new URL('../src', import.meta.url).pathname
-// css-color.ts converts tokens to rgb() for libraries that need it; it defines no colors.
-const ALLOWED = new Set(['styles/tokens.css', 'lib/api/schema.d.ts', 'lib/css-color.ts'])
+// ansi.ts passes through the colors an agent's 256-color / true-color output asks for; theme colors
+// still come from tokens.
+const ALLOWED = new Set(['styles/tokens.css', 'lib/api/schema.d.ts', 'lib/ansi.ts'])
 const PALETTE =
   'slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|black|white'
 const RULES = [
@@ -29,7 +30,8 @@ walk(ROOT)
 let failures = 0
 for (const file of files) {
   const rel = relative(ROOT, file)
-  if (ALLOWED.has(rel) || rel.endsWith('.gen.ts')) continue
+  // Tests assert on rendered values; they style nothing.
+  if (ALLOWED.has(rel) || rel.endsWith('.gen.ts') || /\.test\.tsx?$/.test(rel)) continue
   readFileSync(file, 'utf8')
     .split('\n')
     .forEach((line, i) => {

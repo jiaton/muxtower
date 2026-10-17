@@ -49,7 +49,10 @@ class FakeTmux:
         self.pane(pane).sent.append(("key", key))
 
     def resize(self, pane: PaneRef, cols: int, rows: int) -> None:
-        pass
+        self.pane(pane).sent.append(("resize", f"{cols}x{rows}"))
+
+    def release_size(self, pane: PaneRef) -> None:
+        self.pane(pane).sent.append(("release", ""))
 
     def kill_session(self, socket: str, name: str) -> None:
         for key, pane in list(self.panes.items()):

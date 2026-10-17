@@ -85,7 +85,8 @@ Web Push with a per-daemon VAPID key. A browser registration holds one subscript
 
 ## App
 
-- Vite + React + TypeScript PWA; Tailwind v4 tokens; shadcn/ui primitives; TanStack Router, TanStack Query, Zustand; xterm.js for the terminal.
+- Vite + React + TypeScript PWA; Tailwind v4 tokens; shadcn/ui primitives; TanStack Router, TanStack Query, Zustand.
+- Terminal view: the pane's screen plus scrollback, converted from ANSI to HTML lines and shown as selectable text in a natively (pixel-) scrolling box. Scrolling never touches tmux. Each snapshot is aligned with what is shown (lines pushed off the top, older lines added on top) and only changed lines are patched, keeping the reader's place. Nearing the top asks the stream for more history (300 → 1500 → 5000 lines). "Fit width to this screen" resizes the pane to the view (default for sessions muxtower started); turning it off, leaving, or closing the page calls `POST /v1/sessions/{id}/resize/release`, which unsets tmux's manual `window-size` and runs `resize-window -A`, so attached terminals get their size back.
 - Daemons are first class: a persisted list `{id, name, url, token}`; one typed client per daemon; every query key starts with the daemon id.
 - Screens: **Inbox** (everything waiting on a human, across all daemons), **Session** (terminal, pending action card with approve/deny/options, input bar, keys), **Daemons** (add by pairing link/QR or by hand, per-daemon push settings).
 - No configuration is baked into the bundle. An optional `/config.json` (`{"daemons": [{name, url, token?}], "acknowledge_public_tokens"?}`) next to `index.html` supplies default daemons, written at build time from `MUXTOWER_APP_CONFIG`; a preset token requires the acknowledgement and shows a warning. The bundled copy served by the daemon advertises its own daemon.

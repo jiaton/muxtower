@@ -90,14 +90,15 @@ def test_renamed_tmux_session_is_still_the_same_session(
     assert [s["id"] for s in client.get("/v1/sessions", headers=auth).json()] == [before]
 
 
-def test_resize_keeps_room_for_dialogs(
-    client: TestClient, auth: dict[str, str], tmux: FakeTmux, tmp_path: Path
+def test_resize_keeps_room_for_dialogs_and_release_gives_it_back(
+    app: FastAPI, client: TestClient, auth: dict[str, str], tmux: FakeTmux
 ) -> None:
-    sizes: list[tuple[int, int]] = []
-    tmux.resize = lambda pane, cols, rows: sizes.append((cols, rows))  # type: ignore[method-assign]
-    sid = client.post("/v1/sessions", json={"runtime": "claude", "cwd": str(tmp_path)}, headers=auth).json()["id"]
+    pane = tmux.add_pane("default", "work", "claude")
+    app.state.monitor.tick()
+    sid = client.get("/v1/sessions", headers=auth).json()[0]["id"]
     assert client.post(f"/v1/sessions/{sid}/resize", json={"cols": 46, "rows": 6}, headers=auth).status_code == 204
-    assert sizes == [(46, 40)]
+    assert client.post(f"/v1/sessions/{sid}/resize/release", headers=auth).status_code == 204
+    assert pane.sent == [("resize", "46x40"), ("release", "")]
 
 
 def test_one_server_under_two_socket_names_is_adopted_once(make_app, tmux: FakeTmux) -> None:  # type: ignore[no-untyped-def]

@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from muxtower.app import create_app
 from muxtower.config import load_settings
 
+# ruff: noqa: S607 - tests call the tmux on PATH
 pytestmark = pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux not installed")
 
 
@@ -46,6 +47,16 @@ def test_launch_type_capture_terminate(tmp_path: Path) -> None:
             time.sleep(0.1)
         app.state.monitor.tick()
         assert client.get(f"/v1/sessions/{sid}", headers=auth).json()["state"] == "unknown"
+
+        def width() -> str:
+            argv = ["tmux", "-L", socket, "display", "-p", "-t", session["tmux_pane"], "#{window_width}"]
+            out = subprocess.run(argv, capture_output=True, text=True)  # noqa: S603
+            return out.stdout.strip()
+
+        client.post(f"/v1/sessions/{sid}/resize", json={"cols": 50, "rows": 10}, headers=auth)
+        assert width() == "50"
+        client.post(f"/v1/sessions/{sid}/resize/release", headers=auth)
+        assert width() == "120"  # back to the session's own size
         assert client.delete(f"/v1/sessions/{sid}", headers=auth).status_code == 204
         app.state.monitor.tick()
         assert client.get("/v1/sessions", headers=auth).json() == []

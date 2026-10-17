@@ -37,6 +37,23 @@
 
   --color-terminal-bg: oklch(0.18 0.01 260);
   --color-terminal-fg: oklch(0.92 0.005 260);
+  /* The 16 ANSI colors, tuned for the dark terminal background (same in both themes). */
+  --color-term-0: oklch(0.3 0.01 260);
+  --color-term-1: oklch(0.66 0.19 25);
+  --color-term-2: oklch(0.72 0.17 145);
+  --color-term-3: oklch(0.8 0.15 85);
+  --color-term-4: oklch(0.66 0.15 255);
+  --color-term-5: oklch(0.68 0.17 320);
+  --color-term-6: oklch(0.74 0.12 200);
+  --color-term-7: oklch(0.85 0.01 260);
+  --color-term-8: oklch(0.5 0.01 260);
+  --color-term-9: oklch(0.74 0.17 25);
+  --color-term-10: oklch(0.8 0.16 145);
+  --color-term-11: oklch(0.87 0.14 90);
+  --color-term-12: oklch(0.75 0.13 255);
+  --color-term-13: oklch(0.77 0.15 320);
+  --color-term-14: oklch(0.82 0.1 200);
+  --color-term-15: oklch(0.97 0.005 260);
 
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', monospace;

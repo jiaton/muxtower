@@ -82,5 +82,11 @@ class TmuxCli:
     def resize(self, pane: PaneRef, cols: int, rows: int) -> None:
         self._run(pane.socket, "resize-window", "-t", pane.pane_id, "-x", str(cols), "-y", str(rows))
 
+    def release_size(self, pane: PaneRef) -> None:
+        """Undo resize(): `resize-window -x/-y` pins the window to a manual size, which would keep a
+        laptop that attaches later at the phone's width. Unset that and fit the attached clients again."""
+        self._run(pane.socket, "set-option", "-w", "-u", "-t", pane.pane_id, "window-size", check=False)
+        self._run(pane.socket, "resize-window", "-A", "-t", pane.pane_id, check=False)
+
     def kill_session(self, socket: str, name: str) -> None:
         self._run(socket, "kill-session", "-t", f"={name}", check=False)
