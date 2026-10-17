@@ -20,12 +20,13 @@ from muxtower.auth.routes import router as auth_router
 from muxtower.auth.service import TokenService
 from muxtower.auth.stream_cookie import StreamCookieSigner
 from muxtower.config import Settings
-from muxtower.errors import Conflict, Forbidden, Invalid, NotFound
+from muxtower.errors import Conflict, Forbidden, Invalid, NotFound, TooManyRequests, Unauthorized
 from muxtower.hooks.routes import router as hooks_router
 from muxtower.infra.audit import AuditLog
 from muxtower.infra.bus import EventBus
 from muxtower.infra.db import Database
 from muxtower.infra.tmux import TmuxCli, TmuxError
+from muxtower.net import ClientAddress
 from muxtower.notify.repository import SqliteSubscriptionRepository
 from muxtower.notify.routes import router as push_router
 from muxtower.notify.service import PushService
@@ -118,6 +119,7 @@ def create_app(settings: Settings, tmux: TmuxPort | None = None, run_loops: bool
     app.state.push = push
     app.state.pairing = PairingService(db, tokens, settings.pairing, daemon_name)
     app.state.stream_cookies = StreamCookieSigner(settings.state_dir)
+    app.state.client_address = ClientAddress(settings.trusted_proxies)
 
     if settings.cors.allowed_origins:
         app.add_middleware(
@@ -134,6 +136,8 @@ def create_app(settings: Settings, tmux: TmuxPort | None = None, run_loops: bool
         (Invalid, 400),
         (Conflict, 409),
         (Forbidden, 403),
+        (Unauthorized, 401),
+        (TooManyRequests, 429),
         (TmuxError, 502),
     ):
 

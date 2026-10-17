@@ -33,7 +33,7 @@ function DaemonsPage() {
               key={d.id}
               daemon={d}
               actions={
-                d.token ? (
+                d.token && !d.rejected ? (
                   <PushToggle daemonId={d.id} />
                 ) : (
                   <Button className="self-start" onClick={() => setAdding({ url: d.url })}>

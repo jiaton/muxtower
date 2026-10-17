@@ -1,4 +1,4 @@
-from muxtower.errors import Forbidden, NotFound
+from muxtower.errors import Conflict, NotFound
 from muxtower.sessions.monitor import Monitor
 from muxtower.sessions.ports import SessionSource
 from muxtower.sessions.service import SessionService
@@ -37,5 +37,5 @@ class TerminalService:
     def resize(self, session_id: str, body: Resize) -> None:
         record = self.sessions.record(session_id)
         if record.source != SessionSource.LAUNCHED:
-            raise Forbidden("only sessions started by muxtower can be resized")
+            raise Conflict("only sessions started by muxtower can be resized")
         self.sessions.tmux.resize(record.pane, body.cols, max(body.rows, MIN_ROWS))

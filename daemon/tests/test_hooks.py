@@ -61,7 +61,7 @@ def test_hook_endpoint_updates_state(app: FastAPI, client: TestClient, auth: dic
     headers = {"Authorization": f"Bearer {token}", "X-Muxtower-Session": session_id}
 
     bad = client.post("/v1/hooks/claude-code", json=body, headers={**headers, "Authorization": "Bearer nope"})
-    assert bad.status_code == 403
+    assert bad.status_code == 401
     ok = client.post("/v1/hooks/claude-code", json=body, headers=headers)
     assert ok.status_code == 200 and ok.content == b""
 

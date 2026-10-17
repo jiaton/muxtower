@@ -1,6 +1,7 @@
 """The only code that runs tmux. Plain subprocess calls (argv lists, never a shell) with a timeout."""
 
 import logging
+import os
 import subprocess
 
 from muxtower.terminal.ports import PaneInfo, PaneRef
@@ -9,7 +10,10 @@ logger = logging.getLogger("muxtower.tmux")
 
 DEFAULT_SOCKET = "default"
 TIMEOUT_SECONDS = 3.0
-_FIELDS = "#{pane_id}\t#{session_name}\t#{pane_current_command}\t#{pane_current_path}\t#{pane_pid}"
+_FIELDS = "#{pane_id}\t#{session_name}\t#{pane_current_command}\t#{pane_current_path}\t#{pane_pid}\t#{socket_path}"
+# A daemon started from inside tmux inherits $TMUX, which would make plain `tmux` (the "default" socket)
+# talk to that server instead of the user's default one.
+_ENV = {k: v for k, v in os.environ.items() if k not in ("TMUX", "TMUX_PANE")}
 
 
 class TmuxError(Exception):
@@ -26,7 +30,7 @@ class TmuxCli:
     def _run(self, socket: str, *args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
         try:
             result = subprocess.run(  # noqa: S603 - argv list, no shell
-                [*self._base(socket), *args], capture_output=True, text=True, timeout=TIMEOUT_SECONDS
+                [*self._base(socket), *args], capture_output=True, text=True, timeout=TIMEOUT_SECONDS, env=_ENV
             )
         except (OSError, subprocess.TimeoutExpired) as exc:
             raise TmuxError(f"tmux {args[0]}: {exc}") from exc
@@ -53,9 +57,9 @@ class TmuxCli:
         panes = []
         for line in result.stdout.splitlines():
             parts = line.split("\t")
-            if len(parts) == 5:
+            if len(parts) == 6:
                 pid = int(parts[4]) if parts[4].isdigit() else 0
-                panes.append(PaneInfo(socket, parts[0], parts[1], parts[2], parts[3], pid))
+                panes.append(PaneInfo(socket, parts[0], parts[1], parts[2], parts[3], pid, parts[5]))
         return panes
 
     def capture(self, pane: PaneRef, ansi: bool = False, history: int = 0) -> str | None:

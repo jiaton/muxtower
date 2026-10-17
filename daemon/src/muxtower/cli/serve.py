@@ -59,7 +59,8 @@ def cmd_serve(args: argparse.Namespace) -> int:
         )
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     logging.getLogger("uvicorn.access").addFilter(RedactTokenFilter())
-    uvicorn.run(create_app(settings), host=settings.host, port=settings.port, proxy_headers=True)
+    # Client addresses behind proxies are resolved by muxtower.net with its own trusted list.
+    uvicorn.run(create_app(settings), host=settings.host, port=settings.port, proxy_headers=False)
     return 0
 
 

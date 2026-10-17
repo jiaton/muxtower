@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { create } from 'zustand'
-import { useDaemonsStore } from '@/lib/daemons/store'
+import { markRejected, useDaemonsStore } from '@/lib/daemons/store'
 import { daemonKey, queryClient } from '@/lib/query'
 import { DaemonStream, type StreamStatus } from './stream'
 import type { StreamSubscribe } from './types'
@@ -15,7 +15,7 @@ const setStatus = (id: string, status: StreamStatus) =>
 export function useDaemonStreams() {
   const daemons = useDaemonsStore((s) => s.daemons)
   useEffect(() => {
-    const wanted = new Map(daemons.filter((d) => d.token).map((d) => [d.id, d]))
+    const wanted = new Map(daemons.filter((d) => d.token && !d.rejected).map((d) => [d.id, d]))
     for (const [id, entry] of streams) {
       const daemon = wanted.get(id)
       if (!daemon || entry.signature !== `${daemon.url} ${daemon.token}`) {
@@ -27,6 +27,7 @@ export function useDaemonStreams() {
       if (streams.has(daemon.id)) continue
       const stream = new DaemonStream(daemon, {
         onStatus: (status) => setStatus(daemon.id, status),
+        onRejected: () => markRejected(daemon.id),
         onAuth: (method) => {
           if (daemon.streamAuth !== method) useDaemonsStore.getState().update(daemon.id, { streamAuth: method })
         },

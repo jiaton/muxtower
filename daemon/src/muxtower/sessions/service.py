@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from muxtower.errors import Forbidden, Invalid, NotFound
+from muxtower.errors import Conflict, Invalid, NotFound, Unauthorized
 from muxtower.hooks import claude_code
 from muxtower.runtimes.models import ATTENTION_STATES, AgentState
 from muxtower.runtimes.spec import Runtime
@@ -167,7 +167,7 @@ class SessionService:
     def terminate(self, session_id: str) -> None:
         record = self.record(session_id)
         if record.source != SessionSource.LAUNCHED:
-            raise Forbidden("this session was not started by muxtower; stop it from its own terminal")
+            raise Conflict("this session was not started by muxtower; stop it from its own terminal")
         self.tmux.kill_session(record.pane.socket, record.tmux_session)
         self.forget(record.id)
 
@@ -185,7 +185,7 @@ class SessionService:
         if record is None or record.hook_token_hash is None:
             raise NotFound("unknown session")
         if not secrets.compare_digest(record.hook_token_hash, _hash(hook_token)):
-            raise Forbidden("bad hook token")
+            raise Unauthorized("bad hook token")
         live = self.live_of(session_id)
         before = self.effective(record).state
         live.hook = claude_code.apply_event(live.hook, event)

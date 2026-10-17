@@ -115,6 +115,7 @@ Sessions that muxtower did not start (found in your own tmux) can be watched, an
 | `adopt_sockets` | `MUXTOWER_ADOPT_SOCKETS` | `["default"]` | other tmux servers to scan for agents |
 | `tmux_socket` | `MUXTOWER_TMUX_SOCKET` | `muxtower` | tmux server for sessions muxtower starts |
 | `pairing.mode` | `MUXTOWER_PAIRING_MODE` | `device` | `shared`: every pairing hands out `pairing.shared_token` (for gates that must know each token) |
+| `trusted_proxies` | `MUXTOWER_TRUSTED_PROXIES` | loopback | CIDRs of reverse proxies whose `X-Forwarded-For` is believed (for per-client rate limits) |
 | `state_dir` | `MUXTOWER_STATE_DIR` | `~/.local/state/muxtower` | database, keys |
 | `serve_ui` | `MUXTOWER_SERVE_UI` | `true` | serve the web app at `/` |
 
@@ -143,6 +144,7 @@ systemctl --user enable --now muxtower && loginctl enable-linger "$USER"
 - Pairing codes are single-use, expire after five minutes, and are rate-limited. They travel in the URL fragment, which browsers never send to a server.
 - The web app's WebSocket authenticates with an HttpOnly cookie when it is served by the daemon itself. Otherwise it sends the token as a WebSocket subprotocol, and falls back to `?token=` only for proxies that need it. Access logs redact `token=`.
 - The API never runs shell strings. It starts only the binaries defined by runtime files, and approval keys are sent only after the live screen shows the dialog.
+- Only a wrong credential (a bad token, a wrong pairing code, a refused WebSocket) answers 401 or 403, so a log watcher such as fail2ban can count those as guessing. Ordinary refusals use 400/409/429, and the app stops calling a daemon that rejected its token instead of retrying.
 - Every action (input, approve, deny, create, terminate, pair, revoke) is written to an audit log with the device name. Typed text is never logged.
 
 ## How it compares

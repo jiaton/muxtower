@@ -22,6 +22,7 @@ export const useDaemonsStore = create<DaemonsState>()(
         const existing = get().daemons.find((d) => d.url === url)
         if (existing) {
           const merged = { ...existing, ...input, url, token: input.token ?? existing.token }
+          if (input.token) merged.rejected = false // a fresh token from pairing
           set((s) => ({ daemons: s.daemons.map((d) => (d.id === existing.id ? merged : d)) }))
           return merged
         }
@@ -41,6 +42,16 @@ export const useDaemonsStore = create<DaemonsState>()(
   ),
 )
 
-export const usePairedDaemons = () => useDaemonsStore(useShallow((s) => s.daemons.filter((d) => d.token !== null)))
+/** Daemons this device can talk to: paired, and the token not rejected. */
+export const usePairedDaemons = () =>
+  useDaemonsStore(useShallow((s) => s.daemons.filter((d) => d.token !== null && !d.rejected)))
+export const useRejectedDaemons = () => useDaemonsStore(useShallow((s) => s.daemons.filter((d) => d.rejected)))
+
+/** Called when a daemon answers 401: its token was revoked, so further requests would only be counted as
+ *  failed logins by the daemon's proxy (fail2ban). */
+export function markRejected(id: string) {
+  const daemon = useDaemonsStore.getState().daemons.find((d) => d.id === id)
+  if (daemon && !daemon.rejected) useDaemonsStore.getState().update(id, { rejected: true })
+}
 export const useUnpairedDaemons = () => useDaemonsStore(useShallow((s) => s.daemons.filter((d) => d.token === null)))
 export const useDaemon = (id: string) => useDaemonsStore((s) => s.daemons.find((d) => d.id === id))

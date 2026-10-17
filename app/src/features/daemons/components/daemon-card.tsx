@@ -15,6 +15,7 @@ function useStatus(daemon: Daemon) {
   const me = useDaemonMe(daemon.id)
   const stream = useStreamStatus((s) => s.status[daemon.id])
   if (!daemon.token) return { tone: 'idle', text: 'Not paired' } as const
+  if (daemon.rejected) return { tone: 'error', text: 'This device was removed: pair again' } as const
   if (me.isError) {
     const rejected = me.error instanceof ApiError && me.error.status === 401
     return { tone: 'error', text: rejected ? 'Token rejected: pair again' : 'Unreachable' } as const
@@ -28,7 +29,7 @@ function useStatus(daemon: Daemon) {
 export function DaemonCard({ daemon, actions }: { daemon: Daemon; actions?: ReactNode }) {
   const status = useStatus(daemon)
   const remove = useDaemonsStore((s) => s.remove)
-  const [open, setOpen] = useState(!daemon.token)
+  const [open, setOpen] = useState(!daemon.token || !!daemon.rejected)
 
   return (
     <Card className="flex flex-col gap-3 p-0">
@@ -49,7 +50,7 @@ export function DaemonCard({ daemon, actions }: { daemon: Daemon; actions?: Reac
         <div className="flex flex-col gap-4 border-t border-border px-4 pt-3 pb-4">
           <p className="font-mono text-xs break-all text-fg-muted">{daemon.url}</p>
           {actions}
-          {daemon.token ? <DevicesList daemonId={daemon.id} /> : null}
+          {daemon.token && !daemon.rejected ? <DevicesList daemonId={daemon.id} /> : null}
           <Button variant="ghost" size="sm" className="self-start text-danger" onClick={() => remove(daemon.id)}>
             <Trash2 /> Forget on this device
           </Button>

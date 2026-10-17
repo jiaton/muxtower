@@ -77,7 +77,13 @@ class Monitor:
     def reconcile(self) -> bool:
         svc = self.service
         sockets = dict.fromkeys([svc.config.socket, *svc.config.adopt_sockets])
-        panes = [p for socket in sockets for p in svc.tmux.list_panes(socket)]
+        panes: list[PaneInfo] = []
+        seen: set[tuple[str, str]] = set()
+        for pane in (p for socket in sockets for p in svc.tmux.list_panes(socket)):
+            key = (pane.server or pane.socket, pane.pane_id)
+            if key not in seen:  # the same server reached under two names is scanned once
+                seen.add(key)
+                panes.append(pane)
         alive = {(p.socket, p.pane_id) for p in panes}
         changed = False
 

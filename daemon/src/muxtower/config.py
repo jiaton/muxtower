@@ -48,6 +48,9 @@ class Settings(BaseModel):
     # Other tmux servers to scan for agents started outside muxtower ("default" = the user's own tmux).
     adopt_sockets: list[str] = Field(default_factory=lambda: ["default"])
     tick_seconds: float = 1.0
+    # Proxies whose X-Forwarded-For is believed (CIDRs), e.g. a reverse proxy's docker network. Used to
+    # find the real client for rate limits; never needed when clients connect directly.
+    trusted_proxies: list[str] = Field(default_factory=lambda: ["127.0.0.1/32", "::1/128"])
     cors: CorsSettings = Field(default_factory=CorsSettings)
     pairing: PairingSettings = Field(default_factory=PairingSettings)
 
@@ -75,10 +78,11 @@ _ENV_KEYS: dict[str, tuple[str, ...]] = {
     "MUXTOWER_PAIRING_MODE": ("pairing", "mode"),
     "MUXTOWER_PAIRING_SHARED_TOKEN": ("pairing", "shared_token"),
     "MUXTOWER_ADOPT_SOCKETS": ("adopt_sockets",),
+    "MUXTOWER_TRUSTED_PROXIES": ("trusted_proxies",),
 }
 
 
-_LIST_KEYS = {"allowed_origins", "adopt_sockets"}
+_LIST_KEYS = {"allowed_origins", "adopt_sockets", "trusted_proxies"}
 
 
 def _set_nested(data: dict[str, Any], keys: tuple[str, ...], value: Any) -> None:

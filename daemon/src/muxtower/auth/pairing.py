@@ -10,7 +10,7 @@ from datetime import UTC, datetime, timedelta
 from muxtower.auth.models import ClaimResult, PairCode
 from muxtower.auth.service import TokenService
 from muxtower.config import PairingMode, PairingSettings
-from muxtower.errors import Forbidden, Invalid
+from muxtower.errors import Invalid, TooManyRequests, Unauthorized
 from muxtower.infra.db import Database
 
 ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O, 1/I
@@ -50,7 +50,7 @@ class PairingService:
         while window and now - window[0] > 60:
             window.popleft()
         if len(window) >= CLAIMS_PER_MINUTE:
-            raise Forbidden("too many pairing attempts; wait a minute")
+            raise TooManyRequests("too many pairing attempts; wait a minute")
         window.append(now)
 
     def claim(self, code: str, device_name: str, client: str) -> ClaimResult:
@@ -64,7 +64,7 @@ class PairingService:
                 (now, _hash(code), now),
             ).rowcount
         if not used:
-            raise Invalid("pairing code is wrong, used, or expired")
+            raise Unauthorized("pairing code is wrong, used, or expired")
 
         if self.settings.mode == PairingMode.SHARED:
             if not self.settings.shared_token:

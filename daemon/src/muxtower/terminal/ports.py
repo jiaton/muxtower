@@ -10,6 +10,7 @@ class PaneInfo:
     command: str
     cwd: str
     pid: int = 0  # the pane's process; with pane_id it identifies a pane across tmux server restarts
+    server: str = ""  # the tmux server's socket path: two socket names can lead to the same server
 
 
 @dataclass(frozen=True)

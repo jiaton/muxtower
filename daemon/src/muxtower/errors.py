@@ -15,3 +15,12 @@ class Conflict(Exception):
 
 class Forbidden(Exception):
     pass
+
+
+class Unauthorized(Exception):
+    """A credential was presented and is wrong. The only domain error that answers 401, so fail2ban-style
+    log watchers can treat 401/403 as "someone is guessing" (see README > Security model)."""
+
+
+class TooManyRequests(Exception):
+    pass

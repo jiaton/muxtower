@@ -10,6 +10,8 @@ export interface Daemon {
   preset?: boolean
   /** The WebSocket auth method that last worked for this daemon. */
   streamAuth?: StreamAuth
+  /** The daemon answered 401 to this token (revoked): stop polling and reconnecting until re-paired. */
+  rejected?: boolean
   /** This browser's push subscription on the daemon, if notifications are on. */
   pushSubscriptionId?: string
 }

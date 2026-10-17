@@ -37,7 +37,7 @@ def test_monitor_adopts_agents_and_reaps_gone_panes(app: FastAPI, client: TestCl
     assert result.attention == [sessions[0]["id"]]
 
     # Adopted sessions are never killed by muxtower.
-    assert client.delete(f"/v1/sessions/{sessions[0]['id']}", headers=auth).status_code == 403
+    assert client.delete(f"/v1/sessions/{sessions[0]['id']}", headers=auth).status_code == 409
     del tmux.panes[("default", pane.info.pane_id)]
     app.state.monitor.tick()
     assert client.get("/v1/sessions", headers=auth).json() == []
@@ -98,3 +98,18 @@ def test_resize_keeps_room_for_dialogs(
     sid = client.post("/v1/sessions", json={"runtime": "claude", "cwd": str(tmp_path)}, headers=auth).json()["id"]
     assert client.post(f"/v1/sessions/{sid}/resize", json={"cols": 46, "rows": 6}, headers=auth).status_code == 204
     assert sizes == [(46, 40)]
+
+
+def test_one_server_under_two_socket_names_is_adopted_once(make_app, tmux: FakeTmux) -> None:  # type: ignore[no-untyped-def]
+    from dataclasses import replace
+
+    app = make_app(adopt_sockets=["default", "legacy"])
+    client = TestClient(app)
+    _, token = app.state.tokens.create("p2")
+    auth = {"Authorization": f"Bearer {token}"}
+    a = tmux.add_pane("default", "work", "claude")
+    b = tmux.add_pane("legacy", "work", "claude")
+    a.info = replace(a.info, pane_id="%7", server="same-server")
+    b.info = replace(b.info, pane_id="%7", server="same-server")
+    app.state.monitor.tick()
+    assert len(client.get("/v1/sessions", headers=auth).json()) == 1

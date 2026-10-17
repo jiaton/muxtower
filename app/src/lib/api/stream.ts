@@ -5,6 +5,8 @@ export type StreamStatus = 'connecting' | 'open' | 'offline'
 
 interface Handlers {
   onFrame: (frame: ServerFrame) => void
+  /** The daemon rejected the token (401): the caller stops this stream. */
+  onRejected?: () => void
   onStatus: (status: StreamStatus) => void
   onAuth: (method: StreamAuth) => void
 }
@@ -72,8 +74,24 @@ export class DaemonStream {
     return preferred && available.includes(preferred) ? [preferred, ...available.filter((m) => m !== preferred)] : available
   }
 
+  /** One plain HTTP call before any socket: a revoked token shows up as a clean 401 instead of a series
+   *  of refused handshakes (which a proxy's fail2ban would count). */
+  private async tokenRejected(): Promise<boolean> {
+    try {
+      const res = await fetch(`${this.daemon.url}/v1/me`, { headers: { Authorization: `Bearer ${this.daemon.token}` } })
+      return res.status === 401
+    } catch {
+      return false // offline: let the normal retry handle it
+    }
+  }
+
   private async connect() {
     this.handlers.onStatus('connecting')
+    if (await this.tokenRejected()) {
+      this.handlers.onStatus('offline')
+      this.handlers.onRejected?.()
+      return
+    }
     for (const method of this.methods()) {
       if (this.stopped) return
       const ws = await this.open(method)
@@ -102,6 +120,10 @@ export class DaemonStream {
           headers: { Authorization: `Bearer ${token}` },
           credentials: 'same-origin',
         })
+        if (res.status === 401) {
+          this.handlers.onRejected?.()
+          return null
+        }
         if (!res.ok) return null
         ws = new WebSocket(base, ['muxtower'])
       } else if (method === 'subprotocol') {

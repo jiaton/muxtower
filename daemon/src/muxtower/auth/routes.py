@@ -37,8 +37,7 @@ def create_pair_code(device: CurrentDevice, pairing: Pairing, audit: Audit) -> P
 @router.post("/pair/claim")
 def claim_pair_code(body: ClaimRequest, request: Request, pairing: Pairing, audit: Audit) -> ClaimResult:
     """Public: redeems a one-time code for this device's own token."""
-    client = request.client.host if request.client else "unknown"
-    result = pairing.claim(body.code, body.device_name, client)
+    result = pairing.claim(body.code, body.device_name, request.app.state.client_address.of(request))
     audit.record(result.device_name, "paired")
     return result
 

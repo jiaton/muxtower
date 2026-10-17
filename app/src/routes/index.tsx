@@ -7,13 +7,14 @@ import { PairCodeForm } from '@/features/pairing/components/pair-code-form'
 import { useAllSessions } from '@/features/sessions/api/use-sessions'
 import { NewSessionDialog } from '@/features/sessions/components/new-session-dialog'
 import { SessionRow } from '@/features/sessions/components/session-row'
-import { useUnpairedDaemons } from '@/lib/daemons/store'
+import { useRejectedDaemons, useUnpairedDaemons } from '@/lib/daemons/store'
 
 export const Route = createFileRoute('/')({ component: InboxPage })
 
 function InboxPage() {
   const all = useAllSessions()
   const unpaired = useUnpairedDaemons()
+  const rejected = useRejectedDaemons()
   const waiting = all.flatMap(({ daemon, sessions }) =>
     sessions.filter((s) => s.needs_attention).map((session) => ({ daemon, session })),
   )
@@ -49,6 +50,18 @@ function InboxPage() {
         <h1 className="text-xl font-semibold">Inbox</h1>
         <NewSessionDialog />
       </div>
+
+      {rejected.map((daemon) => (
+        <Banner key={daemon.id} tone="error">
+          <CircleAlert />
+          <span>
+            {daemon.name} no longer accepts this device.{' '}
+            <Link to="/daemons" className="underline">
+              Pair again
+            </Link>
+          </span>
+        </Banner>
+      ))}
 
       {all
         .filter((d) => d.error)
