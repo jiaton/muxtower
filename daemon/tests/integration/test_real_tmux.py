@@ -1,5 +1,6 @@
 """Runs against a real tmux server on a throwaway socket. Skipped where tmux is not installed."""
 
+import os
 import shutil
 import subprocess
 import time
@@ -50,3 +51,6 @@ def test_launch_type_capture_terminate(tmp_path: Path) -> None:
         assert client.get("/v1/sessions", headers=auth).json() == []
     finally:
         subprocess.run(["tmux", "-L", socket, "kill-server"], capture_output=True)  # noqa: S603, S607
+        # kill-server can leave the socket file behind; remove it so test runs don't pile them up.
+        tmpdir = Path(os.environ.get("TMUX_TMPDIR", "/tmp")) / f"tmux-{os.getuid()}"  # noqa: S108
+        (tmpdir / socket).unlink(missing_ok=True)
