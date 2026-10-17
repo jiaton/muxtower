@@ -59,7 +59,7 @@ Pick one:
    }
    ```
 
-Any gate in front (Cloudflare Access, an SSO proxy, your own) must let `OPTIONS` requests through unauthenticated and pass `Authorization: Bearer` (or the `?token=` query parameter, for WebSockets) to the daemon.
+Any gate in front (Cloudflare Access, an SSO proxy, a password gate) must let `OPTIONS` requests through unauthenticated. The simplest setup is to sign in to the gate once in each browser: its cookie then covers the app, the API and the WebSocket, and the daemon's own token travels in `Authorization` (which gates usually ignore). If the gate is off-site and nobody has signed in, the app says so and links to the daemon, instead of retrying; it never sends anything a gate would count as a password guess.
 
 ## The web app
 
@@ -142,7 +142,7 @@ systemctl --user enable --now muxtower && loginctl enable-linger "$USER"
 
 - One daemon has one owner. Each paired device holds its own token, stored hashed on the daemon. Revoke a device from the app or with `muxtower pair --revoke`.
 - Pairing codes are single-use, expire after five minutes, and are rate-limited. They travel in the URL fragment, which browsers never send to a server.
-- The web app's WebSocket authenticates with an HttpOnly cookie when it is served by the daemon itself. Otherwise it sends the token as a WebSocket subprotocol, and falls back to `?token=` only for proxies that need it. Access logs redact `token=`.
+- The web app's WebSocket authenticates with an HttpOnly cookie when it is served by the daemon itself. Otherwise it sends the token as a WebSocket subprotocol, and falls back to `?access_token=` only for proxies that pass nothing else (never `?token=`, which gates treat as a guess). Every socket is preceded by one plain request, so a revoked token or a gate costs one refused request, not a burst. Access logs redact `access_token=`.
 - The API never runs shell strings. It starts only the binaries defined by runtime files, and approval keys are sent only after the live screen shows the dialog.
 - Only a wrong credential (a bad token, a wrong pairing code, a refused WebSocket) answers 401 or 403, so a log watcher such as fail2ban can count those as guessing. Ordinary refusals use 400/409/429, and the app stops calling a daemon that rejected its token instead of retrying.
 - Every action (input, approve, deny, create, terminate, pair, revoke) is written to an audit log with the device name. Typed text is never logged.

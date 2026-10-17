@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse
 from muxtower import __version__
 from muxtower.approval.auto import AutoApprover
 from muxtower.approval.service import ApprovalService
+from muxtower.auth.deps import DAEMON_AUTH_HEADER
 from muxtower.auth.pairing import PairingService
 from muxtower.auth.repository import SqliteTokenRepository
 from muxtower.auth.routes import router as auth_router
@@ -128,6 +129,7 @@ def create_app(settings: Settings, tmux: TmuxPort | None = None, run_loops: bool
             allow_credentials=False,  # bearer tokens only; the stream cookie is same-origin
             allow_methods=["GET", "POST", "PATCH", "DELETE"],
             allow_headers=["Authorization", "Content-Type"],
+            expose_headers=list(DAEMON_AUTH_HEADER),
             max_age=600,
         )
 
@@ -142,7 +144,8 @@ def create_app(settings: Settings, tmux: TmuxPort | None = None, run_loops: bool
     ):
 
         def handler(_: Request, exc: Exception, status: int = status) -> JSONResponse:
-            return JSONResponse({"detail": str(exc)}, status_code=status)
+            headers = DAEMON_AUTH_HEADER if status == 401 else None
+            return JSONResponse({"detail": str(exc)}, status_code=status, headers=headers)
 
         app.add_exception_handler(error, handler)
 

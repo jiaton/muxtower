@@ -62,7 +62,7 @@ Split a file past 250 lines or once it mixes two domains.
 
 - No user accounts (see `../docs/design.md` → Auth). Every route except `GET /v1/health`, `POST /v1/pair/claim` and the static UI requires a valid device token; hook routes require that session's hook token.
 - CORS: explicit `cors.allowed_origins` only, default empty, `allow_credentials=False`. WebSocket accepts only same-origin or listed `Origin`s.
-- Tokens accepted as `Authorization: Bearer`, WS subprotocol `bearer.<token>`, or `?token=`; the access log filter redacts the query param.
+- Tokens accepted as `Authorization: Bearer`, WS subprotocol `bearer.<token>`, or `?access_token=` (never `?token=`, which gates count as a guess); the access log filter redacts it. Every 401 the daemon sends carries `X-Muxtower-Auth`, so clients can tell a revoked token from a gate in front.
 - Pairing claim is rate-limited and single-use; failed token checks are rate-limited per client IP.
 - Never launch anything but a registered runtime binary; no shell strings from the API.
 - Every mutating action writes an audit row (who = token name, what, session).

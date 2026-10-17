@@ -7,6 +7,7 @@ import { PairCodeForm } from '@/features/pairing/components/pair-code-form'
 import { useAllSessions } from '@/features/sessions/api/use-sessions'
 import { NewSessionDialog } from '@/features/sessions/components/new-session-dialog'
 import { SessionRow } from '@/features/sessions/components/session-row'
+import { useStreamStatus } from '@/lib/api/streams'
 import { useRejectedDaemons, useUnpairedDaemons } from '@/lib/daemons/store'
 
 export const Route = createFileRoute('/')({ component: InboxPage })
@@ -15,6 +16,7 @@ function InboxPage() {
   const all = useAllSessions()
   const unpaired = useUnpairedDaemons()
   const rejected = useRejectedDaemons()
+  const status = useStreamStatus((s) => s.status)
   const waiting = all.flatMap(({ daemon, sessions }) =>
     sessions.filter((s) => s.needs_attention).map((session) => ({ daemon, session })),
   )
@@ -64,7 +66,22 @@ function InboxPage() {
       ))}
 
       {all
-        .filter((d) => d.error)
+        .filter((d) => status[d.daemon.id] === 'blocked')
+        .map(({ daemon }) => (
+          <Banner key={`blocked-${daemon.id}`} tone="warning">
+            <CircleAlert />
+            <span>
+              {daemon.name} is behind a sign-in page.{' '}
+              <a href={daemon.url} className="underline" target={new URL(daemon.url).origin === location.origin ? undefined : '_blank'} rel="noreferrer">
+                Open it and sign in
+              </a>
+              , then come back.
+            </span>
+          </Banner>
+        ))}
+
+      {all
+        .filter((d) => d.error && status[d.daemon.id] !== 'blocked')
         .map(({ daemon, error }) => (
           <Banner key={daemon.id} tone="error">
             <CircleAlert />

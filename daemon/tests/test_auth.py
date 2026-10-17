@@ -9,7 +9,8 @@ def test_health_is_public(client: TestClient) -> None:
 
 
 def test_me_requires_token(client: TestClient) -> None:
-    assert client.get("/v1/me").status_code == 401
+    res = client.get("/v1/me")
+    assert res.status_code == 401 and res.headers["x-muxtower-auth"] == "invalid-credentials"
     assert client.get("/v1/me", headers={"Authorization": "Bearer nope"}).status_code == 401
 
 

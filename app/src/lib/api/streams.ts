@@ -1,15 +1,13 @@
 import { useEffect } from 'react'
-import { create } from 'zustand'
 import { markRejected, useDaemonsStore } from '@/lib/daemons/store'
 import { daemonKey, queryClient } from '@/lib/query'
-import { DaemonStream, type StreamStatus } from './stream'
+import { DaemonStream } from './stream'
+import { setStreamStatus } from './stream-status'
 import type { StreamSubscribe } from './types'
 
 const streams = new Map<string, { stream: DaemonStream; signature: string }>()
 
-export const useStreamStatus = create<{ status: Record<string, StreamStatus> }>(() => ({ status: {} }))
-const setStatus = (id: string, status: StreamStatus) =>
-  useStreamStatus.setState((s) => ({ status: { ...s.status, [id]: status } }))
+export { useStreamStatus } from './stream-status'
 
 /** Keeps one stream per paired daemon (mounted once, in the root layout). */
 export function useDaemonStreams() {
@@ -26,7 +24,7 @@ export function useDaemonStreams() {
     for (const daemon of wanted.values()) {
       if (streams.has(daemon.id)) continue
       const stream = new DaemonStream(daemon, {
-        onStatus: (status) => setStatus(daemon.id, status),
+        onStatus: (status) => setStreamStatus(daemon.id, status),
         onRejected: () => markRejected(daemon.id),
         onAuth: (method) => {
           if (daemon.streamAuth !== method) useDaemonsStore.getState().update(daemon.id, { streamAuth: method })
@@ -51,4 +49,22 @@ export function useStreamSubscription(daemonId: string, message: StreamSubscribe
     if (!key) return
     return streams.get(daemonId)?.stream.subscribe(JSON.parse(key) as StreamSubscribe)
   }, [daemonId, key])
+}
+
+/** A daemon marked rejected gets one check per app start: if its token works after all (the 401 came
+ *  from something in front of it, or the device was paired again elsewhere), it is used again. */
+export function useRecheckRejected() {
+  const rejected = useDaemonsStore((s) => s.daemons.filter((d) => d.rejected && d.token).map((d) => d.id).join(','))
+  useEffect(() => {
+    for (const id of rejected.split(',').filter(Boolean)) {
+      const daemon = useDaemonsStore.getState().daemons.find((d) => d.id === id)
+      if (!daemon?.token) continue
+      void fetch(`${daemon.url}/v1/me`, { headers: { Authorization: `Bearer ${daemon.token}` } })
+        .then((res) => {
+          if (res.ok) useDaemonsStore.getState().update(id, { rejected: false })
+        })
+        .catch(() => undefined)
+    }
+    // Once per app start (and when the set of rejected daemons changes).
+  }, [rejected])
 }

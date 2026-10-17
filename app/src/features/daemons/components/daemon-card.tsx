@@ -16,10 +16,9 @@ function useStatus(daemon: Daemon) {
   const stream = useStreamStatus((s) => s.status[daemon.id])
   if (!daemon.token) return { tone: 'idle', text: 'Not paired' } as const
   if (daemon.rejected) return { tone: 'error', text: 'This device was removed: pair again' } as const
-  if (me.isError) {
-    const rejected = me.error instanceof ApiError && me.error.status === 401
-    return { tone: 'error', text: rejected ? 'Token rejected: pair again' : 'Unreachable' } as const
-  }
+  if (stream === 'blocked' || (me.error instanceof ApiError && me.error.blockedByGate))
+    return { tone: 'warn', text: 'Behind a sign-in page: open the daemon and sign in' } as const
+  if (me.isError) return { tone: 'error', text: 'Unreachable' } as const
   if (me.isPending) return { tone: 'idle', text: 'Connecting…' } as const
   if (stream !== 'open') return { tone: 'warn', text: `Connected as ${me.data.token_name} · live updates off` } as const
   return { tone: 'ok', text: `Connected as ${me.data.token_name}` } as const

@@ -1,6 +1,6 @@
 import { Link, Outlet, createRootRoute } from '@tanstack/react-router'
 import { Inbox, Server } from 'lucide-react'
-import { useDaemonStreams } from '@/lib/api/streams'
+import { useDaemonStreams, useRecheckRejected } from '@/lib/api/streams'
 import { useConfiguredDaemons } from '@/lib/runtime-config'
 import { useColorScheme } from '@/lib/use-color-scheme'
 
@@ -13,6 +13,7 @@ function RootLayout() {
   useColorScheme()
   useConfiguredDaemons()
   useDaemonStreams()
+  useRecheckRejected()
   return (
     <div className="mx-auto flex h-dvh max-w-3xl flex-col pt-[env(safe-area-inset-top)]">
       <header className="flex items-center gap-2 border-b border-border px-4 py-2.5">

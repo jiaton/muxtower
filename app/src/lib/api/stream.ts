@@ -1,7 +1,7 @@
 import type { Daemon, StreamAuth } from '@/lib/daemons/types'
+import { responseKind } from './client'
+import type { StreamStatus } from './stream-status'
 import type { ServerFrame, StreamSubscribe } from './types'
-
-export type StreamStatus = 'connecting' | 'open' | 'offline'
 
 interface Handlers {
   onFrame: (frame: ServerFrame) => void
@@ -14,14 +14,21 @@ interface Handlers {
 const ORDER: StreamAuth[] = ['cookie', 'subprotocol', 'query']
 const OPEN_TIMEOUT_MS = 8000
 const MAX_BACKOFF_MS = 15000
+const BLOCKED_RETRY_MS = 60000
+/** Not `token`: gates in front of a daemon treat an unknown `?token=` as a password guess. */
+export const QUERY_TOKEN = 'access_token'
 
 const keyOf = (m: StreamSubscribe) => (m.topic === 'screen' ? `screen:${m.session_id}` : m.topic)
 
 /**
  * One /v1/stream socket for one daemon. Auth is tried in order of safety: an HttpOnly cookie (only when
  * the app is served from the daemon itself), the token as a WebSocket subprotocol (not in the URL), and
- * last the token as a query parameter (for proxies that only forward query tokens). The method that
- * worked is reported through onAuth so it is tried first next time.
+ * last the token as a query parameter (for proxies that pass nothing else). The method that worked is
+ * reported through onAuth so it is tried first next time.
+ *
+ * Before any handshake, one plain HTTP call checks that the request gets through at all: a revoked
+ * token (onRejected) or a sign-in gate in front (status `blocked`) then costs a single refused request
+ * instead of a series of refused handshakes, which a gate or fail2ban would count as guessing.
  */
 export class DaemonStream {
   private ws: WebSocket | null = null
@@ -29,6 +36,7 @@ export class DaemonStream {
   private retry = 0
   private timer: ReturnType<typeof setTimeout> | undefined
   private stopped = false
+  private halted = false
   private readonly daemon: Daemon
   private readonly handlers: Handlers
 
@@ -74,26 +82,38 @@ export class DaemonStream {
     return preferred && available.includes(preferred) ? [preferred, ...available.filter((m) => m !== preferred)] : available
   }
 
-  /** One plain HTTP call before any socket: a revoked token shows up as a clean 401 instead of a series
-   *  of refused handshakes (which a proxy's fail2ban would count). */
-  private async tokenRejected(): Promise<boolean> {
+  private async probe(): Promise<'ok' | 'rejected' | 'blocked' | 'error'> {
     try {
       const res = await fetch(`${this.daemon.url}/v1/me`, { headers: { Authorization: `Bearer ${this.daemon.token}` } })
-      return res.status === 401
+      return responseKind(res)
     } catch {
-      return false // offline: let the normal retry handle it
+      return 'error' // offline: the normal backoff retries
     }
   }
 
-  private async connect() {
-    this.handlers.onStatus('connecting')
-    if (await this.tokenRejected()) {
+  /** Stops this round of connecting; true when the caller must not try further methods. */
+  private refused(kind: 'rejected' | 'blocked'): true {
+    if (kind === 'rejected') {
       this.handlers.onStatus('offline')
       this.handlers.onRejected?.()
+    } else {
+      this.handlers.onStatus('blocked')
+      this.timer = setTimeout(() => void this.connect(), BLOCKED_RETRY_MS)
+    }
+    this.halted = true
+    return true
+  }
+
+  private async connect() {
+    this.halted = false
+    this.handlers.onStatus('connecting')
+    const kind = await this.probe()
+    if (kind === 'rejected' || kind === 'blocked') {
+      this.refused(kind)
       return
     }
     for (const method of this.methods()) {
-      if (this.stopped) return
+      if (this.stopped || this.halted) return
       const ws = await this.open(method)
       if (ws) {
         if (this.stopped) {
@@ -120,8 +140,9 @@ export class DaemonStream {
           headers: { Authorization: `Bearer ${token}` },
           credentials: 'same-origin',
         })
-        if (res.status === 401) {
-          this.handlers.onRejected?.()
+        const kind = responseKind(res)
+        if (kind === 'rejected' || kind === 'blocked') {
+          this.refused(kind)
           return null
         }
         if (!res.ok) return null
@@ -129,7 +150,7 @@ export class DaemonStream {
       } else if (method === 'subprotocol') {
         ws = new WebSocket(base, ['muxtower', `bearer.${token}`])
       } else {
-        ws = new WebSocket(`${base}?token=${encodeURIComponent(token)}`)
+        ws = new WebSocket(`${base}?${QUERY_TOKEN}=${encodeURIComponent(token)}`)
       }
     } catch {
       return null

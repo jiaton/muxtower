@@ -14,9 +14,9 @@ from muxtower.config import Settings, load_settings
 
 
 class RedactTokenFilter(logging.Filter):
-    """Access log lines include the request path; strip `?token=` so tokens never reach a log."""
+    """Access log lines include the request path; strip `?access_token=` so tokens never reach a log."""
 
-    _pattern = re.compile(r"([?&]token=)[^&\s\"]+")
+    _pattern = re.compile(r"([?&]access_token=)[^&\s\"]+")
 
     def filter(self, record: logging.LogRecord) -> bool:
         if isinstance(record.args, tuple):

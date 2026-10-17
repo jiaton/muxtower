@@ -11,13 +11,13 @@ export const HISTORY_STEPS = [300, 1500, 5000] as const
  *  the stream; polled only while the stream is down. Raising `history` re-subscribes for more. */
 export function useScreen(daemonId: string, sessionId: string, history: number) {
   const client = useDaemonClient(daemonId)
-  const streaming = useStreamStatus((s) => s.status[daemonId] === 'open')
+  const status = useStreamStatus((s) => s.status[daemonId])
   useStreamSubscription(daemonId, { type: 'subscribe', topic: 'screen', session_id: sessionId, history })
   return useQuery({
     queryKey: daemonKey(daemonId, 'screen', sessionId),
     enabled: client !== null,
     staleTime: Infinity,
-    refetchInterval: streaming ? false : 2000,
+    refetchInterval: status === 'open' ? false : status === 'blocked' ? 60_000 : 2000,
     queryFn: async () => {
       const screen = unwrap(
         await client!.GET('/v1/sessions/{session_id}/screen', {

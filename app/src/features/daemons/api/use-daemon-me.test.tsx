@@ -11,7 +11,7 @@ it('sends the bearer token and returns the token name', async () => {
     http.get(`${DAEMON_URL}/v1/me`, ({ request }) =>
       request.headers.get('authorization') === 'Bearer good'
         ? HttpResponse.json({ token_name: 'phone', daemon_name: 'box' })
-        : HttpResponse.json({ detail: 'missing or invalid bearer token' }, { status: 401 }),
+        : HttpResponse.json({ detail: 'missing or invalid bearer token' }, { status: 401, headers: { 'X-Muxtower-Auth': 'x' } }),
     ),
   )
   const { id } = addDaemon('good')
@@ -21,7 +21,9 @@ it('sends the bearer token and returns the token name', async () => {
 })
 
 it('surfaces a rejected token as a 401 ApiError', async () => {
-  server.use(http.get(`${DAEMON_URL}/v1/me`, () => HttpResponse.json({ detail: 'nope' }, { status: 401 })))
+  server.use(
+    http.get(`${DAEMON_URL}/v1/me`, () => HttpResponse.json({ detail: 'nope' }, { status: 401, headers: { 'X-Muxtower-Auth': 'x' } })),
+  )
   const { id } = addDaemon('bad')
   const { result } = renderHook(() => useDaemonMe(id), { wrapper: wrapper() })
   await waitFor(() => expect(result.current.isError).toBe(true))

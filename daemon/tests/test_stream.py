@@ -21,13 +21,19 @@ def test_subprotocol_auth(client: TestClient, auth: dict[str, str]) -> None:
         _expect_sessions(ws)
 
 
+def test_plain_token_parameter_is_not_a_credential(client: TestClient, auth: dict[str, str]) -> None:
+    # Gates in front treat ?token= as a guess; muxtower never uses that name.
+    with pytest.raises(WebSocketDisconnect), client.websocket_connect(f"/v1/stream?token={_token(auth)}") as ws:
+        ws.receive_json()
+
+
 def test_query_token_fallback(client: TestClient, auth: dict[str, str]) -> None:
-    with client.websocket_connect(f"/v1/stream?token={_token(auth)}") as ws:
+    with client.websocket_connect(f"/v1/stream?access_token={_token(auth)}") as ws:
         _expect_sessions(ws)
 
 
 def test_rejects_without_token(client: TestClient) -> None:
-    with pytest.raises(WebSocketDisconnect), client.websocket_connect("/v1/stream?token=nope") as ws:
+    with pytest.raises(WebSocketDisconnect), client.websocket_connect("/v1/stream?access_token=nope") as ws:
         ws.receive_json()
 
 
@@ -58,6 +64,6 @@ def test_cookie_dies_with_the_device(app: FastAPI, client: TestClient, auth: dic
 
 
 def test_bad_message_gets_error_frame(client: TestClient, auth: dict[str, str]) -> None:
-    with client.websocket_connect(f"/v1/stream?token={_token(auth)}") as ws:
+    with client.websocket_connect(f"/v1/stream?access_token={_token(auth)}") as ws:
         ws.send_json({"type": "subscribe", "topic": "nope"})
         assert ws.receive_json()["type"] == "error"

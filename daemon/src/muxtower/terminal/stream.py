@@ -1,7 +1,8 @@
 """/v1/stream: one WebSocket per client. The client subscribes to topics; the server pushes frames.
 
 Auth, in order: the stream cookie (same-origin app only), `Sec-WebSocket-Protocol: muxtower,
-bearer.<token>`, then `?token=` for proxies that only forward query tokens."""
+bearer.<token>`, then `?access_token=` for proxies that pass nothing else. Deliberately not `?token=`:
+gates in front (e.g. a password/token gate) treat an unknown `token` parameter as a guessing attempt."""
 
 import asyncio
 import logging
@@ -17,6 +18,7 @@ from muxtower.infra.tmux import TmuxError
 from muxtower.sessions.models import Session
 
 logger = logging.getLogger("muxtower.stream")
+QUERY_TOKEN = "access_token"  # noqa: S105 - a parameter name, not a secret
 router = APIRouter(prefix="/v1", tags=["stream"])
 
 
@@ -84,7 +86,7 @@ def _authenticate(ws: WebSocket) -> tuple[str | None, bool]:
             return name, WS_SUBPROTOCOL in offered
 
     token = next((p.removeprefix(WS_BEARER_PREFIX) for p in offered if p.startswith(WS_BEARER_PREFIX)), None)
-    token = token or ws.query_params.get("token", "")
+    token = token or ws.query_params.get(QUERY_TOKEN, "")
     device = state.tokens.verify(token)
     return (device.name if device else None), WS_SUBPROTOCOL in offered
 
