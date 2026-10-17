@@ -1,8 +1,8 @@
-"""`muxtower pair`: show a one-time pairing code as a QR code and as text.
+"""`muxtower pair`: show a one-time pairing code.
 
-The daemon cannot know which address a phone will reach it at (container, LAN, tailnet, public
-proxy), so the URL comes from --url, then `public_url` in config, then detected candidates, and the
-user picks when there is more than one."""
+The daemon cannot know which address a device will reach it at (container, LAN, tailnet, proxy,
+tunnel). With --url or `public_url` it shows a QR code for that address; otherwise it shows just the
+code and the addresses it can see, and the device enters the code on whichever address it opened."""
 
 import argparse
 import json
@@ -54,19 +54,6 @@ def candidates(port: int) -> list[tuple[str, str]]:
     return found
 
 
-def _choose(options: list[tuple[str, str]]) -> str:
-    if len(options) == 1 or not sys.stdin.isatty():
-        return options[0][0]
-    print("Which address will the new device use to reach this daemon?")
-    for i, (url, note) in enumerate(options, 1):
-        print(f"  {i}. {url}  ({note})")
-    print(f"  {len(options) + 1}. enter another URL")
-    choice = input("> ").strip() or "1"
-    if choice.isdigit() and 1 <= int(choice) <= len(options):
-        return options[int(choice) - 1][0]
-    return input("URL: ").strip()
-
-
 def cmd_pair(args: argparse.Namespace, daemon: LocalDaemon) -> int:
     daemon.ensure_running()
     if args.revoke:
@@ -74,19 +61,24 @@ def cmd_pair(args: argparse.Namespace, daemon: LocalDaemon) -> int:
         print(f"revoked {args.revoke!r}")
         return 0
 
-    url = args.url or daemon.settings.public_url
-    if not url:
-        url = _choose(candidates(daemon.settings.port))
-        print(f'tip: set public_url = "{url}" in the config to skip this question\n')
-    url = url.rstrip("/")
-    app = (args.app or url).rstrip("/")
     code = daemon.request("POST", "/v1/pair/codes")
-    link = f"{app}/pair#u={quote(url, safe='')}&c={code['code']}"
-
-    segno.make(link, error="L").terminal(compact=True)
-    print(f"\nScan with the phone's camera, or open {link}")
-    print(f"Or open {url} on the device and enter the code: {code['code']}")
-    print(f"The code works once and expires at {code['expires_at'][11:19]} UTC.")
-    if not url.startswith("https://") and "127.0.0.1" not in url:
-        print("\nwarning: without HTTPS the app cannot install or receive push notifications.", file=sys.stderr)
+    expires = code["expires_at"][11:19]
+    url = (args.url or daemon.settings.public_url or "").rstrip("/")
+    if url:
+        app = (args.app or url).rstrip("/")
+        link = f"{app}/pair#u={quote(url, safe='')}&c={code['code']}"
+        segno.make(link, error="L").terminal(compact=True)
+        print(f"\nScan with the device's camera, or open {link}")
+        print(f"Or open {url} on the device and enter the code: {code['code']}")
+        if not url.startswith("https://") and "127.0.0.1" not in url:
+            print("\nwarning: without HTTPS the app cannot install or receive notifications.", file=sys.stderr)
+    else:
+        # Which address a device will use (LAN, tailnet, a proxy, a tunnel) is not knowable from here, so
+        # nothing is baked into a QR code. The device opens whatever address works for it.
+        print(f"Pairing code: {code['code']}\n")
+        print("Open this daemon's address on the new device and enter the code. Addresses seen from here:")
+        for candidate, note in candidates(daemon.settings.port):
+            print(f"  {candidate}  ({note})")
+        print("\nFor a QR code, pass --url, or set public_url in the config.")
+    print(f"The code works once and expires at {expires} UTC.")
     return 0

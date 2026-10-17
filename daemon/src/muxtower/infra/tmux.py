@@ -9,7 +9,7 @@ logger = logging.getLogger("muxtower.tmux")
 
 DEFAULT_SOCKET = "default"
 TIMEOUT_SECONDS = 3.0
-_FIELDS = "#{pane_id}\t#{session_name}\t#{pane_current_command}\t#{pane_current_path}"
+_FIELDS = "#{pane_id}\t#{session_name}\t#{pane_current_command}\t#{pane_current_path}\t#{pane_pid}"
 
 
 class TmuxError(Exception):
@@ -53,8 +53,9 @@ class TmuxCli:
         panes = []
         for line in result.stdout.splitlines():
             parts = line.split("\t")
-            if len(parts) == 4:
-                panes.append(PaneInfo(socket, parts[0], parts[1], parts[2], parts[3]))
+            if len(parts) == 5:
+                pid = int(parts[4]) if parts[4].isdigit() else 0
+                panes.append(PaneInfo(socket, parts[0], parts[1], parts[2], parts[3], pid))
         return panes
 
     def capture(self, pane: PaneRef, ansi: bool = False, history: int = 0) -> str | None:

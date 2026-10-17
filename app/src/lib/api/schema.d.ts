@@ -573,6 +573,11 @@ export interface components {
             source: components["schemas"]["SessionSource"];
             state: components["schemas"]["AgentState"];
             state_source: components["schemas"]["StateSource"];
+            /**
+             * Tmux Pane
+             * @description pane id, e.g. %12, for attaching to the exact pane
+             */
+            tmux_pane: string;
             /** Tmux Session */
             tmux_session: string;
             /**

@@ -9,6 +9,7 @@ class PaneInfo:
     session_name: str
     command: str
     cwd: str
+    pid: int = 0  # the pane's process; with pane_id it identifies a pane across tmux server restarts
 
 
 @dataclass(frozen=True)

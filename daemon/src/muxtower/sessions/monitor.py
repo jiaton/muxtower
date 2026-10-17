@@ -5,6 +5,7 @@ changed. Every consumer (API, stream, push, auto-approve) reads the results inst
 import asyncio
 import hashlib
 import logging
+import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -26,6 +27,13 @@ class TickResult:
     sessions_changed: bool = False
     screens: dict[str, str] = field(default_factory=dict)  # session id -> new ansi screen
     attention: list[str] = field(default_factory=list)  # session ids that entered an attention state
+
+
+def display_name(pane: PaneInfo) -> str:
+    """tmux names unnamed sessions 0, 1, 2…; the working directory says more than that."""
+    if pane.session_name.isdigit():
+        return os.path.basename(pane.cwd.rstrip("/")) or pane.cwd or f"tmux {pane.session_name}"
+    return pane.session_name
 
 
 class Monitor:
@@ -51,10 +59,11 @@ class Monitor:
     # --- reconcile -----------------------------------------------------------------------------
 
     def _adopted_record(self, pane: PaneInfo, runtime: str) -> SessionRecord:
-        digest = hashlib.sha256(f"{pane.socket}:{pane.pane_id}:{pane.session_name}".encode()).hexdigest()
+        # Keyed by pane, not session name: renaming the tmux session must not make it a new session.
+        digest = hashlib.sha256(f"{pane.socket}:{pane.pane_id}:{pane.pid}".encode()).hexdigest()
         return SessionRecord(
             id="a" + digest[:11],
-            name=pane.session_name,
+            name=display_name(pane),
             runtime=runtime,
             cwd=pane.cwd,
             source=SessionSource.ADOPTED,

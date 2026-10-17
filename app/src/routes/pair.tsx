@@ -11,7 +11,7 @@ function PairPage() {
   const navigate = useNavigate()
   // Read once, then drop the codes from the address bar and history.
   const [targets] = useState(() => {
-    const found = parsePairHash(location.hash)
+    const found = parsePairHash(location.hash, location.origin)
     history.replaceState(null, '', location.pathname)
     return found
   })

@@ -560,6 +560,11 @@
           "state_source": {
             "$ref": "#/components/schemas/StateSource"
           },
+          "tmux_pane": {
+            "description": "pane id, e.g. %12, for attaching to the exact pane",
+            "title": "Tmux Pane",
+            "type": "string"
+          },
           "tmux_session": {
             "title": "Tmux Session",
             "type": "string"
@@ -583,6 +588,7 @@
           "source",
           "tmux_socket",
           "tmux_session",
+          "tmux_pane",
           "state",
           "state_source",
           "matched_rule",

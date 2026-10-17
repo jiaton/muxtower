@@ -79,6 +79,7 @@ class SessionService:
             source=record.source,
             tmux_socket=record.pane.socket,
             tmux_session=record.tmux_session,
+            tmux_pane=record.pane.pane_id,
             state=eff.state,
             state_source=eff.source,
             matched_rule=eff.matched_rule,

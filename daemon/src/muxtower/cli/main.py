@@ -21,7 +21,10 @@ from muxtower.config import load_settings
 def _attach(session: dict[str, str]) -> int:
     tmux = shutil.which("tmux") or "tmux"
     socket = session["tmux_socket"]
-    argv = ["tmux"] + ([] if socket == "default" else ["-L", socket]) + ["attach", "-t", f"={session['tmux_session']}"]
+    pane = session["tmux_pane"]
+    base = ["tmux"] + ([] if socket == "default" else ["-L", socket])
+    # Attach to the pane's session, then bring that exact pane forward (a session may have many).
+    argv = [*base, "attach", "-t", pane, ";", "select-window", "-t", pane, ";", "select-pane", "-t", pane]
     env = {k: v for k, v in os.environ.items() if k != "TMUX"}  # allow attaching from inside tmux
     os.execve(tmux, argv, env)  # noqa: S606 - replaces this process with tmux attach
 

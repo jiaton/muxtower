@@ -3,6 +3,7 @@ import { BellOff, CircleAlert, Server } from 'lucide-react'
 import { Banner } from '@/components/ui/banner'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PendingActionCard } from '@/features/approval/components/pending-action-card'
+import { PairCodeForm } from '@/features/pairing/components/pair-code-form'
 import { useAllSessions } from '@/features/sessions/api/use-sessions'
 import { NewSessionDialog } from '@/features/sessions/components/new-session-dialog'
 import { SessionRow } from '@/features/sessions/components/session-row'
@@ -19,9 +20,21 @@ function InboxPage() {
   const others = all.map(({ daemon, sessions }) => ({ daemon, sessions: sessions.filter((s) => !s.needs_attention) }))
   const multi = all.length > 1
 
+  if (!all.length && unpaired.length)
+    return (
+      <EmptyState icon={<Server />} title={`Pair this device with ${unpaired[0].name}`}>
+        <div className="flex flex-col items-center gap-3">
+          <p>
+            Run <code className="font-mono">muxtower pair</code> on that machine and enter the code.
+          </p>
+          <PairCodeForm url={unpaired[0].url} />
+        </div>
+      </EmptyState>
+    )
+
   if (!all.length)
     return (
-      <EmptyState icon={<Server />} title={unpaired.length ? 'Pair this device to get started' : 'No daemons yet'}>
+      <EmptyState icon={<Server />} title="No daemons yet">
         Run <code className="font-mono">muxtower pair</code> on the machine where your agents run, then{' '}
         <Link to="/daemons" className="text-accent underline">
           add it here

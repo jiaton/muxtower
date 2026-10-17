@@ -1,5 +1,6 @@
 /** Pairing links carry everything after `#`, which browsers never send to a server.
- *  One daemon:  /pair#u=<daemon url>&c=<code>     (what `muxtower pair` prints)
+ *  One daemon:  /pair#u=<daemon url>&c=<code>     (what `muxtower pair --url …` prints)
+ *  This daemon: /pair#c=<code>                     (the page's own origin is the daemon: its bundled UI)
  *  Several:     /pair#d=<base64url JSON [{u,c,n}]> (what "Add another device" shows) */
 export interface PairTarget {
   url: string
@@ -18,7 +19,7 @@ const fromBase64Url = (text: string) => {
   return new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0)))
 }
 
-export function parsePairHash(hash: string): PairTarget[] {
+export function parsePairHash(hash: string, ownOrigin?: string): PairTarget[] {
   const params = new URLSearchParams(hash.replace(/^#/, ''))
   const many = params.get('d')
   if (many) {
@@ -31,7 +32,7 @@ export function parsePairHash(hash: string): PairTarget[] {
       return []
     }
   }
-  const url = params.get('u')
+  const url = params.get('u') ?? ownOrigin
   const code = params.get('c')
   return url && code ? [{ url, code }] : []
 }

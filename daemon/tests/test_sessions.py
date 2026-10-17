@@ -66,3 +66,25 @@ def test_auto_approve_needs_a_capable_runtime(app: FastAPI, client: TestClient, 
     assert (
         client.patch(f"/v1/sessions/{by_name['b']['id']}", json={"auto_approve": True}, headers=auth).status_code == 400
     )
+
+
+def test_unnamed_tmux_sessions_are_named_after_their_directory(app: FastAPI, client: TestClient, auth: dict[str, str],
+                                                               tmux: FakeTmux) -> None:  # fmt: skip
+    tmux.add_pane("default", "0", "claude", cwd="/home/me/code/api")
+    tmux.add_pane("default", "work", "claude", cwd="/home/me/code/web")
+    app.state.monitor.tick()
+    names = sorted(s["name"] for s in client.get("/v1/sessions", headers=auth).json())
+    assert names == ["api", "work"]
+
+
+def test_renamed_tmux_session_is_still_the_same_session(
+    app: FastAPI, client: TestClient, auth: dict[str, str], tmux: FakeTmux
+) -> None:
+    from dataclasses import replace
+
+    pane = tmux.add_pane("default", "0", "claude", cwd="/srv/app")
+    app.state.monitor.tick()
+    before = client.get("/v1/sessions", headers=auth).json()[0]["id"]
+    pane.info = replace(pane.info, session_name="renamed")
+    app.state.monitor.tick()
+    assert [s["id"] for s in client.get("/v1/sessions", headers=auth).json()] == [before]

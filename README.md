@@ -16,8 +16,10 @@ muxtower is server-side and headless. A small daemon runs next to your agents (C
 pipx install muxtower
 cd ~/code/my-project
 muxtower run claude          # starts the daemon if needed, opens Claude Code in a managed tmux session
-muxtower pair                # shows a QR code: scan it with your phone
+muxtower pair                # prints a one-time code
 ```
+
+Open the daemon's address on your phone and enter the code. The daemon cannot know which address your phone uses (LAN, tailnet, tunnel), so it does not guess; once you set `public_url`, `muxtower pair` also shows a QR code you can scan.
 
 Detach with the usual tmux keys (`Ctrl-b d`); the agent keeps running. Agents you already started in plain tmux are picked up automatically.
 
@@ -28,7 +30,7 @@ Detach with the usual tmux keys (`Ctrl-b d`); the agent keeps running. Agents yo
 | `muxtower` | status: is the daemon running, which sessions need you |
 | `muxtower run AGENT [ARGS…]` | start an agent (`claude`, `codex`, …) in a managed tmux session; `-d` to stay detached, `-n` to name it |
 | `muxtower attach [NAME]` | open a session in this terminal |
-| `muxtower pair` | add a device: QR code + one-time code. `--revoke NAME` removes one |
+| `muxtower pair` | add a device with a one-time code (and a QR code when the address is known: `--url` or `public_url`). `--revoke NAME` removes one |
 | `muxtower serve` | run the daemon in the foreground (systemd, Docker). `muxtower run` starts it for you otherwise |
 
 ## Reach it from your phone over HTTPS

@@ -33,6 +33,7 @@ class Session(BaseModel):
     source: SessionSource
     tmux_socket: str = Field(description='tmux server: "default" or a -L socket name')
     tmux_session: str
+    tmux_pane: str = Field(description="pane id, e.g. %12, for attaching to the exact pane")
     state: AgentState
     state_source: StateSource
     matched_rule: str | None
