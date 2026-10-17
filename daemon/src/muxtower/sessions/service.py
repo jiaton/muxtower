@@ -14,7 +14,7 @@ from muxtower.errors import Forbidden, Invalid, NotFound
 from muxtower.hooks import claude_code
 from muxtower.runtimes.models import ATTENTION_STATES, AgentState
 from muxtower.runtimes.spec import Runtime
-from muxtower.sessions.live import Effective, LiveSession, merge
+from muxtower.sessions.live import Effective, HookState, LiveSession, merge
 from muxtower.sessions.models import CreateSession, Session, UpdateSession
 from muxtower.sessions.ports import SessionRecord, SessionRepository, SessionSource
 from muxtower.terminal.ports import TmuxPort
@@ -59,14 +59,25 @@ class SessionService:
     def runtime_of(self, record: SessionRecord) -> Runtime | None:
         return self.runtimes.get(record.runtime)
 
+    def live_of(self, session_id: str) -> LiveSession:
+        """In-memory state for a session; after a restart, seeded with the last hook state on disk."""
+        live = self.live.get(session_id)
+        if live is None:
+            live = self.live[session_id] = LiveSession()
+            raw = self.repo.load_hook_state(session_id)
+            if raw:
+                live.hook = HookState.load(raw)
+                live.last_message = live.hook.last_message
+        return live
+
     def effective(self, record: SessionRecord) -> Effective:
-        live = self.live.setdefault(record.id, LiveSession())
+        live = self.live_of(record.id)
         if live.effective is None:
             live.effective = merge(live.hook, live.screen, time.monotonic())
         return live.effective
 
     def view(self, record: SessionRecord) -> Session:
-        live = self.live.setdefault(record.id, LiveSession())
+        live = self.live_of(record.id)
         eff = self.effective(record)
         runtime = self.runtime_of(record)
         if eff.pending is not None and runtime is not None and eff.pending.options:
@@ -175,11 +186,12 @@ class SessionService:
             raise NotFound("unknown session")
         if not secrets.compare_digest(record.hook_token_hash, _hash(hook_token)):
             raise Forbidden("bad hook token")
-        live = self.live.setdefault(session_id, LiveSession())
+        live = self.live_of(session_id)
         before = self.effective(record).state
         live.hook = claude_code.apply_event(live.hook, event)
         if live.hook is not None and live.hook.last_message:
             live.last_message = live.hook.last_message
+        self.repo.save_hook_state(session_id, live.hook.dump() if live.hook else None)
         return self.refresh(record, live, before)
 
     def refresh(self, record: SessionRecord, live: LiveSession, before: AgentState) -> bool:

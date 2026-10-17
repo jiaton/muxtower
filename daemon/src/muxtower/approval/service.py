@@ -7,7 +7,7 @@ from muxtower.approval.models import ApprovalResult
 from muxtower.errors import Conflict, Invalid
 from muxtower.runtimes.models import APPROVABLE_STATES, AgentState
 from muxtower.runtimes.spec import Runtime, Step
-from muxtower.sessions.live import LiveSession, ScreenState, merge
+from muxtower.sessions.live import ScreenState, merge
 from muxtower.sessions.models import StateSource
 from muxtower.sessions.ports import SessionRecord
 from muxtower.sessions.service import SessionService
@@ -29,7 +29,7 @@ class ApprovalService:
             raise Conflict("pane is gone")
         now = time.monotonic()
         screen = ScreenState(runtime.classify(text), text, since=now)
-        live = self.sessions.live.setdefault(record.id, LiveSession())
+        live = self.sessions.live_of(record.id)
         effective = merge(live.hook, screen, now)
         return effective.state, screen, effective.source
 

@@ -38,7 +38,8 @@ class MenuConfig(BaseModel):
 
 
 class ApproveConfig(BaseModel):
-    # Per state: label patterns tried in order; the first matching option is chosen.
+    # Per state: label patterns tried in order; the first matching option is chosen. An empty list means
+    # "never pick for me": approving that state needs an explicit option.
     prefer: dict[AgentState, list[str]] = Field(default_factory=dict)
     # Fallback for every state when no preferred label is on screen.
     default: list[str] = Field(default_factory=lambda: [r"^Yes\b"])
@@ -139,8 +140,9 @@ class Runtime:
         while last + 1 < len(lines) and kind(lines[last + 1]) is not None:
             last += 1
 
-        # A line as wide as the screen was cut by the terminal, possibly mid-word (long paths). The width is
-        # taken from lines outside the menu: real screens have a full-width separator above it.
+        # TUIs wrap at spaces and split a word only when it is longer than a whole line (long paths). So a
+        # continuation joins without a space only after a full-width line that is one unbroken token. The
+        # width comes from lines outside the menu: real screens have a full-width separator above it.
         outside = [len(line.rstrip()) for j, line in enumerate(lines) if not first <= j <= last]
         width = max(outside, default=0)
         labels: list[str] = []
@@ -148,7 +150,9 @@ class Runtime:
         for i in range(first, last + 1):
             text = lines[i][column:].strip()
             if kind(lines[i]) == "more" and labels:
-                cut = abs(len(lines[i - 1].rstrip()) - width) <= 1
+                previous = lines[i - 1]
+                one_token = " " not in previous.strip()
+                cut = one_token and abs(len(previous.rstrip()) - width) <= 1
                 labels[-1] += ("" if cut else " ") + text
                 continue
             if i == at:
@@ -162,7 +166,10 @@ class Runtime:
         return Menu(options=options, cursor=cursor_index)
 
     def choose_option(self, state: AgentState, options: list[Option]) -> str | None:
-        for pattern in [*self.prefer.get(state, []), *self.default]:
+        """A state listed under [approve.prefer] uses only its own patterns (an empty list means a
+        person always decides); other states fall back to [approve].default."""
+        patterns = self.prefer[state] if state in self.prefer else self.default
+        for pattern in patterns:
             for option in options:
                 if pattern.search(option.label):
                     return option.key

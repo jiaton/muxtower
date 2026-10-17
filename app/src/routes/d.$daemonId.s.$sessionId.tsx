@@ -50,7 +50,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
   const launched = session.source === 'launched'
 
   return (
-    <div className="-mx-4 -mt-4 flex min-h-0 flex-1 flex-col gap-3 px-3 pt-3">
+    <div className="-mx-4 -mt-4 flex flex-1 flex-col gap-3 px-3 pt-3">
       <header className="flex items-center gap-2">
         <Button asChild variant="ghost" size="icon-sm" aria-label="Back to inbox">
           <Link to="/">

@@ -36,6 +36,7 @@ class PairingSettings(BaseModel):
 
 
 class Settings(BaseModel):
+    name: str | None = None  # display name in the app; defaults to the hostname
     host: str = "127.0.0.1"
     port: int = 8731
     # What pairing links and the bundled /config.json advertise. Required behind a reverse proxy.
@@ -63,6 +64,7 @@ class Settings(BaseModel):
 
 # Flat env var -> nested settings key. Lists are comma-separated.
 _ENV_KEYS: dict[str, tuple[str, ...]] = {
+    "MUXTOWER_NAME": ("name",),
     "MUXTOWER_HOST": ("host",),
     "MUXTOWER_PORT": ("port",),
     "MUXTOWER_PUBLIC_URL": ("public_url",),

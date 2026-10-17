@@ -3,7 +3,7 @@
 muxtower                 status: daemon, sessions
 muxtower run AGENT ...   start an agent in a managed tmux session (starts the daemon if needed)
 muxtower attach [NAME]   open a session in this terminal
-muxtower pair            add a device (QR code + one-time code)
+muxtower pair            add a device with a one-time code
 muxtower serve           run the daemon in the foreground (for systemd, Docker)
 """
 

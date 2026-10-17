@@ -4,6 +4,8 @@ Hooks are precise but only say what happened; the screen says what is true now. 
 state wins until the screen proves it is over: the agent is visibly busy again, or no dialog has been
 on screen for STALE_HOOK_SECONDS (e.g. the user answered at the keyboard and no later hook fired)."""
 
+import json
+import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
@@ -21,6 +23,24 @@ class HookState:
     tool_name: str | None = None
     detail: str | None = None
     last_message: str | None = None
+
+    def dump(self) -> str:
+        """JSON for storage; the monotonic time is stored as an age so it survives a restart."""
+        age = time.monotonic() - self.at
+        data = {"state": self.state.value, "age": age, "tool_name": self.tool_name, "detail": self.detail,
+                "last_message": self.last_message}  # fmt: skip
+        return json.dumps(data, ensure_ascii=False)
+
+    @classmethod
+    def load(cls, raw: str) -> "HookState":
+        data = json.loads(raw)
+        return cls(
+            state=AgentState(data["state"]),
+            at=time.monotonic() - float(data.get("age", 0)),
+            tool_name=data.get("tool_name"),
+            detail=data.get("detail"),
+            last_message=data.get("last_message"),
+        )
 
 
 @dataclass

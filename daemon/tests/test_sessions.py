@@ -88,3 +88,13 @@ def test_renamed_tmux_session_is_still_the_same_session(
     pane.info = replace(pane.info, session_name="renamed")
     app.state.monitor.tick()
     assert [s["id"] for s in client.get("/v1/sessions", headers=auth).json()] == [before]
+
+
+def test_resize_keeps_room_for_dialogs(
+    client: TestClient, auth: dict[str, str], tmux: FakeTmux, tmp_path: Path
+) -> None:
+    sizes: list[tuple[int, int]] = []
+    tmux.resize = lambda pane, cols, rows: sizes.append((cols, rows))  # type: ignore[method-assign]
+    sid = client.post("/v1/sessions", json={"runtime": "claude", "cwd": str(tmp_path)}, headers=auth).json()["id"]
+    assert client.post(f"/v1/sessions/{sid}/resize", json={"cols": 46, "rows": 6}, headers=auth).status_code == 204
+    assert sizes == [(46, 40)]

@@ -5,6 +5,9 @@ from muxtower.sessions.service import SessionService
 from muxtower.terminal.models import Resize, Screen, SendInput
 
 MAX_HISTORY = 5000
+# A phone's terminal view can be only a few rows tall. Width decides how text wraps and follows the
+# client; height never drops below this, so an agent always has room to draw its dialogs.
+MIN_ROWS = 40
 
 
 class TerminalService:
@@ -35,4 +38,4 @@ class TerminalService:
         record = self.sessions.record(session_id)
         if record.source != SessionSource.LAUNCHED:
             raise Forbidden("only sessions started by muxtower can be resized")
-        self.sessions.tmux.resize(record.pane, body.cols, body.rows)
+        self.sessions.tmux.resize(record.pane, body.cols, max(body.rows, MIN_ROWS))

@@ -74,7 +74,7 @@ def _log_crash(task: asyncio.Task[None]) -> None:
 def create_app(settings: Settings, tmux: TmuxPort | None = None, run_loops: bool = True) -> FastAPI:
     db = Database(settings.db_path)
     tokens = build_token_service(settings, db)
-    daemon_name = socket.gethostname()
+    daemon_name = settings.name or socket.gethostname()
     bus = EventBus()
     sessions = SessionService(
         SqliteSessionRepository(db),

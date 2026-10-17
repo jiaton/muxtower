@@ -73,7 +73,7 @@ export function TerminalView({ ansi, onSize }: { ansi: string | undefined; onSiz
   }, [ansi])
 
   return (
-    <div className="relative min-h-0 flex-1 overflow-hidden rounded-md bg-terminal-bg p-2">
+    <div className="relative min-h-[50dvh] flex-1 overflow-hidden rounded-md bg-terminal-bg p-2">
       <div ref={host} className="size-full" />
       {paused ? (
         <Button

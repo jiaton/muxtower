@@ -68,3 +68,19 @@ def test_hook_endpoint_updates_state(app: FastAPI, client: TestClient, auth: dic
     session = client.get(f"/v1/sessions/{session_id}", headers=auth).json()
     assert session["state"] == "needs_permission" and session["needs_attention"]
     assert session["pending"]["detail"] == "make" and session["state_source"] == "hook"
+
+
+def test_hook_state_survives_a_restart(make_app, tmux: FakeTmux, tmp_path: Path) -> None:  # type: ignore[no-untyped-def]
+    app = make_app()
+    client = TestClient(app)
+    _, token = app.state.tokens.create("phone")
+    auth = {"Authorization": f"Bearer {token}"}
+    session_id = _launch(client, auth, tmp_path)
+    hook_token = next(iter(tmux.panes.values())).env["MUXTOWER_HOOK_TOKEN"]
+    body = {"hook_event_name": "PermissionRequest", "tool_name": "Bash", "tool_input": {"command": "make deploy"}}
+    client.post("/v1/hooks/claude-code", json=body,
+                headers={"Authorization": f"Bearer {hook_token}", "X-Muxtower-Session": session_id})  # fmt: skip
+
+    restarted = TestClient(make_app())  # same state dir and tmux, fresh process state
+    pending = restarted.get(f"/v1/sessions/{session_id}", headers=auth).json()["pending"]
+    assert pending["tool_name"] == "Bash" and pending["detail"] == "make deploy"

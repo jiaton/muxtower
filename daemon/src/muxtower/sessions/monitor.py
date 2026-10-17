@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from muxtower.infra.bus import EventBus
 from muxtower.runtimes.models import AgentState
 from muxtower.runtimes.spec import Classification
-from muxtower.sessions.live import LiveSession, ScreenState
+from muxtower.sessions.live import ScreenState
 from muxtower.sessions.ports import SessionRecord, SessionSource
 from muxtower.sessions.service import SessionService
 from muxtower.terminal.ports import PaneInfo, PaneRef
@@ -111,7 +111,7 @@ class Monitor:
             text = svc.tmux.capture(record.pane)
             if text is None:
                 continue  # gone; the next reconcile drops it
-            live = svc.live.setdefault(record.id, LiveSession())
+            live = svc.live_of(record.id)
             before = svc.effective(record)
 
             runtime = svc.runtime_of(record)

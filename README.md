@@ -108,6 +108,7 @@ Sessions that muxtower did not start (found in your own tmux) can be watched, an
 
 | key | env | default | |
 |---|---|---|---|
+| `name` | `MUXTOWER_NAME` | hostname | how the daemon appears in the app |
 | `host` / `port` | `MUXTOWER_HOST` / `MUXTOWER_PORT` | `127.0.0.1` / `8731` | listen address |
 | `public_url` | `MUXTOWER_PUBLIC_URL` | — | the HTTPS address devices use |
 | `cors.allowed_origins` | `MUXTOWER_CORS_ALLOWED_ORIGINS` | `["*"]` | restrict which app origins may call the API |

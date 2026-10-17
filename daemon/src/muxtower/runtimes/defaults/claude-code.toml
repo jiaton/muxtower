@@ -70,6 +70,8 @@ default = ['^Yes\b']
 needs_permission = ['^Yes,\s*allow\b.*\bduring\s+this\s+session', '^Yes\b']
 needs_trust = ['^Yes\b']
 plan_review = ['^Yes\b']
+# Questions are answered by a person: no default choice.
+needs_answer = []
 
 [deny]
 send = [{ key = "Escape" }]

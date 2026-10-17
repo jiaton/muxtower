@@ -48,6 +48,15 @@ class SqliteSessionRepository:
                 ),
             )  # fmt: skip
 
+    def save_hook_state(self, session_id: str, state: str | None) -> None:
+        with self.db.connect() as conn:
+            conn.execute("UPDATE sessions SET hook_state = ? WHERE id = ?", (state, session_id))
+
+    def load_hook_state(self, session_id: str) -> str | None:
+        with self.db.connect() as conn:
+            row = conn.execute("SELECT hook_state FROM sessions WHERE id = ?", (session_id,)).fetchone()
+            return row["hook_state"] if row else None
+
     def delete(self, session_id: str) -> None:
         with self.db.connect() as conn:
             conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
