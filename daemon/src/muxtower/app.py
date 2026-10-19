@@ -34,10 +34,12 @@ from muxtower.notify.service import PushService
 from muxtower.notify.webpush_sender import WebPushSender
 from muxtower.origins import OriginPolicy
 from muxtower.runtimes.spec import load_runtimes
+from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.monitor import Monitor
 from muxtower.sessions.repository import SqliteSessionRepository
 from muxtower.sessions.routes import router as sessions_router
 from muxtower.sessions.service import SessionConfig, SessionService
+from muxtower.sources.remote_control.service import RemoteControlSource
 from muxtower.system.routes import router as system_router
 from muxtower.terminal.ports import TmuxPort
 from muxtower.terminal.service import TerminalService
@@ -68,12 +70,26 @@ def build_token_service(settings: Settings, db: Database | None = None) -> Token
     return TokenService(SqliteTokenRepository(db), extra)
 
 
+def build_remote_control(settings: Settings) -> RemoteControlSource | None:
+    rc = settings.remote_control
+    if not rc.enabled:
+        return None
+    from muxtower.sources.remote_control.adapter import AnthropicRemoteControl  # only when enabled
+
+    return RemoteControlSource(AnthropicRemoteControl(rc.credentials_path, rc.config_path), rc.environments)
+
+
 def _log_crash(task: asyncio.Task[None]) -> None:
     if not task.cancelled() and task.exception() is not None:
         logger.error("background task %s crashed", task.get_name(), exc_info=task.exception())
 
 
-def create_app(settings: Settings, tmux: TmuxPort | None = None, run_loops: bool = True) -> FastAPI:
+def create_app(
+    settings: Settings,
+    tmux: TmuxPort | None = None,
+    run_loops: bool = True,
+    remote_control: RemoteControlSource | None = None,
+) -> FastAPI:
     db = Database(settings.db_path)
     tokens = build_token_service(settings, db)
     daemon_name = settings.name or socket.gethostname()
@@ -85,9 +101,11 @@ def create_app(settings: Settings, tmux: TmuxPort | None = None, run_loops: bool
         SessionConfig(settings.tmux_socket, settings.adopt_sockets, settings.local_url, settings.state_dir),
     )
     monitor = Monitor(sessions)
+    remote_control = remote_control or build_remote_control(settings)
+    directory = SessionDirectory(sessions, remote_control)
     approvals = ApprovalService(sessions)
     audit = AuditLog(db)
-    push = PushService(SqliteSubscriptionRepository(db), WebPushSender(settings.state_dir), sessions, daemon_name)
+    push = PushService(SqliteSubscriptionRepository(db), WebPushSender(settings.state_dir), directory, daemon_name)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -98,6 +116,8 @@ def create_app(settings: Settings, tmux: TmuxPort | None = None, run_loops: bool
                 "push": push.run_loop(bus),
                 "auto-approve": AutoApprover(approvals, audit).run_loop(bus),
             }
+            if remote_control is not None:
+                loops["remote-control"] = remote_control.run_loop(bus, settings.remote_control.poll_seconds)
             for name, coro in loops.items():
                 task = asyncio.create_task(coro, name=name)
                 task.add_done_callback(_log_crash)
@@ -114,6 +134,8 @@ def create_app(settings: Settings, tmux: TmuxPort | None = None, run_loops: bool
     app.state.bus = bus
     app.state.sessions = sessions
     app.state.monitor = monitor
+    app.state.directory = directory
+    app.state.remote_control = remote_control
     app.state.terminal = TerminalService(sessions, monitor)
     app.state.approvals = approvals
     app.state.audit = audit

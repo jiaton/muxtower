@@ -7,7 +7,7 @@ from muxtower.infra.bus import EventBus
 from muxtower.notify.models import PushPayload, Subscribe, Subscription
 from muxtower.notify.ports import PushSender, SubscriptionRepository
 from muxtower.runtimes.models import AgentState
-from muxtower.sessions.service import SessionService
+from muxtower.sessions.directory import SessionDirectory
 
 logger = logging.getLogger("muxtower.push")
 
@@ -22,7 +22,7 @@ TITLES = {
 
 class PushService:
     def __init__(
-        self, repo: SubscriptionRepository, sender: PushSender, sessions: SessionService, daemon_name: str
+        self, repo: SubscriptionRepository, sender: PushSender, sessions: SessionDirectory, daemon_name: str
     ) -> None:
         self.repo = repo
         self.sender = sender
@@ -38,11 +38,8 @@ class PushService:
         return self.repo.delete(sub_id)
 
     def notify(self, session_id: str) -> int:
-        record = self.sessions.repo.get(session_id)
-        if record is None:
-            return 0
-        view = self.sessions.view(record)
-        if not view.needs_attention:
+        view = self.sessions.find(session_id)
+        if view is None or not view.needs_attention:
             return 0
         detail = view.pending.detail if view.pending and view.pending.detail else None
         body = f"{view.name}: {detail}" if detail else view.name

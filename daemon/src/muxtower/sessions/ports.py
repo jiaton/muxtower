@@ -9,6 +9,7 @@ from muxtower.terminal.ports import PaneRef
 class SessionSource(StrEnum):
     LAUNCHED = "launched"  # started by muxtower on its own tmux socket
     ADOPTED = "adopted"  # an agent found running in some other tmux session
+    REMOTE_CONTROL = "remote_control"  # a Claude Code Remote Control session, reached through Anthropic
 
 
 @dataclass

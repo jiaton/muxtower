@@ -1,0 +1,193 @@
+"""Remote Control event log → conversation items (pure; no I/O).
+
+Claude Code's stream-json events: `user` (prompts and tool results), `assistant` (prose and tool
+calls), `control_request` from the worker (`can_use_tool`: a permission prompt; AskUserQuestion and
+ExitPlanMode arrive this way too), `control_response` (any controller's answer) and `result` (turn
+end). Everything else (system, progress, rate limits) is not conversation.
+"""
+
+from dataclasses import dataclass, field
+from datetime import datetime
+from typing import Any
+
+from muxtower.agent_text import describe_tool_input
+from muxtower.sessions.models import ConversationItem, ConversationItemKind
+from muxtower.sources.remote_control.ports import RawEvent
+
+# A single event can produce several items (prose + tool calls); item seq = event seq * SLOTS + index.
+SLOTS = 16
+MAX_ITEMS = 400
+# Injected context, not something a person typed.
+SYNTHETIC_PREFIXES = ("<command-", "<local-command", "<system-reminder", "<task-notification", "Caveat:")
+QUESTION_TOOLS = {"AskUserQuestion"}
+UNLISTED_TOOLS = {"AskUserQuestion", "ExitPlanMode"}  # shown as their prompt, not as a tool call
+
+
+@dataclass
+class PendingRequest:
+    request_id: str
+    tool_name: str
+    tool_input: dict[str, Any]
+    tool_use_id: str | None
+    item_seq: int
+
+    @property
+    def is_question(self) -> bool:
+        return self.tool_name in QUESTION_TOOLS
+
+
+def _at(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _blocks(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    content = (payload.get("message") or {}).get("content")
+    if isinstance(content, str):
+        return [{"type": "text", "text": content}]
+    return [b for b in content or [] if isinstance(b, dict)]
+
+
+@dataclass
+class ConversationBuilder:
+    items: dict[int, ConversationItem] = field(default_factory=dict)
+    latest_event_seq: int = 0
+    _tools: dict[str, int] = field(default_factory=dict)  # tool_use_id -> item seq
+    _requests: dict[str, PendingRequest] = field(default_factory=dict)  # unresolved prompts
+
+    @property
+    def pending(self) -> PendingRequest | None:
+        """The newest prompt nobody has answered yet."""
+        return max(self._requests.values(), key=lambda r: r.item_seq, default=None)
+
+    @property
+    def last_reply(self) -> str | None:
+        for seq in sorted(self.items, reverse=True):
+            if self.items[seq].kind == ConversationItemKind.REPLY:
+                return self.items[seq].text
+        return None
+
+    def after(self, seq: int, limit: int) -> list[ConversationItem]:
+        newer = [self.items[s] for s in sorted(self.items) if s > seq]
+        return newer[-limit:] if seq == 0 else newer[:limit]
+
+    def feed(self, events: list[RawEvent]) -> list[ConversationItem]:
+        """Applies events in order (duplicates ignored); returns the items that are new or changed."""
+        touched: dict[int, ConversationItem] = {}
+        for event in sorted(events, key=lambda e: e.seq):
+            if event.seq <= self.latest_event_seq:
+                continue
+            self.latest_event_seq = event.seq
+            for item in self._apply(event):
+                self.items[item.seq] = item
+                touched[item.seq] = item
+        for seq in sorted(self.items)[:-MAX_ITEMS]:
+            del self.items[seq]
+        return [touched[s] for s in sorted(touched)]
+
+    def _set_status(self, item_seq: int, status: str) -> ConversationItem | None:
+        item = self.items.get(item_seq)
+        if item is None or item.status == status:
+            return None
+        return item.model_copy(update={"status": status})
+
+    def _apply(self, event: RawEvent) -> list[ConversationItem]:
+        payload, kind = event.payload, event.payload.get("type")
+        base = event.seq * SLOTS
+        at = _at(event.created_at)
+        out: list[ConversationItem] = []
+
+        if kind == "user":
+            texts = []
+            for block in _blocks(payload):
+                if block.get("type") == "tool_result":
+                    seq = self._tools.get(str(block.get("tool_use_id")))
+                    if seq is not None and (
+                        done := self._set_status(seq, "error" if block.get("is_error") else "done")
+                    ):
+                        out.append(done)
+                elif block.get("type") == "text":
+                    text = str(block.get("text") or "").strip()
+                    if text and not text.startswith(SYNTHETIC_PREFIXES):
+                        texts.append(text)
+            if texts:
+                out.append(ConversationItem(seq=base, at=at, kind=ConversationItemKind.PROMPT, text="\n".join(texts)))
+
+        elif kind == "assistant":
+            prose = [str(b.get("text") or "") for b in _blocks(payload) if b.get("type") == "text"]
+            prose_text = "\n".join(p for p in prose if p.strip()).strip()
+            index = 0
+            if prose_text:
+                out.append(ConversationItem(seq=base, at=at, kind=ConversationItemKind.REPLY, text=prose_text))
+                index = 1
+            for block in _blocks(payload):
+                name = str(block.get("name") or "")
+                if block.get("type") != "tool_use" or name in UNLISTED_TOOLS or index >= SLOTS:
+                    continue
+                seq = base + index
+                index += 1
+                self._tools[str(block.get("id"))] = seq
+                out.append(
+                    ConversationItem(
+                        seq=seq,
+                        at=at,
+                        kind=ConversationItemKind.TOOL,
+                        tool_name=name,
+                        text=describe_tool_input(block.get("input")),
+                        status="running",
+                    )  # fmt: skip
+                )
+
+        elif kind == "control_request" and event.source != "client":
+            request = payload.get("request") or {}
+            if request.get("subtype") == "can_use_tool":
+                tool = str(request.get("tool_name") or "")
+                raw_input = request.get("input")
+                tool_input: dict[str, Any] = raw_input if isinstance(raw_input, dict) else {}
+                pending = PendingRequest(
+                    request_id=str(payload.get("request_id")), tool_name=tool, tool_input=tool_input,
+                    tool_use_id=request.get("tool_use_id"), item_seq=base,
+                )  # fmt: skip
+                self._requests[pending.request_id] = pending
+                item_kind = ConversationItemKind.QUESTION if pending.is_question else ConversationItemKind.APPROVAL
+                out.append(
+                    ConversationItem(
+                        seq=base,
+                        at=at,
+                        kind=item_kind,
+                        tool_name=tool,
+                        text=describe_tool_input(tool_input),
+                        status="pending",
+                    )  # fmt: skip
+                )
+
+        elif kind == "control_response":
+            response = payload.get("response") or {}
+            request_id = str(response.get("request_id") or payload.get("request_id") or "")
+            resolved = self._requests.pop(request_id) if request_id in self._requests else None
+            if resolved is not None:
+                answer = response.get("response") or {}
+                if resolved.is_question:
+                    status = "answered" if (answer.get("updatedInput") or {}).get("answers") else "dismissed"
+                else:
+                    status = "allowed" if answer.get("behavior") == "allow" else "denied"
+                if changed := self._set_status(resolved.item_seq, status):
+                    out.append(changed)
+
+        elif kind == "control_cancel_request":
+            cancel_id = str(payload.get("request_id") or "")
+            cancelled = self._requests.pop(cancel_id) if cancel_id in self._requests else None
+            if cancelled is not None and (changed := self._set_status(cancelled.item_seq, "cancelled")):
+                out.append(changed)
+
+        elif kind == "result":
+            ok = payload.get("subtype") == "success" and not payload.get("is_error")
+            out.append(
+                ConversationItem(seq=base, at=at, kind=ConversationItemKind.RESULT, status="done" if ok else "error")
+            )
+
+        return out

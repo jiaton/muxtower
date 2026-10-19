@@ -35,6 +35,17 @@ class PairingSettings(BaseModel):
     code_ttl_seconds: int = 300
 
 
+class RemoteControlSettings(BaseModel):
+    """Claude Code Remote Control sessions of the Claude account logged in on this machine (private API)."""
+
+    enabled: bool = False
+    poll_seconds: float = 5.0
+    # environment_id -> the name to show ("nas", "macbook"); the API does not expose machine names.
+    environments: dict[str, str] = Field(default_factory=dict)
+    credentials_path: Path | None = None  # default ~/.claude/.credentials.json
+    config_path: Path | None = None  # default ~/.claude.json
+
+
 class Settings(BaseModel):
     name: str | None = None  # display name in the app; defaults to the hostname
     host: str = "127.0.0.1"
@@ -53,6 +64,7 @@ class Settings(BaseModel):
     trusted_proxies: list[str] = Field(default_factory=lambda: ["127.0.0.1/32", "::1/128"])
     cors: CorsSettings = Field(default_factory=CorsSettings)
     pairing: PairingSettings = Field(default_factory=PairingSettings)
+    remote_control: RemoteControlSettings = Field(default_factory=RemoteControlSettings)
 
     @property
     def db_path(self) -> Path:
@@ -79,6 +91,7 @@ _ENV_KEYS: dict[str, tuple[str, ...]] = {
     "MUXTOWER_PAIRING_SHARED_TOKEN": ("pairing", "shared_token"),
     "MUXTOWER_ADOPT_SOCKETS": ("adopt_sockets",),
     "MUXTOWER_TRUSTED_PROXIES": ("trusted_proxies",),
+    "MUXTOWER_REMOTE_CONTROL_ENABLED": ("remote_control", "enabled"),
 }
 
 

@@ -1,12 +1,12 @@
 """Claude Code integration: the `--settings` JSON that points its http hooks at the daemon, and the
 mapping from hook events to agent state. Nothing is written to the user's own settings.json."""
 
-import json
 import time
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from muxtower.agent_text import describe_tool_input, truncate
 from muxtower.runtimes.models import AgentState
 from muxtower.sessions.live import HookState
 
@@ -24,7 +24,6 @@ EVENTS = [
     "Stop",
     "StopFailure",
 ]
-DETAIL_LIMIT = 4000
 
 
 def hook_settings(daemon_url: str) -> dict[str, Any]:
@@ -50,25 +49,6 @@ class HookEvent(BaseModel):
     notification_type: str | None = None
     message: str | None = None
     last_assistant_message: str | None = None
-
-
-def _truncate(text: str) -> str:
-    return text if len(text) <= DETAIL_LIMIT else text[:DETAIL_LIMIT] + "…"
-
-
-def describe_tool_input(tool_input: Any) -> str | None:
-    """The one thing a human needs to judge a tool call: the command, the path, the URL…"""
-    if not isinstance(tool_input, dict):
-        return None
-    for key in ("command", "file_path", "path", "url", "pattern", "query", "prompt", "plan"):
-        value = tool_input.get(key)
-        if isinstance(value, str) and value:
-            return _truncate(value)
-    questions = tool_input.get("questions")
-    if isinstance(questions, list):
-        texts = [q.get("question", "") for q in questions if isinstance(q, dict)]
-        return _truncate("\n".join(t for t in texts if t)) or None
-    return _truncate(json.dumps(tool_input, ensure_ascii=False, indent=1)) if tool_input else None
 
 
 def apply_event(previous: HookState | None, event: HookEvent) -> HookState | None:
@@ -101,7 +81,7 @@ def apply_event(previous: HookState | None, event: HookEvent) -> HookState | Non
         return previous
     if name == "Stop":
         if event.last_assistant_message:
-            last_message = _truncate(event.last_assistant_message)
+            last_message = truncate(event.last_assistant_message)
         return state(AgentState.IDLE)
     if name == "StopFailure":
         return state(AgentState.ERROR, detail=event.message)
