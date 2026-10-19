@@ -14,6 +14,9 @@ from fastapi.responses import JSONResponse
 from muxtower import __version__
 from muxtower.approval.auto import AutoApprover
 from muxtower.approval.service import ApprovalService
+from muxtower.asr.openai_compatible import OpenAICompatibleTranscriber
+from muxtower.asr.routes import router as asr_router
+from muxtower.asr.service import AsrService
 from muxtower.auth.deps import DAEMON_AUTH_HEADER
 from muxtower.auth.pairing import PairingService
 from muxtower.auth.repository import SqliteTokenRepository
@@ -40,6 +43,11 @@ from muxtower.sessions.repository import SqliteSessionRepository
 from muxtower.sessions.routes import router as sessions_router
 from muxtower.sessions.service import SessionConfig, SessionService
 from muxtower.sources.remote_control.service import RemoteControlSource
+from muxtower.summaries.cli import ClaudeCodeSummarizer, CodexSummarizer
+from muxtower.summaries.ports import Summarizer
+from muxtower.summaries.repository import SqliteSummaryRepository
+from muxtower.summaries.routes import router as summaries_router
+from muxtower.summaries.service import SummaryService
 from muxtower.system.routes import router as system_router
 from muxtower.terminal.ports import TmuxPort
 from muxtower.terminal.service import TerminalService
@@ -79,6 +87,28 @@ def build_remote_control(settings: Settings) -> RemoteControlSource | None:
     return RemoteControlSource(AnthropicRemoteControl(rc.credentials_path, rc.config_path), rc.environments)
 
 
+def build_summaries(settings: Settings, db: Database) -> SummaryService:
+    cfg = settings.summaries
+    workdir = settings.state_dir / "summarizer"  # empty: no project instructions for the summarizer
+    summarizer: Summarizer | None = None
+    if cfg.provider == "claude-code":
+        summarizer = ClaudeCodeSummarizer(workdir, cfg.binary or "claude", cfg.model or "haiku", cfg.timeout_seconds)
+    elif cfg.provider == "codex":
+        summarizer = CodexSummarizer(workdir, cfg.binary or "codex", cfg.model, cfg.timeout_seconds)
+    return SummaryService(summarizer, SqliteSummaryRepository(db), cfg.min_chars)
+
+
+def build_asr(settings: Settings) -> AsrService:
+    cfg = settings.asr
+    key = cfg.key()
+    if cfg.provider == "off":
+        return AsrService(None, cfg.language)
+    if not key:
+        logger.warning("asr.provider is %s but no API key is set; voice is off", cfg.provider)
+        return AsrService(None, cfg.language)
+    return AsrService(OpenAICompatibleTranscriber(cfg.provider, key, cfg.model), cfg.language)
+
+
 def _log_crash(task: asyncio.Task[None]) -> None:
     if not task.cancelled() and task.exception() is not None:
         logger.error("background task %s crashed", task.get_name(), exc_info=task.exception())
@@ -104,7 +134,8 @@ def create_app(
     remote_control = remote_control or build_remote_control(settings)
     approvals = ApprovalService(sessions)
     terminal = TerminalService(sessions, monitor)
-    directory = SessionDirectory(sessions, terminal, approvals, [remote_control] if remote_control else [])
+    summaries = build_summaries(settings, db)
+    directory = SessionDirectory(sessions, terminal, approvals, [remote_control] if remote_control else [], summaries)
     audit = AuditLog(db)
     push = PushService(SqliteSubscriptionRepository(db), WebPushSender(settings.state_dir), directory, daemon_name)
 
@@ -117,6 +148,13 @@ def create_app(
                 "push": push.run_loop(bus),
                 "auto-approve": AutoApprover(approvals, audit).run_loop(bus),
             }
+            if summaries.available:
+
+                def reply_of(session_id: str) -> str | None:
+                    session = directory.find(session_id)
+                    return session.last_message if session else None
+
+                loops["summaries"] = summaries.run_loop(bus, reply_of, settings.summaries.eager)
             if remote_control is not None:
                 loops["remote-control"] = remote_control.run_loop(bus, settings.remote_control.poll_seconds)
             for name, coro in loops.items():
@@ -136,6 +174,8 @@ def create_app(
     app.state.sessions = sessions
     app.state.monitor = monitor
     app.state.directory = directory
+    app.state.summaries = summaries
+    app.state.asr = build_asr(settings)
     app.state.terminal = terminal
     app.state.approvals = approvals
     app.state.audit = audit
@@ -172,7 +212,9 @@ def create_app(
 
         app.add_exception_handler(error, handler)
 
-    for router in (system_router, auth_router, sessions_router, stream_router, push_router, hooks_router):
+    routers = (system_router, auth_router, sessions_router, summaries_router, asr_router, stream_router, push_router,
+               hooks_router)  # fmt: skip
+    for router in routers:
         app.include_router(router)
 
     if settings.serve_ui:

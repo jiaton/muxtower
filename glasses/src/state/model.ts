@@ -23,6 +23,20 @@ export interface Nav {
   lastOpened: string | null
 }
 
+/** A voice reply in progress: recording while held, then the text to confirm before it is sent. */
+export interface Voice {
+  session: string
+  phase: 'listening' | 'transcribing' | 'ready' | 'failed'
+  /** The transcript once ready; the reason once failed. */
+  text: string
+}
+
+/** What the hub can do beyond the basics (from /v1/me). */
+export interface Features {
+  summaries: boolean
+  asr: boolean
+}
+
 export interface AppState {
   link: LinkState | 'unpaired'
   hubName: string
@@ -32,6 +46,8 @@ export interface AppState {
   nav: Nav
   /** One line for the footer: an announcement or the result of the last command. */
   notice: string | null
+  voice: Voice | null
+  features: Features
 }
 
 export type Command =
@@ -45,6 +61,8 @@ export interface Outcome {
   nav: Nav
   notice?: string | null
   command?: Command
+  /** Replaces the voice reply in progress (null ends it); left out, it stays as it is. */
+  voice?: Voice | null
 }
 
 export const current = (nav: Nav): Place => nav.stack[nav.stack.length - 1] ?? HOME

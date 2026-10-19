@@ -1,4 +1,4 @@
-import { MenuItemClickEvent, Sys_ItemEvent, Text_ItemEvent, IMU_Report_Data } from '@evenrealities/even_hub_sdk'
+import { AudioEvent, MenuItemClickEvent, Sys_ItemEvent, Text_ItemEvent, IMU_Report_Data } from '@evenrealities/even_hub_sdk'
 import { expect, it } from 'vitest'
 import { readEvent, toAction } from './gestures'
 
@@ -10,6 +10,8 @@ it('reads swipes, taps without a type, menus and lifecycle', () => {
   expect(readEvent({ menuItemClickEvent: new MenuItemClickEvent({ itemID: 4 }) })).toEqual({ menu: 4 })
   expect(readEvent({ sysEvent: new Sys_ItemEvent({ eventType: 4 }) })).toEqual({ lifecycle: 'covered' })
   expect(readEvent({ sysEvent: new Sys_ItemEvent({ eventType: 8, imuData: new IMU_Report_Data({ x: 1 }) }) })).toBeNull()
+  const pcm = new Uint8Array([1, 2])
+  expect(readEvent({ audioEvent: new AudioEvent({ audioPcm: pcm }) })).toEqual({ audio: pcm })
 })
 
 it('maps gestures through a remappable table', () => {

@@ -9,6 +9,8 @@ export const createAppStore = () =>
     loaded: false,
     nav: initialNav(),
     notice: null,
+    voice: null,
+    features: { summaries: false, asr: false },
   }))
 
 export type AppStore = ReturnType<typeof createAppStore>

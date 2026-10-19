@@ -60,6 +60,9 @@ class Session(BaseModel):
     tmux_pane: str | None = Field(default=None, description="pane id, e.g. %12, for attaching to the exact pane")
     capabilities: Capabilities
     summary: TurnSummary | None = None
+    reply_summary: str | None = Field(
+        default=None, description="a few lines condensing last_message, once the hub has made them (long replies)"
+    )
     unread: bool = False
     state: AgentState
     state_source: StateSource

@@ -14,6 +14,7 @@ const PROMPT_LINES = 4
 const STEP = BODY_LINES - 1 // a page keeps one line of the previous one
 const MARK = width('> ')
 const NAME_PX = 380
+const FULL_REPLY = '── full reply ──'
 
 interface Choice {
   key: string
@@ -44,11 +45,14 @@ export function layout(session: Session): Layout {
     }
     lines.push('')
   }
-  const summary = session.summary
-  const said = [summary?.needs && `Needs: ${summary.needs}`, summary?.recent ?? summary?.detail].filter(Boolean)
+  // Summary first: what the agent needs (its platform's turn summary), then the hub's short version of
+  // the reply (or the platform's one-liner); the full reply follows for whoever pages on.
+  const turn = session.summary
+  const short = session.reply_summary ?? turn?.recent ?? turn?.detail
+  const said = [turn?.needs && `Needs: ${turn.needs}`, short].filter(Boolean)
   for (const text of said) lines.push(...wrap(String(text), TEXT_WIDTH))
   const reply = plain(session.last_message ?? '')
-  if (said.length && reply) lines.push('')
+  if (said.length && reply) lines.push('', session.reply_summary ? FULL_REPLY : '')
   lines.push(...wrap(reply, TEXT_WIDTH))
   if (!lines.some((l) => l.trim())) lines.push('Nothing to show yet.')
   return { lines, choices }
@@ -81,7 +85,7 @@ export function sessionView(state: AppState, id: string, now: number): Screen {
   const armed = choices.find((c) => c.key === state.nav.armed)
   const footer = armed
     ? `tap again: ${armed.label}`
-    : (state.notice ?? (chosen ? 'tap choose · 2× back' : `${pages > 1 ? `${page}/${pages} · ` : ''}2× back · menu: reply`))
+    : (state.notice ?? (chosen ? 'tap choose · 2× back' : `${pages > 1 ? `${page}/${pages} · ` : ''}hold: reply · 2× back`))
   const status = linkLabel(state) ?? `${stateLabel(session.state)} ${age(session.updated_at, now)}`
   return { header: columns([session.name, status], [NAME_PX], TEXT_WIDTH), body, footer }
 }

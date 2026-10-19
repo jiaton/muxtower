@@ -13,6 +13,7 @@ from muxtower.errors import Conflict, NotFound
 from muxtower.sessions.models import Conversation, Session, UpdateSession
 from muxtower.sessions.ports import SessionSourcePort
 from muxtower.sessions.service import SessionService
+from muxtower.summaries.service import SummaryService
 from muxtower.terminal.models import Resize, Screen, SendInput
 from muxtower.terminal.service import TerminalService
 
@@ -33,23 +34,30 @@ class SessionDirectory:
         terminal: TerminalService,
         approvals: ApprovalService,
         sources: list[SessionSourcePort],
+        summaries: SummaryService | None = None,
     ) -> None:
         self.local = local
         self.terminal = terminal
         self.approvals = approvals
         self.sources = sources
+        self.summaries = summaries
 
     # --- reading ------------------------------------------------------------------------------
 
     def source_of(self, session_id: str) -> SessionSourcePort | None:
         return next((s for s in self.sources if s.owns(session_id)), None)
 
+    def _with_summary(self, session: Session) -> Session:
+        summary = self.summaries.lookup(session.last_message) if self.summaries else None
+        return session.model_copy(update={"reply_summary": summary}) if summary else session
+
     def list(self) -> list[Session]:
-        return self.local.list() + [view for source in self.sources for view in source.views()]
+        sessions = self.local.list() + [view for source in self.sources for view in source.views()]
+        return [self._with_summary(s) for s in sessions]
 
     def get(self, session_id: str) -> Session:
         source = self.source_of(session_id)
-        return source.get(session_id) if source else self.local.get(session_id)
+        return self._with_summary(source.get(session_id) if source else self.local.get(session_id))
 
     def find(self, session_id: str) -> Session | None:
         try:

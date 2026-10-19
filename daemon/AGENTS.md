@@ -1,6 +1,6 @@
 # AGENTS.md — daemon
 
-Python package `muxtower`: one command, `muxtower`: `muxtower serve` runs the daemon (FastAPI), the other subcommands manage it locally. It owns agent sessions in tmux on a dedicated socket (`-L muxtower`), detects what each agent is waiting for (Claude Code HTTP hooks first, configurable screen rules as fallback), and exposes sessions, terminal I/O, approvals and Web Push over `/v1`. Optional session sources add sessions it reaches another way (Claude Code Remote Control). Talks to: tmux (subprocess, argv only), SQLite, Web Push endpoints, Anthropic's Remote Control API (when enabled). Design: `../docs/design.md`.
+Python package `muxtower`: one command, `muxtower`: `muxtower serve` runs the daemon (FastAPI), the other subcommands manage it locally. It owns agent sessions in tmux on a dedicated socket (`-L muxtower`), detects what each agent is waiting for (Claude Code HTTP hooks first, configurable screen rules as fallback), and exposes sessions, terminal I/O, approvals and Web Push over `/v1`. Optional session sources add sessions it reaches another way (Claude Code Remote Control). Talks to: tmux (subprocess, argv only), SQLite, Web Push endpoints, and when configured: Anthropic's Remote Control API, a speech-to-text provider (Groq/OpenAI), and the `claude`/`codex` CLI for reply summaries. Design: `../docs/design.md`.
 
 ## Setup / Test / Run
 
@@ -21,6 +21,8 @@ Python package `muxtower`: one command, `muxtower`: `muxtower serve` runs the da
 src/muxtower/
   sessions/   registry, create/rename/terminate; directory.py: every session across sources, dispatch by capabilities
   sources/    other session sources, one folder each (remote_control: Anthropic's Remote Control API)
+  summaries/  short versions of long replies: a Summarizer port (claude/codex CLI adapters), SQLite cache, background loop
+  asr/        speech to text for voice replies: a Transcriber port (OpenAI-compatible adapter: Groq, OpenAI)
   terminal/   capture, input, resize, stream frames
   approval/   pending actions, approve/deny, auto-approve policy
   runtimes/   one adapter per agent (claude_code, codex, generic) + screen-rule engine + default rule TOMLs
@@ -70,7 +72,9 @@ Split a file past 250 lines or once it mixes two domains.
 - CORS: `cors.allowed_origins` defaults to `*` (safe: bearer tokens only, `allow_credentials=False`); allowed request headers are `Authorization`, `Content-Type` and the opt-in `cors.extra_headers` (a gate's credential header). WebSocket accepts same-origin or listed `Origin`s (any by default).
 - Tokens accepted as `Authorization: Bearer`, WS subprotocol `bearer.<token>`, or `?access_token=` (never `?token=`, which gates count as a guess); the access log filter redacts it. Every 401 the daemon sends carries `X-Muxtower-Auth`, so clients can tell a revoked token from a gate in front.
 - Pairing claim is rate-limited and single-use; failed token checks are rate-limited per client IP.
-- Never launch anything but a registered runtime binary; no shell strings from the API.
+- Never launch anything but a registered runtime binary (or the configured summarizer CLI); no shell strings from the API.
+- Text from agents is untrusted: a summarizer runs with no tools, settings or MCP servers, in an empty directory, and gets the text on stdin.
+- Provider keys (speech to text) stay on the daemon; transcripts and recordings are never logged or stored.
 - Every mutating action writes an audit row (who = token name, what, session).
 
 ## Testing
