@@ -10,7 +10,7 @@ from typing import Literal
 from muxtower.approval.models import ApprovalResult
 from muxtower.approval.service import ApprovalService
 from muxtower.errors import Conflict, NotFound
-from muxtower.sessions.models import Conversation, Session, UpdateSession
+from muxtower.sessions.models import Conversation, Session, SessionRole, UpdateSession
 from muxtower.sessions.ports import SessionSourcePort
 from muxtower.sessions.service import SessionService
 from muxtower.summaries.service import SummaryService
@@ -41,6 +41,7 @@ class SessionDirectory:
         self.approvals = approvals
         self.sources = sources
         self.summaries = summaries
+        self.concierge_id: str | None = None  # set by the concierge service once its session runs
 
     # --- reading ------------------------------------------------------------------------------
 
@@ -48,16 +49,51 @@ class SessionDirectory:
         return next((s for s in self.sources if s.owns(session_id)), None)
 
     def _with_summary(self, session: Session) -> Session:
-        summary = self.summaries.lookup(session.last_message) if self.summaries else None
-        return session.model_copy(update={"reply_summary": summary}) if summary else session
+        update: dict[str, object] = {}
+        if self.summaries and (summary := self.summaries.lookup(session.last_message)):
+            update["reply_summary"] = summary
+        if self.concierge_id and session.id == self.concierge_id:
+            update["role"] = SessionRole.CONCIERGE
+        return session.model_copy(update=update) if update else session
+
+    def _linked(self, local: Session) -> Session:
+        """A tmux session whose Claude Code also runs Remote Control is listed once: the tmux entry, with
+        the remote side's name, conversation, summary and origin."""
+        source = self.source_of(local.remote_id) if local.remote_id else None
+        if source is None or local.remote_id is None:
+            return local
+        try:
+            remote = source.get(local.remote_id)
+        except NotFound:
+            return local
+        return local.model_copy(
+            update={
+                "name": remote.name,
+                "machine": remote.machine,
+                "origin": remote.origin,
+                "summary": remote.summary,
+                "unread": remote.unread,
+                "last_message": local.last_message or remote.last_message,
+                "capabilities": local.capabilities.model_copy(update={"conversation": True}),
+            }
+        )
+
+    def _locals(self) -> list[Session]:
+        return [self._linked(s) for s in self.local.list()]
 
     def list(self) -> list[Session]:
-        sessions = self.local.list() + [view for source in self.sources for view in source.views()]
-        return [self._with_summary(s) for s in sessions]
+        locals_ = self._locals()
+        linked = {s.remote_id for s in locals_ if s.remote_id}
+        remotes = [v for source in self.sources for v in source.views() if v.id not in linked]
+        return [self._with_summary(s) for s in locals_ + remotes]
 
     def get(self, session_id: str) -> Session:
         source = self.source_of(session_id)
-        return self._with_summary(source.get(session_id) if source else self.local.get(session_id))
+        if source is None:
+            return self._with_summary(self._linked(self.local.get(session_id)))
+        # A remote id whose agent also runs in tmux here answers with the one merged entry.
+        merged = next((s for s in self._locals() if s.remote_id == session_id), None)
+        return self._with_summary(merged or source.get(session_id))
 
     def find(self, session_id: str) -> Session | None:
         try:
@@ -72,10 +108,11 @@ class SessionDirectory:
         return session
 
     def conversation(self, session_id: str, after: int, limit: int) -> Conversation:
-        self.require(session_id, "conversation")
-        source = self.source_of(session_id)
+        session = self.require(session_id, "conversation")
+        remote_id = session.remote_id or session_id  # a tmux session's conversation comes from its remote side
+        source = self.source_of(remote_id)
         assert source is not None  # only sources have conversations today
-        return source.conversation(session_id, after, limit)
+        return source.conversation(remote_id, after, limit).model_copy(update={"session_id": session_id})
 
     def screen(self, session_id: str, history: int) -> Screen:
         self.require(session_id, "screen")
@@ -107,7 +144,12 @@ class SessionDirectory:
         if body.key is not None and keys and body.key not in keys:
             raise Conflict(f"this session takes only these keys: {', '.join(keys)}")
         source = self.source_of(session_id)
-        if source is None:
+        remote = self.source_of(session.remote_id) if session.remote_id else None
+        if source is None and remote is not None and session.remote_id and body.text is not None:
+            # Also on Remote Control: send the message there, structured, instead of typing it into a
+            # terminal that may be showing a dialog.
+            remote.send_text(session.remote_id, body.text)
+        elif source is None:
             self.terminal.send(session_id, body)
         elif body.text is not None:
             source.send_text(session_id, body.text)  # a message is sent whole; `enter` is implied

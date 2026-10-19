@@ -36,6 +36,10 @@ class TurnSummary(BaseModel):
     noteworthy: bool = False
 
 
+class SessionRole(StrEnum):
+    CONCIERGE = "concierge"  # the owner's assistant: talk to it, it talks to the others
+
+
 class Capabilities(BaseModel):
     """What a client may offer for this session (sources differ)."""
 
@@ -59,6 +63,10 @@ class Session(BaseModel):
     tmux_session: str | None = None
     tmux_pane: str | None = Field(default=None, description="pane id, e.g. %12, for attaching to the exact pane")
     capabilities: Capabilities
+    role: SessionRole | None = None
+    remote_id: str | None = Field(
+        default=None, description="this agent's Remote Control session, when it has one; listed once, under this id"
+    )
     summary: TurnSummary | None = None
     reply_summary: str | None = Field(
         default=None, description="a few lines condensing last_message, once the hub has made them (long replies)"

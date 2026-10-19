@@ -91,6 +91,7 @@ class SessionService:
             tmux_socket=record.pane.socket,
             tmux_session=record.tmux_session,
             tmux_pane=record.pane.pane_id,
+            remote_id=live.remote_id,
             capabilities=Capabilities(
                 screen=True,
                 conversation=False,

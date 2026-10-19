@@ -23,6 +23,8 @@ from muxtower.auth.repository import SqliteTokenRepository
 from muxtower.auth.routes import router as auth_router
 from muxtower.auth.service import TokenService
 from muxtower.auth.stream_cookie import StreamCookieSigner
+from muxtower.concierge.service import ConciergeService
+from muxtower.concierge.store import FileConciergeStore
 from muxtower.config import Settings
 from muxtower.errors import Conflict, Forbidden, Invalid, NotFound, TooManyRequests, Unauthorized, Unavailable
 from muxtower.hooks.routes import router as hooks_router
@@ -30,6 +32,8 @@ from muxtower.infra.audit import AuditLog
 from muxtower.infra.bus import EventBus
 from muxtower.infra.db import Database
 from muxtower.infra.tmux import TmuxCli, TmuxError
+from muxtower.mcp.routes import router as mcp_router
+from muxtower.mcp.service import McpTools
 from muxtower.net import ClientAddress
 from muxtower.notify.repository import SqliteSubscriptionRepository
 from muxtower.notify.routes import router as push_router
@@ -37,6 +41,7 @@ from muxtower.notify.service import PushService
 from muxtower.notify.webpush_sender import WebPushSender
 from muxtower.origins import OriginPolicy
 from muxtower.runtimes.spec import load_runtimes
+from muxtower.sessions.claude_processes import ClaudeProcesses
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.monitor import Monitor
 from muxtower.sessions.repository import SqliteSessionRepository
@@ -130,13 +135,18 @@ def create_app(
         load_runtimes(settings.config_dir / "runtimes"),
         SessionConfig(settings.tmux_socket, settings.adopt_sockets, settings.local_url, settings.state_dir),
     )
-    monitor = Monitor(sessions)
     remote_control = remote_control or build_remote_control(settings)
+    monitor = Monitor(sessions, ClaudeProcesses() if remote_control else None)
     approvals = ApprovalService(sessions)
     terminal = TerminalService(sessions, monitor)
     summaries = build_summaries(settings, db)
     directory = SessionDirectory(sessions, terminal, approvals, [remote_control] if remote_control else [], summaries)
     audit = AuditLog(db)
+    concierge: ConciergeService | None = None
+    if settings.concierge.enabled:
+        store = FileConciergeStore(settings.state_dir / "concierge.json", settings.state_dir / "concierge")
+        mcp_url = f"{settings.local_url}/v1/mcp"
+        concierge = ConciergeService(settings.concierge, sessions, directory, tokens, store, mcp_url)
     push = PushService(SqliteSubscriptionRepository(db), WebPushSender(settings.state_dir), directory, daemon_name)
 
     @asynccontextmanager
@@ -155,6 +165,8 @@ def create_app(
                     return session.last_message if session else None
 
                 loops["summaries"] = summaries.run_loop(bus, reply_of, settings.summaries.eager)
+            if concierge is not None:
+                loops["concierge"] = concierge.run_loop(bus)
             if remote_control is not None:
                 loops["remote-control"] = remote_control.run_loop(bus, settings.remote_control.poll_seconds)
             for name, coro in loops.items():
@@ -175,6 +187,8 @@ def create_app(
     app.state.monitor = monitor
     app.state.directory = directory
     app.state.summaries = summaries
+    app.state.concierge = concierge
+    app.state.mcp = McpTools(directory, sessions, concierge, daemon_name)
     app.state.asr = build_asr(settings)
     app.state.terminal = terminal
     app.state.approvals = approvals
@@ -212,8 +226,8 @@ def create_app(
 
         app.add_exception_handler(error, handler)
 
-    routers = (system_router, auth_router, sessions_router, summaries_router, asr_router, stream_router, push_router,
-               hooks_router)  # fmt: skip
+    routers = (system_router, auth_router, sessions_router, summaries_router, asr_router, mcp_router, stream_router,
+               push_router, hooks_router)  # fmt: skip
     for router in routers:
         app.include_router(router)
 
