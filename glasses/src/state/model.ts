@@ -26,8 +26,10 @@ export interface Nav {
 /** A voice reply in progress: recording while held, then the text to confirm before it is sent. */
 export interface Voice {
   session: string
+  /** `hold`: recording while the press is held; `tap`: from a tap until the next tap. */
+  mode: 'hold' | 'tap'
   phase: 'listening' | 'transcribing' | 'ready' | 'failed'
-  /** The transcript once ready; the reason once failed. */
+  /** What was heard so far (live while listening), the transcript once ready, the reason once failed. */
   text: string
 }
 
@@ -63,6 +65,8 @@ export interface Outcome {
   command?: Command
   /** Replaces the voice reply in progress (null ends it); left out, it stays as it is. */
   voice?: Voice | null
+  /** Start a tap-to-talk recording, or stop the one running (the controller owns the microphone). */
+  listen?: 'start' | 'stop'
 }
 
 export const current = (nav: Nav): Place => nav.stack[nav.stack.length - 1] ?? HOME
