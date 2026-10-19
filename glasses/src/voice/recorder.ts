@@ -10,8 +10,6 @@ export const MAX_RECORDING_MS = 60_000
 export interface Recording {
   wav: Uint8Array<ArrayBuffer>
   seconds: number
-  /** The part after the last segment handed out while recording, if it holds speech. */
-  rest: Uint8Array<ArrayBuffer> | null
 }
 
 export class Recorder {
@@ -53,8 +51,7 @@ export class Recorder {
     if (this.limit) clearTimeout(this.limit)
     await this.port.stopAudio()
     if (!this.chunks.length) return null
-    const rest = this.segmenter.flush()
     const bytes = this.chunks.reduce((n, c) => n + c.length, 0)
-    return { wav: pcmToWav(this.chunks), seconds: pcmSeconds(bytes), rest: rest ? pcmToWav(rest) : null }
+    return { wav: pcmToWav(this.chunks), seconds: pcmSeconds(bytes) }
   }
 }

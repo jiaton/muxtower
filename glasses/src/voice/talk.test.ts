@@ -39,7 +39,7 @@ function setup() {
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0))
 
-it('shows live text from pauses, then the whole recording transcribed again', async () => {
+it('shows live text from pauses; the final text is the whole recording transcribed once', async () => {
   const { store, talk } = setup()
   await talk.start('tap')
   expect(store.getState().voice).toMatchObject({ session: 'a', mode: 'tap', phase: 'listening' })
@@ -48,7 +48,7 @@ it('shows live text from pauses, then the whole recording transcribed again', as
   await flush()
   await flush()
   expect(store.getState().voice?.text).toBe('piece1 piece2')
-  talk.feed(pcm('x'.repeat(40)))
+  talk.feed(pcm('x'.repeat(400))) // 40 s more: long recordings get the whole pass too
   await talk.stop()
   expect(store.getState().voice).toMatchObject({ phase: 'ready', text: '让 lyric 继续跑测试' })
 })
