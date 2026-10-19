@@ -13,11 +13,12 @@ import type { GlassesPort } from '@/platform/port'
 import { MENU, act, menuAct, view } from '@/screens'
 import { pairingView } from '@/screens/pairing'
 import { launchNav } from '@/state/launch'
-import { conciergeOf, current, findSession, type Outcome, type Voice } from '@/state/model'
+import { conciergeOf, current, findSession, type Outcome } from '@/state/model'
 import { loadSaved, saveNav, saveToken } from '@/state/persist'
 import type { AppStore } from '@/state/store'
 import { runCommand } from './commands'
 import { Recorder } from './voice/recorder'
+import { Talk } from './voice/talk'
 
 const AGE_TICK_MS = 30_000
 const POLL_MS = 10_000
@@ -34,6 +35,7 @@ export class GlassesApp {
   private noticeTimer: ReturnType<typeof setTimeout> | null = null
   private onDraw: (text: string) => void = () => undefined
   private readonly recorder: Recorder
+  private readonly talk: Talk
   /** Replies already asked to be summarized (session id + a fingerprint of the reply). */
   private readonly summaryAsked = new Set<string>()
 
@@ -43,6 +45,12 @@ export class GlassesApp {
     this.store = store
     this.renderer = new Renderer(port, MENU)
     this.recorder = new Recorder(port)
+    this.talk = new Talk({
+      store,
+      recorder: this.recorder,
+      transcribe: (wav) => transcribe(this.client, wav),
+      notify: (text) => this.notify(text),
+    })
     this.client = createHubClient(config, null)
   }
 
@@ -150,7 +158,7 @@ export class GlassesApp {
 
   private input(input: Input | null) {
     if (!input) return
-    if ('audio' in input) return this.recorder.feed(input.audio)
+    if ('audio' in input) return this.talk.feed(input.audio)
     const state = this.store.getState()
     if ('lifecycle' in input) {
       if (input.lifecycle === 'uncovered') {
@@ -162,8 +170,8 @@ export class GlassesApp {
     if (state.link === 'unpaired' || state.link === 'rejected') return
     if ('menu' in input) return this.apply(menuAct(state, input.menu))
     const action = toAction(input.gesture, this.gestures)
-    if (action === 'talk') return void this.startTalking()
-    if (action === 'talkEnd') return void this.stopTalking()
+    if (action === 'talk') return void this.talk.start('hold')
+    if (action === 'talkEnd') return void (state.voice?.mode === 'hold' && this.talk.stop())
     if (action) this.apply(act(state, action, Date.now()))
   }
 
@@ -174,6 +182,9 @@ export class GlassesApp {
       ...(outcome.voice === undefined ? {} : { voice: outcome.voice }),
     })
     void saveNav(this.port, outcome.nav)
+    if (outcome.listen === 'start') void this.talk.start('tap')
+    if (outcome.listen === 'stop') void this.talk.stop()
+    if (outcome.voice === null && this.recorder.active) void this.talk.cancel()
     if (!outcome.command) return
     void runCommand(this.client, outcome.command, {
       sessions: (list) => this.applySessions(list),
@@ -181,37 +192,6 @@ export class GlassesApp {
       exit: () => this.port.exit(),
       rejected: () => this.store.setState({ link: 'rejected' }),
     }).then((notice) => notice && this.notify(notice))
-  }
-
-  private setVoice(voice: Voice | null) {
-    this.store.setState({ voice })
-  }
-
-  /** Hold to talk: on a session (or over a reply being redone), record until released. */
-  private async startTalking() {
-    const state = this.store.getState()
-    const place = current(state.nav)
-    // In a session, talk to it; anywhere else, to the assistant (if the hub runs one).
-    const target = state.voice?.session ?? (place.screen === 'session' ? place.id : conciergeOf(state)?.id)
-    if (!target) return this.notify('Open a session to reply')
-    if (!state.features.asr) return this.notify('Voice is off on the hub')
-    if (this.recorder.active || state.voice?.phase === 'transcribing') return
-    if (!(await this.recorder.start(() => void this.stopTalking()))) return this.notify('No microphone')
-    this.store.setState({ voice: { session: target, phase: 'listening', text: '' }, notice: null })
-  }
-
-  private async stopTalking() {
-    const voice = this.store.getState().voice
-    const wav = await this.recorder.stop()
-    if (!voice || voice.phase !== 'listening') return
-    if (!wav) return this.setVoice({ ...voice, phase: 'failed', text: 'Nothing was heard.' })
-    this.setVoice({ ...voice, phase: 'transcribing' })
-    try {
-      const text = (await transcribe(this.client, wav)).trim()
-      this.setVoice(text ? { ...voice, phase: 'ready', text } : { ...voice, phase: 'failed', text: 'Nothing was heard.' })
-    } catch (error) {
-      this.setVoice({ ...voice, phase: 'failed', text: error instanceof Error ? error.message : 'Speech to text failed' })
-    }
   }
 
   /** On a session whose long reply has no summary yet, ask the hub once for that reply. */

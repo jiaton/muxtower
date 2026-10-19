@@ -29,7 +29,7 @@ A layer imports only from layers above it in this list.
 4. `src/hub/` — config, typed client, pairing, the stream; `types.ts` aliases the generated schema.
 5. `src/state/` — the app state and navigation (`model.ts`), the launch rule, persistence (through the port's storage).
 6. `src/screens/` — pure functions per screen: `view(state, now) → Screen` and `act(state, action) → Outcome {nav, notice?, command?}`. No I/O, no timers, no SDK; everything is unit-tested.
-7. `src/voice/` — the recorder (holds the glasses microphone while the gesture is held, 60 s cap) and WAV encoding.
+7. `src/voice/` — `talk.ts` (a voice reply: hold or tap-to-tap, live text, final pass, confirm), `recorder.ts` (the microphone, 60 s cap), `segmenter.ts` (cuts at pauses for live text), `wav.ts`.
 8. `src/commands.ts` runs a screen's command against the hub; `src/app.ts` is the controller wiring everything; `src/panel/` is the phone panel; `src/main.ts` picks the port.
 
 Split a file past 250 lines or once it mixes two layers.
@@ -42,7 +42,7 @@ Split a file past 250 lines or once it mixes two layers.
 - Lists are our own cursor lists in text (the SDK list cannot start on a chosen row): the cursor follows a row id, the order is frozen while a screen is shown (new rows appended with `•`), each screen's cursor is kept and saved.
 - Choosing an option takes two taps (choose, confirm); any other gesture disarms.
 - The assistant (`role: "concierge"`) is pinned first on Home and kept out of the waiting list and the groups; holding outside a session talks to it.
-- A voice reply is never sent without a tap on the transcript. Long replies show the hub's summary first (`reply_summary`, asked for when a session is opened), the full text after a marker.
+- A voice reply is never sent without a tap on the transcript. Talking starts by holding, or by a tap where a tap means nothing else (a session while reading, the menu's Talk); the next tap stops it, a double tap cancels. Long replies show the hub's summary first (`reply_summary`, asked for when a session is opened), the full text after a marker.
 - UI strings in English; content (session names, replies) as the agents wrote it, often Chinese.
 
 ## Events (verified in the simulator)
