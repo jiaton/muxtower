@@ -59,7 +59,7 @@ Approval is always explicit. Approve re-reads the live screen, parses the menu, 
 
 ## CORS and origins
 
-- Default `cors.allowed_origins = ["*"]`. This is safe because auth is bearer-only: no cookies are ever sent, so a foreign page can call nothing but `/v1/health` and `/v1/pair/claim` without a token. Listing origins only tightens it. `allow_credentials` is false; allowed headers are `Authorization`, `Content-Type`; preflights are cached 10 minutes.
+- Default `cors.allowed_origins = ["*"]`. This is safe because auth is bearer-only: no cookies are ever sent, so a foreign page can call nothing but `/v1/health` and `/v1/pair/claim` without a token. Listing origins only tightens it. `allow_credentials` is false; allowed headers are `Authorization`, `Content-Type` and whatever `cors.extra_headers` lists (a gate's own credential header, for apps that run off the daemon's origin); preflights are cached 10 minutes.
 - Browsers do not apply CORS to WebSockets; `/v1/stream` checks `Origin` against the same list (any origin by default) and always requires the token.
 - A reverse proxy or gate in front must let `OPTIONS` preflights through untouched, since they carry no credentials.
 - The app never goes through a proxy of its own: a hosted app talks to daemons directly from the browser, so the host never sees tokens or terminal contents.
@@ -78,7 +78,7 @@ A hosted HTTPS app cannot reach a plain-HTTP or private-IP daemon (mixed content
 
 The app is a static SPA; the same build runs anywhere.
 
-- **Bundled** (recommended): served by `muxtower serve` at `/`, same origin as its daemon.
+- **Bundled** (recommended): served by `muxtower serve` at `/`, same origin as its daemon. The glasses app (`glasses/`) is bundled next to it at `/g2/`.
 - **Your own static host**: one-click "Deploy to Cloudflare" (Workers static assets, SPA fallback via `not_found_handling`) or fork + GitHub Pages (Actions workflow; base path from `MUXTOWER_BASE`). Add daemons by pairing.
 - **A public instance** run by the project, for convenience only. It is built and deployed by public CI from tagged releases, so users can check what they run; the docs still recommend the bundled UI, because whoever serves the JS could read the tokens in that browser.
 

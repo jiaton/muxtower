@@ -51,3 +51,16 @@ def test_websocket_origin_policy() -> None:
     assert policy.websocket_allowed(APP_ORIGIN, "daemon.example")
     assert policy.websocket_allowed("https://daemon.example", "daemon.example")
     assert not policy.websocket_allowed("https://evil.example", "daemon.example")
+
+
+def test_a_gate_header_is_allowed_only_when_listed(client: TestClient, make_app: Callable[..., FastAPI]) -> None:
+    def preflight(c: TestClient) -> int:
+        headers = {
+            "Origin": APP_ORIGIN,
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "authorization,x-gate-token",
+        }
+        return c.options("/v1/me", headers=headers).status_code
+
+    assert preflight(client) == 400
+    assert preflight(TestClient(make_app(**{"cors.extra_headers": ["X-Gate-Token"]}))) == 200

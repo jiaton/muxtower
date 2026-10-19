@@ -1,13 +1,15 @@
 """Serves the bundled web app (copied into muxtower/web/ at wheel build time) with an SPA fallback,
-plus /config.json telling the app which daemon it came from."""
+plus /config.json telling the app which daemon it came from. Sub-apps built alongside it (the G2
+glasses app in web/g2/) are served from their own folder with their own index.html."""
 
 from importlib import resources
 from pathlib import Path
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 
 WEB_DIR = Path(str(resources.files("muxtower"))) / "web"
+SUB_APPS = ("g2",)
 
 
 def mount_ui(app: FastAPI, public_url: str | None, daemon_name: str) -> None:
@@ -26,6 +28,11 @@ def mount_ui(app: FastAPI, public_url: str | None, daemon_name: str) -> None:
         candidate = (WEB_DIR / path).resolve()
         if path and candidate.is_file() and candidate.is_relative_to(WEB_DIR.resolve()):
             return FileResponse(candidate)
+        sub = path.split("/", 1)[0]
+        if sub in SUB_APPS and (WEB_DIR / sub / "index.html").is_file():
+            if path == sub:  # its assets are relative to the folder
+                return RedirectResponse(f"/{sub}/")
+            return FileResponse(WEB_DIR / sub / "index.html", headers={"Cache-Control": "no-cache"})
         if index.is_file():
             return FileResponse(index, headers={"Cache-Control": "no-cache"})
         return JSONResponse(

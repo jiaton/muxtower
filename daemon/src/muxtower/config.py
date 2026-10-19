@@ -26,6 +26,9 @@ class CorsSettings(BaseModel):
     # "*" is safe as the default because auth is bearer-only: no cookies ride along, so a foreign page
     # gets nothing without a token. List origins here only to tighten it.
     allowed_origins: list[str] = Field(default_factory=lambda: ["*"])
+    # Request headers clients may add besides Authorization and Content-Type: a gate's own credential
+    # header, sent by apps that run off the daemon's origin (e.g. a packaged glasses app).
+    extra_headers: list[str] = Field(default_factory=list)
 
 
 class PairingSettings(BaseModel):
