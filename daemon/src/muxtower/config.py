@@ -78,6 +78,18 @@ class AsrSettings(BaseModel):
         return None
 
 
+class ConciergeSettings(BaseModel):
+    """An assistant: a Claude Code session muxtower keeps running, which the owner talks to instead of
+    each session. It reaches the other sessions through muxtower's MCP tools (/v1/mcp)."""
+
+    enabled: bool = False
+    name: str = "Assistant"
+    model: str = "sonnet"
+    cwd: Path = Path("~")
+    remote_control: bool = True  # also reachable from the Claude apps
+    args: list[str] = Field(default_factory=list)  # extra `claude` arguments, e.g. a permission mode
+
+
 class Settings(BaseModel):
     name: str | None = None  # display name in the app; defaults to the hostname
     host: str = "127.0.0.1"
@@ -99,6 +111,7 @@ class Settings(BaseModel):
     remote_control: RemoteControlSettings = Field(default_factory=RemoteControlSettings)
     summaries: SummarySettings = Field(default_factory=SummarySettings)
     asr: AsrSettings = Field(default_factory=AsrSettings)
+    concierge: ConciergeSettings = Field(default_factory=ConciergeSettings)
 
     @property
     def db_path(self) -> Path:
@@ -129,6 +142,7 @@ _ENV_KEYS: dict[str, tuple[str, ...]] = {
     "MUXTOWER_SUMMARIES_PROVIDER": ("summaries", "provider"),
     "MUXTOWER_ASR_PROVIDER": ("asr", "provider"),
     "MUXTOWER_ASR_API_KEY": ("asr", "api_key"),
+    "MUXTOWER_CONCIERGE_ENABLED": ("concierge", "enabled"),
 }
 
 

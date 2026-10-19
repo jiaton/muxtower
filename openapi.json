@@ -786,6 +786,18 @@
               }
             ]
           },
+          "remote_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "this agent's Remote Control session, when it has one; listed once, under this id",
+            "title": "Remote Id"
+          },
           "reply_summary": {
             "anyOf": [
               {
@@ -797,6 +809,16 @@
             ],
             "description": "a few lines condensing last_message, once the hub has made them (long replies)",
             "title": "Reply Summary"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SessionRole"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "runtime": {
             "title": "Runtime",
@@ -887,6 +909,13 @@
         ],
         "title": "Session",
         "type": "object"
+      },
+      "SessionRole": {
+        "enum": [
+          "concierge"
+        ],
+        "title": "SessionRole",
+        "type": "string"
       },
       "SessionSource": {
         "enum": [

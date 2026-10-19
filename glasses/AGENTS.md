@@ -41,6 +41,7 @@ Split a file past 250 lines or once it mixes two layers.
 - Every line is measured with the firmware metrics; text that does not fit is cut with an ellipsis, never left to the firmware. Glyphs the font lacks are replaced or removed before drawing (the firmware drops them silently).
 - Lists are our own cursor lists in text (the SDK list cannot start on a chosen row): the cursor follows a row id, the order is frozen while a screen is shown (new rows appended with `•`), each screen's cursor is kept and saved.
 - Choosing an option takes two taps (choose, confirm); any other gesture disarms.
+- The assistant (`role: "concierge"`) is pinned first on Home and kept out of the waiting list and the groups; holding outside a session talks to it.
 - A voice reply is never sent without a tap on the transcript. Long replies show the hub's summary first (`reply_summary`, asked for when a session is opened), the full text after a marker.
 - UI strings in English; content (session names, replies) as the agents wrote it, often Chinese.
 

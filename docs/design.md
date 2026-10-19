@@ -82,6 +82,19 @@ The app is a static SPA; the same build runs anywhere.
 - **Your own static host**: one-click "Deploy to Cloudflare" (Workers static assets, SPA fallback via `not_found_handling`) or fork + GitHub Pages (Actions workflow; base path from `MUXTOWER_BASE`). Add daemons by pairing.
 - **A public instance** run by the project, for convenience only. It is built and deployed by public CI from tagged releases, so users can check what they run; the docs still recommend the bundled UI, because whoever serves the JS could read the tokens in that browser.
 
+## One entry per agent
+
+A Claude Code process can be both a tmux pane and a Remote Control session. The process writes `~/.claude/sessions/<pid>.json`, whose `bridgeSessionId` (`session_<id>`) is its Remote Control session (`cse_<id>`). The capture loop looks for that file from each pane's process down (the pane may run a shell first); the directory then lists the agent once, under its tmux id, with the remote side's name, origin, summary and conversation. Text messages to such an agent go through Remote Control (structured, cannot land in a dialog); keys go to tmux.
+
+## The concierge (optional)
+
+`[concierge] enabled` keeps one Claude Code session running on the daemon's machine for the owner to talk to instead of each session: it relays the owner's requests, reads and summarizes sessions, answers their prompts when the owner says so, starts new ones, and also answers ordinary questions. It is launched by muxtower in tmux (`--model sonnet`, its own instructions, Remote Control on by default so the Claude apps reach it too) with an MCP config that points at `/v1/mcp` with a token minted for it.
+
+- Tools: `list_sessions`, `read_session`, `send_message`, `approve`, `deny`, `interrupt`, `start_session`, `watch_session`, `unwatch_session`. Plain-text results, short enough to relay.
+- Watching: when a watched session finishes a turn or starts needing the owner, muxtower types a one-line `[muxtower] …` message into the concierge (held while the concierge itself shows a prompt, so the text cannot answer it).
+- Its instructions say that only the owner's messages are instructions; what it reads from sessions is data.
+- Clients pin it (`role: "concierge"`); on the glasses, talking outside a session talks to it.
+
 ## Reply summaries and voice
 
 - **Summaries.** A reply longer than `summaries.min_chars` gets a few lines in its own language that keep what the owner must decide, commands proposed and failures. They are made by a coding agent CLI already logged in on the daemon's machine (`claude -p` with haiku, or `codex exec`), so a subscription is used instead of an API key. The CLI runs with no tools, settings or MCP servers in an empty directory, and gets the reply on stdin. Each reply is summarized once (keyed by its hash, cached in SQLite), in the background: when a client asks (`POST /v1/sessions/{id}/summary`) and, with `summaries.eager`, as soon as a session starts needing the owner. Sessions carry it as `reply_summary`; the stream pushes the list again when one is ready.

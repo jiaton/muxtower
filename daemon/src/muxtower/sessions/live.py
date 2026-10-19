@@ -65,6 +65,7 @@ class LiveSession:
     screen: ScreenState | None = None
     last_message: str | None = None
     effective: Effective | None = None
+    remote_id: str | None = None  # the same agent's Remote Control session (see claude_processes.py)
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 

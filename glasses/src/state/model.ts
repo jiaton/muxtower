@@ -94,3 +94,9 @@ export const findSession = (state: AppState, id: string) => state.sessions.find(
 
 /** The group a session is listed under: the machine it runs on (local tmux sessions run on the hub). */
 export const groupOf = (session: Session, hubName: string) => session.machine || hubName
+
+/** The owner's assistant session, if the hub runs one: pinned on Home, and the target of voice outside a session. */
+export const conciergeOf = (state: AppState) => state.sessions.find((s) => s.role === 'concierge')
+
+/** Sessions other than the assistant (it has its own row and is not counted in any group). */
+export const workers = (state: AppState) => state.sessions.filter((s) => s.role !== 'concierge')

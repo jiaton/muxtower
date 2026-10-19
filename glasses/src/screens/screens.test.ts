@@ -64,3 +64,13 @@ it('launch opens the one session that needs the owner, else returns to the last 
   expect(current(back)).toEqual({ screen: 'home' })
   expect(back.cursors.home).toBe('g:box')
 })
+
+it('the assistant is pinned first and kept out of the waiting list and the groups', () => {
+  const state = appState([
+    session('helper', { role: 'concierge', needs_attention: true, state: 'needs_answer' }),
+    waiting('w', '2026-10-18T11:00:00Z'),
+  ])
+  const ids = homeRows(state, NOW).map((r) => r.id)
+  expect(ids).toEqual(['s:helper', 's:w', 'divider', 'g:box'])
+  expect(homeRows(state, NOW).find((r) => r.id === 'g:box')?.text).toContain('1 · 1 needs you')
+})

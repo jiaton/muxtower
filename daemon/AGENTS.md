@@ -19,10 +19,13 @@ Python package `muxtower`: one command, `muxtower`: `muxtower serve` runs the da
 
 ```
 src/muxtower/
-  sessions/   registry, create/rename/terminate; directory.py: every session across sources, dispatch by capabilities
+  sessions/   registry, create/rename/terminate; directory.py: every session across sources, dispatch by capabilities;
+              claude_processes.py: links a pane's Claude Code to its Remote Control session (one entry per agent)
   sources/    other session sources, one folder each (remote_control: Anthropic's Remote Control API)
   summaries/  short versions of long replies: a Summarizer port (claude/codex CLI adapters), SQLite cache, background loop
   asr/        speech to text for voice replies: a Transcriber port (OpenAI-compatible adapter: Groq, OpenAI)
+  concierge/  the owner's assistant: a Claude Code session kept running, its MCP config, watched sessions
+  mcp/        MCP over HTTP at /v1/mcp (JSON-RPC, JSON responses): tools to list, read, message, approve sessions
   terminal/   capture, input, resize, stream frames
   approval/   pending actions, approve/deny, auto-approve policy
   runtimes/   one adapter per agent (claude_code, codex, generic) + screen-rule engine + default rule TOMLs
@@ -74,6 +77,7 @@ Split a file past 250 lines or once it mixes two domains.
 - Pairing claim is rate-limited and single-use; failed token checks are rate-limited per client IP.
 - Never launch anything but a registered runtime binary (or the configured summarizer CLI); no shell strings from the API.
 - Text from agents is untrusted: a summarizer runs with no tools, settings or MCP servers, in an empty directory, and gets the text on stdin.
+- MCP tools act with the calling device's token and every call is audited (`mcp:<tool>`). The concierge gets its own token, minted at each start and written only into its 0600 MCP config.
 - Provider keys (speech to text) stay on the daemon; transcripts and recordings are never logged or stored.
 - Every mutating action writes an audit row (who = token name, what, session).
 
