@@ -69,6 +69,7 @@ class AsrSettings(BaseModel):
     api_key_file: Path | None = None
     model: str | None = None  # groq: whisper-large-v3-turbo, openai: gpt-4o-transcribe
     language: str | None = None  # pin e.g. "zh"; empty = detect per recording
+    prompt: str | None = None  # extra words the recognizer should know (names, jargon)
 
     def key(self) -> str | None:
         if self.api_key:

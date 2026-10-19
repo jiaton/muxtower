@@ -15,9 +15,11 @@ WAV = b"RIFF" + b"\0" * 64
 class FakeTranscriber:
     def __init__(self) -> None:
         self.calls: list[tuple[int, str, str | None]] = []
+        self.prompts: list[str] = []
 
-    def transcribe(self, audio: bytes, content_type: str, language: str | None) -> str:
+    def transcribe(self, audio: bytes, content_type: str, language: str | None, prompt: str | None) -> str:
         self.calls.append((len(audio), content_type, language))
+        self.prompts.append(prompt or "")
         return "继续，然后跑测试"
 
 
@@ -35,11 +37,12 @@ def test_voice_is_off_until_configured(app: FastAPI) -> None:
 
 def test_transcribes_and_audits_without_the_words(app: FastAPI) -> None:
     fake = FakeTranscriber()
-    app.state.asr = AsrService(fake, language="zh")
+    app.state.asr = AsrService(fake, language="zh", hints=lambda: ["Postgres", "notes", "notes"])
     client, auth = _client(app)
     res = client.post("/v1/asr", content=WAV, headers={**auth, "Content-Type": "audio/wav"})
     assert res.json() == {"text": "继续，然后跑测试"}
     assert fake.calls == [(len(WAV), "audio/wav", "zh")]
+    assert "简体中文" in fake.prompts[0] and fake.prompts[0].endswith("会话：Postgres、notes")
     with app.state.audit.db.connect() as conn:
         rows = [dict(r) for r in conn.execute("SELECT * FROM audit_log WHERE action = 'asr'")]
     assert len(rows) == 1 and "继续" not in str(rows[0])
@@ -55,7 +58,7 @@ def test_provider_errors_become_unavailable(monkeypatch: pytest.MonkeyPatch) -> 
 
     monkeypatch.setattr(httpx, "post", refuse)
     with pytest.raises(Unavailable) as caught:
-        OpenAICompatibleTranscriber("groq", "sk-secret").transcribe(WAV, "audio/wav", None)
+        OpenAICompatibleTranscriber("groq", "sk-secret").transcribe(WAV, "audio/wav", None, None)
     assert "sk-secret" not in str(caught.value) and "401" in str(caught.value)
 
 

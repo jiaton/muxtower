@@ -4,7 +4,7 @@ import asyncio
 import logging
 import secrets
 import socket
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -103,7 +103,7 @@ def build_summaries(settings: Settings, db: Database) -> SummaryService:
     return SummaryService(summarizer, SqliteSummaryRepository(db), cfg.min_chars)
 
 
-def build_asr(settings: Settings) -> AsrService:
+def build_asr(settings: Settings, hints: Callable[[], list[str]]) -> AsrService:
     cfg = settings.asr
     key = cfg.key()
     if cfg.provider == "off":
@@ -111,7 +111,7 @@ def build_asr(settings: Settings) -> AsrService:
     if not key:
         logger.warning("asr.provider is %s but no API key is set; voice is off", cfg.provider)
         return AsrService(None, cfg.language)
-    return AsrService(OpenAICompatibleTranscriber(cfg.provider, key, cfg.model), cfg.language)
+    return AsrService(OpenAICompatibleTranscriber(cfg.provider, key, cfg.model), cfg.language, hints, cfg.prompt)
 
 
 def _log_crash(task: asyncio.Task[None]) -> None:
@@ -189,7 +189,7 @@ def create_app(
     app.state.summaries = summaries
     app.state.concierge = concierge
     app.state.mcp = McpTools(directory, sessions, concierge, daemon_name)
-    app.state.asr = build_asr(settings)
+    app.state.asr = build_asr(settings, lambda: [s.name for s in directory.list()])
     app.state.terminal = terminal
     app.state.approvals = approvals
     app.state.audit = audit

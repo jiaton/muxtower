@@ -133,7 +133,7 @@ Sessions that muxtower did not start (found in your own tmux) can be watched, an
 | `summaries.min_chars` / `summaries.eager` | — | `400` / `true` | replies longer than this get a summary; eager: as soon as a session needs you |
 | `asr.provider` | `MUXTOWER_ASR_PROVIDER` | `off` | `groq` or `openai`: speech to text for voice replies |
 | `asr.api_key_file` / `asr.api_key` | `MUXTOWER_ASR_API_KEY` | — | the provider's key (keep it in a 0600 file) |
-| `asr.language` | — | detect | pin the language, e.g. `zh` |
+| `asr.language` / `asr.prompt` | — | detect / — | pin the language, e.g. `zh`; extra words for the recognizer (session names and common terms are always given) |
 | `concierge.enabled` | `MUXTOWER_CONCIERGE_ENABLED` | `false` | keep an assistant session running that you talk to instead of each session (see below) |
 | `concierge.model` / `.name` / `.cwd` | — | `sonnet` / `Assistant` / `~` | its model, display name and working directory |
 | `concierge.remote_control` / `.args` | — | `true` / `[]` | also reachable from the Claude apps; extra `claude` arguments |
