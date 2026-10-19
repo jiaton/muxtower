@@ -92,8 +92,13 @@ class SessionService:
             tmux_session=record.tmux_session,
             tmux_pane=record.pane.pane_id,
             capabilities=Capabilities(
-                screen=True, conversation=False, keys=[], resize=True, terminate=record.source == SessionSource.LAUNCHED
-            ),
+                screen=True,
+                conversation=False,
+                keys=[],
+                resize=True,
+                rename=True,
+                terminate=record.source == SessionSource.LAUNCHED,
+            ),  # fmt: skip
             state=eff.state,
             state_source=eff.source,
             matched_rule=eff.matched_rule,

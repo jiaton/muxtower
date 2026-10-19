@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Any
 
 from muxtower.agent_text import describe_tool_input
-from muxtower.sessions.models import ConversationItem, ConversationItemKind
+from muxtower.sessions.models import ConversationItem, ConversationItemKind, ItemStatus
 from muxtower.sources.remote_control.ports import RawEvent
 
 # A single event can produce several items (prose + tool calls); item seq = event seq * SLOTS + index.
@@ -34,6 +34,13 @@ class PendingRequest:
     @property
     def is_question(self) -> bool:
         return self.tool_name in QUESTION_TOOLS
+
+    @property
+    def question(self) -> dict[str, Any]:
+        """The first question of an AskUserQuestion prompt; muxtower offers and answers that one."""
+        questions = self.tool_input.get("questions") or []
+        first = questions[0] if questions else None
+        return first if isinstance(first, dict) else {}
 
 
 def _at(value: str | None) -> datetime | None:
@@ -89,7 +96,7 @@ class ConversationBuilder:
             del self.items[seq]
         return [touched[s] for s in sorted(touched)]
 
-    def _set_status(self, item_seq: int, status: str) -> ConversationItem | None:
+    def _set_status(self, item_seq: int, status: ItemStatus) -> ConversationItem | None:
         item = self.items.get(item_seq)
         if item is None or item.status == status:
             return None
@@ -107,7 +114,7 @@ class ConversationBuilder:
                 if block.get("type") == "tool_result":
                     seq = self._tools.get(str(block.get("tool_use_id")))
                     if seq is not None and (
-                        done := self._set_status(seq, "error" if block.get("is_error") else "done")
+                        done := self._set_status(seq, ItemStatus.ERROR if block.get("is_error") else ItemStatus.DONE)
                     ):
                         out.append(done)
                 elif block.get("type") == "text":
@@ -138,7 +145,7 @@ class ConversationBuilder:
                         kind=ConversationItemKind.TOOL,
                         tool_name=name,
                         text=describe_tool_input(block.get("input")),
-                        status="running",
+                        status=ItemStatus.RUNNING,
                     )  # fmt: skip
                 )
 
@@ -161,7 +168,7 @@ class ConversationBuilder:
                         kind=item_kind,
                         tool_name=tool,
                         text=describe_tool_input(tool_input),
-                        status="pending",
+                        status=ItemStatus.PENDING,
                     )  # fmt: skip
                 )
 
@@ -172,22 +179,28 @@ class ConversationBuilder:
             if resolved is not None:
                 answer = response.get("response") or {}
                 if resolved.is_question:
-                    status = "answered" if (answer.get("updatedInput") or {}).get("answers") else "dismissed"
+                    answers = (answer.get("updatedInput") or {}).get("answers")
+                    status = ItemStatus.ANSWERED if answers else ItemStatus.DISMISSED
                 else:
-                    status = "allowed" if answer.get("behavior") == "allow" else "denied"
+                    status = ItemStatus.ALLOWED if answer.get("behavior") == "allow" else ItemStatus.DENIED
                 if changed := self._set_status(resolved.item_seq, status):
                     out.append(changed)
 
         elif kind == "control_cancel_request":
             cancel_id = str(payload.get("request_id") or "")
             cancelled = self._requests.pop(cancel_id) if cancel_id in self._requests else None
-            if cancelled is not None and (changed := self._set_status(cancelled.item_seq, "cancelled")):
+            if cancelled is not None and (changed := self._set_status(cancelled.item_seq, ItemStatus.CANCELLED)):
                 out.append(changed)
 
         elif kind == "result":
             ok = payload.get("subtype") == "success" and not payload.get("is_error")
             out.append(
-                ConversationItem(seq=base, at=at, kind=ConversationItemKind.RESULT, status="done" if ok else "error")
+                ConversationItem(
+                    seq=base,
+                    at=at,
+                    kind=ConversationItemKind.RESULT,
+                    status=ItemStatus.DONE if ok else ItemStatus.ERROR,
+                )
             )
 
         return out

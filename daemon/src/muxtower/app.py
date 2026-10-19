@@ -21,7 +21,7 @@ from muxtower.auth.routes import router as auth_router
 from muxtower.auth.service import TokenService
 from muxtower.auth.stream_cookie import StreamCookieSigner
 from muxtower.config import Settings
-from muxtower.errors import Conflict, Forbidden, Invalid, NotFound, TooManyRequests, Unauthorized
+from muxtower.errors import Conflict, Forbidden, Invalid, NotFound, TooManyRequests, Unauthorized, Unavailable
 from muxtower.hooks.routes import router as hooks_router
 from muxtower.infra.audit import AuditLog
 from muxtower.infra.bus import EventBus
@@ -102,8 +102,9 @@ def create_app(
     )
     monitor = Monitor(sessions)
     remote_control = remote_control or build_remote_control(settings)
-    directory = SessionDirectory(sessions, remote_control)
     approvals = ApprovalService(sessions)
+    terminal = TerminalService(sessions, monitor)
+    directory = SessionDirectory(sessions, terminal, approvals, [remote_control] if remote_control else [])
     audit = AuditLog(db)
     push = PushService(SqliteSubscriptionRepository(db), WebPushSender(settings.state_dir), directory, daemon_name)
 
@@ -135,8 +136,7 @@ def create_app(
     app.state.sessions = sessions
     app.state.monitor = monitor
     app.state.directory = directory
-    app.state.remote_control = remote_control
-    app.state.terminal = TerminalService(sessions, monitor)
+    app.state.terminal = terminal
     app.state.approvals = approvals
     app.state.audit = audit
     app.state.push = push
@@ -163,6 +163,7 @@ def create_app(
         (Unauthorized, 401),
         (TooManyRequests, 429),
         (TmuxError, 502),
+        (Unavailable, 502),
     ):
 
         def handler(_: Request, exc: Exception, status: int = status) -> JSONResponse:

@@ -44,6 +44,7 @@ class Capabilities(BaseModel):
     keys: list[str] = Field(description="tmux key names input accepts; empty = any")
     resize: bool
     terminate: bool
+    rename: bool
 
 
 class Session(BaseModel):
@@ -93,6 +94,18 @@ class ConversationItemKind(StrEnum):
     RESULT = "result"  # the end of a turn
 
 
+class ItemStatus(StrEnum):
+    RUNNING = "running"  # tool
+    DONE = "done"  # tool, result
+    ERROR = "error"  # tool, result
+    PENDING = "pending"  # approval, question
+    ALLOWED = "allowed"  # approval
+    DENIED = "denied"  # approval
+    ANSWERED = "answered"  # question
+    DISMISSED = "dismissed"  # question
+    CANCELLED = "cancelled"  # approval, question: withdrawn by the agent
+
+
 class ConversationItem(BaseModel):
     """One normalized entry of a session's conversation. `seq` orders items; an item can be sent again
     with the same `seq` when its status changes (a tool finishing, a prompt being answered)."""
@@ -102,7 +115,7 @@ class ConversationItem(BaseModel):
     kind: ConversationItemKind
     text: str | None = None
     tool_name: str | None = None
-    status: str | None = Field(default=None, description="running/done/error, pending/allowed/denied/answered")
+    status: ItemStatus | None = None
 
 
 class Conversation(BaseModel):

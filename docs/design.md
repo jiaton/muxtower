@@ -1,6 +1,6 @@
 # muxtower design
 
-muxtower lets coding agents running in tmux on a remote machine be approved and driven from a phone. It is server-side and headless: `muxtower serve` runs next to the agents, exposes a typed HTTP + WebSocket API behind a single Bearer token, and is meant to sit behind any reverse proxy. The web app is a client of that API, nothing more.
+muxtower lets coding agents running in tmux on a remote machine (and, optionally, Claude Code Remote Control sessions anywhere) be approved and driven from a phone. It is server-side and headless: `muxtower serve` runs next to the agents, exposes a typed HTTP + WebSocket API behind a single Bearer token, and is meant to sit behind any reverse proxy. The web app is a client of that API, nothing more.
 
 ## Pieces
 
@@ -15,6 +15,9 @@ muxtower lets coding agents running in tmux on a remote machine be approved and 
 
 - A session is one agent process in its own tmux session on a dedicated socket (`-L muxtower`), started by `muxtower run <agent> [args]` or `POST /v1/sessions`. Only binaries from the runtime registry may be launched; the API never takes a shell string.
 - The launcher sets `MUXTOWER_SESSION_ID` and a per-session `MUXTOWER_HOOK_TOKEN` in the tmux environment, so hooks fired by the agent can be tied back to the session.
+- Other **session sources** list sessions muxtower did not start and does not reach through tmux. Today there is one, optional (`[remote_control] enabled`): Claude Code Remote Control, Anthropic's controller API for the Claude account logged in on the daemon's machine (`muxtower.vendor.claude_rc`, a private API wrapped behind one port so a break is fixed in one module). It sees sessions started from the desktop app, the mobile apps and `claude remote-control`, on any machine (`machine` maps the opaque `environment_id` to a name from config; `origin` is where it was started).
+- `SessionDirectory` is the single place that knows which source a session lives in. Routes and the stream ask it; it checks the session's `capabilities` (`screen`, `conversation`, `keys`, `resize`, `terminate`, `rename`) and answers 409 for anything a source cannot do, instead of sending keys to the wrong place. Clients choose their view from the same flags: a terminal for `screen`, the structured conversation for `conversation`.
+- A Remote Control session has no screen. Its state comes from the worker's own status and the unanswered permission prompt in its event log; its conversation (`GET /v1/sessions/{id}/conversation`, stream topic `conversation`) is built from the log as typed items (prompt, reply, tool, approval, question, result) that are re-sent with the same `seq` when their status changes; Anthropic's per-turn summary becomes `Session.summary`. A poll lists active sessions every few seconds and fetches events only for sessions whose fingerprint changed; answering re-reads the log first. Approve, deny, messages and interrupt (`Escape`) go back through the same API.
 - Registry, device tokens, push subscriptions and the audit log live in one SQLite file under `$XDG_STATE_HOME/muxtower/` (default `~/.local/state/muxtower/`). Config lives in `$XDG_CONFIG_HOME/muxtower/config.toml`, every key overridable by a `MUXTOWER_*` env var.
 
 ## State detection: runtime adapters
@@ -40,7 +43,7 @@ Approval is always explicit. Approve re-reads the live screen, parses the menu, 
 ## API
 
 - Versioned under `/v1`. FastAPI's OpenAPI schema is exported to `openapi.json` at the repo root and is the contract for the app (`openapi-typescript` + `openapi-fetch`); CI fails if it is stale.
-- One WebSocket, `/v1/stream`: the client sends `{"type":"subscribe","topic":"sessions"}` or `{"type":"subscribe","topic":"screen","session_id":…,"history":N}`; the server pushes `sessions` and `screen` frames (shapes in the OpenAPI schema via `/v1/stream/schema`).
+- One WebSocket, `/v1/stream`: the client sends `{"type":"subscribe","topic":"sessions"}`, `{"type":"subscribe","topic":"screen","session_id":…,"history":N}` or `{"type":"subscribe","topic":"conversation","session_id":…}`; the server pushes `sessions`, `screen` and `conversation` frames (shapes in the OpenAPI schema via `/v1/stream/schema`).
 - Health: `GET /v1/health` is public and returns only `{status, version}`.
 
 ## Auth
@@ -88,5 +91,5 @@ Web Push with a per-daemon VAPID key. A browser registration holds one subscript
 - Vite + React + TypeScript PWA; Tailwind v4 tokens; shadcn/ui primitives; TanStack Router, TanStack Query, Zustand.
 - Terminal view: the pane's screen plus scrollback, converted from ANSI to HTML lines and shown as selectable text in a natively (pixel-) scrolling box. Scrolling never touches tmux. Each snapshot is aligned with what is shown (lines pushed off the top, older lines added on top) and only changed lines are patched, keeping the reader's place. Nearing the top asks the stream for more history (300 → 1500 → 5000 lines). "Fit width to this screen" resizes the pane to the view (default for sessions muxtower started); turning it off, leaving, or closing the page calls `POST /v1/sessions/{id}/resize/release`, which unsets tmux's manual `window-size` and runs `resize-window -A`, so attached terminals get their size back.
 - Daemons are first class: a persisted list `{id, name, url, token}`; one typed client per daemon; every query key starts with the daemon id.
-- Screens: **Inbox** (everything waiting on a human, across all daemons), **Session** (terminal, pending action card with approve/deny/options, input bar, keys), **Daemons** (add by pairing link/QR or by hand, per-daemon push settings).
+- Screens: **Inbox** (everything waiting on a human, across all daemons), **Session** (terminal or conversation by capabilities, pending action card with approve/deny/options, input bar, the keys the session accepts), **Daemons** (add by pairing link/QR or by hand, per-daemon push settings).
 - No configuration is baked into the bundle. An optional `/config.json` (`{"daemons": [{name, url, token?}], "acknowledge_public_tokens"?}`) next to `index.html` supplies default daemons, written at build time from `MUXTOWER_APP_CONFIG`; a preset token requires the acknowledgement and shows a warning. The bundled copy served by the daemon advertises its own daemon.

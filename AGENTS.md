@@ -1,6 +1,6 @@
 # AGENTS.md
 
-muxtower: approve and drive coding agents running in tmux on a remote machine, from a phone. Server-side, headless, API-first; one Bearer token; works behind any reverse proxy. Architecture and the reasoning behind it: `docs/design.md` — read it before changing the API, auth, or state detection.
+muxtower: approve and drive coding agents running in tmux on a remote machine (and, optionally, Claude Code Remote Control sessions), from a phone. Server-side, headless, API-first; one Bearer token; works behind any reverse proxy. Architecture and the reasoning behind it: `docs/design.md` — read it before changing the API, auth, or state detection.
 
 ## Layout
 

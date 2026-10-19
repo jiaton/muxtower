@@ -24,3 +24,7 @@ class Unauthorized(Exception):
 
 class TooManyRequests(Exception):
     pass
+
+
+class Unavailable(Exception):
+    """A service the daemon depends on (outside tmux) failed or could not be reached."""

@@ -420,6 +420,8 @@ export interface components {
              * @description tmux key names input accepts; empty = any
              */
             keys: string[];
+            /** Rename */
+            rename: boolean;
             /** Resize */
             resize: boolean;
             /**
@@ -481,11 +483,7 @@ export interface components {
             kind: components["schemas"]["ConversationItemKind"];
             /** Seq */
             seq: number;
-            /**
-             * Status
-             * @description running/done/error, pending/allowed/denied/answered
-             */
-            status?: string | null;
+            status?: components["schemas"]["ItemStatus"] | null;
             /** Text */
             text?: string | null;
             /** Tool Name */
@@ -549,6 +547,11 @@ export interface components {
             /** Version */
             version: string;
         };
+        /**
+         * ItemStatus
+         * @enum {string}
+         */
+        ItemStatus: "running" | "done" | "error" | "pending" | "allowed" | "denied" | "answered" | "dismissed" | "cancelled";
         /** Me */
         Me: {
             /** Daemon Name */

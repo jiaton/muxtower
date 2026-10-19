@@ -40,7 +40,7 @@ class RemoteControlSettings(BaseModel):
 
     enabled: bool = False
     poll_seconds: float = 5.0
-    # environment_id -> the name to show ("nas", "macbook"); the API does not expose machine names.
+    # environment_id -> the name to show ("build-box", "laptop"); the API does not expose machine names.
     environments: dict[str, str] = Field(default_factory=dict)
     credentials_path: Path | None = None  # default ~/.claude/.credentials.json
     config_path: Path | None = None  # default ~/.claude.json
