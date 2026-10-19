@@ -31,6 +31,7 @@ export const MENU: MenuItem[] = [
   { id: 3, name: 'Continue' },
   { id: 4, name: 'Refresh' },
   { id: 5, name: 'Home' },
+  { id: 6, name: 'Talk' },
 ]
 
 /** What a quick reply sends ("Continue"). */
@@ -40,6 +41,7 @@ export function menuAct(state: AppState, item: number): Outcome {
   const { nav } = state
   if (item === 4) return { nav, notice: 'Refreshing…', command: { type: 'refresh' } }
   if (item === 5) return { nav: { ...nav, stack: [HOME], frozen: null, offset: 0, armed: null }, notice: null }
+  if (item === 6) return { nav, listen: 'start' } // to this session, or to the assistant elsewhere
   const place = current(nav)
   const session = place.screen === 'session' ? findSession(state, place.id) : undefined
   if (!session) return { nav, notice: 'Open a session first' }

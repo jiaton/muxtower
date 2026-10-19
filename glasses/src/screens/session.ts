@@ -85,7 +85,7 @@ export function sessionView(state: AppState, id: string, now: number): Screen {
   const armed = choices.find((c) => c.key === state.nav.armed)
   const footer = armed
     ? `tap again: ${armed.label}`
-    : (state.notice ?? (chosen ? 'tap choose · 2× back' : `${pages > 1 ? `${page}/${pages} · ` : ''}hold: reply · 2× back`))
+    : (state.notice ?? (chosen ? 'tap choose · 2× back' : `${pages > 1 ? `${page}/${pages} · ` : ''}tap: talk · 2× back`))
   const status = linkLabel(state) ?? `${stateLabel(session.state)} ${age(session.updated_at, now)}`
   return { header: columns([session.name, status], [NAME_PX], TEXT_WIDTH), body, footer }
 }
@@ -114,7 +114,7 @@ export function sessionAct(state: AppState, id: string, action: Action): Outcome
       if (nav.offset > 0) return set({ offset: Math.max(0, nav.offset - STEP) })
       return choices.length ? set({ offset: 0 }, choices[choices.length - 1].key) : set({})
     case 'select': {
-      if (at < 0) return { nav }
+      if (at < 0) return { nav, listen: 'start' } // reading: a tap answers by voice
       if (nav.armed === cursor)
         return {
           nav: { ...nav, armed: null },
