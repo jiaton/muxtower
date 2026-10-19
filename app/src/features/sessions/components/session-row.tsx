@@ -19,9 +19,14 @@ export function SessionRow({ daemonId, session, children }: { daemonId: string; 
             <span className="truncate font-medium">{session.name}</span>
             <StateBadge state={session.state} />
           </div>
-          <p className="truncate font-mono text-xs text-fg-muted">
-            {session.runtime} · {session.cwd}
+          <p className="truncate text-xs text-fg-muted">
+            {[session.machine && `@${session.machine}`, session.origin?.replace('_', ' '), session.cwd || null]
+              .filter(Boolean)
+              .join(' · ') || session.runtime}
           </p>
+          {session.summary?.detail || session.summary?.recent ? (
+            <p className="mt-0.5 line-clamp-2 text-sm text-fg">{session.summary.needs || session.summary.detail || session.summary.recent}</p>
+          ) : null}
         </div>
         <ChevronRight className="size-4 shrink-0 text-fg-muted" aria-hidden />
       </Link>

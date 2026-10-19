@@ -9,13 +9,13 @@ export const HISTORY_STEPS = [300, 1500, 5000] as const
 
 /** The session's screen (ANSI with `history` lines of scrollback): loaded over HTTP, then kept live by
  *  the stream; polled only while the stream is down. Raising `history` re-subscribes for more. */
-export function useScreen(daemonId: string, sessionId: string, history: number) {
+export function useScreen(daemonId: string, sessionId: string, history: number, enabled = true) {
   const client = useDaemonClient(daemonId)
   const status = useStreamStatus((s) => s.status[daemonId])
-  useStreamSubscription(daemonId, { type: 'subscribe', topic: 'screen', session_id: sessionId, history })
+  useStreamSubscription(daemonId, enabled ? { type: 'subscribe', topic: 'screen', session_id: sessionId, history } : null)
   return useQuery({
     queryKey: daemonKey(daemonId, 'screen', sessionId),
-    enabled: client !== null,
+    enabled: enabled && client !== null,
     staleTime: Infinity,
     refetchInterval: status === 'open' ? false : status === 'blocked' ? 60_000 : 2000,
     queryFn: async () => {

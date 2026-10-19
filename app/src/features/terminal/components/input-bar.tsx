@@ -16,7 +16,8 @@ const KEYS: Array<{ key: string; label: string; name: string }> = [
 ]
 
 /** Text box (sent followed by Enter) plus the keys an agent's TUI needs that a phone keyboard lacks. */
-export function InputBar({ daemonId, sessionId }: { daemonId: string; sessionId: string }) {
+/** `keys`: the key names this session accepts; empty means all of them. */
+export function InputBar({ daemonId, sessionId, keys = [] }: { daemonId: string; sessionId: string; keys?: string[] }) {
   const send = useSendInput(daemonId, sessionId)
   const [text, setText] = useState('')
 
@@ -29,7 +30,7 @@ export function InputBar({ daemonId, sessionId }: { daemonId: string; sessionId:
     <div className="flex flex-col gap-2">
       {send.isError ? <Banner tone="error">{send.error.message}</Banner> : null}
       <div className="flex gap-1 overflow-x-auto" role="toolbar" aria-label="Keys">
-        {KEYS.map((k) => (
+        {KEYS.filter((k) => keys.length === 0 || keys.includes(k.key)).map((k) => (
           <Button
             key={k.key}
             variant="secondary"

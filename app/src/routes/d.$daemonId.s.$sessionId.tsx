@@ -17,6 +17,8 @@ import { InputBar } from '@/features/terminal/components/input-bar'
 import { TerminalToolbar } from '@/features/terminal/components/terminal-toolbar'
 import { TerminalView } from '@/features/terminal/components/terminal-view'
 import { useTerminalPrefs } from '@/features/terminal/store'
+import { ConversationView } from '@/features/conversation/components/conversation-view'
+import { useConversation } from '@/features/conversation/api/use-conversation'
 import { useDaemon } from '@/lib/daemons/store'
 import type { Session } from '@/lib/api/types'
 
@@ -43,13 +45,15 @@ function SessionPage() {
 }
 
 function SessionView({ daemonId, session }: { daemonId: string; session: Session }) {
-  const terminal = useTerminal(daemonId, session)
+  const conversational = session.capabilities.conversation && !session.capabilities.screen
+  const terminal = useTerminal(daemonId, session, !conversational)
+  const conversation = useConversation(daemonId, session.id, conversational)
   const update = useUpdateSession(daemonId, session.id)
   const terminate = useTerminateSession(daemonId, session.id)
   const navigate = useNavigate()
   const [renaming, setRenaming] = useState(false)
   const [name, setName] = useState(session.name)
-  const launched = session.source === 'launched'
+  const renamable = session.source !== 'remote_control'
 
   return (
     <div className="-mx-4 -mt-4 flex flex-1 flex-col gap-3 px-3 pt-3">
@@ -62,10 +66,12 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
         <h1 className="min-w-0 truncate text-lg font-semibold">{session.name}</h1>
         <StateBadge state={session.state} />
         <div className="ml-auto flex items-center gap-1">
-          <Button variant="ghost" size="icon-sm" aria-label="Rename" onClick={() => setRenaming(true)}>
-            <Pencil />
-          </Button>
-          {launched ? (
+          {renamable ? (
+            <Button variant="ghost" size="icon-sm" aria-label="Rename" onClick={() => setRenaming(true)}>
+              <Pencil />
+            </Button>
+          ) : null}
+          {session.capabilities.terminate ? (
             <Button
               variant="ghost"
               size="icon-sm"
@@ -94,16 +100,32 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
         </div>
       ) : null}
 
-      <TerminalToolbar sessionId={session.id} fit={terminal.fit} />
-      {terminal.error ? <Banner tone="error">{terminal.error.message}</Banner> : null}
-      <TerminalView
-        ansi={terminal.ansi}
-        fontSize={terminal.fontSize}
-        onNeedMore={terminal.loadMore}
-        loadingMore={terminal.loadingMore}
-        onFit={terminal.fit ? terminal.onFit : undefined}
-      />
-      <InputBar daemonId={daemonId} sessionId={session.id} />
+      {session.machine || session.origin ? (
+        <p className="text-xs text-fg-muted">
+          {[session.machine && `@${session.machine}`, session.origin && `started from ${session.origin.replace('_', ' ')}`]
+            .filter(Boolean)
+            .join(' · ')}
+        </p>
+      ) : null}
+      {conversational ? (
+        <>
+          {conversation.error ? <Banner tone="error">{conversation.error.message}</Banner> : null}
+          <ConversationView items={conversation.data ?? []} />
+        </>
+      ) : (
+        <>
+          <TerminalToolbar sessionId={session.id} fit={terminal.fit} />
+          {terminal.error ? <Banner tone="error">{terminal.error.message}</Banner> : null}
+          <TerminalView
+            ansi={terminal.ansi}
+            fontSize={terminal.fontSize}
+            onNeedMore={terminal.loadMore}
+            loadingMore={terminal.loadingMore}
+            onFit={terminal.fit ? terminal.onFit : undefined}
+          />
+        </>
+      )}
+      <InputBar daemonId={daemonId} sessionId={session.id} keys={session.capabilities.keys} />
 
       <Dialog open={renaming} onOpenChange={setRenaming}>
         <DialogContent title="Rename session">
@@ -126,13 +148,14 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
 }
 
 /** Screen, history depth and pane sizing for the session page. */
-function useTerminal(daemonId: string, session: Session) {
+function useTerminal(daemonId: string, session: Session, enabled: boolean) {
   const daemon = useDaemon(daemonId)
   const fontSize = useTerminalPrefs((s) => s.fontSize)
-  const fit = useTerminalPrefs((s) => s.fit[session.id]) ?? session.source === 'launched'
+  const fitPref = useTerminalPrefs((s) => s.fit[session.id])
+  const fit = enabled && (fitPref ?? session.source === 'launched')
   const [history, setHistory] = useState<number>(HISTORY_STEPS[0])
   const [waitingOn, setWaitingOn] = useState<string | undefined>(undefined)
-  const screen = useScreen(daemonId, session.id, history)
+  const screen = useScreen(daemonId, session.id, history, enabled)
   const paneSize = usePaneSize(daemonId, session.id)
   const mutate = useRef(paneSize.mutate)
   mutate.current = paneSize.mutate
