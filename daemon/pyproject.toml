@@ -13,6 +13,7 @@ dependencies = [
     "libtmux>=0.61",
     "pywebpush>=2.0",
     "segno>=1.6",
+    "httpx>=0.27",  # vendored claude_rc (Remote Control)
 ]
 
 [project.scripts]
@@ -36,6 +37,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 line-length = 120
+extend-exclude = ["src/muxtower/vendor"]
 target-version = "py311"
 
 [tool.ruff.lint]
@@ -52,3 +54,8 @@ testpaths = ["tests"]
 [tool.mypy]
 strict = true
 ignore_missing_imports = true
+exclude = ["src/muxtower/vendor/"]
+
+[[tool.mypy.overrides]]
+module = "muxtower.vendor.*"
+follow_imports = "skip"

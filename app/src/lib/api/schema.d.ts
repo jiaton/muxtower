@@ -237,6 +237,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_id}/conversation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Conversation
+         * @description Structured conversation items after `after` (0 = the latest `limit`). Only for sessions whose
+         *     capabilities include `conversation`; others have a screen instead.
+         */
+        get: operations["get_conversation_v1_sessions__session_id__conversation_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_id}/deny": {
         parameters: {
             query?: never;
@@ -384,6 +405,31 @@ export interface components {
              */
             option?: string | null;
         };
+        /**
+         * Capabilities
+         * @description What a client may offer for this session (sources differ).
+         */
+        Capabilities: {
+            /**
+             * Conversation
+             * @description structured conversation items exist (GET /conversation)
+             */
+            conversation: boolean;
+            /**
+             * Keys
+             * @description tmux key names input accepts; empty = any
+             */
+            keys: string[];
+            /** Resize */
+            resize: boolean;
+            /**
+             * Screen
+             * @description a terminal screen can be shown (GET /screen)
+             */
+            screen: boolean;
+            /** Terminate */
+            terminate: boolean;
+        };
         /** ClaimRequest */
         ClaimRequest: {
             /** Code */
@@ -400,6 +446,56 @@ export interface components {
             /** Token */
             token: string;
         };
+        /** Conversation */
+        Conversation: {
+            /** Items */
+            items: components["schemas"]["ConversationItem"][];
+            /** Latest Seq */
+            latest_seq: number;
+            /** Session Id */
+            session_id: string;
+        };
+        /**
+         * ConversationFrame
+         * @description New or changed conversation items (merge by `seq`).
+         */
+        ConversationFrame: {
+            /** Items */
+            items: components["schemas"]["ConversationItem"][];
+            /** Session Id */
+            session_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "conversation";
+        };
+        /**
+         * ConversationItem
+         * @description One normalized entry of a session's conversation. `seq` orders items; an item can be sent again
+         *     with the same `seq` when its status changes (a tool finishing, a prompt being answered).
+         */
+        ConversationItem: {
+            /** At */
+            at?: string | null;
+            kind: components["schemas"]["ConversationItemKind"];
+            /** Seq */
+            seq: number;
+            /**
+             * Status
+             * @description running/done/error, pending/allowed/denied/answered
+             */
+            status?: string | null;
+            /** Text */
+            text?: string | null;
+            /** Tool Name */
+            tool_name?: string | null;
+        };
+        /**
+         * ConversationItemKind
+         * @enum {string}
+         */
+        ConversationItemKind: "prompt" | "reply" | "tool" | "approval" | "question" | "result";
         /** CreateSession */
         CreateSession: {
             /**
@@ -567,6 +663,7 @@ export interface components {
             auto_approve: boolean;
             /** Can Auto Approve */
             can_auto_approve: boolean;
+            capabilities: components["schemas"]["Capabilities"];
             /**
              * Created At
              * Format: date-time
@@ -578,30 +675,46 @@ export interface components {
             id: string;
             /** Last Message */
             last_message: string | null;
+            /**
+             * Machine
+             * @description where it runs, as the owner named it
+             */
+            machine?: string | null;
             /** Matched Rule */
             matched_rule: string | null;
             /** Name */
             name: string;
             /** Needs Attention */
             needs_attention: boolean;
+            /**
+             * Origin
+             * @description where it was started: cli, desktop_app, android…
+             */
+            origin?: string | null;
             pending: components["schemas"]["PendingAction"] | null;
             /** Runtime */
             runtime: string;
             source: components["schemas"]["SessionSource"];
             state: components["schemas"]["AgentState"];
             state_source: components["schemas"]["StateSource"];
+            summary?: components["schemas"]["TurnSummary"] | null;
             /**
              * Tmux Pane
              * @description pane id, e.g. %12, for attaching to the exact pane
              */
-            tmux_pane: string;
+            tmux_pane?: string | null;
             /** Tmux Session */
-            tmux_session: string;
+            tmux_session?: string | null;
             /**
              * Tmux Socket
              * @description tmux server: "default" or a -L socket name
              */
-            tmux_socket: string;
+            tmux_socket?: string | null;
+            /**
+             * Unread
+             * @default false
+             */
+            unread: boolean;
             /**
              * Updated At
              * Format: date-time
@@ -612,7 +725,7 @@ export interface components {
          * SessionSource
          * @enum {string}
          */
-        SessionSource: "launched" | "adopted";
+        SessionSource: "launched" | "adopted" | "remote_control";
         /** SessionsFrame */
         SessionsFrame: {
             /** Sessions */
@@ -627,15 +740,16 @@ export interface components {
          * StateSource
          * @enum {string}
          */
-        StateSource: "hook" | "screen" | "default";
+        StateSource: "hook" | "screen" | "default" | "remote";
         /**
          * StreamSchema
          * @description Documents the WebSocket message shapes so they reach the generated client types.
          */
         StreamSchema: {
             client: components["schemas"]["StreamSubscribe"];
+            conversation?: components["schemas"]["ConversationFrame"] | null;
             /** Server */
-            server: components["schemas"]["SessionsFrame"] | components["schemas"]["ScreenFrame"] | components["schemas"]["ErrorFrame"];
+            server: components["schemas"]["SessionsFrame"] | components["schemas"]["ScreenFrame"] | components["schemas"]["ConversationFrame"] | components["schemas"]["ErrorFrame"];
         };
         /** StreamSubscribe */
         StreamSubscribe: {
@@ -650,7 +764,7 @@ export interface components {
              * Topic
              * @enum {string}
              */
-            topic: "sessions" | "screen";
+            topic: "sessions" | "screen" | "conversation";
             /**
              * Type
              * @enum {string}
@@ -692,6 +806,37 @@ export interface components {
             auth: string;
             /** P256Dh */
             p256dh: string;
+        };
+        /**
+         * TurnSummary
+         * @description A short account of the latest turn, written by the agent's platform (Remote Control) or by us.
+         */
+        TurnSummary: {
+            /**
+             * Detail
+             * @description one line: where the work stands
+             */
+            detail?: string | null;
+            /**
+             * Needs
+             * @description what the agent needs from the owner, if anything
+             */
+            needs?: string | null;
+            /**
+             * Noteworthy
+             * @default false
+             */
+            noteworthy: boolean;
+            /**
+             * Recent
+             * @description one or two sentences: what just happened
+             */
+            recent?: string | null;
+            /**
+             * Status
+             * @description e.g. completed, working, blocked
+             */
+            status?: string | null;
         };
         /** UpdateSession */
         UpdateSession: {
@@ -1141,6 +1286,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ApprovalResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_conversation_v1_sessions__session_id__conversation_get: {
+        parameters: {
+            query?: {
+                after?: number;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Conversation"];
                 };
             };
             /** @description Validation Error */

@@ -13,6 +13,7 @@ class StateSource(StrEnum):
     HOOK = "hook"  # structured event from the agent
     SCREEN = "screen"  # a screen rule matched
     DEFAULT = "default"  # nothing matched; the runtime's default state
+    REMOTE = "remote"  # reported by the agent's own controller protocol (Remote Control)
 
 
 class PendingAction(BaseModel):
@@ -25,15 +26,40 @@ class PendingAction(BaseModel):
     recommended: str | None = Field(default=None, description="option key approve picks when none is given")
 
 
+class TurnSummary(BaseModel):
+    """A short account of the latest turn, written by the agent's platform (Remote Control) or by us."""
+
+    status: str | None = Field(default=None, description="e.g. completed, working, blocked")
+    detail: str | None = Field(default=None, description="one line: where the work stands")
+    recent: str | None = Field(default=None, description="one or two sentences: what just happened")
+    needs: str | None = Field(default=None, description="what the agent needs from the owner, if anything")
+    noteworthy: bool = False
+
+
+class Capabilities(BaseModel):
+    """What a client may offer for this session (sources differ)."""
+
+    screen: bool = Field(description="a terminal screen can be shown (GET /screen)")
+    conversation: bool = Field(description="structured conversation items exist (GET /conversation)")
+    keys: list[str] = Field(description="tmux key names input accepts; empty = any")
+    resize: bool
+    terminate: bool
+
+
 class Session(BaseModel):
     id: str
     name: str
     runtime: str
     cwd: str
     source: SessionSource
-    tmux_socket: str = Field(description='tmux server: "default" or a -L socket name')
-    tmux_session: str
-    tmux_pane: str = Field(description="pane id, e.g. %12, for attaching to the exact pane")
+    machine: str | None = Field(default=None, description="where it runs, as the owner named it")
+    origin: str | None = Field(default=None, description="where it was started: cli, desktop_app, android…")
+    tmux_socket: str | None = Field(default=None, description='tmux server: "default" or a -L socket name')
+    tmux_session: str | None = None
+    tmux_pane: str | None = Field(default=None, description="pane id, e.g. %12, for attaching to the exact pane")
+    capabilities: Capabilities
+    summary: TurnSummary | None = None
+    unread: bool = False
     state: AgentState
     state_source: StateSource
     matched_rule: str | None
@@ -56,3 +82,30 @@ class CreateSession(BaseModel):
 class UpdateSession(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=80)
     auto_approve: bool | None = None
+
+
+class ConversationItemKind(StrEnum):
+    PROMPT = "prompt"  # what the owner (or another controller) sent
+    REPLY = "reply"  # the agent's prose
+    TOOL = "tool"  # a tool call, with a one-line detail
+    APPROVAL = "approval"  # a permission prompt and how it ended
+    QUESTION = "question"  # a question to the owner and how it ended
+    RESULT = "result"  # the end of a turn
+
+
+class ConversationItem(BaseModel):
+    """One normalized entry of a session's conversation. `seq` orders items; an item can be sent again
+    with the same `seq` when its status changes (a tool finishing, a prompt being answered)."""
+
+    seq: int
+    at: datetime | None = None
+    kind: ConversationItemKind
+    text: str | None = None
+    tool_name: str | None = None
+    status: str | None = Field(default=None, description="running/done/error, pending/allowed/denied/answered")
+
+
+class Conversation(BaseModel):
+    session_id: str
+    items: list[ConversationItem]
+    latest_seq: int

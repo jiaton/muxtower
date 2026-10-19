@@ -62,6 +62,46 @@
         "title": "Approve",
         "type": "object"
       },
+      "Capabilities": {
+        "description": "What a client may offer for this session (sources differ).",
+        "properties": {
+          "conversation": {
+            "description": "structured conversation items exist (GET /conversation)",
+            "title": "Conversation",
+            "type": "boolean"
+          },
+          "keys": {
+            "description": "tmux key names input accepts; empty = any",
+            "items": {
+              "type": "string"
+            },
+            "title": "Keys",
+            "type": "array"
+          },
+          "resize": {
+            "title": "Resize",
+            "type": "boolean"
+          },
+          "screen": {
+            "description": "a terminal screen can be shown (GET /screen)",
+            "title": "Screen",
+            "type": "boolean"
+          },
+          "terminate": {
+            "title": "Terminate",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "screen",
+          "conversation",
+          "keys",
+          "resize",
+          "terminate"
+        ],
+        "title": "Capabilities",
+        "type": "object"
+      },
       "ClaimRequest": {
         "properties": {
           "code": {
@@ -106,6 +146,136 @@
         ],
         "title": "ClaimResult",
         "type": "object"
+      },
+      "Conversation": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "latest_seq": {
+            "title": "Latest Seq",
+            "type": "integer"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "items",
+          "latest_seq"
+        ],
+        "title": "Conversation",
+        "type": "object"
+      },
+      "ConversationFrame": {
+        "description": "New or changed conversation items (merge by `seq`).",
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ConversationItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "type": {
+            "const": "conversation",
+            "default": "conversation",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "items"
+        ],
+        "title": "ConversationFrame",
+        "type": "object"
+      },
+      "ConversationItem": {
+        "description": "One normalized entry of a session's conversation. `seq` orders items; an item can be sent again\nwith the same `seq` when its status changes (a tool finishing, a prompt being answered).",
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/ConversationItemKind"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "running/done/error, pending/allowed/denied/answered",
+            "title": "Status"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "tool_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tool Name"
+          }
+        },
+        "required": [
+          "seq",
+          "kind"
+        ],
+        "title": "ConversationItem",
+        "type": "object"
+      },
+      "ConversationItemKind": {
+        "enum": [
+          "prompt",
+          "reply",
+          "tool",
+          "approval",
+          "question",
+          "result"
+        ],
+        "title": "ConversationItemKind",
+        "type": "string"
       },
       "CreateSession": {
         "properties": {
@@ -494,6 +664,9 @@
             "title": "Can Auto Approve",
             "type": "boolean"
           },
+          "capabilities": {
+            "$ref": "#/components/schemas/Capabilities"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -518,6 +691,18 @@
             ],
             "title": "Last Message"
           },
+          "machine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where it runs, as the owner named it",
+            "title": "Machine"
+          },
           "matched_rule": {
             "anyOf": [
               {
@@ -536,6 +721,18 @@
           "needs_attention": {
             "title": "Needs Attention",
             "type": "boolean"
+          },
+          "origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where it was started: cli, desktop_app, android\u2026",
+            "title": "Origin"
           },
           "pending": {
             "anyOf": [
@@ -560,19 +757,55 @@
           "state_source": {
             "$ref": "#/components/schemas/StateSource"
           },
+          "summary": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TurnSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "tmux_pane": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "pane id, e.g. %12, for attaching to the exact pane",
-            "title": "Tmux Pane",
-            "type": "string"
+            "title": "Tmux Pane"
           },
           "tmux_session": {
-            "title": "Tmux Session",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tmux Session"
           },
           "tmux_socket": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "tmux server: \"default\" or a -L socket name",
-            "title": "Tmux Socket",
-            "type": "string"
+            "title": "Tmux Socket"
+          },
+          "unread": {
+            "default": false,
+            "title": "Unread",
+            "type": "boolean"
           },
           "updated_at": {
             "format": "date-time",
@@ -586,9 +819,7 @@
           "runtime",
           "cwd",
           "source",
-          "tmux_socket",
-          "tmux_session",
-          "tmux_pane",
+          "capabilities",
           "state",
           "state_source",
           "matched_rule",
@@ -606,7 +837,8 @@
       "SessionSource": {
         "enum": [
           "launched",
-          "adopted"
+          "adopted",
+          "remote_control"
         ],
         "title": "SessionSource",
         "type": "string"
@@ -637,7 +869,8 @@
         "enum": [
           "hook",
           "screen",
-          "default"
+          "default",
+          "remote"
         ],
         "title": "StateSource",
         "type": "string"
@@ -648,9 +881,20 @@
           "client": {
             "$ref": "#/components/schemas/StreamSubscribe"
           },
+          "conversation": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConversationFrame"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "server": {
             "discriminator": {
               "mapping": {
+                "conversation": "#/components/schemas/ConversationFrame",
                 "error": "#/components/schemas/ErrorFrame",
                 "screen": "#/components/schemas/ScreenFrame",
                 "sessions": "#/components/schemas/SessionsFrame"
@@ -663,6 +907,9 @@
               },
               {
                 "$ref": "#/components/schemas/ScreenFrame"
+              },
+              {
+                "$ref": "#/components/schemas/ConversationFrame"
               },
               {
                 "$ref": "#/components/schemas/ErrorFrame"
@@ -701,7 +948,8 @@
           "topic": {
             "enum": [
               "sessions",
-              "screen"
+              "screen",
+              "conversation"
             ],
             "title": "Topic",
             "type": "string"
@@ -812,6 +1060,66 @@
           "auth"
         ],
         "title": "SubscriptionKeys",
+        "type": "object"
+      },
+      "TurnSummary": {
+        "description": "A short account of the latest turn, written by the agent's platform (Remote Control) or by us.",
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "one line: where the work stands",
+            "title": "Detail"
+          },
+          "needs": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what the agent needs from the owner, if anything",
+            "title": "Needs"
+          },
+          "noteworthy": {
+            "default": false,
+            "title": "Noteworthy",
+            "type": "boolean"
+          },
+          "recent": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "one or two sentences: what just happened",
+            "title": "Recent"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "e.g. completed, working, blocked",
+            "title": "Status"
+          }
+        },
+        "title": "TurnSummary",
         "type": "object"
       },
       "UpdateSession": {
@@ -1430,6 +1738,69 @@
           }
         },
         "summary": "Approve",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/conversation": {
+      "get": {
+        "description": "Structured conversation items after `after` (0 = the latest `limit`). Only for sessions whose\ncapabilities include `conversation`; others have a screen instead.",
+        "operationId": "get_conversation_v1_sessions__session_id__conversation_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "title": "After",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conversation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Conversation",
         "tags": [
           "sessions"
         ]

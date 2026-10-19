@@ -19,6 +19,12 @@ from muxtower.config import load_settings
 
 
 def _attach(session: dict[str, str]) -> int:
+    if not session.get("tmux_pane"):
+        print(
+            f"{session['name']} does not run in tmux here ({session.get('source')}); open it in the app",
+            file=sys.stderr,
+        )
+        return 1
     tmux = shutil.which("tmux") or "tmux"
     socket = session["tmux_socket"]
     pane = session["tmux_pane"]

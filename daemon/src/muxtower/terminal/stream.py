@@ -15,7 +15,7 @@ from muxtower.auth.deps import WS_BEARER_PREFIX, WS_SUBPROTOCOL, CurrentDevice
 from muxtower.auth.stream_cookie import COOKIE_NAME, COOKIE_PATH, MAX_AGE_SECONDS
 from muxtower.errors import NotFound
 from muxtower.infra.tmux import TmuxError
-from muxtower.sessions.models import Session
+from muxtower.sessions.models import ConversationItem, Session
 
 logger = logging.getLogger("muxtower.stream")
 QUERY_TOKEN = "access_token"  # noqa: S105 - a parameter name, not a secret
@@ -24,7 +24,7 @@ router = APIRouter(prefix="/v1", tags=["stream"])
 
 class StreamSubscribe(BaseModel):
     type: Literal["subscribe", "unsubscribe"]
-    topic: Literal["sessions", "screen"]
+    topic: Literal["sessions", "screen", "conversation"]
     session_id: str | None = None
     history: int = Field(default=200, ge=0, le=5000)
 
@@ -40,12 +40,20 @@ class ScreenFrame(BaseModel):
     ansi: str
 
 
+class ConversationFrame(BaseModel):
+    """New or changed conversation items (merge by `seq`)."""
+
+    type: Literal["conversation"] = "conversation"
+    session_id: str
+    items: list[ConversationItem]
+
+
 class ErrorFrame(BaseModel):
     type: Literal["error"] = "error"
     message: str
 
 
-ServerFrame = Annotated[SessionsFrame | ScreenFrame | ErrorFrame, Field(discriminator="type")]
+ServerFrame = Annotated[SessionsFrame | ScreenFrame | ConversationFrame | ErrorFrame, Field(discriminator="type")]
 
 
 class StreamSchema(BaseModel):
@@ -53,6 +61,7 @@ class StreamSchema(BaseModel):
 
     client: StreamSubscribe
     server: ServerFrame
+    conversation: ConversationFrame | None = None
 
 
 @router.get("/stream/schema")
@@ -102,7 +111,7 @@ class _Connection:
         await self.ws.send_text(frame.model_dump_json())
 
     async def send_sessions(self) -> None:
-        sessions = await asyncio.to_thread(self.app.state.sessions.list)
+        sessions = await asyncio.to_thread(self.app.state.directory.list)
         await self.send(SessionsFrame(sessions=sessions))
 
     async def handle(self, message: StreamSubscribe) -> None:
@@ -115,6 +124,9 @@ class _Connection:
                 bus.unsubscribe("sessions", self.queue)
             return
         session_id = message.session_id or ""
+        if message.topic == "conversation":
+            await self.handle_conversation(message.type, session_id)
+            return
         if message.type == "unsubscribe":
             if session_id in self.screens:
                 bus.unsubscribe(f"screen:{session_id}", self.queue)
@@ -132,6 +144,19 @@ class _Connection:
         bus.subscribe(f"screen:{session_id}", self.queue)
         await self.send(ScreenFrame(session_id=session_id, ansi=screen.ansi or screen.text))
 
+    async def handle_conversation(self, kind: str, session_id: str) -> None:
+        bus = self.app.state.bus
+        if kind == "unsubscribe":
+            bus.unsubscribe(f"conversation:{session_id}", self.queue)
+            return
+        remote = self.app.state.directory.remote_for(session_id)
+        if remote is None:
+            await self.send(ErrorFrame(message="this session has no structured conversation"))
+            return
+        bus.subscribe(f"conversation:{session_id}", self.queue)
+        latest = remote.conversation(session_id, 0, 100)
+        await self.send(ConversationFrame(session_id=session_id, items=latest.items))
+
     async def reader(self) -> None:
         while True:
             raw = await self.ws.receive_text()
@@ -147,6 +172,8 @@ class _Connection:
                 await self.send_sessions()
             elif topic.startswith("screen:"):
                 await self.send(ScreenFrame(session_id=topic.split(":", 1)[1], ansi=payload))
+            elif topic.startswith("conversation:"):
+                await self.send(ConversationFrame(session_id=topic.split(":", 1)[1], items=payload))
 
     def close(self) -> None:
         self.app.state.bus.unsubscribe_all(self.queue)

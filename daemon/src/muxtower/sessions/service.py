@@ -15,7 +15,7 @@ from muxtower.hooks import claude_code
 from muxtower.runtimes.models import ATTENTION_STATES, AgentState
 from muxtower.runtimes.spec import Runtime
 from muxtower.sessions.live import Effective, HookState, LiveSession, merge
-from muxtower.sessions.models import CreateSession, Session, UpdateSession
+from muxtower.sessions.models import Capabilities, CreateSession, Session, UpdateSession
 from muxtower.sessions.ports import SessionRecord, SessionRepository, SessionSource
 from muxtower.terminal.ports import TmuxPort
 
@@ -91,6 +91,9 @@ class SessionService:
             tmux_socket=record.pane.socket,
             tmux_session=record.tmux_session,
             tmux_pane=record.pane.pane_id,
+            capabilities=Capabilities(
+                screen=True, conversation=False, keys=[], resize=True, terminate=record.source == SessionSource.LAUNCHED
+            ),
             state=eff.state,
             state_source=eff.source,
             matched_rule=eff.matched_rule,
