@@ -1,6 +1,8 @@
 /** Cuts a live recording into segments at pauses, so each can be transcribed while the owner is still
  *  speaking (no streaming recognizer needed, and every second of audio is sent once).
  *
+ *  Only the live preview uses it: the final text comes from the whole recording.
+ *
  *  Works on 100 ms frames of 16 kHz mono s16le PCM: a frame is speech when its loudness (RMS) is above
  *  a threshold. A segment ends after a pause that follows enough speech, or when it gets too long; a
  *  segment that is all silence is dropped. */
@@ -55,13 +57,6 @@ export class Segmenter {
     }
     this.carry = data.slice(at)
     return done
-  }
-
-  /** What is left when the recording stops (null if it is silence). */
-  flush(): Uint8Array[] | null {
-    if (this.carry.length) this.frames.push(this.carry)
-    this.carry = new Uint8Array(0)
-    return this.take()
   }
 
   private take(): Uint8Array[] | null {

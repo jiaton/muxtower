@@ -1,14 +1,11 @@
 /** A voice reply from start to finish: the microphone (held, or from a tap to the next tap), live text
  *  from the segments a pause completes, then the final text, which the owner confirms before it is sent.
- *  Short recordings are transcribed once more whole when they stop: one pass over the full audio is more
- *  accurate than the pieces. */
+ *  The final text always comes from one pass over the whole recording (at most MAX_RECORDING_MS), so
+ *  where the segments were cut only ever affects the live preview. */
 import { current, conciergeOf, type Voice } from '@/state/model'
 import type { AppStore } from '@/state/store'
 import type { Recorder } from './recorder'
 import { joinText } from './segmenter'
-
-/** Up to this long, the whole recording is transcribed again when it stops. */
-const WHOLE_PASS_SECONDS = 30
 
 export interface TalkDeps {
   store: AppStore
@@ -72,14 +69,7 @@ export class Talk {
     if (!recording) return this.set({ ...voice, phase: 'failed', text: 'Nothing was heard.' })
     this.set({ ...voice, phase: 'transcribing' })
     try {
-      let text: string
-      if (recording.seconds <= WHOLE_PASS_SECONDS) {
-        text = (await this.deps.transcribe(recording.wav)).trim()
-      } else {
-        await this.pieces
-        const rest = recording.rest ? (await this.deps.transcribe(recording.rest)).trim() : ''
-        text = joinText(this.voice?.text ?? '', rest)
-      }
+      const text = (await this.deps.transcribe(recording.wav)).trim()
       if (take !== this.take || !this.voice) return
       this.set(text ? { ...voice, phase: 'ready', text } : { ...voice, phase: 'failed', text: 'Nothing was heard.' })
     } catch (error) {
