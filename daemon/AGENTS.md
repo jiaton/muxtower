@@ -35,6 +35,7 @@ src/muxtower/
   origins.py  CORS + WebSocket Origin policy
   config.py   settings (TOML + MUXTOWER_* env)
   app.py      FastAPI factory: routers, CORS, lifespan, static UI
+  web.py      the bundled web app at /, and the glasses app at /g2/
   cli/        the `muxtower` entry point and its subcommands
 ```
 
@@ -66,7 +67,7 @@ Split a file past 250 lines or once it mixes two domains.
 ## Auth & security
 
 - No user accounts (see `../docs/design.md` → Auth). Every route except `GET /v1/health`, `POST /v1/pair/claim` and the static UI requires a valid device token; hook routes require that session's hook token.
-- CORS: explicit `cors.allowed_origins` only, default empty, `allow_credentials=False`. WebSocket accepts only same-origin or listed `Origin`s.
+- CORS: `cors.allowed_origins` defaults to `*` (safe: bearer tokens only, `allow_credentials=False`); allowed request headers are `Authorization`, `Content-Type` and the opt-in `cors.extra_headers` (a gate's credential header). WebSocket accepts same-origin or listed `Origin`s (any by default).
 - Tokens accepted as `Authorization: Bearer`, WS subprotocol `bearer.<token>`, or `?access_token=` (never `?token=`, which gates count as a guess); the access log filter redacts it. Every 401 the daemon sends carries `X-Muxtower-Auth`, so clients can tell a revoked token from a gate in front.
 - Pairing claim is rate-limited and single-use; failed token checks are rate-limited per client IP.
 - Never launch anything but a registered runtime binary; no shell strings from the API.

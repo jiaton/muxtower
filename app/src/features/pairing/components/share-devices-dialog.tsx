@@ -42,6 +42,15 @@ export function ShareDevicesDialog() {
             <p className="text-center text-sm text-fg-muted">
               Pairs {codes!.length} daemon{codes!.length > 1 ? 's' : ''}. Works once, for 5 minutes.
             </p>
+            {/* For a device that cannot scan (glasses paired from the same phone): the codes to type. */}
+            <ul aria-label="Pairing codes" className="flex flex-col gap-1 text-center text-sm">
+              {codes!.map((c) => (
+                <li key={c.url}>
+                  <span className="text-fg-muted">{c.name}</span>{' '}
+                  <span className="font-mono font-medium tracking-wider">{c.code}</span>
+                </li>
+              ))}
+            </ul>
             <Button
               variant="secondary"
               onClick={() => void navigator.clipboard?.writeText(link).then(() => setCopied(true))}

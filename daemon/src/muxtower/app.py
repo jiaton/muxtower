@@ -150,7 +150,7 @@ def create_app(
             allow_origins=settings.cors.allowed_origins,
             allow_credentials=False,  # bearer tokens only; the stream cookie is same-origin
             allow_methods=["GET", "POST", "PATCH", "DELETE"],
-            allow_headers=["Authorization", "Content-Type"],
+            allow_headers=["Authorization", "Content-Type", *settings.cors.extra_headers],
             expose_headers=list(DAEMON_AUTH_HEADER),
             max_age=600,
         )

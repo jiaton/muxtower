@@ -1,0 +1,17 @@
+{
+  "package_id": "dev.muxtower.g2",
+  "edition": "202601",
+  "name": "muxtower",
+  "version": "0.1.0",
+  "min_app_version": "2.2.10",
+  "min_sdk_version": "0.0.16",
+  "entrypoint": "index.html",
+  "permissions": [
+    {
+      "name": "network",
+      "desc": "Talks to your muxtower hub to list your coding agents and send your answers.",
+      "whitelist": []
+    }
+  ],
+  "supported_languages": ["en"]
+}

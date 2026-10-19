@@ -1,0 +1,41 @@
+{
+  "name": "muxtower-g2",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "muxtower on Even Realities G2 glasses: an Even Hub app",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build && node scripts/write-config.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint src scripts && node scripts/check-limits.mjs",
+    "test": "vitest run",
+    "gen:api": "openapi-typescript ../openapi.json -o src/hub/schema.d.ts",
+    "pack": "npm run build && node scripts/pack.mjs"
+  },
+  "dependencies": {
+    "@evenrealities/even_hub_sdk": "^0.0.16",
+    "@evenrealities/pretext": "^0.1.4",
+    "openapi-fetch": "^0.17.0",
+    "zustand": "^5.0.15"
+  },
+  "devDependencies": {
+    "@evenrealities/evenhub-cli": "^0.1.14",
+    "@types/node": "^24.19.2",
+    "jsdom": "^30.1.3",
+    "openapi-typescript": "^7.13.0",
+    "oxlint": "^1.88.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
+  },
+  "overrides": {
+    "openapi-typescript": {
+      "typescript": "$typescript"
+    },
+    "@evenrealities/evenhub-cli": {
+      "typescript": "$typescript"
+    }
+  }
+}

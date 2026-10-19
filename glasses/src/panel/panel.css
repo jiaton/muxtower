@@ -1,0 +1,70 @@
+/* The phone panel. Colors, sizes and radii only from these tokens (as in the web app). */
+:root {
+  color-scheme: light;
+  --color-bg: #f6f7f9;
+  --color-surface: #ffffff;
+  --color-fg: #16181d;
+  --color-fg-muted: #5d6472;
+  --color-border: #dde1e8;
+  --color-accent: #2563c9;
+  --color-accent-fg: #ffffff;
+  --color-danger: #c4352b;
+  --color-glass: #0b0f0c;
+  --color-glass-fg: #5cf08a;
+  --radius: 10px;
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-lg: 18px;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --color-bg: #0f1115;
+    --color-surface: #171a20;
+    --color-fg: #e6e8ec;
+    --color-fg-muted: #9aa1ad;
+    --color-border: #2a2f38;
+    --color-accent: #6ea0ff;
+    --color-accent-fg: #0f1115;
+    --color-danger: #ff7b6e;
+  }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font: var(--text-base) / 1.5 var(--font-sans);
+  padding: env(safe-area-inset-top, 0px) 16px env(safe-area-inset-bottom, 0px);
+}
+main { max-width: 640px; margin: 0 auto; padding-block: 16px 32px; display: grid; gap: 16px; }
+h1 { font-size: var(--text-lg); margin: 0; }
+p { margin: 0; }
+.card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 14px; display: grid; gap: 10px; }
+.muted { color: var(--color-fg-muted); font-size: var(--text-sm); }
+.error { color: var(--color-danger); font-size: var(--text-sm); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: var(--text-sm); }
+dt { color: var(--color-fg-muted); }
+dd { margin: 0; overflow-wrap: anywhere; }
+input {
+  font: inherit; color: inherit; background: var(--color-bg);
+  border: 1px solid var(--color-border); border-radius: var(--radius); padding: 8px 10px; min-width: 0; flex: 1;
+}
+input[aria-label='Pairing code'] { text-transform: uppercase; letter-spacing: 0.08em; }
+label { display: flex; gap: 8px; align-items: center; }
+button {
+  font: inherit; font-size: var(--text-sm); border-radius: var(--radius); padding: 8px 12px; cursor: pointer;
+  border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-fg);
+}
+button.primary { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-accent-fg); }
+.glasses {
+  background: var(--color-glass); color: var(--color-glass-fg); border-radius: var(--radius);
+  font: var(--text-xs) / 1.55 var(--font-sans); padding: 8px 10px; margin: 0; white-space: pre; overflow-x: auto;
+  aspect-ratio: 2 / 1; max-width: 100%;
+}
