@@ -3,7 +3,8 @@ import { markRejected, useDaemonsStore } from '@/lib/daemons/store'
 import { daemonKey, queryClient } from '@/lib/query'
 import { DaemonStream } from './stream'
 import { setStreamStatus } from './stream-status'
-import type { StreamSubscribe } from './types'
+import { mergeItems } from './conversation'
+import type { ConversationItem, StreamSubscribe } from './types'
 
 const streams = new Map<string, { stream: DaemonStream; signature: string }>()
 
@@ -33,6 +34,10 @@ export function useDaemonStreams() {
           if (frame.type === 'sessions') queryClient.setQueryData(daemonKey(daemon.id, 'sessions'), frame.sessions)
           else if (frame.type === 'screen')
             queryClient.setQueryData(daemonKey(daemon.id, 'screen', frame.session_id), frame.ansi)
+          else if (frame.type === 'conversation')
+            queryClient.setQueryData<ConversationItem[]>(daemonKey(daemon.id, 'conversation', frame.session_id), (shown) =>
+              mergeItems(shown, frame.items),
+            )
         },
       })
       stream.subscribe({ type: 'subscribe', topic: 'sessions', history: 0 })
