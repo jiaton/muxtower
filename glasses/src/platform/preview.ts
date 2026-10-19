@@ -76,6 +76,9 @@ export function createPreview(
         // Private mode: the preview just forgets.
       }
     },
+    // The preview has no glasses microphone; voice is tried in the simulator or on hardware.
+    startAudio: async () => false,
+    async stopAudio() {},
     async exit() {
       screen.textContent = ''
     },

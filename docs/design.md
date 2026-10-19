@@ -82,6 +82,12 @@ The app is a static SPA; the same build runs anywhere.
 - **Your own static host**: one-click "Deploy to Cloudflare" (Workers static assets, SPA fallback via `not_found_handling`) or fork + GitHub Pages (Actions workflow; base path from `MUXTOWER_BASE`). Add daemons by pairing.
 - **A public instance** run by the project, for convenience only. It is built and deployed by public CI from tagged releases, so users can check what they run; the docs still recommend the bundled UI, because whoever serves the JS could read the tokens in that browser.
 
+## Reply summaries and voice
+
+- **Summaries.** A reply longer than `summaries.min_chars` gets a few lines in its own language that keep what the owner must decide, commands proposed and failures. They are made by a coding agent CLI already logged in on the daemon's machine (`claude -p` with haiku, or `codex exec`), so a subscription is used instead of an API key. The CLI runs with no tools, settings or MCP servers in an empty directory, and gets the reply on stdin. Each reply is summarized once (keyed by its hash, cached in SQLite), in the background: when a client asks (`POST /v1/sessions/{id}/summary`) and, with `summaries.eager`, as soon as a session starts needing the owner. Sessions carry it as `reply_summary`; the stream pushes the list again when one is ready.
+- **Voice.** `POST /v1/asr` takes a recording (WAV from the glasses) and returns text through an OpenAI-compatible transcription API (Groq `whisper-large-v3-turbo`, OpenAI `gpt-4o-transcribe`). The key stays on the daemon; nothing is stored, and the audit log records only sizes. The client shows the text and sends it only after the owner confirms.
+- `GET /v1/me` lists which of these the daemon offers (`features`).
+
 ## Push
 
 Web Push with a per-daemon VAPID key. A browser registration holds one subscription, so the app registers its service worker once per daemon (scope `<base>push/<daemonId>/`, same script). The subscription belongs to the app's origin; the notification payload carries `daemon_id` and `session_id`, and a click opens `/d/<daemon>/s/<session>`. Filters per subscription: which states notify, muted sessions.

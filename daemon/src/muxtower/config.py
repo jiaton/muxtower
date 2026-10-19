@@ -4,7 +4,7 @@ import os
 import tomllib
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -49,6 +49,35 @@ class RemoteControlSettings(BaseModel):
     config_path: Path | None = None  # default ~/.claude.json
 
 
+class SummarySettings(BaseModel):
+    """Short versions of long replies (for the glasses), made by a coding agent CLI already logged in on
+    this machine: "claude-code" (`claude -p`, default model haiku) or "codex" (`codex exec`)."""
+
+    provider: Literal["off", "claude-code", "codex"] = "off"
+    model: str | None = None
+    binary: str | None = None
+    min_chars: int = 400  # replies up to this long are shown as they are
+    eager: bool = True  # also summarize as soon as a session starts needing the owner
+    timeout_seconds: float = 120
+
+
+class AsrSettings(BaseModel):
+    """Speech to text for voice replies, through Groq or OpenAI (OpenAI-compatible API)."""
+
+    provider: Literal["off", "groq", "openai"] = "off"
+    api_key: str | None = None  # or api_key_file; env MUXTOWER_ASR_API_KEY
+    api_key_file: Path | None = None
+    model: str | None = None  # groq: whisper-large-v3-turbo, openai: gpt-4o-transcribe
+    language: str | None = None  # pin e.g. "zh"; empty = detect per recording
+
+    def key(self) -> str | None:
+        if self.api_key:
+            return self.api_key
+        if self.api_key_file and self.api_key_file.expanduser().is_file():
+            return self.api_key_file.expanduser().read_text().strip() or None
+        return None
+
+
 class Settings(BaseModel):
     name: str | None = None  # display name in the app; defaults to the hostname
     host: str = "127.0.0.1"
@@ -68,6 +97,8 @@ class Settings(BaseModel):
     cors: CorsSettings = Field(default_factory=CorsSettings)
     pairing: PairingSettings = Field(default_factory=PairingSettings)
     remote_control: RemoteControlSettings = Field(default_factory=RemoteControlSettings)
+    summaries: SummarySettings = Field(default_factory=SummarySettings)
+    asr: AsrSettings = Field(default_factory=AsrSettings)
 
     @property
     def db_path(self) -> Path:
@@ -95,6 +126,9 @@ _ENV_KEYS: dict[str, tuple[str, ...]] = {
     "MUXTOWER_ADOPT_SOCKETS": ("adopt_sockets",),
     "MUXTOWER_TRUSTED_PROXIES": ("trusted_proxies",),
     "MUXTOWER_REMOTE_CONTROL_ENABLED": ("remote_control", "enabled"),
+    "MUXTOWER_SUMMARIES_PROVIDER": ("summaries", "provider"),
+    "MUXTOWER_ASR_PROVIDER": ("asr", "provider"),
+    "MUXTOWER_ASR_API_KEY": ("asr", "api_key"),
 }
 
 

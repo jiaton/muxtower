@@ -374,6 +374,26 @@
         "title": "ErrorFrame",
         "type": "object"
       },
+      "Features": {
+        "properties": {
+          "asr": {
+            "description": "POST /v1/asr turns speech into text",
+            "title": "Asr",
+            "type": "boolean"
+          },
+          "summaries": {
+            "description": "POST /v1/sessions/{id}/summary can make reply summaries",
+            "title": "Summaries",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "summaries",
+          "asr"
+        ],
+        "title": "Features",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -426,6 +446,9 @@
             "title": "Daemon Name",
             "type": "string"
           },
+          "features": {
+            "$ref": "#/components/schemas/Features"
+          },
           "token_name": {
             "title": "Token Name",
             "type": "string"
@@ -433,7 +456,8 @@
         },
         "required": [
           "token_name",
-          "daemon_name"
+          "daemon_name",
+          "features"
         ],
         "title": "Me",
         "type": "object"
@@ -762,6 +786,18 @@
               }
             ]
           },
+          "reply_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a few lines condensing last_message, once the hub has made them (long replies)",
+            "title": "Reply Summary"
+          },
           "runtime": {
             "title": "Runtime",
             "type": "string"
@@ -1080,6 +1116,41 @@
         "title": "SubscriptionKeys",
         "type": "object"
       },
+      "SummaryState": {
+        "enum": [
+          "ready",
+          "pending",
+          "not_needed",
+          "unavailable"
+        ],
+        "title": "SummaryState",
+        "type": "string"
+      },
+      "SummaryStatus": {
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/SummaryState"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "SummaryStatus",
+        "type": "object"
+      },
+      "Transcript": {
+        "properties": {
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "Transcript",
+        "type": "object"
+      },
       "TurnSummary": {
         "description": "A short account of the latest turn, written by the agent's platform (Remote Control) or by us.",
         "properties": {
@@ -1231,6 +1302,103 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/v1/asr": {
+      "post": {
+        "description": "Speech to text: the body is the recording (WAV from the glasses). `language` (e.g. `zh`, `en`)\npins the language; without it the provider detects it. Nothing is stored.",
+        "operationId": "transcribe_v1_asr_post",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "language",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Language"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "audio/m4a": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "audio/mp4": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "audio/mpeg": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "audio/ogg": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "audio/wav": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "audio/webm": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            },
+            "audio/x-wav": {
+              "schema": {
+                "format": "binary",
+                "type": "string"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Transcript"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Transcribe",
+        "tags": [
+          "voice"
+        ]
+      }
+    },
     "/v1/devices": {
       "get": {
         "operationId": "list_devices_v1_devices_get",
@@ -2038,6 +2206,49 @@
           }
         },
         "summary": "Get Screen",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/summary": {
+      "post": {
+        "description": "Asks for a short version of the session's last reply. `pending` means it is being made: the session\nlist is pushed again once `reply_summary` is filled in.",
+        "operationId": "request_summary_v1_sessions__session_id__summary_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummaryStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Request Summary",
         "tags": [
           "sessions"
         ]

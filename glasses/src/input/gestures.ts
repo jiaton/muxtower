@@ -5,7 +5,8 @@ import { OsEventTypeList, type EvenHubEvent } from '@evenrealities/even_hub_sdk'
 export type Gesture = 'up' | 'down' | 'tap' | 'double' | 'long' | 'longEnd'
 /** `covered`: a system layer (the menu, a notification) is over the app; `uncovered`: it is gone. */
 export type Lifecycle = 'covered' | 'uncovered' | 'exit'
-export type Input = { gesture: Gesture } | { menu: number } | { lifecycle: Lifecycle }
+/** `audio`: a chunk of microphone PCM (16 kHz mono s16le). */
+export type Input = { gesture: Gesture } | { menu: number } | { lifecycle: Lifecycle } | { audio: Uint8Array }
 
 /** What a screen can be asked to do. `talk`/`talkEnd` hold to talk (voice replies). */
 export type Action = 'up' | 'down' | 'select' | 'back' | 'talk' | 'talkEnd'
@@ -37,6 +38,7 @@ const LIFECYCLE: Partial<Record<OsEventTypeList, Lifecycle>> = {
 }
 
 export function readEvent(event: EvenHubEvent): Input | null {
+  if (event.audioEvent) return event.audioEvent.audioPcm?.length ? { audio: event.audioEvent.audioPcm } : null
   if (event.menuItemClickEvent?.itemID !== undefined) return { menu: event.menuItemClickEvent.itemID }
   const item = event.textEvent ?? event.listEvent ?? event.sysEvent
   if (!item) return null

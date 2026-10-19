@@ -1,5 +1,6 @@
 /** The GlassesPort on real hardware (and in the official simulator): the Even App's WebView bridge. */
 import {
+  AudioInputSource,
   CreateStartUpPageContainer,
   MenuContainerProperty,
   MenuItemProperty,
@@ -51,6 +52,10 @@ export async function connectEven(): Promise<GlassesPort> {
     },
     async setItem(key: string, value: string) {
       await bridge.setLocalStorage(key, value)
+    },
+    startAudio: () => bridge.audioControl(true, AudioInputSource.Glasses),
+    async stopAudio() {
+      await bridge.audioControl(false)
     },
     async exit() {
       await bridge.shutDownPageContainer(1)

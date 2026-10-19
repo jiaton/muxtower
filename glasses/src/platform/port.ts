@@ -16,6 +16,9 @@ export interface GlassesPort {
   /** Storage kept by the Even App for this app (survives relaunches). */
   getItem(key: string): Promise<string | null>
   setItem(key: string, value: string): Promise<void>
+  /** Starts the glasses microphone: 16 kHz mono s16le PCM arrives as `audioEvent`s. False if it cannot. */
+  startAudio(): Promise<boolean>
+  stopAudio(): Promise<void>
   /** Leave the app (the system asks first). */
   exit(): Promise<void>
 }

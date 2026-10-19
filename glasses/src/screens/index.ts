@@ -5,9 +5,11 @@ import type { MenuItem } from '@/platform/port'
 import { HOME, current, findSession, type AppState, type Outcome } from '@/state/model'
 import { groupAct, groupView } from './group'
 import { homeAct, homeView } from './home'
+import { replyAct, replyView } from './reply'
 import { sessionAct, sessionView } from './session'
 
 export function view(state: AppState, now: number): { screen: Screen; order: string[] | null } {
+  if (state.voice) return { screen: replyView(state, state.voice), order: null }
   const place = current(state.nav)
   if (place.screen === 'home') return homeView(state, now)
   if (place.screen === 'group') return groupView(state, place.group, now)
@@ -15,6 +17,7 @@ export function view(state: AppState, now: number): { screen: Screen; order: str
 }
 
 export function act(state: AppState, action: Action, now: number): Outcome {
+  if (state.voice) return replyAct(state, state.voice, action)
   const place = current(state.nav)
   if (place.screen === 'home') return homeAct(state, action, now)
   if (place.screen === 'group') return groupAct(state, place.group, action, now)

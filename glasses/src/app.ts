@@ -1,21 +1,23 @@
 /** The controller: hub link → store → screens → renderer, and glasses input → screens → commands. */
 import { Renderer } from '@/display/renderer'
 import type { Screen } from '@/display/screen'
-import { wrap } from '@/display/text'
-import { TEXT_WIDTH } from '@/display/limits'
 import { createHubClient, unwrap, type HubClient } from '@/hub/client'
 import type { HubConfig } from '@/hub/config'
 import { claim } from '@/hub/pairing'
 import { HubStream, type LinkState } from '@/hub/stream'
 import type { Session } from '@/hub/types'
+import { transcribe } from '@/hub/asr'
+import { requestSummary } from '@/hub/summary'
 import { readEvent, toAction, DEFAULT_GESTURES, type GestureMap, type Input } from '@/input/gestures'
 import type { GlassesPort } from '@/platform/port'
 import { MENU, act, menuAct, view } from '@/screens'
+import { pairingView } from '@/screens/pairing'
 import { launchNav } from '@/state/launch'
-import type { Outcome } from '@/state/model'
+import { current, findSession, type Outcome, type Voice } from '@/state/model'
 import { loadSaved, saveNav, saveToken } from '@/state/persist'
 import type { AppStore } from '@/state/store'
 import { runCommand } from './commands'
+import { Recorder } from './voice/recorder'
 
 const AGE_TICK_MS = 30_000
 const POLL_MS = 10_000
@@ -31,12 +33,16 @@ export class GlassesApp {
   private gestures: GestureMap = DEFAULT_GESTURES
   private noticeTimer: ReturnType<typeof setTimeout> | null = null
   private onDraw: (text: string) => void = () => undefined
+  private readonly recorder: Recorder
+  /** Replies already asked to be summarized (session id + a fingerprint of the reply). */
+  private readonly summaryAsked = new Set<string>()
 
   constructor(port: GlassesPort, config: HubConfig, store: AppStore) {
     this.port = port
     this.config = config
     this.store = store
     this.renderer = new Renderer(port, MENU)
+    this.recorder = new Recorder(port)
     this.client = createHubClient(config, null)
   }
 
@@ -55,7 +61,10 @@ export class GlassesApp {
     const { nav } = this.store.getState()
     this.store.setState({ nav: { ...nav, cursors: saved.cursors, lastOpened: saved.lastOpened } })
     this.port.onEvent((event) => this.input(readEvent(event)))
-    this.store.subscribe(() => void this.render())
+    this.store.subscribe(() => {
+      void this.render()
+      this.askForSummary()
+    })
     setInterval(() => void this.render(), AGE_TICK_MS)
     setInterval(() => void this.poll(), POLL_MS)
     const token = saved.token ?? (__DEV_TOKEN__ || null)
@@ -83,7 +92,7 @@ export class GlassesApp {
     this.store.setState({ link: 'connecting' })
     void this.client.GET('/v1/me').then(
       (result) => {
-        if (result.data) this.store.setState({ hubName: result.data.daemon_name })
+        if (result.data) this.store.setState({ hubName: result.data.daemon_name, features: result.data.features })
       },
       () => undefined,
     )
@@ -130,6 +139,7 @@ export class GlassesApp {
 
   private input(input: Input | null) {
     if (!input) return
+    if ('audio' in input) return this.recorder.feed(input.audio)
     const state = this.store.getState()
     if ('lifecycle' in input) {
       if (input.lifecycle === 'uncovered') {
@@ -141,13 +151,17 @@ export class GlassesApp {
     if (state.link === 'unpaired' || state.link === 'rejected') return
     if ('menu' in input) return this.apply(menuAct(state, input.menu))
     const action = toAction(input.gesture, this.gestures)
-    if (action === 'talk') return this.notify('Voice replies are not ready yet')
-    if (action && action !== 'talkEnd') this.apply(act(state, action, Date.now()))
+    if (action === 'talk') return void this.startTalking()
+    if (action === 'talkEnd') return void this.stopTalking()
+    if (action) this.apply(act(state, action, Date.now()))
   }
 
   private apply(outcome: Outcome) {
-    const patch = outcome.notice === undefined ? { nav: outcome.nav } : { nav: outcome.nav, notice: outcome.notice }
-    this.store.setState(patch)
+    this.store.setState({
+      nav: outcome.nav,
+      ...(outcome.notice === undefined ? {} : { notice: outcome.notice }),
+      ...(outcome.voice === undefined ? {} : { voice: outcome.voice }),
+    })
     void saveNav(this.port, outcome.nav)
     if (!outcome.command) return
     void runCommand(this.client, outcome.command, {
@@ -158,11 +172,55 @@ export class GlassesApp {
     }).then((notice) => notice && this.notify(notice))
   }
 
+  private setVoice(voice: Voice | null) {
+    this.store.setState({ voice })
+  }
+
+  /** Hold to talk: on a session (or over a reply being redone), record until released. */
+  private async startTalking() {
+    const state = this.store.getState()
+    const place = current(state.nav)
+    const target = state.voice?.session ?? (place.screen === 'session' ? place.id : null)
+    if (!target) return this.notify('Open a session to reply')
+    if (!state.features.asr) return this.notify('Voice is off on the hub')
+    if (this.recorder.active || state.voice?.phase === 'transcribing') return
+    if (!(await this.recorder.start(() => void this.stopTalking()))) return this.notify('No microphone')
+    this.store.setState({ voice: { session: target, phase: 'listening', text: '' }, notice: null })
+  }
+
+  private async stopTalking() {
+    const voice = this.store.getState().voice
+    const wav = await this.recorder.stop()
+    if (!voice || voice.phase !== 'listening') return
+    if (!wav) return this.setVoice({ ...voice, phase: 'failed', text: 'Nothing was heard.' })
+    this.setVoice({ ...voice, phase: 'transcribing' })
+    try {
+      const text = (await transcribe(this.client, wav)).trim()
+      this.setVoice(text ? { ...voice, phase: 'ready', text } : { ...voice, phase: 'failed', text: 'Nothing was heard.' })
+    } catch (error) {
+      this.setVoice({ ...voice, phase: 'failed', text: error instanceof Error ? error.message : 'Speech to text failed' })
+    }
+  }
+
+  /** On a session whose long reply has no summary yet, ask the hub once for that reply. */
+  private askForSummary() {
+    const state = this.store.getState()
+    const place = current(state.nav)
+    if (!state.features.summaries || place.screen !== 'session') return
+    const session = findSession(state, place.id)
+    const reply = session?.last_message
+    if (!session || !reply || session.reply_summary) return
+    const key = `${session.id}:${reply.length}:${reply.slice(-40)}`
+    if (this.summaryAsked.has(key)) return
+    this.summaryAsked.add(key)
+    void requestSummary(this.client, session.id).catch(() => this.summaryAsked.delete(key))
+  }
+
   private async render() {
     const state = this.store.getState()
     let screen: Screen
     if (state.link === 'unpaired' || state.link === 'rejected') {
-      screen = pairingScreen(state.link === 'rejected')
+      screen = pairingView(state.link === 'rejected')
     } else {
       const drawn = view(state, Date.now())
       if (drawn.order && state.nav.frozen === null) {
@@ -174,10 +232,4 @@ export class GlassesApp {
     await this.renderer.show(screen)
     if (this.renderer.current) this.onDraw(this.renderer.current)
   }
-}
-
-function pairingScreen(revoked: boolean): Screen {
-  const lead = revoked ? 'This device was unpaired.' : 'Not paired yet.'
-  const how = 'On your phone, open muxtower in the Even App and enter a pairing code from `muxtower pair` or the web app.'
-  return { header: 'muxtower', body: [lead, '', ...wrap(how, TEXT_WIDTH)], footer: 'waiting for a code…' }
 }

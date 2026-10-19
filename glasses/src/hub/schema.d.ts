@@ -4,6 +4,27 @@
  */
 
 export interface paths {
+    "/v1/asr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transcribe
+         * @description Speech to text: the body is the recording (WAV from the glasses). `language` (e.g. `zh`, `en`)
+         *     pins the language; without it the provider detects it. Nothing is stored.
+         */
+        post: operations["transcribe_v1_asr_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/devices": {
         parameters: {
             query?: never;
@@ -343,6 +364,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_id}/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Summary
+         * @description Asks for a short version of the session's last reply. `pending` means it is being made: the session
+         *     list is pushed again once `reply_summary` is filled in.
+         */
+        post: operations["request_summary_v1_sessions__session_id__summary_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/stream/cookie": {
         parameters: {
             query?: never;
@@ -535,6 +577,19 @@ export interface components {
              */
             type: "error";
         };
+        /** Features */
+        Features: {
+            /**
+             * Asr
+             * @description POST /v1/asr turns speech into text
+             */
+            asr: boolean;
+            /**
+             * Summaries
+             * @description POST /v1/sessions/{id}/summary can make reply summaries
+             */
+            summaries: boolean;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -556,6 +611,7 @@ export interface components {
         Me: {
             /** Daemon Name */
             daemon_name: string;
+            features: components["schemas"]["Features"];
             /** Token Name */
             token_name: string;
         };
@@ -695,6 +751,11 @@ export interface components {
              */
             origin?: string | null;
             pending: components["schemas"]["PendingAction"] | null;
+            /**
+             * Reply Summary
+             * @description a few lines condensing last_message, once the hub has made them (long replies)
+             */
+            reply_summary?: string | null;
             /** Runtime */
             runtime: string;
             source: components["schemas"]["SessionSource"];
@@ -811,6 +872,20 @@ export interface components {
             p256dh: string;
         };
         /**
+         * SummaryState
+         * @enum {string}
+         */
+        SummaryState: "ready" | "pending" | "not_needed" | "unavailable";
+        /** SummaryStatus */
+        SummaryStatus: {
+            state: components["schemas"]["SummaryState"];
+        };
+        /** Transcript */
+        Transcript: {
+            /** Text */
+            text: string;
+        };
+        /**
          * TurnSummary
          * @description A short account of the latest turn, written by the agent's platform (Remote Control) or by us.
          */
@@ -875,6 +950,47 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    transcribe_v1_asr_post: {
+        parameters: {
+            query?: {
+                language?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "audio/m4a": string;
+                "audio/mp4": string;
+                "audio/mpeg": string;
+                "audio/ogg": string;
+                "audio/wav": string;
+                "audio/webm": string;
+                "audio/x-wav": string;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Transcript"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_devices_v1_devices_get: {
         parameters: {
             query?: never;
@@ -1482,6 +1598,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Screen"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_summary_v1_sessions__session_id__summary_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SummaryStatus"];
                 };
             };
             /** @description Validation Error */
