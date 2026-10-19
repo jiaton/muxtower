@@ -78,6 +78,10 @@
             "title": "Keys",
             "type": "array"
           },
+          "rename": {
+            "title": "Rename",
+            "type": "boolean"
+          },
           "resize": {
             "title": "Resize",
             "type": "boolean"
@@ -97,7 +101,8 @@
           "conversation",
           "keys",
           "resize",
-          "terminate"
+          "terminate",
+          "rename"
         ],
         "title": "Capabilities",
         "type": "object"
@@ -226,14 +231,12 @@
           "status": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/ItemStatus"
               },
               {
                 "type": "null"
               }
-            ],
-            "description": "running/done/error, pending/allowed/denied/answered",
-            "title": "Status"
+            ]
           },
           "text": {
             "anyOf": [
@@ -401,6 +404,21 @@
         ],
         "title": "Health",
         "type": "object"
+      },
+      "ItemStatus": {
+        "enum": [
+          "running",
+          "done",
+          "error",
+          "pending",
+          "allowed",
+          "denied",
+          "answered",
+          "dismissed",
+          "cancelled"
+        ],
+        "title": "ItemStatus",
+        "type": "string"
       },
       "Me": {
         "properties": {

@@ -1,6 +1,6 @@
 # AGENTS.md — app
 
-`muxtower-app`: a PWA for phones and desktops that connects to one or more muxtower daemons. Shows every agent session waiting on a human across all daemons (Inbox), a live terminal per session with approve/deny/option buttons and an input bar, and Web Push when an agent needs attention. Talks only to daemon `/v1` APIs. Served by the daemon at `/` (recommended) or hosted separately as static files.
+`muxtower-app`: a PWA for phones and desktops that connects to one or more muxtower daemons. Shows every agent session waiting on a human across all daemons (Inbox), a live terminal (or, for sessions without a screen, the structured conversation) per session with approve/deny/option buttons and an input bar, and Web Push when an agent needs attention. Talks only to daemon `/v1` APIs. Served by the daemon at `/` (recommended) or hosted separately as static files.
 
 ## Setup / Test / Run
 
@@ -26,7 +26,7 @@
 ## Architecture (layered — do not collapse)
 
 1. `src/components/ui/` — primitives only. The only place a new visual style is defined.
-2. `src/features/<name>/` — `daemons`, `sessions`, `terminal`, `approval`, `push`, `pairing`. Each owns `api/`, `hooks/`, `components/`, `types.ts`. No imports into another feature's internals; share through `src/lib/`.
+2. `src/features/<name>/` — `daemons`, `sessions`, `terminal`, `conversation`, `approval`, `push`, `pairing`. Each owns `api/`, `hooks/`, `components/`, `types.ts`. No imports into another feature's internals; share through `src/lib/`.
 3. `src/routes/` — compose features into pages: `/` (Inbox), `/d/$daemonId/s/$sessionId`, `/daemons`, `/pair`. Layout and wiring only.
 4. `src/lib/` — shared by every feature: `daemons/` (the persisted daemon list + `useDaemonClient`), `api/` (client factory, generated `schema.d.ts` + `types.ts` aliases, `stream.ts`/`streams.ts`), `runtime-config.ts`, `query.ts`, `agent-state.ts`.
 5. `src/sw.ts` — the service worker (own tsconfig: `tsconfig.sw.json`).
@@ -39,6 +39,7 @@ Split before 250 lines or once a file mixes two domains.
 - Get a client with `useDaemonClient(daemonId)`; never construct `fetch` calls or URLs in components.
 - Every query key starts with `['daemon', daemonId, ...]`. The Inbox merges per-daemon queries; it never assumes one daemon.
 - One `/v1/stream` socket per daemon, owned by `src/lib/api/streams.ts` (auth order: same-origin cookie, subprotocol, query token), which writes frames into the query cache. Components subscribe with `useStreamSubscription`; they never open sockets. Queries poll only while their daemon's stream is down.
+- What a session page offers comes from `session.capabilities` (screen or conversation, accepted keys, resize, rename, terminate), never from `session.source`.
 - Features compose through slots, not imports: e.g. `DaemonCard` takes `actions`, and the daemons route passes pairing and push UI into it.
 
 ## Styling — token discipline

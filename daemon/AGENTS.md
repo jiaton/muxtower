@@ -1,6 +1,6 @@
 # AGENTS.md — daemon
 
-Python package `muxtower`: one command, `muxtower`: `muxtower serve` runs the daemon (FastAPI), the other subcommands manage it locally. It owns agent sessions in tmux on a dedicated socket (`-L muxtower`), detects what each agent is waiting for (Claude Code HTTP hooks first, configurable screen rules as fallback), and exposes sessions, terminal I/O, approvals and Web Push over `/v1`. Talks to: tmux (libtmux), SQLite, Web Push endpoints. Design: `../docs/design.md`.
+Python package `muxtower`: one command, `muxtower`: `muxtower serve` runs the daemon (FastAPI), the other subcommands manage it locally. It owns agent sessions in tmux on a dedicated socket (`-L muxtower`), detects what each agent is waiting for (Claude Code HTTP hooks first, configurable screen rules as fallback), and exposes sessions, terminal I/O, approvals and Web Push over `/v1`. Optional session sources add sessions it reaches another way (Claude Code Remote Control). Talks to: tmux (subprocess, argv only), SQLite, Web Push endpoints, Anthropic's Remote Control API (when enabled). Design: `../docs/design.md`.
 
 ## Setup / Test / Run
 
@@ -13,13 +13,14 @@ Python package `muxtower`: one command, `muxtower`: `muxtower serve` runs the da
 ## Stack
 
 - FastAPI · Python 3.11+ · raw `sqlite3` behind repository ports · Pydantic v2
-- Background work: asyncio tasks started in the app lifespan (screen capture loop, push dispatcher); blocking tmux calls run in `asyncio.to_thread` with a timeout.
+- Background work: asyncio tasks started in the app lifespan (screen capture loop, push dispatcher, one poll loop per session source); blocking tmux and HTTP calls run in `asyncio.to_thread` with a timeout.
 
 ## Layering — domain folders + explicit ports
 
 ```
 src/muxtower/
-  sessions/   registry, create/rename/terminate
+  sessions/   registry, create/rename/terminate; directory.py: every session across sources, dispatch by capabilities
+  sources/    other session sources, one folder each (remote_control: Anthropic's Remote Control API)
   terminal/   capture, input, resize, stream frames
   approval/   pending actions, approve/deny, auto-approve policy
   runtimes/   one adapter per agent (claude_code, codex, generic) + screen-rule engine + default rule TOMLs
@@ -28,6 +29,8 @@ src/muxtower/
   auth/       device tokens, pairing, request/WS auth dependencies
   infra/      tmux adapter (subprocess, argv only), SQLite (one shared connection) + migrations, event bus, audit log
   system/     health, /v1/me
+  vendor/     third-party code copied in (with LICENSE + VENDORED.md); only adapters import it; not linted
+  agent_text.py  one-line descriptions of tool inputs, shared by hooks and sources
   errors.py   domain errors (NotFound/Invalid/Conflict/Forbidden) mapped to HTTP in app.py
   origins.py  CORS + WebSocket Origin policy
   config.py   settings (TOML + MUXTOWER_* env)
@@ -55,8 +58,10 @@ Split a file past 250 lines or once it mixes two domains.
 ## Background work
 
 - A loop's stop reason is distinguishable: crashed (logged with traceback by a done-callback), cancelled at shutdown, or finished.
-- One capture loop serves every consumer (list, stream, push, auto-approve) through a shared in-memory cache owned by `terminal/`; consumers never call tmux on their own cadence.
-- Anything that sends keys re-reads live state immediately before sending.
+- One capture loop serves every consumer (list, stream, push, auto-approve) through a shared in-memory cache owned by `terminal/`; consumers never call tmux on their own cadence. A session source works the same way: one poll loop fills its cache, everything else reads it. A cache shared by a loop thread and request threads is guarded by a lock that is never held across I/O.
+- A source routes nothing itself: `sessions/directory.py` checks capabilities and dispatches; routes call the directory, never a source.
+- Anything that sends keys or answers a prompt re-reads live state immediately before sending.
+- Adapters translate their client's failures into domain errors (`Unavailable` → 502 for an upstream failure); vendor or httpx exceptions never reach a route.
 
 ## Auth & security
 
@@ -70,7 +75,7 @@ Split a file past 250 lines or once it mixes two domains.
 ## Testing
 
 - pytest + httpx `AsyncClient` against an app built by the factory with a temp state dir.
-- tmux is replaced at the `TmuxPort` boundary by `tests/fakes.py` in unit tests; `tests/integration/` runs against a real tmux server on a throwaway socket (skipped when tmux is missing). Never touch the user's real tmux servers in tests.
+- tmux is replaced at the `TmuxPort` boundary by `tests/fakes.py`, Remote Control at `RemoteControlPort` by `tests/rc_fakes.py`, in unit tests; tests never call Anthropic. `tests/integration/` runs against a real tmux server on a throwaway socket (skipped when tmux is missing). Never touch the user's real tmux servers in tests.
 - Screen rules are tested against screen samples in `tests/screens.py`, shaped like real captures (no side borders, full-width separators); a new rule or a rule fix adds a sample. Never commit a real capture: it contains someone's conversation.
 - A bug fixed gets a regression test.
 

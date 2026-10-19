@@ -2,13 +2,14 @@ import pytest
 
 from muxtower.errors import Conflict, Invalid
 from muxtower.runtimes.models import AgentState
+from muxtower.sessions.models import ItemStatus
 from muxtower.sources.remote_control.service import RemoteControlSource
-from tests.rc_fakes import FakeRemoteControl, assistant, permission, session
+from tests.rc_fakes import FakeRemoteControl, answered, assistant, permission, session, user
 
 
 def make() -> tuple[FakeRemoteControl, RemoteControlSource]:
     port = FakeRemoteControl()
-    return port, RemoteControlSource(port, {"env_nas": "nas"})
+    return port, RemoteControlSource(port, {"env_box": "build-box"})
 
 
 def test_lists_active_sessions_with_machine_origin_and_summary() -> None:
@@ -19,7 +20,7 @@ def test_lists_active_sessions_with_machine_origin_and_summary() -> None:
                                                    "needs_action": "", "is_noteworthy": "True"}}  # fmt: skip
     src.tick()
     (view,) = src.views()
-    assert (view.id, view.machine, view.origin, view.state) == ("cse_1", "nas", "desktop_app", AgentState.IDLE)
+    assert (view.id, view.machine, view.origin, view.state) == ("cse_1", "build-box", "desktop_app", AgentState.IDLE)
     assert view.summary and view.summary.detail == "tests pass" and view.summary.noteworthy
     assert view.last_message == "All green." and not view.capabilities.screen
 
@@ -71,3 +72,25 @@ def test_sessions_that_end_disappear() -> None:
     src.tick()
     port.sessions = []
     assert src.tick().changed and src.views() == []
+
+
+def test_answering_rereads_the_log_first() -> None:
+    port, src = make()
+    port.sessions = [session("cse_1", worker_status="requires_action")]
+    port.events["cse_1"] = [permission(1, "r1", "Bash", {"command": "make deploy"})]
+    src.tick()
+    port.events["cse_1"].append(answered(2, "r1"))  # answered on another device since the last poll
+    port.sessions = [session("cse_1", worker_status="running")]
+    with pytest.raises(Conflict):
+        src.approve("cse_1", None)
+    assert port.calls == []
+    assert [i.status for i in src.tick().conversation["cse_1"]] == [ItemStatus.ALLOWED]  # still streamed
+
+
+def test_long_gaps_are_read_page_by_page() -> None:
+    port, src = make()
+    port.sessions = [session("cse_1")]
+    src.tick()
+    port.events["cse_1"] = [user(n, f"message {n}") for n in range(1, 451)]
+    port.sessions = [session("cse_1", last_event_at="2026-10-18T11:00:00Z")]
+    assert len(src.tick().conversation["cse_1"]) == 450

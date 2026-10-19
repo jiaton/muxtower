@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from muxtower.auth.deps import WS_BEARER_PREFIX, WS_SUBPROTOCOL, CurrentDevice
 from muxtower.auth.stream_cookie import COOKIE_NAME, COOKIE_PATH, MAX_AGE_SECONDS
-from muxtower.errors import NotFound
+from muxtower.errors import Conflict, NotFound
 from muxtower.infra.tmux import TmuxError
 from muxtower.sessions.models import ConversationItem, Session
 
@@ -133,8 +133,8 @@ class _Connection:
                 monitor.remove_viewer(session_id, self.screens.pop(session_id))
             return
         try:
-            screen = await asyncio.to_thread(self.app.state.terminal.screen, session_id, message.history)
-        except (NotFound, TmuxError) as exc:  # unknown session, pane gone, tmux failure
+            screen = await asyncio.to_thread(self.app.state.directory.screen, session_id, message.history)
+        except (NotFound, Conflict, TmuxError) as exc:  # unknown session, no screen, pane gone, tmux failure
             await self.send(ErrorFrame(message=str(exc) or "cannot open screen"))
             return
         if session_id in self.screens:
@@ -149,12 +149,12 @@ class _Connection:
         if kind == "unsubscribe":
             bus.unsubscribe(f"conversation:{session_id}", self.queue)
             return
-        remote = self.app.state.directory.remote_for(session_id)
-        if remote is None:
-            await self.send(ErrorFrame(message="this session has no structured conversation"))
+        try:
+            latest = await asyncio.to_thread(self.app.state.directory.conversation, session_id, 0, 100)
+        except (NotFound, Conflict) as exc:
+            await self.send(ErrorFrame(message=str(exc)))
             return
         bus.subscribe(f"conversation:{session_id}", self.queue)
-        latest = remote.conversation(session_id, 0, 100)
         await self.send(ConversationFrame(session_id=session_id, items=latest.items))
 
     async def reader(self) -> None:

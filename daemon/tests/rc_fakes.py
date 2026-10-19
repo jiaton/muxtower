@@ -5,7 +5,7 @@ from muxtower.sources.remote_control.ports import RawEvent
 
 def session(sid: str, **over: Any) -> dict[str, Any]:
     base = {
-        "id": sid, "status": "active", "title": f"title {sid}", "environment_id": "env_nas",
+        "id": sid, "status": "active", "title": f"title {sid}", "environment_id": "env_box",
         "environment_kind": "bridge", "config": {"origin": "desktop_app"}, "worker_status": "idle",
         "status_bucket": "completed", "unread": False, "last_event_at": "2026-10-18T10:00:00Z",
         "created_at": "2026-10-18T09:00:00Z",
@@ -54,7 +54,8 @@ class FakeRemoteControl:
         return list(self.sessions), None
 
     def get_session(self, session_id: str) -> dict[str, Any]:
-        return self.details.get(session_id, {})
+        listed = next((s for s in self.sessions if s["id"] == session_id), {})
+        return {**listed, **self.details.get(session_id, {})}
 
     def recent_events(self, session_id: str, limit: int) -> list[RawEvent]:
         return list(reversed(self.events.get(session_id, [])[-limit:]))
