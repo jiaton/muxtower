@@ -61,3 +61,29 @@ def test_a_tmux_agent_with_remote_control_is_listed_once(tmp_path: Path) -> None
     assert client.get("/v1/sessions/cse_1", headers=auth).json()["id"] == merged["id"]
     conv = client.get(f"/v1/sessions/{merged['id']}/conversation", headers=auth).json()
     assert conv["session_id"] == merged["id"] and [i["text"] for i in conv["items"]] == ["Fixed."]
+
+
+def test_a_session_started_during_a_scan_is_neither_dropped_nor_adopted(tmp_path: Path) -> None:
+    from muxtower.sessions.models import CreateSession
+
+    tmux = FakeTmux()
+    settings = load_settings(
+        config_file=tmp_path / "none.toml", env={},
+        overrides={"state_dir": tmp_path / "s", "config_dir": tmp_path / "c", "serve_ui": False, "adopt_sockets": []},
+    )  # fmt: skip
+    app = create_app(settings, tmux=tmux, run_loops=False)
+    sessions = app.state.sessions
+    real_list = tmux.list_panes
+    created: list[str] = []
+
+    def racing_list(socket: str):  # type: ignore[no-untyped-def]
+        before = real_list(socket)  # the scan's snapshot of panes
+        if not created:  # meanwhile, a request starts a session
+            created.append(sessions.create(CreateSession(runtime="claude", cwd=str(tmp_path))).id)
+        return before
+
+    tmux.list_panes = racing_list  # type: ignore[method-assign]
+    Monitor(sessions).reconcile()
+    tmux.list_panes = real_list  # type: ignore[method-assign]
+    Monitor(sessions).reconcile()
+    assert [r.id for r in sessions.repo.list()] == created

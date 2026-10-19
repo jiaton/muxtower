@@ -78,6 +78,9 @@ class Monitor:
 
     def reconcile(self) -> bool:
         svc = self.service
+        # Records first, panes second: a session created while this runs is not in `records`, so its
+        # pane cannot be missing from `panes` and it is never dropped as gone.
+        records = svc.repo.list()
         sockets = dict.fromkeys([svc.config.socket, *svc.config.adopt_sockets])
         panes: list[PaneInfo] = []
         seen: set[tuple[str, str]] = set()
@@ -91,7 +94,7 @@ class Monitor:
         changed = False
 
         known: set[tuple[str, str]] = set()
-        for record in svc.repo.list():
+        for record in records:
             key = (record.pane.socket, record.pane.pane_id)
             if key not in alive:
                 logger.info("session %s (%s) is gone", record.id, record.name)
@@ -101,6 +104,8 @@ class Monitor:
                 known.add(key)
 
         binaries = {rt.config.binary: rt.name for rt in svc.runtimes.values()}
+        # Re-read before adopting: a session started meanwhile owns its pane already.
+        known |= {(r.pane.socket, r.pane.pane_id) for r in svc.repo.list()}
         for pane in panes:
             runtime = binaries.get(pane.command)
             if runtime and (pane.socket, pane.pane_id) not in known:
