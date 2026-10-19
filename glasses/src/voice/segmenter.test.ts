@@ -15,18 +15,16 @@ it('cuts at a pause after speech and drops pure silence', () => {
   expect(done).toHaveLength(1)
   expect(done[0]).toHaveLength(16)
   expect(run('..........').flatMap((f) => seg.push(f))).toEqual([])
-  expect(seg.flush()).toBeNull()
 })
 
-it('cuts long speech at 8 s and keeps the tail for flush, across odd chunk sizes', () => {
+it('cuts long speech every 8 s, across odd chunk sizes', () => {
   const seg = new Segmenter()
   const all = run('x'.repeat(100))
   const joined = new Uint8Array(all.length * FRAME_BYTES)
   all.forEach((f, i) => joined.set(f, i * FRAME_BYTES))
   const done: Uint8Array[][] = []
   for (let at = 0; at < joined.length; at += 1000) done.push(...seg.push(joined.slice(at, at + 1000)))
-  expect(done).toHaveLength(1) // 8 s
-  expect(seg.flush()?.length).toBe(20) // the last 2 s
+  expect(done.map((d) => d.length)).toEqual([80]) // 8 s; the last 2 s wait for a pause
 })
 
 it('joins Chinese without spaces and Latin words with one', () => {
