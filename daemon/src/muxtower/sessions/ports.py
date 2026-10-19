@@ -41,6 +41,12 @@ class SessionRepository(Protocol):
     def load_hook_state(self, session_id: str) -> str | None: ...
 
 
+class ClaudeProcessPort(Protocol):
+    def remote_id(self, pane_pid: int) -> str | None:
+        """The Remote Control session of the Claude Code process running in this pane, if any."""
+        ...
+
+
 class SessionSourcePort(Protocol):
     """Sessions muxtower reaches other than through local tmux (e.g. Remote Control). A source owns
     the ids it lists, keeps its own cache fresh, and does the actions its sessions' capabilities offer."""

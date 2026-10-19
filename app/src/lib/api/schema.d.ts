@@ -752,10 +752,16 @@ export interface components {
             origin?: string | null;
             pending: components["schemas"]["PendingAction"] | null;
             /**
+             * Remote Id
+             * @description this agent's Remote Control session, when it has one; listed once, under this id
+             */
+            remote_id?: string | null;
+            /**
              * Reply Summary
              * @description a few lines condensing last_message, once the hub has made them (long replies)
              */
             reply_summary?: string | null;
+            role?: components["schemas"]["SessionRole"] | null;
             /** Runtime */
             runtime: string;
             source: components["schemas"]["SessionSource"];
@@ -785,6 +791,11 @@ export interface components {
              */
             updated_at: string;
         };
+        /**
+         * SessionRole
+         * @enum {string}
+         */
+        SessionRole: "concierge";
         /**
          * SessionSource
          * @enum {string}

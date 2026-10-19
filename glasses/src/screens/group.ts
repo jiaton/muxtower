@@ -2,7 +2,7 @@
 import { columns } from '@/display/text'
 import type { Screen } from '@/display/screen'
 import type { Action } from '@/input/gestures'
-import { back, findSession, groupOf, placeKey, push, withCursor, type AppState, type Outcome } from '@/state/model'
+import { back, findSession, groupOf, placeKey, push, withCursor, workers, type AppState, type Outcome } from '@/state/model'
 import { footerFor, linkLabel } from './chrome'
 import { age, stateLabel } from './format'
 import { ROW_WIDTH, arrange, draw, move, resolveCursor, type Row } from './list'
@@ -11,7 +11,7 @@ const NAME_PX = 300
 const STATE_PX = 150
 
 export function groupRows(state: AppState, group: string, now: number): Row[] {
-  return state.sessions
+  return workers(state)
     .filter((s) => groupOf(s, state.hubName) === group)
     .sort(
       (a, b) =>

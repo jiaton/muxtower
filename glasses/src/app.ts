@@ -13,7 +13,7 @@ import type { GlassesPort } from '@/platform/port'
 import { MENU, act, menuAct, view } from '@/screens'
 import { pairingView } from '@/screens/pairing'
 import { launchNav } from '@/state/launch'
-import { current, findSession, type Outcome, type Voice } from '@/state/model'
+import { conciergeOf, current, findSession, type Outcome, type Voice } from '@/state/model'
 import { loadSaved, saveNav, saveToken } from '@/state/persist'
 import type { AppStore } from '@/state/store'
 import { runCommand } from './commands'
@@ -92,7 +92,11 @@ export class GlassesApp {
     this.store.setState({ link: 'connecting' })
     void this.client.GET('/v1/me').then(
       (result) => {
-        if (result.data) this.store.setState({ hubName: result.data.daemon_name, features: result.data.features })
+        if (!result.data) return
+        // Group names depend on the hub's name: the order frozen without it is recomputed.
+        const { nav } = this.store.getState()
+        const { daemon_name: hubName, features } = result.data
+        this.store.setState({ hubName, features, nav: { ...nav, frozen: null } })
       },
       () => undefined,
     )
@@ -126,7 +130,14 @@ export class GlassesApp {
       return
     }
     this.store.setState({ sessions })
-    if (newly.length) this.notify(`! ${newly[0].name} needs you`)
+    if (newly.length) return this.notify(`! ${newly[0].name} needs you`)
+    // The assistant answered while the owner is looking elsewhere.
+    const was = conciergeOf(state)
+    const is = sessions.find((s) => s.role === 'concierge')
+    const place = current(state.nav)
+    const away = place.screen !== 'session' || place.id !== is?.id
+    if (was && is && away && is.state !== 'busy' && is.last_message !== was.last_message)
+      this.notify(`◆ ${is.name} replied`)
   }
 
   private notify(notice: string | null) {
@@ -180,7 +191,8 @@ export class GlassesApp {
   private async startTalking() {
     const state = this.store.getState()
     const place = current(state.nav)
-    const target = state.voice?.session ?? (place.screen === 'session' ? place.id : null)
+    // In a session, talk to it; anywhere else, to the assistant (if the hub runs one).
+    const target = state.voice?.session ?? (place.screen === 'session' ? place.id : conciergeOf(state)?.id)
     if (!target) return this.notify('Open a session to reply')
     if (!state.features.asr) return this.notify('Voice is off on the hub')
     if (this.recorder.active || state.voice?.phase === 'transcribing') return
@@ -223,7 +235,8 @@ export class GlassesApp {
       screen = pairingView(state.link === 'rejected')
     } else {
       const drawn = view(state, Date.now())
-      if (drawn.order && state.nav.frozen === null) {
+      // Freeze the order only once there is something to order (the first list, and the hub's name).
+      if (drawn.order && state.nav.frozen === null && state.loaded && state.hubName) {
         this.store.setState({ nav: { ...state.nav, frozen: drawn.order } })
         return // the store change renders again
       }

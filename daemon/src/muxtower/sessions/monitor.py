@@ -15,7 +15,7 @@ from muxtower.infra.bus import EventBus
 from muxtower.runtimes.models import AgentState
 from muxtower.runtimes.spec import Classification
 from muxtower.sessions.live import ScreenState
-from muxtower.sessions.ports import SessionRecord, SessionSource
+from muxtower.sessions.ports import ClaudeProcessPort, SessionRecord, SessionSource
 from muxtower.sessions.service import SessionService
 from muxtower.terminal.ports import PaneInfo, PaneRef
 
@@ -37,8 +37,10 @@ def display_name(pane: PaneInfo) -> str:
 
 
 class Monitor:
-    def __init__(self, service: SessionService) -> None:
+    def __init__(self, service: SessionService, processes: ClaudeProcessPort | None = None) -> None:
         self.service = service
+        self.processes = processes
+        self._pane_pids: dict[tuple[str, str], int] = {}  # (socket, pane id) -> the pane's process
         self._viewers: dict[str, list[int]] = defaultdict(list)  # session id -> history lines wanted
 
     # Viewers (open terminal views) make the loop also capture colors + scrollback for that session.
@@ -85,6 +87,7 @@ class Monitor:
                 seen.add(key)
                 panes.append(pane)
         alive = {(p.socket, p.pane_id) for p in panes}
+        self._pane_pids = {(p.socket, p.pane_id): p.pid for p in panes if p.pid}
         changed = False
 
         known: set[tuple[str, str]] = set()
@@ -131,6 +134,11 @@ class Monitor:
                 if ansi is not None and (previous is None or previous.ansi != ansi):
                     result.screens[record.id] = ansi
             live.screen = ScreenState(classification, text, since, ansi)
+            pid = self._pane_pids.get((record.pane.socket, record.pane.pane_id))
+            remote_id = self.processes.remote_id(pid) if self.processes and pid else None
+            if remote_id != live.remote_id:
+                live.remote_id = remote_id
+                result.sessions_changed = True
 
             entered = svc.refresh(record, live, before.state)
             after = live.effective
