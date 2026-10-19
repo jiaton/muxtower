@@ -20,10 +20,12 @@ class OpenAICompatibleTranscriber:
         self.model = model or default_model
         self.provider = provider
 
-    def transcribe(self, audio: bytes, content_type: str, language: str | None) -> str:
+    def transcribe(self, audio: bytes, content_type: str, language: str | None, prompt: str | None) -> str:
         data = {"model": self.model, "response_format": "json"}
         if language:
             data["language"] = language
+        if prompt:
+            data["prompt"] = prompt
         try:
             response = httpx.post(
                 self.url,
