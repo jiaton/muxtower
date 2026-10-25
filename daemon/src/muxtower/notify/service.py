@@ -44,13 +44,13 @@ class PushService:
         return self._send(view, "attention", title, body, lambda sub: view.state in sub.states)
 
     def notify_done(self, session_id: str) -> int:
-        """A session finished a turn. Not for the assistant (its replies are the conversation itself), nor
-        for a session someone is watching."""
+        """A session finished a turn. Not for the assistant (its replies are the conversation itself), a
+        session someone is watching, or one the owner hid."""
         view = self.sessions.find(session_id)
         if view is None or view.needs_attention or view.state == AgentState.BUSY or view.role == SessionRole.CONCIERGE:
             return 0
-        reads = self.sessions.reads
-        if reads and reads.seen_within(session_id, WATCHING_SECONDS):
+        marks = self.sessions.marks
+        if view.hidden or (marks and marks.seen_within(session_id, WATCHING_SECONDS)):
             return 0
         title, body = done_text(view)
         return self._send(view, "done", title, body, lambda sub: sub.done)

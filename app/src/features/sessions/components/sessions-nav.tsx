@@ -1,5 +1,5 @@
 import { Link, useSearch } from '@tanstack/react-router'
-import { ChevronRight, CircleAlert, CircleCheck, Folder, Layers, LoaderCircle, Monitor } from 'lucide-react'
+import { ChevronRight, CircleAlert, CircleCheck, EyeOff, Folder, Layers, LoaderCircle, Monitor } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { NavCount, NavSection, navItemClass, navSubItemClass } from '@/components/ui/nav'
 import { cn } from '@/lib/cn'
@@ -39,7 +39,13 @@ function ScopeLink({
   )
 }
 
-const VIEW_ICONS: Record<View, typeof Layers> = { all: Layers, needs: CircleAlert, unread: CircleCheck, working: LoaderCircle }
+const VIEW_ICONS: Record<View, typeof Layers> = {
+  all: Layers,
+  needs: CircleAlert,
+  unread: CircleCheck,
+  working: LoaderCircle,
+  hidden: EyeOff,
+}
 const FOLDERS_SHOWN = 5
 
 /** A device and, unless folded, its folders. */

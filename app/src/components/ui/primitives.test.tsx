@@ -6,6 +6,7 @@ import { NavCount, NavSection } from './nav'
 import { Pane, PaneBody, PaneHeader } from './pane'
 import { Segmented } from './segmented'
 import { SuggestInput } from './suggest-input'
+import { SwipeAction, SwipeActions } from './swipe-actions'
 
 describe('Pane', () => {
   it('renders a header with title, subtitle, actions and extra rows, and a body', () => {
@@ -115,5 +116,33 @@ describe('SuggestInput', () => {
     fireEvent.focus(field)
     fireEvent.click(screen.getByRole('option', { name: /notes/ }))
     expect(onValueChange).toHaveBeenLastCalledWith('~/notes')
+  })
+})
+
+describe('SwipeActions', () => {
+  it('reveals its actions on a swipe right, keeps the swipe from clicking the row, and runs an action', () => {
+    const opened = vi.fn()
+    const hide = vi.fn()
+    render(
+      <SwipeActions actions={<SwipeAction icon={() => null} label="Hide" onClick={hide} />}>
+        <button type="button" onClick={opened}>
+          row
+        </button>
+      </SwipeActions>,
+    )
+    const row = screen.getByRole('button', { name: 'row' })
+    const tray = screen.getByRole('button', { name: 'Hide', hidden: true }).parentElement!
+    expect(tray).toHaveAttribute('aria-hidden', 'true') // closed
+    Object.defineProperty(tray, 'offsetWidth', { value: 64 })
+    fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 10, clientY: 10, pointerId: 1 })
+    row.parentElement!.setPointerCapture = () => {}
+    fireEvent.pointerMove(row, { pointerType: 'touch', clientX: 90, clientY: 12, pointerId: 1 })
+    fireEvent.pointerUp(row, { pointerType: 'touch', clientX: 90, clientY: 12, pointerId: 1 })
+    fireEvent.click(row)
+    expect(opened).not.toHaveBeenCalled()
+    expect(tray).toHaveAttribute('aria-hidden', 'false')
+    fireEvent.click(screen.getByRole('button', { name: 'Hide' }))
+    expect(hide).toHaveBeenCalled()
+    expect(tray).toHaveAttribute('aria-hidden', 'true')
   })
 })

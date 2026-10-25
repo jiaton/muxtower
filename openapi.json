@@ -425,6 +425,17 @@
         "title": "Health",
         "type": "object"
       },
+      "HideSession": {
+        "properties": {
+          "hidden": {
+            "default": true,
+            "title": "Hidden",
+            "type": "boolean"
+          }
+        },
+        "title": "HideSession",
+        "type": "object"
+      },
       "ItemStatus": {
         "enum": [
           "running",
@@ -748,6 +759,12 @@
             ],
             "description": "when it last finished a turn",
             "title": "Finished At"
+          },
+          "hidden": {
+            "default": false,
+            "description": "the owner hid it: kept out of the lists and done notifications",
+            "title": "Hidden",
+            "type": "boolean"
           },
           "id": {
             "title": "Id",
@@ -2101,6 +2118,52 @@
           }
         },
         "summary": "Deny",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/hide": {
+      "post": {
+        "description": "Hide it from the lists (`{\"hidden\": false}` shows it again); the same on every device.",
+        "operationId": "hide_session_v1_sessions__session_id__hide_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HideSession"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Hide Session",
         "tags": [
           "sessions"
         ]
