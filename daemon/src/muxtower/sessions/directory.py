@@ -61,14 +61,15 @@ class SessionDirectory:
         return next((s for s in self.sources if s.owns(session_id)), None)
 
     def _decorate(self, session: Session) -> Session:
-        """What the sources leave open: the machine (and folder) of everything that runs on this hub,
-        the reply summary, the concierge role."""
+        """What the sources leave open: the machine, folder and origin of everything that runs on this
+        hub, the reply summary, the concierge role."""
         update: dict[str, object] = {}
         if session.source != SessionSource.REMOTE_CONTROL:
             update["machine"] = self.hub_name or session.machine
         elif self.processes and (process := self.processes.running().get(session.id)):
             update["machine"] = self.hub_name or session.machine
             update["cwd"] = _deeper(process.cwd, session.cwd)
+            update["origin"] = process.origin or session.origin  # what Claude Code says beats the tags
         if self.summaries and (summary := self.summaries.lookup(session.last_message)):
             update["reply_summary"] = summary
         if self.concierge_id and session.id == self.concierge_id:

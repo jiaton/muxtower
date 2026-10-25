@@ -79,11 +79,12 @@ export function shortFolderNames(folders: string[]): Map<string, string> {
 
 // --- source -------------------------------------------------------------------------------------
 
-export const SOURCES = ['muxtower', 'tmux', 'CLI', 'Desktop app', 'Mobile app', 'Web', 'SDK'] as const
+export const SOURCES = ['muxtower', 'tmux', 'CLI', 'Desktop app', 'IDE', 'Mobile app', 'Web', 'SDK'] as const
 
 const ORIGINS: [RegExp, string][] = [
   [/desktop/, 'Desktop app'],
   [/android|ios|mobile/, 'Mobile app'],
+  [/vscode|jetbrains|ide\b/, 'IDE'],
   [/sdk/, 'SDK'],
   [/web|claude_ai/, 'Web'],
   [/cli/, 'CLI'],
