@@ -58,6 +58,7 @@ def test_a_tmux_agent_with_remote_control_is_listed_once(tmp_path: Path) -> None
     merged = next(s for s in listed if s["remote_id"] == "cse_1")
     assert merged["name"] == "Fix the login bug" and merged["source"] == "adopted"
     assert merged["capabilities"]["screen"] and merged["capabilities"]["conversation"]
+    assert merged["updated_at"].startswith("2026-10-18T10:00:00")  # the remote log's last event
     assert client.get("/v1/sessions/cse_1", headers=auth).json()["id"] == merged["id"]
     conv = client.get(f"/v1/sessions/{merged['id']}/conversation", headers=auth).json()
     assert conv["session_id"] == merged["id"] and [i["text"] for i in conv["items"]] == ["Fixed."]
