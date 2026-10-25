@@ -1,25 +1,21 @@
-import { SendHorizontal } from 'lucide-react'
+import { Plus, SendHorizontal } from 'lucide-react'
 import { useState } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/input'
+import { cn } from '@/lib/cn'
 import { useSendInput } from '../api/use-terminal'
+import { useTerminalPrefs } from '../store'
+import { KeyPad } from './key-pad'
 
-const KEYS: Array<{ key: string; label: string; name: string }> = [
-  { key: 'Escape', label: 'Esc', name: 'Escape' },
-  { key: 'Tab', label: 'Tab', name: 'Tab' },
-  { key: 'BTab', label: '⇧Tab', name: 'Shift Tab' },
-  { key: 'Up', label: '↑', name: 'Up' },
-  { key: 'Down', label: '↓', name: 'Down' },
-  { key: 'Enter', label: '⏎', name: 'Enter' },
-  { key: 'C-c', label: '^C', name: 'Control C' },
-]
-
-/** Text box (sent followed by Enter) plus the keys an agent's TUI needs that a phone keyboard lacks. */
-/** `keys`: the key names this session accepts; empty means all of them. */
+/** One row: the keys toggle, the message box (sent followed by Enter) and Send. The keys a phone
+ *  keyboard lacks open above it, and stay open or closed as last left. `keys`: the key names this
+ *  session accepts; empty means all of them. */
 export function InputBar({ daemonId, sessionId, keys = [] }: { daemonId: string; sessionId: string; keys?: string[] }) {
   const send = useSendInput(daemonId, sessionId)
   const [text, setText] = useState('')
+  const open = useTerminalPrefs((s) => s.keypad)
+  const setOpen = useTerminalPrefs((s) => s.setKeypad)
 
   const submit = () => {
     if (!text.trim()) return
@@ -29,27 +25,26 @@ export function InputBar({ daemonId, sessionId, keys = [] }: { daemonId: string;
   return (
     <div className="flex flex-col gap-2">
       {send.isError ? <Banner tone="error">{send.error.message}</Banner> : null}
-      <div className="flex gap-1 overflow-x-auto" role="toolbar" aria-label="Keys">
-        {KEYS.filter((k) => keys.length === 0 || keys.includes(k.key)).map((k) => (
-          <Button
-            key={k.key}
-            variant="secondary"
-            size="sm"
-            className="min-w-11 font-mono"
-            aria-label={k.name}
-            onClick={() => send.mutate({ key: k.key })}
-          >
-            {k.label}
-          </Button>
-        ))}
-      </div>
+      {open ? <KeyPad keys={keys} onKey={(key) => send.mutate({ key })} /> : null}
       <form
-        className="flex items-end gap-2"
+        className="flex items-end gap-1.5"
         onSubmit={(e) => {
           e.preventDefault()
           submit()
         }}
       >
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={open ? 'Hide keys' : 'Show keys'}
+          aria-expanded={open}
+          title={open ? 'Hide keys' : 'Keys: esc, tab, arrows, enter…'}
+          className={cn('shrink-0', open && 'bg-surface-muted text-fg')}
+          onPointerDown={(e) => e.preventDefault()} // keep the phone keyboard as it is
+          onClick={() => setOpen(!open)}
+        >
+          <Plus className={cn('transition-transform', open && 'rotate-45')} />
+        </Button>
         <Textarea
           rows={1}
           value={text}
@@ -64,7 +59,7 @@ export function InputBar({ daemonId, sessionId, keys = [] }: { daemonId: string;
           }}
           className="max-h-40 field-sizing-content"
         />
-        <Button type="submit" size="icon" aria-label="Send" disabled={send.isPending || !text.trim()}>
+        <Button type="submit" size="icon" className="shrink-0" aria-label="Send" disabled={send.isPending || !text.trim()}>
           <SendHorizontal />
         </Button>
       </form>
