@@ -6,6 +6,7 @@ export interface ListSearch {
   group?: GroupBy
   device?: string
   folder?: string
+  source?: string
   q?: string
 }
 
@@ -19,23 +20,45 @@ export function parseListSearch(raw: Record<string, unknown>): ListSearch {
     group: pick(raw.group, GROUPINGS),
     device: text(raw.device),
     folder: text(raw.folder),
+    source: text(raw.source),
     q: text(raw.q),
   }
 }
 
 export const toQuery = (search: ListSearch, defaultGroup: GroupBy): SessionQuery => ({
   view: search.view ?? 'all',
-  group: search.group ?? defaultGroup,
+  group: search.group ?? pick(defaultGroup, GROUPINGS) ?? 'status',
   device: search.device,
   folder: search.folder,
+  source: search.source,
   q: search.q,
 })
 
-/** Search params for a scope chosen in the navigation: a view, or one device, or one folder. */
-export const scopeSearch = (current: ListSearch, scope: { view?: View; device?: string; folder?: string }): ListSearch => ({
+export interface Scope {
+  view?: View
+  device?: string
+  folder?: string
+  source?: string
+}
+
+/** Search params for a scope chosen in the navigation: a view, a device (and one of its folders), or a
+ *  source. Grouping and search text stay. */
+export const scopeSearch = (current: ListSearch, scope: Scope): ListSearch => ({
   group: current.group,
   q: current.q,
   view: scope.view === 'all' ? undefined : scope.view,
   device: scope.device,
   folder: scope.folder,
+  source: scope.source,
 })
+
+/** The scope a query is narrowed to, if any. */
+export const scopeOf = (query: SessionQuery): Scope | null =>
+  query.device || query.folder || query.source ? { device: query.device, folder: query.folder, source: query.source } : null
+
+/** Whether the list shows exactly this scope (the sidebar's current entry). */
+export function isCurrentScope(search: ListSearch, scope: Scope): boolean {
+  const view = search.view ?? 'all'
+  if (scope.view) return !search.device && !search.folder && !search.source && view === scope.view
+  return search.device === scope.device && search.folder === scope.folder && search.source === scope.source && view === 'all'
+}

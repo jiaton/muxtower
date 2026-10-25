@@ -35,11 +35,20 @@ export function statusOf(session: Session): Status {
 
 // --- device -------------------------------------------------------------------------------------
 
-/** Remote Control sessions that run on none of your daemons' machines. */
+/** Remote Control sessions that run on none of your daemons' machines, in no folder we know. */
 export const OTHER_DEVICES = 'Other devices'
 
-/** The machine a session runs on, as its daemon names it; null when no daemon knows. */
-export const deviceOf = (session: Session): string | null => session.machine || null
+/** The kind of machine a path belongs to, for sessions no daemon runs: the best name we have. */
+function platformOf(cwd: string | undefined): string | null {
+  if (!cwd) return null
+  if (cwd.startsWith('/Users/')) return 'Mac'
+  if (/^[A-Za-z]:[\\/]/.test(cwd)) return 'Windows'
+  return cwd.startsWith('/') ? 'Linux' : null
+}
+
+/** The machine a session runs on: as its daemon names it, else the kind of machine its folder is on;
+ *  null when neither is known. */
+export const deviceOf = (session: Session): string | null => session.machine || platformOf(session.cwd)
 
 // --- folder -------------------------------------------------------------------------------------
 
@@ -55,7 +64,22 @@ export function folderOf(session: Session): string | null {
 /** The last part of the folder: what a row has room for. */
 export const folderName = (folder: string) => folder.split('/').filter(Boolean).pop() ?? folder
 
+/** Short names for a set of folders: the last part, or as many trailing parts as tell them apart. */
+export function shortFolderNames(folders: string[]): Map<string, string> {
+  const parts = new Map(folders.map((f) => [f, f.split('/').filter(Boolean)]))
+  const short = (f: string, n: number) => parts.get(f)!.slice(-n).join('/') || f
+  const names = new Map<string, string>()
+  for (const folder of folders) {
+    let n = 1
+    while (n < parts.get(folder)!.length && folders.some((o) => o !== folder && short(o, n) === short(folder, n))) n += 1
+    names.set(folder, short(folder, n))
+  }
+  return names
+}
+
 // --- source -------------------------------------------------------------------------------------
+
+export const SOURCES = ['muxtower', 'tmux', 'CLI', 'Desktop app', 'Mobile app', 'Web', 'SDK'] as const
 
 const ORIGINS: [RegExp, string][] = [
   [/desktop/, 'Desktop app'],
@@ -65,14 +89,14 @@ const ORIGINS: [RegExp, string][] = [
   [/cli/, 'CLI'],
 ]
 
-/** How the session was started: by muxtower, found in tmux, or (Remote Control) from which app. */
+/** How the session was started: by muxtower, found in tmux, or (Remote Control) from which app. A
+ *  tmux session that also runs Remote Control counts as tmux: that is where you find it. */
 export function sourceOf(session: Session): string {
-  const origin = session.origin?.toLowerCase()
-  const match = origin ? ORIGINS.find(([pattern]) => pattern.test(origin)) : undefined
-  if (match) return match[1]
   if (session.source === 'launched') return 'muxtower'
   if (session.source === 'adopted') return 'tmux'
-  return origin ?? 'Remote Control'
+  const origin = session.origin?.toLowerCase()
+  const match = origin ? ORIGINS.find(([pattern]) => pattern.test(origin)) : undefined
+  return match?.[1] ?? origin ?? 'Remote Control'
 }
 
 export const isAssistant = (session: Session) => session.role === 'concierge'

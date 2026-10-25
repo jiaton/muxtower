@@ -1,6 +1,6 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { ListFilter, Rows3, Search, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Folder, ListFilter, Monitor, Rows3, Search, X } from 'lucide-react'
+import { Fragment, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -15,8 +15,10 @@ import { Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { cn } from '@/lib/cn'
 import { GROUPINGS, GROUP_LABEL, VIEWS, VIEW_LABEL, type Facets, type GroupBy, type SessionQuery } from '../model/query'
-import { scopeSearch, type ListSearch } from '../model/search'
+import { folderName, shortFolderNames } from '../model/facets'
+import { scopeOf, scopeSearch, type ListSearch, type Scope } from '../model/search'
 import { useListPrefs } from '../store'
+import { sourceIcon } from './source-icon'
 
 const SEARCH_DEBOUNCE_MS = 200
 
@@ -65,7 +67,7 @@ export function ViewTabs({
     <Segmented
       className={className}
       aria-label="Show"
-      value={query.device || query.folder ? ('none' as never) : query.view}
+      value={scopeOf(query) ? ('none' as never) : query.view}
       onChange={(view) => void navigate({ to: '/', search: scopeSearch(search, { view }) })}
       options={VIEWS.map((view) => ({
         value: view,
@@ -114,7 +116,15 @@ export function GroupMenu({ query }: { query: SessionQuery }) {
   )
 }
 
-/** One device or one folder (where the sidebar is not shown). */
+const SEP = '\u0000'
+const encodeScope = (scope: Scope | null) => (scope ? [scope.device ?? '', scope.folder ?? '', scope.source ?? ''].join(SEP) : '')
+function decodeScope(value: string): Scope {
+  if (!value) return { view: 'all' }
+  const [device, folder, source] = value.split(SEP)
+  return { device: device || undefined, folder: folder || undefined, source: source || undefined }
+}
+
+/** One device (or one of its folders) or one source (where the sidebar is not shown). */
 export function FilterMenu({
   query,
   search,
@@ -127,67 +137,83 @@ export function FilterMenu({
   className?: string
 }) {
   const navigate = useNavigate()
-  const scope = query.device ? `d:${query.device}` : query.folder ? `f:${query.folder}` : ''
-  const active = Boolean(scope)
+  const scope = scopeOf(query)
+  const count = (n: number) => <span className="text-xs text-fg-muted tabular-nums">{n}</span>
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="Filter by device or folder"
+          aria-label="Filter by device, folder or source"
           title="Filter"
-          className={cn(active && 'text-accent', className)}
+          className={cn(scope && 'text-accent', className)}
         >
           <ListFilter />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent>
+      <DropdownMenuContent className="max-h-[70dvh] overflow-y-auto">
         <DropdownMenuRadioGroup
-          value={scope}
-          onValueChange={(value) =>
-            void navigate({
-              to: '/',
-              search: scopeSearch(
-                search,
-                value.startsWith('d:') ? { device: value.slice(2) } : value.startsWith('f:') ? { folder: value.slice(2) } : { view: 'all' },
-              ),
-            })
-          }
+          value={encodeScope(scope)}
+          onValueChange={(value) => void navigate({ to: '/', search: scopeSearch(search, decodeScope(value)) })}
         >
           <DropdownMenuRadioItem value="">Everything</DropdownMenuRadioItem>
           <DropdownMenuSeparator />
-          <DropdownMenuLabel>Devices</DropdownMenuLabel>
-          {facets.devices.map((d) => (
-            <DropdownMenuRadioItem key={d.label} value={`d:${d.label}`}>
-              <span className="min-w-0 flex-1 truncate">{d.label}</span>
-              <span className="text-xs text-fg-muted tabular-nums">{d.count}</span>
-            </DropdownMenuRadioItem>
-          ))}
+          <DropdownMenuLabel>Devices and folders</DropdownMenuLabel>
+          {facets.devices.map((d) => {
+            const names = shortFolderNames(d.folders.map((f) => f.label))
+            return (
+              <Fragment key={d.label}>
+                <DropdownMenuRadioItem value={encodeScope({ device: d.label })}>
+                  <Monitor className="text-fg-muted" aria-hidden />
+                  <span className="min-w-0 flex-1 truncate">{d.label}</span>
+                  {count(d.count)}
+                </DropdownMenuRadioItem>
+                {d.folders.map((f) => (
+                  <DropdownMenuRadioItem
+                    key={f.label}
+                    value={encodeScope({ device: d.label, folder: f.label })}
+                    className="pl-8"
+                    title={f.label}
+                  >
+                    <Folder className="text-fg-muted" aria-hidden />
+                    <span className="min-w-0 flex-1 truncate">{names.get(f.label)}</span>
+                    {count(f.count)}
+                  </DropdownMenuRadioItem>
+                ))}
+              </Fragment>
+            )
+          })}
           <DropdownMenuSeparator />
-          <DropdownMenuLabel>Folders</DropdownMenuLabel>
-          {facets.folders.map((f) => (
-            <DropdownMenuRadioItem key={f.label} value={`f:${f.label}`}>
-              <span className="min-w-0 flex-1 truncate">{f.label}</span>
-              <span className="text-xs text-fg-muted tabular-nums">{f.count}</span>
-            </DropdownMenuRadioItem>
-          ))}
+          <DropdownMenuLabel>Sources</DropdownMenuLabel>
+          {facets.sources.map((src) => {
+            const Icon = sourceIcon(src.label)
+            return (
+              <DropdownMenuRadioItem key={src.label} value={encodeScope({ source: src.label })}>
+                <Icon className="text-fg-muted" aria-hidden />
+                <span className="min-w-0 flex-1 truncate">{src.label}</span>
+                {count(src.count)}
+              </DropdownMenuRadioItem>
+            )
+          })}
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   )
 }
 
-/** The device or folder the list is narrowed to, with a way out. */
+/** What the list is narrowed to (device › folder, or a source), with a way out. */
 export function ScopeChip({ query, search }: { query: SessionQuery; search: ListSearch }) {
-  const label = query.device ?? query.folder
-  if (!label) return null
+  const scope = scopeOf(query)
+  if (!scope) return null
+  const label = [scope.device, scope.folder ? folderName(scope.folder) : null, scope.source].filter(Boolean).join(' › ')
   return (
     <Link
       to="/"
       search={scopeSearch(search, { view: 'all' })}
       className="inline-flex max-w-full items-center gap-1 self-start rounded-full bg-surface-muted py-1 pr-2 pl-3 text-xs text-fg"
       aria-label={`Show everything, not only ${label}`}
+      title={scope.folder}
     >
       <span className="truncate">{label}</span>
       <X className="size-3.5 shrink-0 text-fg-muted" aria-hidden />

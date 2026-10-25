@@ -4,6 +4,7 @@ import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMe
 import { NavCount, NavSection } from './nav'
 import { Pane, PaneBody, PaneHeader } from './pane'
 import { Segmented } from './segmented'
+import { SuggestInput } from './suggest-input'
 
 describe('Pane', () => {
   it('renders a header with title, subtitle, actions and extra rows, and a body', () => {
@@ -77,5 +78,26 @@ describe('DropdownMenu', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
     expect(onSelect).toHaveBeenCalled()
     expect(screen.queryByRole('menuitemcheckbox')).toBeNull() // closed after choosing
+  })
+})
+
+describe('SuggestInput', () => {
+  it('offers matching values on focus and picks one by keyboard or tap', () => {
+    const onValueChange = vi.fn()
+    const suggestions = [{ value: '~/projects/web', hint: '3 sessions' }, { value: '~/projects/api' }, { value: '~/notes' }]
+    const { rerender } = render(
+      <SuggestInput aria-label="Directory" value="proj" onValueChange={onValueChange} suggestions={suggestions} />,
+    )
+    const field = screen.getByRole('combobox', { name: 'Directory' })
+    fireEvent.focus(field)
+    expect(screen.getAllByRole('option').map((o) => o.textContent)).toEqual(['~/projects/web3 sessions', '~/projects/api'])
+    fireEvent.keyDown(field, { key: 'ArrowDown' })
+    fireEvent.keyDown(field, { key: 'ArrowDown' })
+    fireEvent.keyDown(field, { key: 'Enter' })
+    expect(onValueChange).toHaveBeenLastCalledWith('~/projects/api')
+    rerender(<SuggestInput aria-label="Directory" value="" onValueChange={onValueChange} suggestions={suggestions} />)
+    fireEvent.focus(field)
+    fireEvent.click(screen.getByRole('option', { name: /notes/ }))
+    expect(onValueChange).toHaveBeenLastCalledWith('~/notes')
   })
 })

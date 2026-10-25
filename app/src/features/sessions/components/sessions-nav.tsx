@@ -1,22 +1,105 @@
 import { Link, useSearch } from '@tanstack/react-router'
-import { CircleAlert, Folder, Layers, LoaderCircle, Monitor } from 'lucide-react'
-import { useState } from 'react'
-import { NavCount, NavSection, navItemClass } from '@/components/ui/nav'
-import { facetsOf, toggleable, VIEW_LABEL, type View } from '../model/query'
-import { parseListSearch, scopeSearch } from '../model/search'
+import { ChevronRight, CircleAlert, Folder, Layers, LoaderCircle, Monitor } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
+import { NavCount, NavSection, navItemClass, navSubItemClass } from '@/components/ui/nav'
+import { cn } from '@/lib/cn'
+import { shortFolderNames } from '../model/facets'
+import { facetsOf, toggleable, VIEW_LABEL, type DeviceFacet, type View } from '../model/query'
+import { isCurrentScope, parseListSearch, scopeSearch, type ListSearch, type Scope } from '../model/search'
 import { useSessionEntries } from '../hooks/use-session-entries'
+import { useListPrefs } from '../store'
+import { sourceIcon } from './source-icon'
+
+/** A sidebar entry for a scope of the list. It is current by the list's search params, also while one
+ *  of its sessions is open (the router alone would only see that on the list's own path). */
+function ScopeLink({
+  search,
+  scope,
+  className,
+  children,
+  title,
+}: {
+  search: ListSearch
+  scope: Scope
+  className: string
+  children: ReactNode
+  title?: string
+}) {
+  return (
+    <Link
+      to="/"
+      search={scopeSearch(search, scope)}
+      activeOptions={{ exact: true }}
+      data-current={isCurrentScope(search, scope)}
+      className={className}
+      title={title}
+    >
+      {children}
+    </Link>
+  )
+}
 
 const VIEW_ICONS: Record<View, typeof Layers> = { all: Layers, needs: CircleAlert, working: LoaderCircle }
-const FOLDERS_SHOWN = 6
+const FOLDERS_SHOWN = 5
 
-/** The sidebar: views, devices and folders, each with its count. The router marks the entry whose
- *  search params the list shows (data-status=active), also while one of its sessions is open. */
+/** A device and, unless folded, its folders. */
+function DeviceTree({ device, search }: { device: DeviceFacet; search: ListSearch }) {
+  const folded = useListPrefs((s) => s.folded.includes(device.label))
+  const toggle = useListPrefs((s) => s.toggleFolded)
+  const [all, setAll] = useState(false)
+  const folders = all ? device.folders : device.folders.slice(0, FOLDERS_SHOWN)
+  const names = shortFolderNames(device.folders.map((f) => f.label))
+  return (
+    <div className="flex flex-col gap-0.5">
+      <div className="relative">
+        <ScopeLink search={search} scope={{ device: device.label }} className={cn(navItemClass, 'pl-8')}>
+          <Monitor aria-hidden />
+          <span className="truncate">{device.label}</span>
+          <NavCount count={device.needs || device.count} alert={device.needs > 0} />
+        </ScopeLink>
+        {device.folders.length ? (
+          <button
+            type="button"
+            aria-label={folded ? `Show folders of ${device.label}` : `Hide folders of ${device.label}`}
+            aria-expanded={!folded}
+            onClick={() => toggle(device.label)}
+            className="absolute top-1/2 left-1 flex size-6 -translate-y-1/2 items-center justify-center rounded text-fg-muted hover:bg-surface hover:text-fg"
+          >
+            <ChevronRight className={cn('size-3.5 transition-transform', !folded && 'rotate-90')} aria-hidden />
+          </button>
+        ) : null}
+      </div>
+      {folded
+        ? null
+        : folders.map((f) => (
+            <ScopeLink
+              key={f.label}
+              search={search}
+              scope={{ device: device.label, folder: f.label }}
+              className={navSubItemClass}
+              title={f.label}
+            >
+              <Folder aria-hidden />
+              <span className="truncate">{names.get(f.label)}</span>
+              <NavCount count={f.needs || f.count} alert={f.needs > 0} />
+            </ScopeLink>
+          ))}
+      {!folded && toggleable(device.folders.length, FOLDERS_SHOWN) ? (
+        <button type="button" className={cn(navSubItemClass, 'text-fg-muted')} onClick={() => setAll((v) => !v)}>
+          {all ? 'Fewer folders' : `${device.folders.length - FOLDERS_SHOWN} more folders`}
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
+/** The sidebar: views, each device with its folders, and sources, each with its count. The router
+ *  marks the entry whose search params the list shows (data-status=active), also while one of its
+ *  sessions is open. */
 export function SessionsNav() {
   const { entries } = useSessionEntries()
   const facets = facetsOf(entries)
   const search = parseListSearch(useSearch({ strict: false }) as Record<string, unknown>)
-  const [allFolders, setAllFolders] = useState(false)
-  const folders = allFolders ? facets.folders : facets.folders.slice(0, FOLDERS_SHOWN)
 
   return (
     <nav aria-label="Sessions" className="flex flex-col gap-4">
@@ -24,40 +107,30 @@ export function SessionsNav() {
         {(['all', 'needs', 'working'] as const).map((view) => {
           const Icon = VIEW_ICONS[view]
           return (
-            <Link key={view} to="/" search={scopeSearch(search, { view })} className={navItemClass}>
+            <ScopeLink key={view} search={search} scope={{ view }} className={navItemClass}>
               <Icon aria-hidden />
               <span className="truncate">{VIEW_LABEL[view]}</span>
               <NavCount count={facets.views[view]} alert={view === 'needs'} />
-            </Link>
+            </ScopeLink>
           )
         })}
       </NavSection>
       <NavSection title="Devices">
         {facets.devices.map((d) => (
-          <Link key={d.label} to="/" search={scopeSearch(search, { device: d.label })} className={navItemClass}>
-            <Monitor aria-hidden />
-            <span className="truncate">{d.label}</span>
-            <NavCount count={d.needs || d.count} alert={d.needs > 0} />
-          </Link>
+          <DeviceTree key={d.label} device={d} search={search} />
         ))}
       </NavSection>
-      <NavSection
-        title="Folders"
-        action={
-          toggleable(facets.folders.length, FOLDERS_SHOWN) ? (
-            <button type="button" className="normal-case tracking-normal hover:text-fg" onClick={() => setAllFolders((v) => !v)}>
-              {allFolders ? 'Fewer' : `All ${facets.folders.length}`}
-            </button>
-          ) : undefined
-        }
-      >
-        {folders.map((f) => (
-          <Link key={f.label} to="/" search={scopeSearch(search, { folder: f.label })} className={navItemClass} title={f.label}>
-            <Folder aria-hidden />
-            <span className="truncate">{f.label}</span>
-            <NavCount count={f.needs || f.count} alert={f.needs > 0} />
-          </Link>
-        ))}
+      <NavSection title="Sources">
+        {facets.sources.map((s) => {
+          const Icon = sourceIcon(s.label)
+          return (
+            <ScopeLink key={s.label} search={search} scope={{ source: s.label }} className={navItemClass}>
+              <Icon aria-hidden />
+              <span className="truncate">{s.label}</span>
+              <NavCount count={s.needs || s.count} alert={s.needs > 0} />
+            </ScopeLink>
+          )
+        })}
       </NavSection>
     </nav>
   )
