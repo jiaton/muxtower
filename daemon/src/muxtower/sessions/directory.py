@@ -27,6 +27,14 @@ WHAT = {
 }
 
 
+def _deeper(start: str, working: str) -> str:
+    """Where an agent works: the folder it started in, or the folder it works in when that lies inside
+    (an agent started in ~/projects that works in ~/projects/web belongs to web)."""
+    if start and working.startswith(start.rstrip("/") + "/"):
+        return working
+    return start or working
+
+
 class SessionDirectory:
     def __init__(
         self,
@@ -60,7 +68,7 @@ class SessionDirectory:
             update["machine"] = self.hub_name or session.machine
         elif self.processes and (process := self.processes.running().get(session.id)):
             update["machine"] = self.hub_name or session.machine
-            update["cwd"] = session.cwd or process.cwd
+            update["cwd"] = _deeper(process.cwd, session.cwd)
         if self.summaries and (summary := self.summaries.lookup(session.last_message)):
             update["reply_summary"] = summary
         if self.concierge_id and session.id == self.concierge_id:
@@ -86,6 +94,7 @@ class SessionDirectory:
                 # The remote log knows when the agent last did something; the local clock restarts
                 # with the daemon.
                 "updated_at": remote.updated_at,
+                "cwd": _deeper(local.cwd, remote.cwd),
                 "last_message": local.last_message or remote.last_message,
                 "capabilities": local.capabilities.model_copy(update={"conversation": True}),
             }
