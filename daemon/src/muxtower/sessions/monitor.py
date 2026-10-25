@@ -143,8 +143,10 @@ class Monitor:
             live.screen = ScreenState(classification, text, since, ansi)
             pid = pane.pid if pane else 0
             remote_id = self.processes.remote_id(pid) if self.processes and pid else None
-            if remote_id != live.remote_id:
-                live.remote_id = remote_id
+            transcript = self.processes.transcript(pid) if self.processes and pid else None
+            alt_screen = bool(pane and pane.alternate)
+            if (remote_id, transcript, alt_screen) != (live.remote_id, live.transcript, live.alt_screen):
+                live.remote_id, live.transcript, live.alt_screen = remote_id, transcript, alt_screen
                 result.sessions_changed = True
 
             entered = svc.refresh(record, live, before.state)

@@ -94,9 +94,10 @@ class SessionService:
             tmux_session=record.tmux_session,
             tmux_pane=record.pane.pane_id,
             remote_id=live.remote_id,
+            alt_screen=live.alt_screen,
             capabilities=Capabilities(
                 screen=True,
-                conversation=False,
+                conversation=live.transcript is not None,  # read from its transcript
                 keys=[],
                 resize=True,
                 rename=True,
@@ -116,6 +117,9 @@ class SessionService:
 
     def list(self) -> list[Session]:
         return [self.view(r) for r in self.repo.list()]
+
+    def transcript_of(self, session_id: str) -> str | None:
+        return self.live_of(session_id).transcript
 
     def get(self, session_id: str) -> Session:
         return self.view(self.record(session_id))

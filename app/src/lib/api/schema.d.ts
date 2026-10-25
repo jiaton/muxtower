@@ -748,6 +748,12 @@ export interface components {
         };
         /** Session */
         Session: {
+            /**
+             * Alt Screen
+             * @description draws full screen (alternate screen): tmux keeps no scrollback, see the conversation
+             * @default false
+             */
+            alt_screen: boolean;
             /** Auto Approve */
             auto_approve: boolean;
             /** Can Auto Approve */

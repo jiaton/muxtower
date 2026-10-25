@@ -1,5 +1,5 @@
+from muxtower.claude_conversation import ConversationBuilder
 from muxtower.sessions.models import ConversationItemKind as K
-from muxtower.sources.remote_control.conversation import ConversationBuilder
 from tests.rc_fakes import answered, assistant, permission, tool_result, user
 
 

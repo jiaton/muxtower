@@ -12,6 +12,7 @@ class PaneInfo:
     pid: int = 0  # the pane's process; with pane_id it identifies a pane across tmux server restarts
     server: str = ""  # the tmux server's socket path: two socket names can lead to the same server
     activity: int = 0  # when the window last had output (epoch seconds), 0 if unknown
+    alternate: bool = False  # a full-screen program draws on the alternate screen: tmux keeps no scrollback
 
 
 @dataclass(frozen=True)

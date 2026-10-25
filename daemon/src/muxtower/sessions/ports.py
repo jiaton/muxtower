@@ -51,6 +51,10 @@ class ClaudeProcessPort(Protocol):
         """Claude Code processes on this machine with Remote Control on, by remote session id."""
         ...
 
+    def transcript(self, pane_pid: int) -> str | None:
+        """The transcript file of the Claude Code session running in this pane, if any."""
+        ...
+
 
 class SessionSourcePort(Protocol):
     """Sessions muxtower reaches other than through local tmux (e.g. Remote Control). A source owns

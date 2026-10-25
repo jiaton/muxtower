@@ -1,4 +1,5 @@
-"""Remote Control event log → conversation items (pure; no I/O).
+"""Claude Code's event log → conversation items (pure; no I/O). Shared by Remote Control (its event log)
+and local transcripts (`~/.claude/projects/…/<session>.jsonl`, the same events, one per line).
 
 Claude Code's stream-json events: `user` (prompts and tool results), `assistant` (prose and tool
 calls), `control_request` from the worker (`can_use_tool`: a permission prompt; AskUserQuestion and
@@ -12,7 +13,17 @@ from typing import Any
 
 from muxtower.agent_text import describe_tool_input
 from muxtower.sessions.models import ConversationItem, ConversationItemKind, ItemStatus
-from muxtower.sources.remote_control.ports import RawEvent
+
+
+@dataclass(frozen=True)
+class RawEvent:
+    """One event of a session's log, unwrapped from its transport (an API envelope, a transcript line)."""
+
+    seq: int
+    created_at: str | None
+    source: str | None  # "worker" (Claude Code) or "client" (a controller: claude.ai, the apps, us)
+    payload: dict[str, Any] = field(default_factory=dict)
+
 
 # A single event can produce several items (prose + tool calls); item seq = event seq * SLOTS + index.
 SLOTS = 16
