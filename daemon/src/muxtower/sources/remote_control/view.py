@@ -4,10 +4,10 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from muxtower.claude_conversation import ConversationBuilder
 from muxtower.runtimes.models import ATTENTION_STATES, AgentState, Option
 from muxtower.sessions.models import Capabilities, PendingAction, Session, StateSource, TurnSummary
 from muxtower.sessions.ports import SessionSource
-from muxtower.sources.remote_control.conversation import ConversationBuilder
 from muxtower.sources.remote_control.folder import WorkingFolder
 
 KEYS = ["Escape"]  # interrupt; anything else would need a terminal

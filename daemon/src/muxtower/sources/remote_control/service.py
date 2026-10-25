@@ -15,11 +15,11 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any
 
+from muxtower.claude_conversation import PendingRequest
 from muxtower.errors import Conflict, Invalid, NotFound, Unavailable
 from muxtower.infra.bus import EventBus
 from muxtower.runtimes.models import AgentState
 from muxtower.sessions.models import Conversation, ConversationItem, Session
-from muxtower.sources.remote_control.conversation import PendingRequest
 from muxtower.sources.remote_control.ports import RawEvent, RemoteControlPort
 from muxtower.sources.remote_control.view import KEYS, RcSession, to_session
 

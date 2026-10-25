@@ -710,6 +710,12 @@
       },
       "Session": {
         "properties": {
+          "alt_screen": {
+            "default": false,
+            "description": "draws full screen (alternate screen): tmux keeps no scrollback, see the conversation",
+            "title": "Alt Screen",
+            "type": "boolean"
+          },
           "auto_approve": {
             "title": "Auto Approve",
             "type": "boolean"
