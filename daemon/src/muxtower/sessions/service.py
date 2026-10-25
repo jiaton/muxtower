@@ -7,7 +7,7 @@ import secrets
 import time
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from muxtower.errors import Conflict, Invalid, NotFound, Unauthorized
@@ -68,6 +68,8 @@ class SessionService:
             if raw:
                 live.hook = HookState.load(raw)
                 live.last_message = live.hook.last_message
+                # Last active when its last hook fired, not when this daemon started.
+                live.updated_at = datetime.now(UTC) - timedelta(seconds=time.monotonic() - live.hook.at)
         return live
 
     def effective(self, record: SessionRecord) -> Effective:
