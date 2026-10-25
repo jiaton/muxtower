@@ -440,6 +440,18 @@
         "title": "ItemStatus",
         "type": "string"
       },
+      "MarkRead": {
+        "properties": {
+          "read": {
+            "default": true,
+            "description": "false marks it unread, to come back to",
+            "title": "Read",
+            "type": "boolean"
+          }
+        },
+        "title": "MarkRead",
+        "type": "object"
+      },
       "Me": {
         "properties": {
           "daemon_name": {
@@ -718,6 +730,19 @@
             "title": "Cwd",
             "type": "string"
           },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "when it last finished a turn",
+            "title": "Finished At"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -880,6 +905,7 @@
           },
           "unread": {
             "default": false,
+            "description": "finished a turn (or has news) since the owner last looked, or marked unread",
             "title": "Unread",
             "type": "boolean"
           },
@@ -2114,6 +2140,52 @@
           }
         },
         "summary": "Send Input",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/read": {
+      "post": {
+        "description": "A client looks at the session (sent on opening and every few seconds while open), or the owner marks\nit unread to come back to.",
+        "operationId": "mark_read_v1_sessions__session_id__read_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkRead"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Mark Read",
         "tags": [
           "sessions"
         ]

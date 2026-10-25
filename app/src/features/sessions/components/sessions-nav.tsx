@@ -1,10 +1,10 @@
 import { Link, useSearch } from '@tanstack/react-router'
-import { ChevronRight, CircleAlert, Folder, Layers, LoaderCircle, Monitor } from 'lucide-react'
+import { ChevronRight, CircleAlert, CircleCheck, Folder, Layers, LoaderCircle, Monitor } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { NavCount, NavSection, navItemClass, navSubItemClass } from '@/components/ui/nav'
 import { cn } from '@/lib/cn'
 import { shortFolderNames } from '../model/facets'
-import { facetsOf, toggleable, VIEW_LABEL, type DeviceFacet, type View } from '../model/query'
+import { facetsOf, toggleable, VIEW_LABEL, VIEWS, type DeviceFacet, type View } from '../model/query'
 import { isCurrentScope, parseListSearch, scopeSearch, type ListSearch, type Scope } from '../model/search'
 import { useSessionEntries } from '../hooks/use-session-entries'
 import { useListPrefs } from '../store'
@@ -39,7 +39,7 @@ function ScopeLink({
   )
 }
 
-const VIEW_ICONS: Record<View, typeof Layers> = { all: Layers, needs: CircleAlert, working: LoaderCircle }
+const VIEW_ICONS: Record<View, typeof Layers> = { all: Layers, needs: CircleAlert, unread: CircleCheck, working: LoaderCircle }
 const FOLDERS_SHOWN = 5
 
 /** A device and, unless folded, its folders. */
@@ -104,13 +104,13 @@ export function SessionsNav() {
   return (
     <nav aria-label="Sessions" className="flex flex-col gap-4">
       <NavSection title="Sessions">
-        {(['all', 'needs', 'working'] as const).map((view) => {
+        {VIEWS.map((view) => {
           const Icon = VIEW_ICONS[view]
           return (
             <ScopeLink key={view} search={search} scope={{ view }} className={navItemClass}>
               <Icon aria-hidden />
               <span className="truncate">{VIEW_LABEL[view]}</span>
-              <NavCount count={facets.views[view]} alert={view === 'needs'} />
+              <NavCount count={facets.views[view]} alert={view === 'needs'} accent={view === 'unread'} />
             </ScopeLink>
           )
         })}

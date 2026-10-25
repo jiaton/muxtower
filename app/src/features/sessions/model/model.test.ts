@@ -84,6 +84,16 @@ describe('query', () => {
     expect(groups[1].implies).toEqual({ device: true, folder: true })
   })
 
+  it('puts finished turns nobody has looked at between what needs you and what works', () => {
+    const withNews = [...entries, entry('finished', { unread: true, updated_at: '2026-10-25T09:45:00Z' })]
+    expect(statusOf(withNews.at(-1)!.session)).toBe('unread')
+    expect(groupEntries(withNews, 'status').map((g) => g.label)).toEqual(['Assistant', 'Needs you', 'Finished, unread', 'Working', 'Idle'])
+    expect(filterEntries(withNews, { view: 'unread', group: 'status' }).map((e) => e.session.id)).toEqual(['finished'])
+    expect(facetsOf(withNews).views.unread).toBe(1)
+    // busy wins: it is working on the next turn already
+    expect(statusOf(entry('a', { unread: true, state: 'busy' }).session)).toBe('working')
+  })
+
   it('groups by source', () => {
     expect(groupEntries(entries, 'source').map((g) => g.label)).toEqual(['Assistant', 'tmux', 'Remote Control'])
   })
@@ -99,7 +109,7 @@ describe('query', () => {
 
   it('counts views, devices with their folders, and sources, without the assistant', () => {
     const facets = facetsOf(entries)
-    expect(facets.views).toEqual({ all: 6, needs: 2, working: 1 })
+    expect(facets.views).toEqual({ all: 6, needs: 2, unread: 0, working: 1 })
     expect(facets.devices.map(({ label, count, needs }) => ({ label, count, needs }))).toEqual([
       { label: 'hub', count: 5, needs: 2 },
       { label: OTHER_DEVICES, count: 1, needs: 0 },

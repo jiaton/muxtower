@@ -13,14 +13,14 @@ export const navItemClass = cn(
 /** A second-level entry (a folder under its device): smaller, indented past the parent's icon. */
 export const navSubItemClass = cn(navItemClass, 'h-8 pl-9 text-xs [&_svg]:size-3.5')
 
-/** The trailing count of a navigation entry; `alert` when some need attention. */
-export function NavCount({ count, alert }: { count: number; alert?: boolean }) {
+/** The trailing count of a navigation entry; `alert` when some need attention, `accent` for news. */
+export function NavCount({ count, alert, accent }: { count: number; alert?: boolean; accent?: boolean }) {
   if (!count) return null
   return (
     <span
       className={cn(
         'ml-auto min-w-5 rounded-full px-1.5 text-center text-xs tabular-nums',
-        alert ? 'bg-state-permission font-semibold text-bg' : 'text-fg-muted',
+        alert ? 'bg-state-permission font-semibold text-bg' : accent ? 'bg-accent font-semibold text-accent-fg' : 'text-fg-muted',
       )}
     >
       {count}
