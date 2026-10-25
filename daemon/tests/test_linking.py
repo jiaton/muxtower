@@ -116,3 +116,17 @@ def test_sessions_on_the_hub_carry_its_name_and_their_folder(tmp_path: Path) -> 
     away = next(s for s in by_name.values() if s.id == "cse_away")
     assert (here.machine, here.cwd) == ("hub", "/srv/app")
     assert (away.machine, away.cwd) == (None, "")
+
+
+def test_a_pane_without_hooks_starts_from_its_windows_last_output(tmp_path: Path) -> None:
+    tmux = FakeTmux()
+    pane = tmux.add_pane("default", "old", "claude")
+    pane.info = dataclasses.replace(pane.info, activity=1_700_000_000)
+    settings = load_settings(
+        config_file=tmp_path / "none.toml", env={},
+        overrides={"state_dir": tmp_path / "s", "config_dir": tmp_path / "c", "serve_ui": False},
+    )  # fmt: skip
+    app = create_app(settings, tmux=tmux, run_loops=False)
+    Monitor(app.state.sessions).tick()
+    (session,) = app.state.sessions.list()
+    assert session.updated_at.timestamp() == 1_700_000_000
