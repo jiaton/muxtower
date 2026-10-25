@@ -1,5 +1,5 @@
 """In-process pub/sub. Topics: "sessions" (list changed), "screen:<id>" (a watched screen changed),
-"attention:<id>" (a session entered an attention state)."""
+"attention:<id>" (a session entered an attention state), "done:<id>" (a session finished a turn)."""
 
 import asyncio
 from collections import defaultdict

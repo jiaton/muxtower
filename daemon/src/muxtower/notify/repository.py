@@ -14,13 +14,14 @@ class SqliteSubscriptionRepository:
         with self.db.connect() as conn:
             conn.execute(
                 """INSERT INTO push_subscriptions
-                       (id, endpoint, p256dh, auth, client_ref, states, muted, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                       (id, endpoint, p256dh, auth, client_ref, states, done, muted, created_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(id) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth,
-                       client_ref = excluded.client_ref, states = excluded.states, muted = excluded.muted""",
+                       client_ref = excluded.client_ref, states = excluded.states, done = excluded.done,
+                       muted = excluded.muted""",
                 (
                     sub_id, body.endpoint, body.keys.p256dh, body.keys.auth, body.client_ref,
-                    json.dumps([s.value for s in body.states]), json.dumps(body.muted),
+                    json.dumps([s.value for s in body.states]), int(body.done), json.dumps(body.muted),
                     datetime.now(UTC).isoformat(),
                 ),
             )  # fmt: skip
@@ -33,6 +34,7 @@ class SqliteSubscriptionRepository:
                 id=r["id"],
                 client_ref=r["client_ref"],
                 states=json.loads(r["states"]),
+                done=bool(r["done"]),
                 muted=json.loads(r["muted"]),
                 endpoint=r["endpoint"],
                 p256dh=r["p256dh"],

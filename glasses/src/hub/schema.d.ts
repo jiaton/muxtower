@@ -853,6 +853,12 @@ export interface components {
              * @description opaque; echoed in every push (the app's daemon id)
              */
             client_ref: string;
+            /**
+             * Done
+             * @description also notify when a session finishes a turn
+             * @default true
+             */
+            done: boolean;
             /** Endpoint */
             endpoint: string;
             keys: components["schemas"]["SubscriptionKeys"];
@@ -868,6 +874,11 @@ export interface components {
         Subscription: {
             /** Client Ref */
             client_ref: string;
+            /**
+             * Done
+             * @default true
+             */
+            done: boolean;
             /** Id */
             id: string;
             /** Muted */

@@ -13,6 +13,7 @@ interface PushPayload {
   client_ref: string
   session_id: string
   session_name: string
+  kind?: 'attention' | 'done'
   title: string
   body: string
 }
@@ -27,12 +28,17 @@ self.addEventListener('push', (event) => {
   if (!data) return
   const url = `${appBase()}d/${encodeURIComponent(data.client_ref)}/s/${encodeURIComponent(data.session_id)}`
   event.waitUntil(
+    // One notification per session: a newer one replaces it (a finished turn replaces a handled
+    // approval) and alerts again. Something waiting for you stays on screen until dismissed.
     self.registration.showNotification(data.title, {
       body: data.body,
       tag: `${data.client_ref}:${data.session_id}`,
+      renotify: true,
+      requireInteraction: data.kind !== 'done',
+      timestamp: Date.now(),
       data: { url },
       icon: `${appBase()}icon.svg`,
-    }),
+    } as NotificationOptions),
   )
 })
 

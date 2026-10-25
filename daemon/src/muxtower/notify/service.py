@@ -1,23 +1,18 @@
 import asyncio
 import hashlib
 import logging
-from typing import Any
+from collections.abc import Callable
+from typing import Any, Literal
 
 from muxtower.infra.bus import EventBus
 from muxtower.notify.models import PushPayload, Subscribe, Subscription
-from muxtower.notify.ports import PushSender, SubscriptionRepository
+from muxtower.notify.ports import PushSender, StoredSubscription, SubscriptionRepository
+from muxtower.notify.text import attention_text, done_text
 from muxtower.runtimes.models import AgentState
 from muxtower.sessions.directory import SessionDirectory
+from muxtower.sessions.models import Session, SessionRole
 
 logger = logging.getLogger("muxtower.push")
-
-TITLES = {
-    AgentState.NEEDS_PERMISSION: "Approval needed",
-    AgentState.NEEDS_ANSWER: "Question for you",
-    AgentState.NEEDS_TRUST: "Trust prompt",
-    AgentState.PLAN_REVIEW: "Plan ready for review",
-    AgentState.ERROR: "Agent error",
-}
 
 
 class PushService:
@@ -32,25 +27,38 @@ class PushService:
     def subscribe(self, body: Subscribe) -> Subscription:
         sub_id = hashlib.sha256(body.endpoint.encode()).hexdigest()[:24]
         self.repo.upsert(sub_id, body)
-        return Subscription(id=sub_id, client_ref=body.client_ref, states=body.states, muted=body.muted)
+        return Subscription(id=sub_id, client_ref=body.client_ref, states=body.states, done=body.done, muted=body.muted)
 
     def unsubscribe(self, sub_id: str) -> bool:
         return self.repo.delete(sub_id)
 
     def notify(self, session_id: str) -> int:
+        """A session entered a state that needs the owner."""
         view = self.sessions.find(session_id)
         if view is None or not view.needs_attention:
             return 0
-        detail = view.pending.detail if view.pending and view.pending.detail else None
-        body = f"{view.name}: {detail}" if detail else view.name
+        title, body = attention_text(view)
+        return self._send(view, "attention", title, body, lambda sub: view.state in sub.states)
+
+    def notify_done(self, session_id: str) -> int:
+        """A session finished a turn. Not for the assistant: its replies are the conversation itself."""
+        view = self.sessions.find(session_id)
+        if view is None or view.needs_attention or view.state == AgentState.BUSY or view.role == SessionRole.CONCIERGE:
+            return 0
+        title, body = done_text(view)
+        return self._send(view, "done", title, body, lambda sub: sub.done)
+
+    def _send(
+        self, view: Session, kind: Literal["attention", "done"], title: str, body: str,
+        wants: Callable[[StoredSubscription], bool],
+    ) -> int:  # fmt: skip
         sent = 0
         for sub in self.repo.list():
-            if view.state not in sub.states or session_id in sub.muted:
+            if not wants(sub) or view.id in sub.muted:
                 continue
             payload = PushPayload(
-                client_ref=sub.client_ref, daemon_name=self.daemon_name, session_id=session_id,
-                session_name=view.name, state=view.state, title=TITLES.get(view.state, "muxtower"),
-                body=body[:240],
+                client_ref=sub.client_ref, daemon_name=self.daemon_name, session_id=view.id,
+                session_name=view.name, state=view.state, kind=kind, title=title[:80], body=body[:300],
             )  # fmt: skip
             if self.sender.send(sub, payload.model_dump_json()):
                 sent += 1
@@ -61,9 +69,11 @@ class PushService:
     async def run_loop(self, bus: EventBus) -> None:
         queue: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
         bus.subscribe("attention:*", queue)
+        bus.subscribe("done:*", queue)
         while True:
             topic, _ = await queue.get()
+            kind, session_id = topic.split(":", 1)
             try:
-                await asyncio.to_thread(self.notify, topic.split(":", 1)[1])
+                await asyncio.to_thread(self.notify if kind == "attention" else self.notify_done, session_id)
             except Exception:
                 logger.exception("push dispatch failed")
