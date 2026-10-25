@@ -141,9 +141,6 @@ class Monitor:
                 if ansi is not None and (previous is None or previous.ansi != ansi):
                     result.screens[record.id] = ansi
             live.screen = ScreenState(classification, text, since, ansi)
-            if first_sight and live.hook is None and pane and pane.activity:
-                # Without hooks, the window's last output is the best guess at when it was last active.
-                live.updated_at = datetime.fromtimestamp(pane.activity, UTC)
             pid = pane.pid if pane else 0
             remote_id = self.processes.remote_id(pid) if self.processes and pid else None
             if remote_id != live.remote_id:
@@ -151,6 +148,10 @@ class Monitor:
                 result.sessions_changed = True
 
             entered = svc.refresh(record, live, before.state)
+            if first_sight and live.hook is None and pane and pane.activity:
+                # Without hooks, the window's last output is the best guess at when it was last active
+                # (after refresh, which stamps a first state as changed now).
+                live.updated_at = datetime.fromtimestamp(pane.activity, UTC)
             after = live.effective
             if after != before:
                 result.sessions_changed = True
