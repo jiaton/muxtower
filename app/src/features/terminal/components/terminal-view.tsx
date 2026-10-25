@@ -1,4 +1,4 @@
-import { ArrowDown, LoaderCircle } from 'lucide-react'
+import { ArrowDown, LoaderCircle, MoveHorizontal } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ansiToLines } from '@/lib/ansi'
@@ -12,6 +12,8 @@ interface Props {
   loadingMore?: boolean
   /** Called with the cols/rows that fit this view (only when fitting). */
   onFit?: (size: { cols: number; rows: number }) => void
+  /** Offered when lines are wider than the view and it is not fitting: turn fitting on. */
+  onFitRequest?: () => void
 }
 
 const BOTTOM_SLACK = 24
@@ -22,13 +24,14 @@ const BOTTOM_SLACK = 24
  * the top or older lines added on top are removed/inserted, and the scroll position is corrected by
  * their height so the reader's place never jumps. At the bottom, the view follows new output.
  */
-export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit }: Props) {
+export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, onFitRequest }: Props) {
   const scroller = useRef<HTMLDivElement>(null)
   const body = useRef<HTMLDivElement>(null)
-  const probe = useRef<HTMLSpanElement>(null)
+  const probe = useRef<HTMLDivElement>(null)
   const shown = useRef<string[]>([])
   const atBottom = useRef(true)
   const [behind, setBehind] = useState(false)
+  const [tooWide, setTooWide] = useState(false)
   const lines = useMemo(() => (ansi === undefined ? null : ansiToLines(ansi.replace(/\n+$/, ''))), [ansi])
 
   useLayoutEffect(() => {
@@ -75,6 +78,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit }:
     }
     shown.current = lines
 
+    setTooWide(box.scrollWidth > box.clientWidth + 2)
     if (atBottom.current) box.scrollTop = box.scrollHeight
     else {
       box.scrollTop += delta
@@ -82,7 +86,8 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit }:
     }
   }, [lines])
 
-  // Fit: how many characters and lines this box shows at the current font size.
+  // Fit: how many cells across and lines down this box shows at the current font size. The probe is one
+  // line of ten cells in the same font and line height as the output.
   useEffect(() => {
     const box = scroller.current
     if (!box || !onFit) return
@@ -90,11 +95,12 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit }:
     const measure = () => {
       clearTimeout(timer)
       timer = setTimeout(() => {
-        const char = probe.current!.getBoundingClientRect()
+        const line = probe.current!.getBoundingClientRect()
         const style = getComputedStyle(box)
         const width = box.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
-        const cols = Math.max(20, Math.floor(width / (char.width / 10)))
-        const rows = Math.min(200, Math.max(5, Math.floor(box.clientHeight / char.height)))
+        const height = box.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
+        const cols = Math.max(20, Math.floor((width - 1) / (line.width / 10)))
+        const rows = Math.min(200, Math.max(5, Math.floor(height / line.height)))
         onFit({ cols, rows })
       }, 250)
     }
@@ -115,7 +121,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit }:
   }
 
   return (
-    <div className="relative flex h-[70dvh] min-h-72 shrink-0 flex-col overflow-hidden rounded-md bg-terminal-bg">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-terminal-bg">
       {loadingMore ? (
         <p className="absolute inset-x-0 top-0 z-10 flex items-center justify-center gap-2 bg-terminal-bg py-1 text-xs text-terminal-fg">
           <LoaderCircle className="size-3 animate-spin" aria-hidden /> Loading older output…
@@ -130,11 +136,16 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit }:
         aria-label="Session output"
         tabIndex={0}
       >
-        <span ref={probe} aria-hidden className="pointer-events-none invisible absolute">
+        <div ref={probe} aria-hidden className="pointer-events-none invisible absolute w-max">
           MMMMMMMMMM
-        </span>
+        </div>
         <div ref={body} />
       </div>
+      {tooWide && onFitRequest && !onFit ? (
+        <Button size="sm" variant="secondary" className="absolute top-2 right-3 shadow-card" onClick={onFitRequest}>
+          <MoveHorizontal /> Fit width
+        </Button>
+      ) : null}
       {behind ? (
         <Button
           size="sm"

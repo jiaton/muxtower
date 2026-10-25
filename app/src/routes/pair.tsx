@@ -16,15 +16,21 @@ function PairPage() {
     return found
   })
 
-  if (!targets.length)
-    return <EmptyState title="This pairing link is empty or broken">Ask for a new one with `muxtower pair`.</EmptyState>
   return (
-    <Card className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-xl font-semibold">Pair this device</h1>
-        <p className="text-sm text-fg-muted">Each daemon gives this device its own token, which you can revoke later.</p>
+    <div className="flex flex-1 items-start justify-center overflow-y-auto p-4 md:items-center">
+      <div className="w-full max-w-md">
+        {targets.length ? (
+          <Card className="flex flex-col gap-4">
+            <div>
+              <h1 className="text-xl font-semibold">Pair this device</h1>
+              <p className="text-sm text-fg-muted">Each daemon gives this device its own token, which you can revoke later.</p>
+            </div>
+            <PairClaim targets={targets} onDone={() => void navigate({ to: '/' })} />
+          </Card>
+        ) : (
+          <EmptyState title="This pairing link is empty or broken">Ask for a new one with `muxtower pair`.</EmptyState>
+        )}
       </div>
-      <PairClaim targets={targets} onDone={() => void navigate({ to: '/' })} />
-    </Card>
+    </div>
   )
 }

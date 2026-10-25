@@ -1,37 +1,75 @@
-import { Link, Outlet, createRootRoute } from '@tanstack/react-router'
-import { Inbox, Server } from 'lucide-react'
+import { Link, Outlet, createRootRoute, useMatch } from '@tanstack/react-router'
+import { Layers, Plus, Server } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { navItemClass, tabItemClass } from '@/components/ui/nav'
+import { NewSessionDialog } from '@/features/sessions/components/new-session-dialog'
+import { SessionsNav } from '@/features/sessions/components/sessions-nav'
+import { useListMemory } from '@/features/sessions/store'
 import { useDaemonStreams, useRecheckRejected } from '@/lib/api/streams'
+import { cn } from '@/lib/cn'
 import { useConfiguredDaemons } from '@/lib/runtime-config'
 import { useColorScheme } from '@/lib/use-color-scheme'
 
 export const Route = createRootRoute({ component: RootLayout })
 
-const navLink =
-  'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-fg-muted hover:text-fg [&.active]:bg-surface-muted [&.active]:text-fg [&_svg]:size-4'
-
+/**
+ * The app shell. From `lg`: a sidebar (sessions by view, device and folder; daemons). Below: a bottom
+ * tab bar, hidden while a session is open on a phone (the session page has its own back and input).
+ */
 function RootLayout() {
   useColorScheme()
   useConfiguredDaemons()
   useDaemonStreams()
   useRecheckRejected()
+  const inSession = useMatch({ from: '/_sessions/d/$daemonId/s/$sessionId', shouldThrow: false }) !== undefined
+  const lastSearch = useListMemory((s) => s.lastSearch)
+
   return (
-    <div className="mx-auto flex h-dvh max-w-3xl flex-col pt-[env(safe-area-inset-top)]">
-      <header className="flex items-center gap-2 border-b border-border px-4 py-2.5">
-        <Link to="/" className="mr-auto font-mono font-semibold">
-          muxtower
-        </Link>
-        <nav className="flex gap-1" aria-label="Main">
-          <Link to="/" className={navLink} activeOptions={{ exact: true }}>
-            <Inbox aria-hidden /> Inbox
+    <div className="flex h-dvh overflow-hidden pt-[env(safe-area-inset-top)]">
+      <aside className="hidden w-56 shrink-0 flex-col border-r border-border bg-surface lg:flex xl:w-64" aria-label="Navigation">
+        <div className="flex h-14 shrink-0 items-center gap-2 px-4">
+          <Link to="/" className="font-mono font-semibold">
+            muxtower
           </Link>
-          <Link to="/daemons" className={navLink}>
+          <div className="ml-auto">
+            <NewSessionDialog
+              trigger={
+                <Button variant="ghost" size="icon-sm" aria-label="New session" title="New session">
+                  <Plus />
+                </Button>
+              }
+            />
+          </div>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
+          <SessionsNav />
+        </div>
+        <div className="shrink-0 border-t border-border p-2">
+          <Link to="/daemons" className={navItemClass}>
+            <Server aria-hidden /> Daemons
+          </Link>
+        </div>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <main className="flex min-h-0 flex-1">
+          <Outlet />
+        </main>
+        <nav
+          aria-label="Main"
+          className={cn(
+            'shrink-0 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden',
+            inSession ? 'hidden md:flex' : 'flex',
+          )}
+        >
+          <Link to="/" search={lastSearch} className={tabItemClass} activeOptions={{ includeSearch: false }}>
+            <Layers aria-hidden /> Sessions
+          </Link>
+          <Link to="/daemons" className={tabItemClass}>
             <Server aria-hidden /> Daemons
           </Link>
         </nav>
-      </header>
-      <main className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-        <Outlet />
-      </main>
+      </div>
     </div>
   )
 }

@@ -3,6 +3,7 @@
  * terminal tokens; 256-color and true-color codes are the agent's own choice and are passed through as
  * rgb() values (this file is allow-listed by scripts/check-tokens.mjs for that reason).
  */
+import { cellWidth, textCells } from './cell-width'
 
 interface Style {
   fg?: string
@@ -68,11 +69,50 @@ function applySgr(style: Style, params: number[]): Style {
 
 const escapeHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
+// ASCII is drawn by the monospace font itself; anything else may come from a fallback font of another
+// width, so it gets exactly the cells tmux gives it (see cell-width.ts): each wide character its own
+// two-cell box, centered like a terminal draws it, and each run of other non-ASCII one box its width.
+const NON_ASCII = /[^\x00-\x7f]+/g
+
+function cellsHtml(run: string): string {
+  let html = ''
+  let narrow = ''
+  const flush = () => {
+    if (narrow) html += `<span class="inline-block" style="width:${textCells(narrow)}ch">${escapeHtml(narrow)}</span>`
+    narrow = ''
+  }
+  for (const char of run) {
+    if (cellWidth(char.codePointAt(0)!) === 2) {
+      flush()
+      html += `<span class="inline-block w-[2ch] text-center">${escapeHtml(char)}</span>`
+    } else narrow += char
+  }
+  flush()
+  return html
+}
+
+/** Plain text → HTML in which non-ASCII text takes exactly its terminal cells. */
+export function gridHtml(text: string): string {
+  let html = ''
+  let at = 0
+  for (const match of text.matchAll(NON_ASCII)) {
+    html += escapeHtml(text.slice(at, match.index)) + cellsHtml(match[0])
+    at = match.index + match[0].length
+  }
+  return html + escapeHtml(text.slice(at))
+}
+
 function wrap(text: string, s: Style): string {
-  const html = escapeHtml(text)
+  const html = gridHtml(text)
   const fg = s.inverse ? (s.bg ?? 'var(--color-terminal-bg)') : s.fg
   const bg = s.inverse ? (s.fg ?? 'var(--color-terminal-fg)') : s.bg
-  const classes = [s.bold && 'font-semibold', s.dim && 'opacity-60', s.italic && 'italic', s.underline && 'underline', s.strike && 'line-through']
+  const classes = [
+    s.bold && 'font-semibold',
+    s.dim && 'opacity-60',
+    s.italic && 'italic',
+    s.underline && 'underline',
+    s.strike && 'line-through',
+  ]
     .filter(Boolean)
     .join(' ')
   const css = [fg && `color:${fg}`, bg && `background-color:${bg}`].filter(Boolean).join(';')
@@ -93,7 +133,13 @@ export function ansiToLines(text: string): string[] {
       lines.push(line)
       line = ''
     } else if (match[1] !== undefined) {
-      style = applySgr(style, match[1].split(/[;:]/).filter((x) => x !== '').map(Number))
+      style = applySgr(
+        style,
+        match[1]
+          .split(/[;:]/)
+          .filter((x) => x !== '')
+          .map(Number),
+      )
     } else if (token[0] !== '\x1b' && token !== '\r') {
       line += wrap(token, style)
     }
