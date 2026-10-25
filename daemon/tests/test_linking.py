@@ -96,7 +96,7 @@ def test_sessions_on_the_hub_carry_its_name_and_their_folder(tmp_path: Path) -> 
 
     class Running(FakeProcesses):
         def running(self) -> dict[str, ClaudeProcess]:
-            return {"cse_here": ClaudeProcess(pid=1, cwd="/srv/app")}
+            return {"cse_here": ClaudeProcess(pid=1, cwd="/srv/app", entrypoint="sdk-cli")}
 
     tmux = FakeTmux()
     tmux.add_pane("default", "work", "claude", cwd="/home/me/web")
@@ -122,6 +122,7 @@ def test_sessions_on_the_hub_carry_its_name_and_their_folder(tmp_path: Path) -> 
     here = next(s for s in by_name.values() if s.id == "cse_here")
     away = next(s for s in by_name.values() if s.id == "cse_away")
     assert (here.machine, here.cwd) == ("hub", "/srv/app/api")  # works inside the folder it started in
+    assert here.origin == "claude_code_sdk_cli"  # from the process file, not the listing
     assert (away.machine, away.cwd) == (None, "/srv/other")
 
 
@@ -137,3 +138,15 @@ def test_a_pane_without_hooks_starts_from_its_windows_last_output(tmp_path: Path
     Monitor(app.state.sessions).tick()
     (session,) = app.state.sessions.list()
     assert session.updated_at.timestamp() == 1_700_000_000
+
+
+def test_running_processes_carry_folder_and_entrypoint(tmp_path: Path) -> None:
+    sessions = tmp_path / "sessions"
+    sessions.mkdir()
+    me = os.getpid()  # alive, so it counts as running
+    (sessions / f"{me}.json").write_text(
+        json.dumps({"pid": me, "cwd": "/srv/app", "entrypoint": "cli", "bridgeSessionId": "session_abc"})
+    )
+    (sessions / "999999999.json").write_text(json.dumps({"pid": 999999999, "bridgeSessionId": "session_gone"}))
+    (process,) = ClaudeProcesses(tmp_path).running().values()
+    assert (process.cwd, process.origin) == ("/srv/app", "claude_code_cli")

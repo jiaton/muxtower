@@ -2,8 +2,10 @@
 
 Claude Code keeps a file per running process, `~/.claude/sessions/<pid>.json`, whose `bridgeSessionId`
 (`session_<id>`) is that process's Remote Control session (`cse_<id>` in the API). The pane's own process
-may be a shell, so its children are searched too. The file's `tmux` field is not used: workers spawned by
-`claude remote-control` inherit it from wherever the server was started."""
+may be a shell, so its children are searched too. The file also says how Claude Code was started
+(`entrypoint`: `cli`, `sdk-cli`, the desktop app or an IDE…), which is what the session's origin is. Its
+`tmux` field is not used: workers spawned by `claude remote-control` inherit it from wherever the server
+was started."""
 
 import json
 import os
@@ -22,6 +24,12 @@ RUNNING_TTL_SECONDS = 5.0
 class ClaudeProcess:
     pid: int
     cwd: str
+    entrypoint: str | None = None
+
+    @property
+    def origin(self) -> str | None:
+        """In the vocabulary of Remote Control's `origin` (claude_code_cli, claude_code_sdk_cli…)."""
+        return f"claude_code_{self.entrypoint.replace('-', '_')}" if self.entrypoint else None
 
 
 def _remote_id(info: object) -> str | None:
@@ -77,6 +85,9 @@ class ClaudeProcesses:
                 continue
             remote_id = _remote_id(info)
             if remote_id and Path(f"/proc/{pid}").exists():
-                found[remote_id] = ClaudeProcess(pid=pid, cwd=str(info.get("cwd") or ""))
+                entrypoint = info.get("entrypoint")
+                found[remote_id] = ClaudeProcess(
+                    pid=pid, cwd=str(info.get("cwd") or ""), entrypoint=str(entrypoint) if entrypoint else None
+                )
         self._running = (time.monotonic(), found)
         return found

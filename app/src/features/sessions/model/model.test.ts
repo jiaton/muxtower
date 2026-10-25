@@ -36,6 +36,9 @@ describe('facets', () => {
     // a tmux pane that also runs Remote Control is found in tmux
     expect(sourceOf(entry('a', { source: 'adopted', origin: 'claude_code_cli' }).session)).toBe('tmux')
     expect(sourceOf(entry('a', { source: 'remote_control', origin: 'claude_desktop' }).session)).toBe('Desktop app')
+    // the process file's entrypoint, as the daemon passes it on
+    expect(sourceOf(entry('a', { source: 'remote_control', origin: 'claude_code_sdk_cli' }).session)).toBe('SDK')
+    expect(sourceOf(entry('a', { source: 'remote_control', origin: 'claude_code_claude_vscode' }).session)).toBe('IDE')
   })
 
   it('names the device: the daemon machine, else the kind of machine the folder is on', () => {
