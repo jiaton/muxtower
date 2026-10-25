@@ -83,6 +83,9 @@ class SessionDirectory:
                 "origin": remote.origin,
                 "summary": remote.summary,
                 "unread": remote.unread,
+                # The remote log knows when the agent last did something; the local clock restarts
+                # with the daemon.
+                "updated_at": remote.updated_at,
                 "last_message": local.last_message or remote.last_message,
                 "capabilities": local.capabilities.model_copy(update={"conversation": True}),
             }

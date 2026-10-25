@@ -114,3 +114,20 @@ def test_one_server_under_two_socket_names_is_adopted_once(make_app, tmux: FakeT
     b.info = replace(b.info, pane_id="%7", server="same-server")
     app.state.monitor.tick()
     assert len(client.get("/v1/sessions", headers=auth).json()) == 1
+
+
+def test_last_activity_survives_a_restart(app: FastAPI) -> None:
+    import time as _time
+    from datetime import UTC, datetime
+
+    from muxtower.runtimes.models import AgentState
+    from muxtower.sessions.live import HookState
+    from muxtower.sessions.models import CreateSession
+
+    sessions = app.state.sessions
+    created = sessions.create(CreateSession(runtime="claude", cwd="/tmp"))  # noqa: S108
+    hook = HookState(AgentState.IDLE, at=_time.monotonic() - 3600, last_message="done")
+    sessions.repo.save_hook_state(created.id, hook.dump())
+    sessions.live.clear()  # as after a restart
+    age = datetime.now(UTC) - sessions.get(created.id).updated_at
+    assert 3590 < age.total_seconds() < 3700
