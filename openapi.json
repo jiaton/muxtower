@@ -1061,6 +1061,12 @@
             "title": "Client Ref",
             "type": "string"
           },
+          "done": {
+            "default": true,
+            "description": "also notify when a session finishes a turn",
+            "title": "Done",
+            "type": "boolean"
+          },
           "endpoint": {
             "pattern": "^https://",
             "title": "Endpoint",
@@ -1098,6 +1104,11 @@
           "client_ref": {
             "title": "Client Ref",
             "type": "string"
+          },
+          "done": {
+            "default": true,
+            "title": "Done",
+            "type": "boolean"
           },
           "id": {
             "title": "Id",

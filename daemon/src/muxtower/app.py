@@ -47,6 +47,7 @@ from muxtower.sessions.monitor import Monitor
 from muxtower.sessions.repository import SqliteSessionRepository
 from muxtower.sessions.routes import router as sessions_router
 from muxtower.sessions.service import SessionConfig, SessionService
+from muxtower.sessions.turns import TurnWatcher
 from muxtower.sources.remote_control.service import RemoteControlSource
 from muxtower.summaries.cli import ClaudeCodeSummarizer, CodexSummarizer
 from muxtower.summaries.ports import Summarizer
@@ -159,6 +160,7 @@ def create_app(
             loops = {
                 "monitor": monitor.run_loop(bus, settings.tick_seconds),
                 "push": push.run_loop(bus),
+                "turns": TurnWatcher().run_loop(bus, directory.list),
                 "auto-approve": AutoApprover(approvals, audit).run_loop(bus),
             }
             if summaries.available:
