@@ -40,7 +40,7 @@ class Monitor:
     def __init__(self, service: SessionService, processes: ClaudeProcessPort | None = None) -> None:
         self.service = service
         self.processes = processes
-        self._pane_pids: dict[tuple[str, str], int] = {}  # (socket, pane id) -> the pane's process
+        self._panes: dict[tuple[str, str], PaneInfo] = {}  # (socket, pane id) -> as last listed
         self._viewers: dict[str, list[int]] = defaultdict(list)  # session id -> history lines wanted
 
     # Viewers (open terminal views) make the loop also capture colors + scrollback for that session.
@@ -90,7 +90,7 @@ class Monitor:
                 seen.add(key)
                 panes.append(pane)
         alive = {(p.socket, p.pane_id) for p in panes}
-        self._pane_pids = {(p.socket, p.pane_id): p.pid for p in panes if p.pid}
+        self._panes = {(p.socket, p.pane_id): p for p in panes}
         changed = False
 
         known: set[tuple[str, str]] = set()
@@ -126,7 +126,9 @@ class Monitor:
             if text is None:
                 continue  # gone; the next reconcile drops it
             live = svc.live_of(record.id)
+            first_sight = live.screen is None
             before = svc.effective(record)
+            pane = self._panes.get((record.pane.socket, record.pane.pane_id))
 
             runtime = svc.runtime_of(record)
             classification = runtime.classify(text) if runtime else Classification(AgentState.UNKNOWN, None)
@@ -139,7 +141,10 @@ class Monitor:
                 if ansi is not None and (previous is None or previous.ansi != ansi):
                     result.screens[record.id] = ansi
             live.screen = ScreenState(classification, text, since, ansi)
-            pid = self._pane_pids.get((record.pane.socket, record.pane.pane_id))
+            if first_sight and live.hook is None and pane and pane.activity:
+                # Without hooks, the window's last output is the best guess at when it was last active.
+                live.updated_at = datetime.fromtimestamp(pane.activity, UTC)
+            pid = pane.pid if pane else 0
             remote_id = self.processes.remote_id(pid) if self.processes and pid else None
             if remote_id != live.remote_id:
                 live.remote_id = remote_id
