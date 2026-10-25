@@ -296,6 +296,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_id}/hide": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hide Session
+         * @description Hide it from the lists (`{"hidden": false}` shows it again); the same on every device.
+         */
+        post: operations["hide_session_v1_sessions__session_id__hide_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_id}/input": {
         parameters: {
             query?: never;
@@ -623,6 +643,14 @@ export interface components {
             /** Version */
             version: string;
         };
+        /** HideSession */
+        HideSession: {
+            /**
+             * Hidden
+             * @default true
+             */
+            hidden: boolean;
+        };
         /**
          * ItemStatus
          * @enum {string}
@@ -771,6 +799,12 @@ export interface components {
              * @description when it last finished a turn
              */
             finished_at?: string | null;
+            /**
+             * Hidden
+             * @description the owner hid it: kept out of the lists and done notifications
+             * @default false
+             */
+            hidden: boolean;
             /** Id */
             id: string;
             /** Last Message */
@@ -1535,6 +1569,39 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ApprovalResult"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    hide_session_v1_sessions__session_id__hide_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HideSession"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

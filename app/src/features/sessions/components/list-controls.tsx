@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { CheckCheck, Folder, ListFilter, Monitor, Rows3, Search, X } from 'lucide-react'
+import { CheckCheck, EyeOff, Folder, ListFilter, Monitor, Rows3, Search, X } from 'lucide-react'
 import { Fragment, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { cn } from '@/lib/cn'
 import { GROUPINGS, GROUP_LABEL, VIEWS, VIEW_LABEL, type Facets, type GroupBy, type SessionQuery } from '../model/query'
-import { useMarkRead } from '../api/use-mark-read'
+import { useMarkRead } from '../api/use-session-marks'
 import { folderName, shortFolderNames, type SessionEntry } from '../model/facets'
 import { scopeOf, scopeSearch, type ListSearch, type Scope } from '../model/search'
 import { useListPrefs } from '../store'
@@ -69,9 +69,9 @@ export function ViewTabs({
     <Segmented
       className={className}
       aria-label="Show"
-      value={scopeOf(query) ? ('none' as never) : query.view}
+      value={scopeOf(query) || query.view === 'hidden' ? ('none' as never) : query.view}
       onChange={(view) => void navigate({ to: '/', search: scopeSearch(search, { view }) })}
-      options={VIEWS.map((view) => ({
+      options={VIEWS.filter((view) => view !== 'hidden').map((view) => ({
         value: view,
         label: (
           <>
@@ -219,6 +219,15 @@ export function FilterMenu({
             )
           })}
         </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          disabled={!facets.views.hidden}
+          onSelect={() => void navigate({ to: '/', search: scopeSearch(search, { view: 'hidden' }) })}
+        >
+          <EyeOff className="text-fg-muted" aria-hidden />
+          <span className="min-w-0 flex-1 truncate">Hidden sessions</span>
+          {count(facets.views.hidden)}
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

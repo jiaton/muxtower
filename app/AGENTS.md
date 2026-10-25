@@ -43,7 +43,8 @@ Split before 250 lines or once a file mixes two domains.
 - Leaving a list and coming back lands where the reader was: the list stays mounted beside a session, and `useScrollMemory` restores the position per query when it shows again.
 - A page's secondary actions go in its "⋯" menu; features add entries through the menu's `items` slot (e.g. terminal settings into the session menu).
 - Sessions are classified only through `sessions/model/facets.ts` (status, device, folder, source); lists, filters and counts never re-derive them. Hierarchy is device → folder: `groupEntries` gives a device group `sections`, `facetsOf` gives each device its `folders`, and a group's `implies` tells rows what not to repeat.
-- Read state is the daemon's (`session.unread`, shared by all devices): `useSeenWhileOpen` reports the open session as read; `useMarkRead` (any daemon, optimistic) backs "Mark as unread" and "Mark … as read".
+- Read state and hiding are the daemon's (`session.unread`, `session.hidden`, shared by all devices): `useSeenWhileOpen` reports the open session as read; `useMarkRead` / `useHideSession` (any daemon, optimistic) back the actions.
+- What can be done to a session is defined once, in `SessionActions` (render prop + its dialogs); a list row offers it as a swipe tray (`SwipeActions`) and a hover menu, the session page as its "⋯" menu.
 - Sidebar entries mark themselves current from the list's search params (`isCurrentScope`, `data-current`), because the router alone cannot tell while a session is open.
 - The input bar is one row (keys toggle, message box, Send); `KeyPad` opens above it, laid out like a keyboard (arrows as an inverted T, Enter at the right edge). Keys fire on pointer down without taking focus, so the phone keyboard stays as it was.
 

@@ -43,8 +43,8 @@ from muxtower.origins import OriginPolicy
 from muxtower.runtimes.spec import load_runtimes
 from muxtower.sessions.claude_processes import ClaudeProcesses
 from muxtower.sessions.directory import SessionDirectory
+from muxtower.sessions.marks import SessionMarks, SqliteMarksRepository
 from muxtower.sessions.monitor import Monitor
-from muxtower.sessions.reads import Reads, SqliteReadRepository
 from muxtower.sessions.repository import SqliteSessionRepository
 from muxtower.sessions.routes import router as sessions_router
 from muxtower.sessions.service import SessionConfig, SessionService
@@ -144,11 +144,11 @@ def create_app(
     approvals = ApprovalService(sessions)
     terminal = TerminalService(sessions, monitor)
     summaries = build_summaries(settings, db)
-    reads = Reads(SqliteReadRepository(db))
+    marks = SessionMarks(SqliteMarksRepository(db))
     transcripts = Transcripts()
     directory = SessionDirectory(
         sessions, terminal, approvals, [remote_control] if remote_control else [], summaries, daemon_name, processes,
-        reads, transcripts,
+        marks, transcripts,
     )  # fmt: skip
     audit = AuditLog(db)
     concierge: ConciergeService | None = None
@@ -165,7 +165,7 @@ def create_app(
             loops = {
                 "monitor": monitor.run_loop(bus, settings.tick_seconds),
                 "push": push.run_loop(bus),
-                "turns": TurnWatcher(reads.finished).run_loop(bus, directory.list),
+                "turns": TurnWatcher(marks.finished).run_loop(bus, directory.list),
                 "transcripts": transcripts.run_loop(bus, directory.transcript_paths),
                 "auto-approve": AutoApprover(approvals, audit).run_loop(bus),
             }

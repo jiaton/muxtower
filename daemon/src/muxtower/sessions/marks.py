@@ -1,9 +1,15 @@
-"""Which finished turns the owner has not seen yet, across all their devices.
+"""What the owner did with a session, the same on all their devices: which finished turns they have not
+seen yet, and which sessions they hid.
 
+Read state:
 A session is unread when it finished a turn after anyone last looked at it, when its source says so
 (Remote Control keeps its own unread flag, shared with the Claude apps) for activity since then, or when
 the owner marked it unread to come back to. Looking at a session (a client says so while it is open)
-clears all three. Kept in memory, written through to SQLite.
+clears all three.
+
+Hidden: kept out of the lists and their counts (shown on their own), and out of "done" notifications.
+
+Kept in memory, written through to SQLite.
 """
 
 import sqlite3
@@ -16,15 +22,16 @@ from muxtower.infra.db import Database
 
 
 @dataclass(frozen=True)
-class ReadRecord:
+class Marks:
     finished_at: datetime | None = None
     seen_at: datetime | None = None
     marked_unread: bool = False
+    hidden: bool = False
 
 
-class ReadRepository(Protocol):
-    def load(self) -> dict[str, ReadRecord]: ...
-    def save(self, session_id: str, record: ReadRecord) -> None: ...
+class MarksRepository(Protocol):
+    def load(self) -> dict[str, Marks]: ...
+    def save(self, session_id: str, record: Marks) -> None: ...
 
 
 def _time(value: str | None) -> datetime | None:
@@ -35,42 +42,49 @@ def _text(value: datetime | None) -> str | None:
     return value.isoformat() if value else None
 
 
-class SqliteReadRepository:
+class SqliteMarksRepository:
     def __init__(self, db: Database) -> None:
         self.db = db
 
-    def load(self) -> dict[str, ReadRecord]:
-        def record(r: sqlite3.Row) -> ReadRecord:
-            return ReadRecord(_time(r["finished_at"]), _time(r["seen_at"]), bool(r["marked_unread"]))
+    def load(self) -> dict[str, Marks]:
+        def record(r: sqlite3.Row) -> Marks:
+            return Marks(_time(r["finished_at"]), _time(r["seen_at"]), bool(r["marked_unread"]), bool(r["hidden"]))
 
         with self.db.connect() as conn:
-            return {r["session_id"]: record(r) for r in conn.execute("SELECT * FROM session_reads")}
+            return {r["session_id"]: record(r) for r in conn.execute("SELECT * FROM session_marks")}
 
-    def save(self, session_id: str, record: ReadRecord) -> None:
+    def save(self, session_id: str, record: Marks) -> None:
         with self.db.connect() as conn:
             conn.execute(
-                """INSERT INTO session_reads (session_id, finished_at, seen_at, marked_unread) VALUES (?, ?, ?, ?)
+                """INSERT INTO session_marks (session_id, finished_at, seen_at, marked_unread, hidden)
+                   VALUES (?, ?, ?, ?, ?)
                    ON CONFLICT(session_id) DO UPDATE SET finished_at = excluded.finished_at,
-                       seen_at = excluded.seen_at, marked_unread = excluded.marked_unread""",
-                (session_id, _text(record.finished_at), _text(record.seen_at), int(record.marked_unread)),
+                       seen_at = excluded.seen_at, marked_unread = excluded.marked_unread, hidden = excluded.hidden""",
+                (
+                    session_id,
+                    _text(record.finished_at),
+                    _text(record.seen_at),
+                    int(record.marked_unread),
+                    int(record.hidden),
+                ),  # fmt: skip
             )
 
 
-class Reads:
-    def __init__(self, repo: ReadRepository) -> None:
+class SessionMarks:
+    def __init__(self, repo: MarksRepository) -> None:
         self.repo = repo
         self._lock = threading.Lock()
         self._records = repo.load()
 
     def _change(self, session_id: str, **changes: object) -> None:
         with self._lock:
-            record = replace(self._records.get(session_id, ReadRecord()), **changes)  # type: ignore[arg-type]
+            record = replace(self._records.get(session_id, Marks()), **changes)  # type: ignore[arg-type]
             self._records[session_id] = record
         self.repo.save(session_id, record)
 
-    def get(self, session_id: str) -> ReadRecord:
+    def get(self, session_id: str) -> Marks:
         with self._lock:
-            return self._records.get(session_id, ReadRecord())
+            return self._records.get(session_id, Marks())
 
     def finished(self, session_id: str, at: datetime | None = None) -> None:
         self._change(session_id, finished_at=at or datetime.now(UTC))
@@ -80,6 +94,9 @@ class Reads:
 
     def mark_unread(self, session_id: str) -> None:
         self._change(session_id, marked_unread=True)
+
+    def hide(self, session_id: str, hidden: bool) -> None:
+        self._change(session_id, hidden=hidden)
 
     def unread(self, session_id: str, source_unread: bool, active_at: datetime) -> bool:
         """`source_unread`: the source's own flag, about activity up to `active_at`."""
