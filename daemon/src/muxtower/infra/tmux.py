@@ -80,7 +80,21 @@ class TmuxCli:
         self._run(pane.socket, "send-keys", "-t", pane.pane_id, key)
 
     def resize(self, pane: PaneRef, cols: int, rows: int) -> None:
-        self._run(pane.socket, "resize-window", "-t", pane.pane_id, "-x", str(cols), "-y", str(rows))
+        """Size the *pane* to cols x rows. tmux sizes windows: the window gets the pane's size plus the
+        room its other panes (a split) take, then the pane itself is set, since tmux spreads a window
+        resize over all its panes."""
+        sizes = self._run(
+            pane.socket, "display-message", "-p", "-t", pane.pane_id,
+            "#{window_width} #{window_height} #{pane_width} #{pane_height}",
+        ).stdout.split()  # fmt: skip
+        extra_cols, extra_rows = 0, 0
+        if len(sizes) == 4 and all(v.isdigit() for v in sizes):
+            window_w, window_h, pane_w, pane_h = map(int, sizes)
+            extra_cols, extra_rows = window_w - pane_w, window_h - pane_h
+        width, height = str(cols + extra_cols), str(rows + extra_rows)
+        self._run(pane.socket, "resize-window", "-t", pane.pane_id, "-x", width, "-y", height)
+        if extra_cols or extra_rows:
+            self._run(pane.socket, "resize-pane", "-t", pane.pane_id, "-x", str(cols), "-y", str(rows), check=False)
 
     def release_size(self, pane: PaneRef) -> None:
         """Undo resize(): `resize-window -x/-y` pins the window to a manual size, which would keep a

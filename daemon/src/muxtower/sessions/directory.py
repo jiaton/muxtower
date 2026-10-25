@@ -11,7 +11,7 @@ from muxtower.approval.models import ApprovalResult
 from muxtower.approval.service import ApprovalService
 from muxtower.errors import Conflict, NotFound
 from muxtower.sessions.models import Conversation, Session, SessionRole, UpdateSession
-from muxtower.sessions.ports import SessionSourcePort
+from muxtower.sessions.ports import ClaudeProcessPort, SessionSource, SessionSourcePort
 from muxtower.sessions.service import SessionService
 from muxtower.summaries.service import SummaryService
 from muxtower.terminal.models import Resize, Screen, SendInput
@@ -35,12 +35,16 @@ class SessionDirectory:
         approvals: ApprovalService,
         sources: list[SessionSourcePort],
         summaries: SummaryService | None = None,
+        hub_name: str = "",
+        processes: ClaudeProcessPort | None = None,
     ) -> None:
         self.local = local
         self.terminal = terminal
         self.approvals = approvals
         self.sources = sources
         self.summaries = summaries
+        self.hub_name = hub_name
+        self.processes = processes
         self.concierge_id: str | None = None  # set by the concierge service once its session runs
 
     # --- reading ------------------------------------------------------------------------------
@@ -48,8 +52,15 @@ class SessionDirectory:
     def source_of(self, session_id: str) -> SessionSourcePort | None:
         return next((s for s in self.sources if s.owns(session_id)), None)
 
-    def _with_summary(self, session: Session) -> Session:
+    def _decorate(self, session: Session) -> Session:
+        """What the sources leave open: the machine (and folder) of everything that runs on this hub,
+        the reply summary, the concierge role."""
         update: dict[str, object] = {}
+        if session.source != SessionSource.REMOTE_CONTROL:
+            update["machine"] = self.hub_name or session.machine
+        elif self.processes and (process := self.processes.running().get(session.id)):
+            update["machine"] = self.hub_name or session.machine
+            update["cwd"] = session.cwd or process.cwd
         if self.summaries and (summary := self.summaries.lookup(session.last_message)):
             update["reply_summary"] = summary
         if self.concierge_id and session.id == self.concierge_id:
@@ -69,7 +80,6 @@ class SessionDirectory:
         return local.model_copy(
             update={
                 "name": remote.name,
-                "machine": remote.machine,
                 "origin": remote.origin,
                 "summary": remote.summary,
                 "unread": remote.unread,
@@ -85,15 +95,15 @@ class SessionDirectory:
         locals_ = self._locals()
         linked = {s.remote_id for s in locals_ if s.remote_id}
         remotes = [v for source in self.sources for v in source.views() if v.id not in linked]
-        return [self._with_summary(s) for s in locals_ + remotes]
+        return [self._decorate(s) for s in locals_ + remotes]
 
     def get(self, session_id: str) -> Session:
         source = self.source_of(session_id)
         if source is None:
-            return self._with_summary(self._linked(self.local.get(session_id)))
+            return self._decorate(self._linked(self.local.get(session_id)))
         # A remote id whose agent also runs in tmux here answers with the one merged entry.
         merged = next((s for s in self._locals() if s.remote_id == session_id), None)
-        return self._with_summary(merged or source.get(session_id))
+        return self._decorate(merged or source.get(session_id))
 
     def find(self, session_id: str) -> Session | None:
         try:

@@ -7,12 +7,28 @@ may be a shell, so its children are searched too. The file's `tmux` field is not
 
 import json
 import os
+import time
 from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
 
 SEARCH_DEPTH = 3
 BRIDGE_PREFIX = "session_"
 REMOTE_PREFIX = "cse_"
+RUNNING_TTL_SECONDS = 5.0
+
+
+@dataclass(frozen=True)
+class ClaudeProcess:
+    pid: int
+    cwd: str
+
+
+def _remote_id(info: object) -> str | None:
+    bridge = info.get("bridgeSessionId") if isinstance(info, dict) else None
+    if isinstance(bridge, str) and bridge.startswith(BRIDGE_PREFIX):
+        return REMOTE_PREFIX + bridge.removeprefix(BRIDGE_PREFIX)
+    return None
 
 
 def _children(pid: int) -> list[int]:
@@ -29,6 +45,7 @@ class ClaudeProcesses:
     def __init__(self, claude_dir: Path | None = None) -> None:
         home = claude_dir or Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
         self.sessions_dir = home / "sessions"
+        self._running: tuple[float, dict[str, ClaudeProcess]] = (0.0, {})
 
     def _family(self, pid: int, depth: int = SEARCH_DEPTH) -> Iterator[int]:
         yield pid
@@ -42,8 +59,24 @@ class ClaudeProcesses:
                 info = json.loads((self.sessions_dir / f"{pid}.json").read_text())
             except (OSError, ValueError):
                 continue
-            bridge = info.get("bridgeSessionId") if isinstance(info, dict) else None
-            if isinstance(bridge, str) and bridge.startswith(BRIDGE_PREFIX):
-                return REMOTE_PREFIX + bridge.removeprefix(BRIDGE_PREFIX)
-            return None  # the pane's Claude Code runs without Remote Control
+            return _remote_id(info)  # None: the pane's Claude Code runs without Remote Control
         return None
+
+    def running(self) -> dict[str, ClaudeProcess]:
+        """Every Claude Code process alive on this machine that runs Remote Control, by remote session
+        id, in tmux or not (e.g. workers of `claude remote-control`). Cached for a few seconds."""
+        at, found = self._running
+        if time.monotonic() - at < RUNNING_TTL_SECONDS:
+            return found
+        found = {}
+        for path in self.sessions_dir.glob("*.json"):
+            try:
+                info = json.loads(path.read_text())
+                pid = int(info.get("pid") or path.stem)
+            except (OSError, ValueError, AttributeError):
+                continue
+            remote_id = _remote_id(info)
+            if remote_id and Path(f"/proc/{pid}").exists():
+                found[remote_id] = ClaudeProcess(pid=pid, cwd=str(info.get("cwd") or ""))
+        self._running = (time.monotonic(), found)
+        return found
