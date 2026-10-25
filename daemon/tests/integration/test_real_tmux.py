@@ -13,7 +13,7 @@ from fastapi.testclient import TestClient
 from muxtower.app import create_app
 from muxtower.config import load_settings
 
-# ruff: noqa: S607 - tests call the tmux on PATH
+# ruff: noqa: S603, S607 - tests call the tmux on PATH with fixed argv
 pytestmark = pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux not installed")
 
 
@@ -65,3 +65,22 @@ def test_launch_type_capture_terminate(tmp_path: Path) -> None:
         # kill-server can leave the socket file behind; remove it so test runs don't pile them up.
         tmpdir = Path(os.environ.get("TMUX_TMPDIR", "/tmp")) / f"tmux-{os.getuid()}"  # noqa: S108
         (tmpdir / socket).unlink(missing_ok=True)
+
+
+def test_resize_fits_the_pane_even_in_a_split_window() -> None:
+    from muxtower.infra.tmux import TmuxCli
+    from muxtower.terminal.ports import PaneRef
+
+    socket = f"mxt-test-{uuid.uuid4().hex[:8]}"
+    tmux = TmuxCli()
+    try:
+        pane = tmux.new_session(socket, "split", "/", ["sh"], {}, 120, 40)
+        subprocess.run(["tmux", "-L", socket, "split-window", "-h", "-t", pane.pane_id, "sh"], check=True)
+        tmux.resize(PaneRef(socket, pane.pane_id), 48, 30)
+        size = subprocess.run(
+            ["tmux", "-L", socket, "display-message", "-p", "-t", pane.pane_id, "#{pane_width}x#{pane_height}"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()  # fmt: skip
+        assert size == "48x30"
+    finally:
+        subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)

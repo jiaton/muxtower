@@ -136,11 +136,14 @@ def create_app(
         SessionConfig(settings.tmux_socket, settings.adopt_sockets, settings.local_url, settings.state_dir),
     )
     remote_control = remote_control or build_remote_control(settings)
-    monitor = Monitor(sessions, ClaudeProcesses() if remote_control else None)
+    processes = ClaudeProcesses() if remote_control else None
+    monitor = Monitor(sessions, processes)
     approvals = ApprovalService(sessions)
     terminal = TerminalService(sessions, monitor)
     summaries = build_summaries(settings, db)
-    directory = SessionDirectory(sessions, terminal, approvals, [remote_control] if remote_control else [], summaries)
+    directory = SessionDirectory(
+        sessions, terminal, approvals, [remote_control] if remote_control else [], summaries, daemon_name, processes
+    )
     audit = AuditLog(db)
     concierge: ConciergeService | None = None
     if settings.concierge.enabled:

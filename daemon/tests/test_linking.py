@@ -87,3 +87,31 @@ def test_a_session_started_during_a_scan_is_neither_dropped_nor_adopted(tmp_path
     tmux.list_panes = real_list  # type: ignore[method-assign]
     Monitor(sessions).reconcile()
     assert [r.id for r in sessions.repo.list()] == created
+
+
+def test_sessions_on_the_hub_carry_its_name_and_their_folder(tmp_path: Path) -> None:
+    from muxtower.sessions.claude_processes import ClaudeProcess
+
+    class Running(FakeProcesses):
+        def running(self) -> dict[str, ClaudeProcess]:
+            return {"cse_here": ClaudeProcess(pid=1, cwd="/srv/app")}
+
+    tmux = FakeTmux()
+    tmux.add_pane("default", "work", "claude", cwd="/home/me/web")
+    port = FakeRemoteControl()
+    port.sessions = [session("cse_here", environment_id=""), session("cse_away", environment_id="")]
+    source = RemoteControlSource(port, {})
+    source.tick()
+    settings = load_settings(
+        config_file=tmp_path / "none.toml", env={},
+        overrides={"name": "hub", "state_dir": tmp_path / "s", "config_dir": tmp_path / "c", "serve_ui": False},
+    )  # fmt: skip
+    app = create_app(settings, tmux=tmux, run_loops=False, remote_control=source)
+    app.state.directory.processes = Running({})
+    Monitor(app.state.sessions).reconcile()
+    by_name = {s.name: s for s in app.state.directory.list()}
+    assert (by_name["work"].machine, by_name["work"].cwd) == ("hub", "/home/me/web")
+    here = next(s for s in by_name.values() if s.id == "cse_here")
+    away = next(s for s in by_name.values() if s.id == "cse_away")
+    assert (here.machine, here.cwd) == ("hub", "/srv/app")
+    assert (away.machine, away.cwd) == (None, "")
