@@ -21,17 +21,28 @@
 - Routing: TanStack Router (file routes in `src/routes/`)
 - Server state: TanStack Query · Client state: Zustand (persisted) — Zustand only, no Context stores
 - Contract: `openapi-typescript` types from `../openapi.json` + `openapi-fetch`
-- Terminal: our own view (`features/terminal`): ANSI → HTML lines (`lib/ansi.ts`) in a natively scrolling box, diffed line by line (`features/terminal/lines.ts`); no xterm.js · PWA/push: `vite-plugin-pwa` (injectManifest, own service worker)
+- Terminal: our own view (`features/terminal`): ANSI → HTML lines (`lib/ansi.ts`) in a natively scrolling box, diffed line by line (`features/terminal/lines.ts`); no xterm.js. Non-ASCII text gets exactly the cells tmux gives it (`lib/cell-width.ts`: each wide character a centered 2ch box, other runs their width in `ch`), so columns line up whatever fallback font draws it · PWA/push: `vite-plugin-pwa` (injectManifest, own service worker)
 
 ## Architecture (layered — do not collapse)
 
 1. `src/components/ui/` — primitives only. The only place a new visual style is defined.
-2. `src/features/<name>/` — `daemons`, `sessions`, `terminal`, `conversation`, `approval`, `push`, `pairing`. Each owns `api/`, `hooks/`, `components/`, `types.ts`. No imports into another feature's internals; share through `src/lib/`.
-3. `src/routes/` — compose features into pages: `/` (Inbox), `/d/$daemonId/s/$sessionId`, `/daemons`, `/pair`. Layout and wiring only.
+2. `src/features/<name>/` — `daemons`, `sessions`, `terminal`, `conversation`, `approval`, `push`, `pairing`. Each owns `api/`, `hooks/`, `components/`, and pure logic in `model/` (e.g. `sessions/model/`: how sessions are classified, filtered, grouped, counted, and the list's URL params). No imports into another feature's internals; share through `src/lib/`.
+3. `src/routes/` — compose features into pages. Layout and wiring only:
+   - `__root.tsx`: the app shell (sidebar from `lg`, bottom tab bar below it, hidden on a phone while a session is open).
+   - `_sessions.tsx`: pathless layout holding the session list (validates its URL search params); `_sessions/index.tsx` (`/`) and `_sessions/d.$daemonId.s.$sessionId.tsx` render beside it from `md`, instead of it below.
+   - `daemons.tsx`, `pair.tsx`.
 4. `src/lib/` — shared by every feature: `daemons/` (the persisted daemon list + `useDaemonClient`), `api/` (client factory, generated `schema.d.ts` + `types.ts` aliases, `stream.ts`/`streams.ts`), `runtime-config.ts`, `query.ts`, `agent-state.ts`.
 5. `src/sw.ts` — the service worker (own tsconfig: `tsconfig.sw.json`).
 
 Split before 250 lines or once a file mixes two domains.
+
+## Layout and navigation
+
+- Three widths: phone (one pane at a time, bottom tabs), `md` (list and session side by side), `lg` (plus the sidebar: views, devices, folders with counts). Panes are `Pane`/`PaneHeader`/`PaneBody` from `components/ui/pane.tsx`: a fixed header (back on phones, title, subtitle, actions) and a body that scrolls on its own.
+- What the session list shows (view, device, folder, grouping, search) lives in the URL search params of `_sessions`, so back, reload and links keep it; links into a session pass `search={true}` to keep it. The grouping chosen last is the default (`useListPrefs`).
+- Leaving a list and coming back lands where the reader was: the list stays mounted beside a session, and `useScrollMemory` restores the position per query when it shows again.
+- A page's secondary actions go in its "⋯" menu; features add entries through the menu's `items` slot (e.g. terminal settings into the session menu).
+- Sessions are classified only through `sessions/model/facets.ts` (status, device, folder, source); lists, filters and counts never re-derive them.
 
 ## Daemons are plural
 
