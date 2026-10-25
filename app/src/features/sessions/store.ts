@@ -7,10 +7,22 @@ interface ListPrefs {
   /** How the list is grouped when the URL does not say. */
   group: GroupBy
   setGroup: (group: GroupBy) => void
+  /** Devices whose folders are folded away in the sidebar. */
+  folded: string[]
+  toggleFolded: (device: string) => void
 }
 
 export const useListPrefs = create<ListPrefs>()(
-  persist((set) => ({ group: 'status', setGroup: (group) => set({ group }) }), { name: 'muxtower.list', version: 1 }),
+  persist(
+    (set) => ({
+      group: 'status',
+      setGroup: (group) => set({ group }),
+      folded: [],
+      toggleFolded: (device) =>
+        set((s) => ({ folded: s.folded.includes(device) ? s.folded.filter((d) => d !== device) : [...s.folded, device] })),
+    }),
+    { name: 'muxtower.list', version: 1 },
+  ),
 )
 
 interface ListMemory {

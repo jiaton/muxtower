@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Session } from '@/lib/api/types'
 import type { Daemon } from '@/lib/daemons/types'
-import { OTHER_DEVICES, UNKNOWN_FOLDER, folderOf, sourceOf, statusOf, type SessionEntry } from './facets'
+import { OTHER_DEVICES, deviceOf, folderOf, shortFolderNames, sourceOf, statusOf, type SessionEntry } from './facets'
 import { facetsOf, filterEntries, groupEntries } from './query'
 
 const daemon = { id: 'd1', name: 'hub', url: 'http://hub.test', token: 't' } as Daemon
@@ -30,9 +30,24 @@ describe('facets', () => {
     expect(folderOf(entry('a', { cwd: '/root' }).session)).toBe('~')
     expect(folderOf(entry('a', { cwd: '/srv/app/' }).session)).toBe('/srv/app')
     expect(folderOf(entry('a', { cwd: '' }).session)).toBeNull()
-    expect(sourceOf(entry('a', { origin: 'claude_code_cli' }).session)).toBe('CLI')
-    expect(sourceOf(entry('a', { origin: 'desktop_app' }).session)).toBe('Desktop app')
+    expect(sourceOf(entry('a', { source: 'remote_control', origin: 'claude_code_cli' }).session)).toBe('CLI')
+    expect(sourceOf(entry('a', { source: 'remote_control', origin: 'desktop_app' }).session)).toBe('Desktop app')
     expect(sourceOf(entry('a', { source: 'launched' }).session)).toBe('muxtower')
+    // a tmux pane that also runs Remote Control is found in tmux
+    expect(sourceOf(entry('a', { source: 'adopted', origin: 'claude_code_cli' }).session)).toBe('tmux')
+    expect(sourceOf(entry('a', { source: 'remote_control', origin: 'claude_desktop' }).session)).toBe('Desktop app')
+  })
+
+  it('names the device: the daemon machine, else the kind of machine the folder is on', () => {
+    expect(deviceOf(entry('a').session)).toBe('hub')
+    expect(deviceOf(entry('a', { machine: null, cwd: '/Users/me/jobs' }).session)).toBe('Mac')
+    expect(deviceOf(entry('a', { machine: null, cwd: '/home/me' }).session)).toBe('Linux')
+    expect(deviceOf(entry('a', { machine: null, cwd: '' }).session)).toBeNull()
+  })
+
+  it('shortens folders as far as they stay apart', () => {
+    const names = shortFolderNames(['~/projects', '~/projects/web/app', '~/work/app', '~'])
+    expect([...names.values()]).toEqual(['projects', 'web/app', 'work/app', '~'])
   })
 })
 
@@ -54,26 +69,43 @@ describe('query', () => {
     expect(groups[3].entries.map((e) => e.session.id)).toEqual(['away', 'idle-new', 'idle-old'])
   })
 
-  it('groups by device and folder with the unknown ones last', () => {
-    expect(groupEntries(entries, 'device').map((g) => g.label)).toEqual(['Assistant', 'hub', OTHER_DEVICES])
-    expect(groupEntries(entries, 'folder').map((g) => g.label)).toEqual(['Assistant', '~/projects/api', '~/projects/web', UNKNOWN_FOLDER])
+  it('groups by device, then folder (most sessions first), with the unknown ones last', () => {
+    const groups = groupEntries(entries, 'device')
+    expect(groups.map((g) => g.label)).toEqual(['Assistant', 'hub', OTHER_DEVICES])
+    expect(groups[1].sections!.map((s) => [s.label, s.entries.length])).toEqual([
+      ['~/projects/web', 4],
+      ['~/projects/api', 1],
+    ])
+    expect(groups[2].sections).toBeUndefined() // only an unknown folder: no second level
+    expect(groups[1].entries.map((e) => e.session.id)).toEqual(['waiting-early', 'waiting-late', 'busy', 'idle-old', 'idle-new'])
+    expect(groups[1].implies).toEqual({ device: true, folder: true })
+  })
+
+  it('groups by source', () => {
+    expect(groupEntries(entries, 'source').map((g) => g.label)).toEqual(['Assistant', 'tmux', 'Remote Control'])
   })
 
   it('filters by view, device, folder and text', () => {
     const ids = (q: Parameters<typeof filterEntries>[1]) => filterEntries(entries, q).map((e) => e.session.id)
     expect(ids({ view: 'needs', group: 'status' })).toEqual(['waiting-late', 'waiting-early'])
     expect(ids({ view: 'all', group: 'status', device: OTHER_DEVICES })).toEqual(['away'])
-    expect(ids({ view: 'all', group: 'status', folder: '~/projects/api' })).toEqual(['idle-new'])
+    expect(ids({ view: 'all', group: 'status', device: 'hub', folder: '~/projects/api' })).toEqual(['idle-new'])
+    expect(ids({ view: 'all', group: 'status', source: 'Remote Control' })).toEqual(['away'])
     expect(ids({ view: 'all', group: 'status', q: 'BUSY' })).toEqual(['busy'])
   })
 
-  it('counts views, devices and folders without the assistant', () => {
+  it('counts views, devices with their folders, and sources, without the assistant', () => {
     const facets = facetsOf(entries)
     expect(facets.views).toEqual({ all: 6, needs: 2, working: 1 })
-    expect(facets.devices).toEqual([
+    expect(facets.devices.map(({ label, count, needs }) => ({ label, count, needs }))).toEqual([
       { label: 'hub', count: 5, needs: 2 },
       { label: OTHER_DEVICES, count: 1, needs: 0 },
     ])
-    expect(facets.folders[0]).toEqual({ label: '~/projects/web', count: 4, needs: 2 })
+    expect(facets.devices[0].folders).toEqual([
+      { label: '~/projects/web', count: 4, needs: 2 },
+      { label: '~/projects/api', count: 1, needs: 0 },
+    ])
+    expect(facets.devices[1].folders).toEqual([]) // only an unknown folder
+    expect(facets.sources.map((s) => s.label)).toEqual(['tmux', 'Remote Control'])
   })
 })

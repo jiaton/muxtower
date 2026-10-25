@@ -5,9 +5,12 @@ import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { SuggestInput } from '@/components/ui/suggest-input'
 import { cn } from '@/lib/cn'
 import { usePairedDaemons } from '@/lib/daemons/store'
 import { useCreateSession, useRuntimes } from '../api/use-session-mutations'
+import { useSessionEntries } from '../hooks/use-session-entries'
+import { folderSuggestions } from '../model/query'
 
 /** `trigger`: the element that opens it (a button), defaulting to a labelled one. */
 export function NewSessionDialog({ trigger }: { trigger?: ReactNode }) {
@@ -21,6 +24,8 @@ export function NewSessionDialog({ trigger }: { trigger?: ReactNode }) {
   const [runtime, setRuntime] = useState('claude-code')
   const [cwd, setCwd] = useState('')
   const [name, setName] = useState('')
+  const { entries } = useSessionEntries()
+  const folders = current ? folderSuggestions(entries, current.id) : []
 
   if (!daemons.length) return null
   const chip = (active: boolean) =>
@@ -82,7 +87,14 @@ export function NewSessionDialog({ trigger }: { trigger?: ReactNode }) {
           </fieldset>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Directory
-            <Input required placeholder="~/code/project" value={cwd} onChange={(e) => setCwd(e.target.value)} className="font-mono" />
+            <SuggestInput
+              required
+              placeholder="~/code/project"
+              value={cwd}
+              onValueChange={setCwd}
+              suggestions={folders.map((f) => ({ value: f.label, hint: `${f.count} session${f.count === 1 ? '' : 's'}` }))}
+              className="font-mono"
+            />
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Name <span className="font-normal text-fg-muted">optional, defaults to the directory name</span>

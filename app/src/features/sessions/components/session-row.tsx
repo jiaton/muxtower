@@ -9,16 +9,25 @@ export interface RowContext {
   /** The list is already narrowed to one device / folder: do not repeat it on every row. */
   hideDevice?: boolean
   hideFolder?: boolean
+  hideSource?: boolean
   /** Several daemons are paired: say which one reported the session. */
   showDaemon?: boolean
 }
+
+/** One line of Markdown as plain text: no emphasis marks, code ticks or heading hashes. */
+const plain = (text: string) =>
+  text
+    .replace(/^#+\s+/gm, '')
+    .replace(/\*\*|__|`/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 
 /** What the agent is asking, or else what it did last, in one line. */
 function lineOf({ session }: SessionEntry): { text: string; asking: boolean } | null {
   const pending = session.needs_attention ? session.pending : null
   if (pending?.detail || pending?.tool_name) return { text: [pending.tool_name, pending.detail].filter(Boolean).join(': '), asking: true }
   const said = session.summary?.needs || session.summary?.detail || session.summary?.recent || session.last_message
-  return said ? { text: said.replace(/\s+/g, ' ').trim(), asking: false } : null
+  return said ? { text: plain(said), asking: false } : null
 }
 
 /** One session in a list: state, name, when, where (device · folder · source), and one line of what it
@@ -40,7 +49,7 @@ export function SessionRow({
     context.showDaemon ? daemon.name : null,
     context.hideDevice ? null : (deviceOf(session) ?? OTHER_DEVICES),
     context.hideFolder || !folder ? null : folderName(folder),
-    sourceOf(session),
+    context.hideSource ? null : sourceOf(session),
   ].filter(Boolean)
   const line = lineOf(entry)
 
