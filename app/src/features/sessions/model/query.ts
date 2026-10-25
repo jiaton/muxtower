@@ -16,7 +16,7 @@ import {
   type SessionEntry,
 } from './facets'
 
-export const VIEWS = ['all', 'needs', 'working'] as const
+export const VIEWS = ['all', 'needs', 'unread', 'working'] as const
 export const GROUPINGS = ['status', 'device', 'source', 'none'] as const
 export type View = (typeof VIEWS)[number]
 export type GroupBy = (typeof GROUPINGS)[number]
@@ -33,7 +33,7 @@ export interface SessionQuery {
   q?: string
 }
 
-export const VIEW_LABEL: Record<View, string> = { all: 'All sessions', needs: 'Needs you', working: 'Working' }
+export const VIEW_LABEL: Record<View, string> = { all: 'All sessions', needs: 'Needs you', unread: 'Unread', working: 'Working' }
 export const GROUP_LABEL: Record<GroupBy, string> = { status: 'Status', device: 'Device and folder', source: 'Source', none: 'None' }
 
 export const deviceLabel = (entry: SessionEntry) => deviceOf(entry.session) ?? OTHER_DEVICES
@@ -57,8 +57,7 @@ export function filterEntries(entries: SessionEntry[], query: SessionQuery): Ses
   const q = query.q?.trim().toLowerCase()
   return entries.filter((entry) => {
     const status = statusOf(entry.session)
-    if (query.view === 'needs' && status !== 'needs') return false
-    if (query.view === 'working' && status !== 'working') return false
+    if (query.view !== 'all' && status !== query.view) return false
     if (query.device && deviceLabel(entry) !== query.device) return false
     if (query.folder && folderLabel(entry) !== query.folder) return false
     if (query.source && sourceLabel(entry) !== query.source) return false
@@ -195,6 +194,7 @@ export function facetsOf(entries: SessionEntry[]): Facets {
     views: {
       all: counted.length,
       needs: counted.filter((e) => statusOf(e.session) === 'needs').length,
+      unread: counted.filter((e) => statusOf(e.session) === 'unread').length,
       working: counted.filter((e) => statusOf(e.session) === 'working').length,
     },
     devices: facet(counted, deviceLabel, OTHER_DEVICES).map((device) => {

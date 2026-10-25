@@ -15,6 +15,9 @@ from muxtower.sessions.models import Session, SessionRole
 logger = logging.getLogger("muxtower.push")
 
 
+WATCHING_SECONDS = 45  # a client looked at the session this recently: someone is watching it
+
+
 class PushService:
     def __init__(
         self, repo: SubscriptionRepository, sender: PushSender, sessions: SessionDirectory, daemon_name: str
@@ -41,9 +44,13 @@ class PushService:
         return self._send(view, "attention", title, body, lambda sub: view.state in sub.states)
 
     def notify_done(self, session_id: str) -> int:
-        """A session finished a turn. Not for the assistant: its replies are the conversation itself."""
+        """A session finished a turn. Not for the assistant (its replies are the conversation itself), nor
+        for a session someone is watching."""
         view = self.sessions.find(session_id)
         if view is None or view.needs_attention or view.state == AgentState.BUSY or view.role == SessionRole.CONCIERGE:
+            return 0
+        reads = self.sessions.reads
+        if reads and reads.seen_within(session_id, WATCHING_SECONDS):
             return 0
         title, body = done_text(view)
         return self._send(view, "done", title, body, lambda sub: sub.done)

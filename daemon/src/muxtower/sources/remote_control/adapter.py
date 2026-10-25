@@ -84,6 +84,10 @@ class AnthropicRemoteControl:
             events = self.client.list_events(session_id, limit=limit, sort_order="desc")
         return [_raw(e) for e in events]
 
+    def mark_read(self, session_id: str) -> None:
+        with self._call():
+            self.client.mark_read(session_id)
+
     def events_after(self, session_id: str, after_seq: int, limit: int) -> list[RawEvent]:
         with self._call():
             events = self.client.list_events(session_id, limit=limit, sort_order="asc", cursor=str(after_seq))

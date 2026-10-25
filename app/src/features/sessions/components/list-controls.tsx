@@ -1,10 +1,11 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Folder, ListFilter, Monitor, Rows3, Search, X } from 'lucide-react'
+import { CheckCheck, Folder, ListFilter, Monitor, Rows3, Search, X } from 'lucide-react'
 import { Fragment, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -15,7 +16,8 @@ import { Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { cn } from '@/lib/cn'
 import { GROUPINGS, GROUP_LABEL, VIEWS, VIEW_LABEL, type Facets, type GroupBy, type SessionQuery } from '../model/query'
-import { folderName, shortFolderNames } from '../model/facets'
+import { useMarkRead } from '../api/use-mark-read'
+import { folderName, shortFolderNames, type SessionEntry } from '../model/facets'
 import { scopeOf, scopeSearch, type ListSearch, type Scope } from '../model/search'
 import { useListPrefs } from '../store'
 import { sourceIcon } from './source-icon'
@@ -74,7 +76,18 @@ export function ViewTabs({
         label: (
           <>
             {view === 'all' ? 'All' : VIEW_LABEL[view]}
-            <span className={cn('tabular-nums', view === 'needs' && facets.views.needs ? 'text-state-permission' : 'text-fg-muted')}>
+            <span
+              className={cn(
+                'tabular-nums',
+                !facets.views[view]
+                  ? 'text-fg-muted'
+                  : view === 'needs'
+                    ? 'text-state-permission'
+                    : view === 'unread'
+                      ? 'text-accent'
+                      : 'text-fg-muted',
+              )}
+            >
               {facets.views[view]}
             </span>
           </>
@@ -84,14 +97,16 @@ export function ViewTabs({
   )
 }
 
-/** How rows are grouped; the choice is remembered as the default. */
-export function GroupMenu({ query }: { query: SessionQuery }) {
+/** The list's view menu: how rows are grouped (remembered as the default), and marking what it shows
+ *  read. */
+export function ListMenu({ query, unread }: { query: SessionQuery; unread: SessionEntry[] }) {
   const navigate = useNavigate()
   const setGroup = useListPrefs((s) => s.setGroup)
+  const markRead = useMarkRead()
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label={`Group by ${GROUP_LABEL[query.group].toLowerCase()}`} title="Group by">
+        <Button variant="ghost" size="icon-sm" aria-label="List options" title="Group by, mark read">
           <Rows3 />
         </Button>
       </DropdownMenuTrigger>
@@ -111,6 +126,13 @@ export function GroupMenu({ query }: { query: SessionQuery }) {
             </DropdownMenuRadioItem>
           ))}
         </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          disabled={!unread.length}
+          onSelect={() => unread.forEach((e) => markRead.mutate({ daemonId: e.daemon.id, sessionId: e.session.id, read: true }))}
+        >
+          <CheckCheck /> Mark {unread.length ? `${unread.length} ` : ''}as read
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )

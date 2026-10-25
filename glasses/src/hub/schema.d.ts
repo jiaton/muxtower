@@ -313,6 +313,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_id}/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mark Read
+         * @description A client looks at the session (sent on opening and every few seconds while open), or the owner marks
+         *     it unread to come back to.
+         */
+        post: operations["mark_read_v1_sessions__session_id__read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_id}/resize": {
         parameters: {
             query?: never;
@@ -607,6 +628,15 @@ export interface components {
          * @enum {string}
          */
         ItemStatus: "running" | "done" | "error" | "pending" | "allowed" | "denied" | "answered" | "dismissed" | "cancelled";
+        /** MarkRead */
+        MarkRead: {
+            /**
+             * Read
+             * @description false marks it unread, to come back to
+             * @default true
+             */
+            read: boolean;
+        };
         /** Me */
         Me: {
             /** Daemon Name */
@@ -730,6 +760,11 @@ export interface components {
             created_at: string;
             /** Cwd */
             cwd: string;
+            /**
+             * Finished At
+             * @description when it last finished a turn
+             */
+            finished_at?: string | null;
             /** Id */
             id: string;
             /** Last Message */
@@ -782,6 +817,7 @@ export interface components {
             tmux_socket?: string | null;
             /**
              * Unread
+             * @description finished a turn (or has news) since the owner last looked, or marked unread
              * @default false
              */
             unread: boolean;
@@ -1517,6 +1553,39 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["SendInput"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    mark_read_v1_sessions__session_id__read_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MarkRead"];
             };
         };
         responses: {

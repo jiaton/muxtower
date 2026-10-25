@@ -62,3 +62,14 @@ def test_finished_turns_notify_subscriptions_that_want_them(app: FastAPI, client
     assert app.state.push.notify_done(session.id) == 1
     endpoint, payload = sender.sent[0]
     assert endpoint == SUB["endpoint"] and '"kind":"done"' in payload and '"title":"work"' in payload
+
+
+def test_no_finished_push_for_a_session_someone_is_watching(app: FastAPI, client: TestClient, auth: dict[str, str],
+                                                           tmux: FakeTmux) -> None:  # fmt: skip
+    app.state.push.sender = FakeSender()
+    client.post("/v1/push/subscriptions", json=SUB, headers=auth)
+    tmux.add_pane("default", "work", "claude").screen = screens.IDLE
+    app.state.monitor.tick()
+    (session,) = app.state.directory.list()
+    client.post(f"/v1/sessions/{session.id}/read", json={}, headers=auth)
+    assert app.state.push.notify_done(session.id) == 0

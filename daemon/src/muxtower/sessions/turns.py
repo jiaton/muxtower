@@ -32,8 +32,9 @@ class _Track:
 
 
 class TurnWatcher:
-    def __init__(self) -> None:
+    def __init__(self, on_finished: Callable[[str], None] | None = None) -> None:
         self._tracks: dict[str, _Track] = {}
+        self.on_finished = on_finished  # e.g. remember it as unread
 
     def observe(self, sessions: list[Session], now: float) -> list[str]:
         """The ids of sessions that finished a turn since the last call."""
@@ -67,7 +68,10 @@ class TurnWatcher:
             try:
                 for session_id in self.observe(await asyncio.to_thread(sessions), time.monotonic()):
                     logger.info("session %s finished a turn", session_id)
+                    if self.on_finished:
+                        await asyncio.to_thread(self.on_finished, session_id)
                     bus.publish(f"done:{session_id}", None)
+                    bus.publish("sessions", None)
             except Exception:
                 logger.exception("turn check failed")
             try:

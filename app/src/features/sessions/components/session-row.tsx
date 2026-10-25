@@ -62,14 +62,14 @@ export function SessionRow({
         aria-current={selected ? 'page' : undefined}
         className="flex gap-3 px-3 py-2.5 outline-none hover:bg-surface-muted focus-visible:bg-surface-muted sm:px-4"
       >
-        <StatusIcon state={session.state} assistant={isAssistant(session)} className="mt-0.5" />
+        <StatusIcon state={session.state} assistant={isAssistant(session)} unread={session.unread} className="mt-0.5" />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
             <span className={cn('min-w-0 flex-1 truncate', session.unread || session.needs_attention ? 'font-semibold' : 'font-medium')}>
               {session.name}
             </span>
             <time
-              className="shrink-0 text-xs text-fg-muted tabular-nums"
+              className={cn('shrink-0 text-xs tabular-nums', session.unread ? 'font-medium text-accent' : 'text-fg-muted')}
               dateTime={session.updated_at}
               title={new Date(session.updated_at).toLocaleString()}
             >

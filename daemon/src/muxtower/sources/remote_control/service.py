@@ -232,6 +232,10 @@ class RemoteControlSource:
         self.get(session_id)
         self.port.send_message(session_id, text)
 
+    def mark_read(self, session_id: str) -> None:
+        self.get(session_id)
+        self.port.mark_read(session_id)
+
     def send_key(self, session_id: str, key: str) -> None:
         self.get(session_id)
         if key not in KEYS:
