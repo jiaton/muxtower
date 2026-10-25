@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 
 from muxtower.app import create_app
 from muxtower.config import load_settings
-from muxtower.sessions.claude_processes import ClaudeProcesses
+from muxtower.sessions.claude_processes import ClaudeProcess, ClaudeProcesses
 from muxtower.sessions.monitor import Monitor
 from muxtower.sources.remote_control.ports import RawEvent
 from muxtower.sources.remote_control.service import RemoteControlSource
@@ -28,11 +28,18 @@ def test_finds_the_remote_session_of_a_panes_claude_process(tmp_path: Path) -> N
 
 
 class FakeProcesses:
-    def __init__(self, links: dict[int, str]) -> None:
+    def __init__(self, links: dict[int, str], transcripts: dict[int, str] | None = None) -> None:
         self.links = links
+        self.transcripts = transcripts or {}
 
     def remote_id(self, pane_pid: int) -> str | None:
         return self.links.get(pane_pid)
+
+    def transcript(self, pane_pid: int) -> str | None:
+        return self.transcripts.get(pane_pid)
+
+    def running(self) -> dict[str, ClaudeProcess]:
+        return {}
 
 
 def test_a_tmux_agent_with_remote_control_is_listed_once(tmp_path: Path) -> None:

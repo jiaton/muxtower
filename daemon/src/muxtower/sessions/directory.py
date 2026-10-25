@@ -15,6 +15,7 @@ from muxtower.sessions.models import Conversation, Session, SessionRole, UpdateS
 from muxtower.sessions.ports import ClaudeProcessPort, SessionSource, SessionSourcePort
 from muxtower.sessions.reads import Reads
 from muxtower.sessions.service import SessionService
+from muxtower.sessions.transcripts import Transcripts
 from muxtower.summaries.service import SummaryService
 from muxtower.terminal.models import Resize, Screen, SendInput
 from muxtower.terminal.service import TerminalService
@@ -50,6 +51,7 @@ class SessionDirectory:
         hub_name: str = "",
         processes: ClaudeProcessPort | None = None,
         reads: Reads | None = None,
+        transcripts: Transcripts | None = None,
     ) -> None:
         self.local = local
         self.terminal = terminal
@@ -59,6 +61,7 @@ class SessionDirectory:
         self.hub_name = hub_name
         self.processes = processes
         self.reads = reads
+        self.transcripts = transcripts
         self.concierge_id: str | None = None  # set by the concierge service once its session runs
 
     # --- reading ------------------------------------------------------------------------------
@@ -140,11 +143,20 @@ class SessionDirectory:
         return session
 
     def conversation(self, session_id: str, after: int, limit: int) -> Conversation:
+        """From the transcript of the Claude Code in the session's pane (the whole history, also for one that
+        runs Remote Control), else from the session's source."""
         session = self.require(session_id, "conversation")
-        remote_id = session.remote_id or session_id  # a tmux session's conversation comes from its remote side
-        source = self.source_of(remote_id)
-        assert source is not None  # only sources have conversations today
-        return source.conversation(remote_id, after, limit).model_copy(update={"session_id": session_id})
+        path = self.local.transcript_of(session_id) if self.source_of(session_id) is None else None
+        if path and self.transcripts:
+            return self.transcripts.conversation(session_id, path, after, limit)
+        remote_id = session.remote_id or session_id
+        if source := self.source_of(remote_id):
+            return source.conversation(remote_id, after, limit).model_copy(update={"session_id": session_id})
+        raise Conflict("this session has no conversation to read")
+
+    def transcript_paths(self) -> dict[str, str]:
+        """Local sessions and the transcript their conversation is read from."""
+        return {s.id: path for s in self.local.list() if (path := self.local.transcript_of(s.id))}
 
     def screen(self, session_id: str, history: int) -> Screen:
         self.require(session_id, "screen")

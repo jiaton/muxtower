@@ -63,6 +63,10 @@ class Session(BaseModel):
     tmux_session: str | None = None
     tmux_pane: str | None = Field(default=None, description="pane id, e.g. %12, for attaching to the exact pane")
     capabilities: Capabilities
+    alt_screen: bool = Field(
+        default=False,
+        description="draws full screen (alternate screen): tmux keeps no scrollback, see the conversation",
+    )
     role: SessionRole | None = None
     remote_id: str | None = Field(
         default=None, description="this agent's Remote Control session, when it has one; listed once, under this id"

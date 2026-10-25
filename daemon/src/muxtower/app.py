@@ -48,6 +48,7 @@ from muxtower.sessions.reads import Reads, SqliteReadRepository
 from muxtower.sessions.repository import SqliteSessionRepository
 from muxtower.sessions.routes import router as sessions_router
 from muxtower.sessions.service import SessionConfig, SessionService
+from muxtower.sessions.transcripts import Transcripts
 from muxtower.sessions.turns import TurnWatcher
 from muxtower.sources.remote_control.service import RemoteControlSource
 from muxtower.summaries.cli import ClaudeCodeSummarizer, CodexSummarizer
@@ -138,15 +139,16 @@ def create_app(
         SessionConfig(settings.tmux_socket, settings.adopt_sockets, settings.local_url, settings.state_dir),
     )
     remote_control = remote_control or build_remote_control(settings)
-    processes = ClaudeProcesses() if remote_control else None
+    processes = ClaudeProcesses()  # links panes to Remote Control and to their transcripts
     monitor = Monitor(sessions, processes)
     approvals = ApprovalService(sessions)
     terminal = TerminalService(sessions, monitor)
     summaries = build_summaries(settings, db)
     reads = Reads(SqliteReadRepository(db))
+    transcripts = Transcripts()
     directory = SessionDirectory(
         sessions, terminal, approvals, [remote_control] if remote_control else [], summaries, daemon_name, processes,
-        reads,
+        reads, transcripts,
     )  # fmt: skip
     audit = AuditLog(db)
     concierge: ConciergeService | None = None
@@ -164,6 +166,7 @@ def create_app(
                 "monitor": monitor.run_loop(bus, settings.tick_seconds),
                 "push": push.run_loop(bus),
                 "turns": TurnWatcher(reads.finished).run_loop(bus, directory.list),
+                "transcripts": transcripts.run_loop(bus, directory.transcript_paths),
                 "auto-approve": AutoApprover(approvals, audit).run_loop(bus),
             }
             if summaries.available:

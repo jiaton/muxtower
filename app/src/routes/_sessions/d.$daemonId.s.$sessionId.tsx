@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { MessagesSquare, SquareTerminal } from 'lucide-react'
+import { History, MessagesSquare, SquareTerminal } from 'lucide-react'
 import { useState } from 'react'
 import { QueryState } from '@/components/query-state'
 import { Banner } from '@/components/ui/banner'
@@ -92,6 +92,18 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
       {view === 'terminal' ? (
         <>
           {terminal.error ? <Banner tone="error">{terminal.error.message}</Banner> : null}
+          {session.alt_screen && hasConversation ? (
+            // A full-screen agent (Claude Code's fullscreen TUI) leaves tmux no scrollback to scroll.
+            <button
+              type="button"
+              onClick={() => setView('conversation')}
+              className="flex shrink-0 items-center gap-2 border-b border-border bg-surface-muted px-3 py-1.5 text-left text-xs text-fg-muted hover:text-fg sm:px-4"
+            >
+              <History className="size-3.5 shrink-0" aria-hidden />
+              <span className="min-w-0 flex-1 truncate">Full-screen app: earlier output is in the conversation</span>
+              <span className="shrink-0 font-medium text-accent">Show</span>
+            </button>
+          ) : null}
           <TerminalView
             ansi={terminal.ansi}
             fontSize={terminal.fontSize}
@@ -109,7 +121,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
       )}
 
       <footer className="shrink-0 border-t border-border bg-bg p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-3">
-        <InputBar daemonId={daemonId} sessionId={session.id} keys={view === 'terminal' ? session.capabilities.keys : ['Escape']} />
+        <InputBar daemonId={daemonId} sessionId={session.id} keys={session.capabilities.keys} />
       </footer>
     </Pane>
   )

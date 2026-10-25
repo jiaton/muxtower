@@ -21,6 +21,8 @@ Python package `muxtower`: one command, `muxtower`: `muxtower serve` runs the da
 src/muxtower/
   sessions/   registry, create/rename/terminate; directory.py: every session across sources, dispatch by capabilities;
               claude_processes.py: links a pane's Claude Code to its Remote Control session (one entry per agent)
+              and to its transcript; transcripts.py: a tmux session's conversation, read from that transcript;
+              reads.py: unread state; turns.py: finished turns
   sources/    other session sources, one folder each (remote_control: Anthropic's Remote Control API)
   summaries/  short versions of long replies: a Summarizer port (claude/codex CLI adapters), SQLite cache, background loop
   asr/        speech to text for voice replies: a Transcriber port (OpenAI-compatible adapter: Groq, OpenAI)
@@ -36,6 +38,7 @@ src/muxtower/
   system/     health, /v1/me
   vendor/     third-party code copied in (with LICENSE + VENDORED.md); only adapters import it; not linted
   agent_text.py  one-line descriptions of tool inputs, shared by hooks and sources
+  claude_conversation.py  Claude Code's event log → conversation items, shared by Remote Control and transcripts
   errors.py   domain errors (NotFound/Invalid/Conflict/Forbidden) mapped to HTTP in app.py
   origins.py  CORS + WebSocket Origin policy
   config.py   settings (TOML + MUXTOWER_* env)

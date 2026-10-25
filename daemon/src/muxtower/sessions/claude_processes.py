@@ -2,13 +2,15 @@
 
 Claude Code keeps a file per running process, `~/.claude/sessions/<pid>.json`, whose `bridgeSessionId`
 (`session_<id>`) is that process's Remote Control session (`cse_<id>` in the API). The pane's own process
-may be a shell, so its children are searched too. The file also says how Claude Code was started
+may be a shell, so its children are searched too. Its `sessionId` names the transcript Claude Code writes,
+`projects/<cwd, every non-alphanumeric as ->/<sessionId>.jsonl`. The file also says how Claude Code was started
 (`entrypoint`: `cli`, `sdk-cli`, the desktop app or an IDE…), which is what the session's origin is. Its
 `tmux` field is not used: workers spawned by `claude remote-control` inherit it from wherever the server
 was started."""
 
 import json
 import os
+import re
 import time
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -53,6 +55,7 @@ class ClaudeProcesses:
     def __init__(self, claude_dir: Path | None = None) -> None:
         home = claude_dir or Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
         self.sessions_dir = home / "sessions"
+        self.projects_dir = home / "projects"
         self._running: tuple[float, dict[str, ClaudeProcess]] = (0.0, {})
 
     def _family(self, pid: int, depth: int = SEARCH_DEPTH) -> Iterator[int]:
@@ -61,14 +64,27 @@ class ClaudeProcesses:
             for child in _children(pid):
                 yield from self._family(child, depth - 1)
 
-    def remote_id(self, pane_pid: int) -> str | None:
+    def _info(self, pane_pid: int) -> dict[str, object] | None:
+        """The process file of the pane's Claude Code, if it runs one."""
         for pid in self._family(pane_pid):
             try:
                 info = json.loads((self.sessions_dir / f"{pid}.json").read_text())
             except (OSError, ValueError):
                 continue
-            return _remote_id(info)  # None: the pane's Claude Code runs without Remote Control
+            return info if isinstance(info, dict) else None
         return None
+
+    def remote_id(self, pane_pid: int) -> str | None:
+        info = self._info(pane_pid)
+        return _remote_id(info) if info else None  # None: no Claude Code, or one without Remote Control
+
+    def transcript(self, pane_pid: int) -> str | None:
+        """The transcript file of the pane's Claude Code session, when it exists."""
+        info = self._info(pane_pid)
+        if not info or not isinstance(info.get("sessionId"), str) or not isinstance(info.get("cwd"), str):
+            return None
+        path = self.projects_dir / re.sub(r"[^A-Za-z0-9]", "-", str(info["cwd"])) / f"{info['sessionId']}.jsonl"
+        return str(path) if path.is_file() else None
 
     def running(self) -> dict[str, ClaudeProcess]:
         """Every Claude Code process alive on this machine that runs Remote Control, by remote session

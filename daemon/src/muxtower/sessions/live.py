@@ -66,6 +66,8 @@ class LiveSession:
     last_message: str | None = None
     effective: Effective | None = None
     remote_id: str | None = None  # the same agent's Remote Control session (see claude_processes.py)
+    transcript: str | None = None  # its Claude Code transcript file, when it has one
+    alt_screen: bool = False  # draws full screen: tmux keeps no scrollback for it
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 

@@ -1,15 +1,8 @@
-from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from muxtower.claude_conversation import RawEvent
 
-@dataclass(frozen=True)
-class RawEvent:
-    """One event of a session's log, unwrapped from the transport envelope."""
-
-    seq: int
-    created_at: str | None
-    source: str | None  # "worker" (Claude Code) or "client" (a controller: claude.ai, the apps, us)
-    payload: dict[str, Any] = field(default_factory=dict)
+__all__ = ["RawEvent", "RemoteControlPort"]  # RawEvent: what the adapter returns
 
 
 class RemoteControlPort(Protocol):
