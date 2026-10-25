@@ -1,5 +1,5 @@
 import { Link, Outlet, createFileRoute, useMatch } from '@tanstack/react-router'
-import { BellOff, Plus, SearchX, Server } from 'lucide-react'
+import { BellOff, CheckCheck, Plus, SearchX, Server } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -7,7 +7,7 @@ import { Pane, PaneBody, PaneHeader } from '@/components/ui/pane'
 import { QuickApproval } from '@/features/approval/components/quick-approval'
 import { PairCodeForm } from '@/features/pairing/components/pair-code-form'
 import { DaemonAlerts } from '@/features/sessions/components/daemon-alerts'
-import { FilterMenu, GroupMenu, ScopeChip, SearchField, ViewTabs } from '@/features/sessions/components/list-controls'
+import { FilterMenu, ListMenu, ScopeChip, SearchField, ViewTabs } from '@/features/sessions/components/list-controls'
 import { NewSessionDialog } from '@/features/sessions/components/new-session-dialog'
 import { SessionList } from '@/features/sessions/components/session-list'
 import { useScrollMemory } from '@/features/sessions/hooks/use-scroll-memory'
@@ -65,7 +65,7 @@ function SessionsLayout() {
           subtitle={within ? `${within} · ${counted}` : counted}
           actions={
             <>
-              <GroupMenu query={query} />
+              <ListMenu query={query} unread={visible.filter((e) => e.session.unread)} />
               <FilterMenu query={query} search={search} facets={facets} className="lg:hidden" />
               <div className="lg:hidden">
                 <NewSessionDialog
@@ -107,6 +107,8 @@ function SessionsLayout() {
                 <EmptyState icon={<SearchX />} title={`No sessions match “${query.q}”`} />
               ) : query.view === 'needs' ? (
                 <EmptyState icon={<BellOff />} title="Nothing needs you right now" />
+              ) : query.view === 'unread' ? (
+                <EmptyState icon={<CheckCheck />} title="All caught up" />
               ) : (
                 <EmptyState title="No sessions here" />
               )}

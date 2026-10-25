@@ -12,6 +12,7 @@ import { ConversationView } from '@/features/conversation/components/conversatio
 import { useSession } from '@/features/sessions/api/use-sessions'
 import { SessionActionsMenu } from '@/features/sessions/components/session-actions-menu'
 import { SessionHeader } from '@/features/sessions/components/session-header'
+import { useSeenWhileOpen } from '@/features/sessions/hooks/use-seen-while-open'
 import { InputBar } from '@/features/terminal/components/input-bar'
 import { TerminalMenuItems } from '@/features/terminal/components/terminal-menu-items'
 import { TerminalView } from '@/features/terminal/components/terminal-view'
@@ -54,6 +55,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
   const terminal = useSessionTerminal(daemonId, session, view === 'terminal')
   const conversation = useConversation(daemonId, session.id, view === 'conversation' && hasConversation)
   const setFit = useTerminalPrefs((s) => s.setFit)
+  useSeenWhileOpen(daemonId, session)
 
   return (
     <Pane className="flex-1" aria-label={session.name}>

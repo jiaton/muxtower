@@ -17,11 +17,14 @@ export const entryKey = (daemonId: string, sessionId: string) => `${daemonId}/${
 
 // --- status -------------------------------------------------------------------------------------
 
-export type Status = 'needs' | 'error' | 'working' | 'idle'
+/** What a session wants from the owner, most pressing first: it is blocked on them; it failed; it
+ *  finished and they have not looked yet (what to pick up next); it is working; nothing. */
+export type Status = 'needs' | 'error' | 'unread' | 'working' | 'idle'
 
 export const STATUSES: { id: Status; label: string }[] = [
   { id: 'needs', label: 'Needs you' },
   { id: 'error', label: 'Errors' },
+  { id: 'unread', label: 'Finished, unread' },
   { id: 'working', label: 'Working' },
   { id: 'idle', label: 'Idle' },
 ]
@@ -30,7 +33,7 @@ export function statusOf(session: Session): Status {
   if (session.needs_attention) return 'needs'
   if (session.state === 'error') return 'error'
   if (session.state === 'busy') return 'working'
-  return 'idle'
+  return session.unread ? 'unread' : 'idle'
 }
 
 // --- device -------------------------------------------------------------------------------------

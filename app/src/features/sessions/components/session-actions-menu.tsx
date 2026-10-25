@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { MoreHorizontal, Pencil, Power } from 'lucide-react'
+import { Mail, MoreHorizontal, Pencil, Power } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -14,18 +14,19 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import type { Session } from '@/lib/api/types'
+import { useMarkRead } from '../api/use-mark-read'
 import { useTerminateSession, useUpdateSession } from '../api/use-session-mutations'
 
-/** The session page's "⋯" menu: what this session's capabilities allow (rename, auto-approve, stop).
- *  `items` is a slot for other features' entries (terminal settings), shown first. */
+/** The session page's "⋯" menu: mark unread (to come back to; leaves the page, which would read it
+ *  again), then what this session's capabilities allow (rename, auto-approve, stop). `items` is a slot
+ *  for other features' entries (terminal settings), shown first. */
 export function SessionActionsMenu({ daemonId, session, items }: { daemonId: string; session: Session; items?: ReactNode }) {
   const update = useUpdateSession(daemonId, session.id)
   const terminate = useTerminateSession(daemonId, session.id)
   const navigate = useNavigate()
   const [dialog, setDialog] = useState<'rename' | 'stop' | null>(null)
   const [name, setName] = useState(session.name)
-  const own = [session.capabilities.rename, session.can_auto_approve, session.capabilities.terminate].some(Boolean)
-  if (!items && !own) return null
+  const markRead = useMarkRead()
 
   return (
     <>
@@ -37,7 +38,15 @@ export function SessionActionsMenu({ daemonId, session, items }: { daemonId: str
         </DropdownMenuTrigger>
         <DropdownMenuContent className="min-w-60">
           {items}
-          {items && own ? <DropdownMenuSeparator /> : null}
+          {items ? <DropdownMenuSeparator /> : null}
+          <DropdownMenuItem
+            onSelect={() =>
+              // Leave first: while it is open, the page marks it read again.
+              void navigate({ to: '/', search: true }).then(() => markRead.mutate({ daemonId, sessionId: session.id, read: false }))
+            }
+          >
+            <Mail /> Mark as unread
+          </DropdownMenuItem>
           {session.capabilities.rename ? (
             <DropdownMenuItem onSelect={() => (setName(session.name), setDialog('rename'))}>
               <Pencil /> Rename

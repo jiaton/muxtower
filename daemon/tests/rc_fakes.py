@@ -74,3 +74,6 @@ class FakeRemoteControl:
 
     def interrupt(self, session_id: str) -> None:
         self.calls.append(("interrupt", session_id))
+
+    def mark_read(self, session_id: str) -> None:
+        self.calls.append(("mark_read", session_id))

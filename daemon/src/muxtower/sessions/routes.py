@@ -8,7 +8,7 @@ from muxtower.auth.deps import CurrentDevice
 from muxtower.auth.routes import Audit
 from muxtower.runtimes.models import RuntimeInfo
 from muxtower.sessions.directory import SessionDirectory
-from muxtower.sessions.models import Conversation, CreateSession, Session, UpdateSession
+from muxtower.sessions.models import Conversation, CreateSession, MarkRead, Session, UpdateSession
 from muxtower.sessions.service import SessionService
 from muxtower.terminal.models import Resize, Screen, SendInput
 
@@ -77,6 +77,14 @@ def update_session(
     session = directory.update(session_id, body)
     audit.record(device.name, "update", session_id, body.model_dump_json(exclude_none=True))
     return session
+
+
+@router.post("/sessions/{session_id}/read", status_code=204)
+def mark_read(session_id: str, body: MarkRead, request: Request, _: CurrentDevice, directory: Directory) -> None:
+    """A client looks at the session (sent on opening and every few seconds while open), or the owner marks
+    it unread to come back to."""
+    directory.mark_read(session_id, body.read)
+    request.app.state.bus.publish("sessions", None)
 
 
 @router.delete("/sessions/{session_id}", status_code=204)
