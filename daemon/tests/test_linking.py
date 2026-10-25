@@ -9,6 +9,7 @@ from muxtower.app import create_app
 from muxtower.config import load_settings
 from muxtower.sessions.claude_processes import ClaudeProcesses
 from muxtower.sessions.monitor import Monitor
+from muxtower.sources.remote_control.ports import RawEvent
 from muxtower.sources.remote_control.service import RemoteControlSource
 from tests.fakes import FakeTmux
 from tests.rc_fakes import FakeRemoteControl, assistant, session
@@ -101,6 +102,12 @@ def test_sessions_on_the_hub_carry_its_name_and_their_folder(tmp_path: Path) -> 
     tmux.add_pane("default", "work", "claude", cwd="/home/me/web")
     port = FakeRemoteControl()
     port.sessions = [session("cse_here", environment_id=""), session("cse_away", environment_id="")]
+    port.events["cse_here"] = [
+        RawEvent(1, None, "worker", {"type": "system", "subtype": "vcs_state_changed", "cwd": "/srv/app/api"})
+    ]
+    port.events["cse_away"] = [
+        RawEvent(1, None, "worker", {"type": "system", "subtype": "vcs_state_changed", "cwd": "/srv/other"})
+    ]
     source = RemoteControlSource(port, {})
     source.tick()
     settings = load_settings(
@@ -114,8 +121,8 @@ def test_sessions_on_the_hub_carry_its_name_and_their_folder(tmp_path: Path) -> 
     assert (by_name["work"].machine, by_name["work"].cwd) == ("hub", "/home/me/web")
     here = next(s for s in by_name.values() if s.id == "cse_here")
     away = next(s for s in by_name.values() if s.id == "cse_away")
-    assert (here.machine, here.cwd) == ("hub", "/srv/app")
-    assert (away.machine, away.cwd) == (None, "")
+    assert (here.machine, here.cwd) == ("hub", "/srv/app/api")  # works inside the folder it started in
+    assert (away.machine, away.cwd) == (None, "/srv/other")
 
 
 def test_a_pane_without_hooks_starts_from_its_windows_last_output(tmp_path: Path) -> None:

@@ -8,6 +8,7 @@ from muxtower.runtimes.models import ATTENTION_STATES, AgentState, Option
 from muxtower.sessions.models import Capabilities, PendingAction, Session, StateSource, TurnSummary
 from muxtower.sessions.ports import SessionSource
 from muxtower.sources.remote_control.conversation import ConversationBuilder
+from muxtower.sources.remote_control.folder import WorkingFolder
 
 KEYS = ["Escape"]  # interrupt; anything else would need a terminal
 
@@ -16,6 +17,7 @@ KEYS = ["Escape"]  # interrupt; anything else would need a terminal
 class RcSession:
     raw: dict[str, Any]  # the session as listed (status, worker_status, title, environment…)
     builder: ConversationBuilder = field(default_factory=ConversationBuilder)
+    folder: WorkingFolder = field(default_factory=WorkingFolder)
     detail: dict[str, Any] = field(default_factory=dict)  # GET /sessions/{id} (post_turn_summary…)
     fingerprint: tuple[Any, ...] = ()
     view: Session | None = None
@@ -46,6 +48,19 @@ def machine(raw: dict[str, Any], environments: dict[str, str]) -> str | None:
     if raw.get("environment_kind") == "anthropic_cloud":
         return "cloud"
     return f"env {str(env_id)[-6:]}" if env_id else None
+
+
+# How Claude Code joined Remote Control, from the session's tags. The listing's `origin` says
+# claude_code_cli for all of them; the desktop app runs Claude Code through the SDK.
+LAUNCHERS = {"remote-control-sdk": "claude_desktop", "remote-control-auto": "claude_code_cli",
+             "remote-control-repl": "claude_code_cli"}  # fmt: skip
+
+
+def origin(raw: dict[str, Any]) -> str | None:
+    tags = raw.get("tags")
+    tags = tags if isinstance(tags, list) else []
+    launcher = next((LAUNCHERS[t] for t in tags if t in LAUNCHERS), None)
+    return launcher or (raw.get("config") or {}).get("origin")
 
 
 def pending_action(rc: RcSession) -> PendingAction | None:
@@ -97,10 +112,10 @@ def to_session(rc: RcSession, environments: dict[str, str]) -> Session:
         id=str(raw["id"]),
         name=str(title)[:80],
         runtime="claude-code",
-        cwd="",
+        cwd=rc.folder.cwd,
         source=SessionSource.REMOTE_CONTROL,
         machine=machine(raw, environments),
-        origin=(raw.get("config") or {}).get("origin"),
+        origin=origin(raw),
         capabilities=Capabilities(
             screen=False, conversation=True, keys=list(KEYS), resize=False, terminate=False, rename=False
         ),

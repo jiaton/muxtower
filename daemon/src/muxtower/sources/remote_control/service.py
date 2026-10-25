@@ -104,6 +104,7 @@ class RemoteControlSource:
     def _apply(self, rc: RcSession, events: list[RawEvent], detail: dict[str, Any]) -> list[ConversationItem]:
         """Under the lock: new events and details into the cache; returns the new or changed items."""
         items = rc.builder.feed(events)
+        rc.folder.feed(events)
         rc.detail = detail
         for key in ("status", "worker_status"):  # the details are newer than the listing
             if key in detail:

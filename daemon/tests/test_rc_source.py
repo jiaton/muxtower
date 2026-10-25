@@ -3,6 +3,7 @@ import pytest
 from muxtower.errors import Conflict, Invalid
 from muxtower.runtimes.models import AgentState
 from muxtower.sessions.models import ItemStatus
+from muxtower.sources.remote_control.ports import RawEvent
 from muxtower.sources.remote_control.service import RemoteControlSource
 from tests.rc_fakes import FakeRemoteControl, answered, assistant, permission, session, user
 
@@ -23,6 +24,17 @@ def test_lists_active_sessions_with_machine_origin_and_summary() -> None:
     assert (view.id, view.machine, view.origin, view.state) == ("cse_1", "build-box", "desktop_app", AgentState.IDLE)
     assert view.summary and view.summary.detail == "tests pass" and view.summary.noteworthy
     assert view.last_message == "All green." and not view.capabilities.screen
+
+
+def test_launcher_from_tags_and_folder_from_the_log() -> None:
+    port, src = make()
+    port.sessions = [session("cse_1", tags=["remote-control-sdk"], config={"origin": "claude_code_cli"})]
+    port.events["cse_1"] = [
+        RawEvent(1, None, "worker", {"type": "system", "subtype": "vcs_state_changed", "cwd": "/w"})
+    ]
+    src.tick()
+    (view,) = src.views()
+    assert (view.origin, view.cwd) == ("claude_desktop", "/w")
 
 
 def test_permission_prompt_alerts_once_and_is_answered() -> None:
