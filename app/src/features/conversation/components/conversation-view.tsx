@@ -1,6 +1,7 @@
 import { ArrowDown } from 'lucide-react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Markdown } from '@/components/ui/markdown'
 import type { ConversationItem } from '@/lib/api/types'
 import { cn } from '@/lib/cn'
 
@@ -25,7 +26,7 @@ const toolLabel = (t: ConversationItem) => `${t.tool_name ?? 'tool'}${t.text ? `
 function ItemView({ item }: { item: ConversationItem }) {
   if (item.kind === 'prompt')
     return <p className="self-end rounded-lg bg-accent px-3 py-2 whitespace-pre-wrap text-accent-fg">{item.text}</p>
-  if (item.kind === 'reply') return <p className="whitespace-pre-wrap">{item.text}</p>
+  if (item.kind === 'reply') return <Markdown>{item.text ?? ''}</Markdown>
   const label = item.kind === 'question' ? 'Question' : (item.tool_name ?? 'Approval')
   return (
     <div className="rounded-md border border-state-permission px-3 py-2 text-sm">

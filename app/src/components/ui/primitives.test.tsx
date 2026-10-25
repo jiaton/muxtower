@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './dropdown-menu'
+import { Markdown } from './markdown'
 import { NavCount, NavSection } from './nav'
 import { Pane, PaneBody, PaneHeader } from './pane'
 import { Segmented } from './segmented'
@@ -78,6 +79,21 @@ describe('DropdownMenu', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
     expect(onSelect).toHaveBeenCalled()
     expect(screen.queryByRole('menuitemcheckbox')).toBeNull() // closed after choosing
+  })
+})
+
+describe('Markdown', () => {
+  it('renders GitHub-flavoured Markdown and shows raw HTML as text', () => {
+    render(
+      <Markdown>
+        {'## Plan\n\n- **one** `x`\n\n| a | b |\n|---|---|\n| 1 | 2 |\n\n<img src=x onerror=alert(1)>\n\n[docs](https://example.com)'}
+      </Markdown>,
+    )
+    expect(screen.getByRole('heading', { name: 'Plan' })).toBeInTheDocument()
+    expect(screen.getByText('one').tagName).toBe('STRONG')
+    expect(screen.getByRole('table')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'docs' })).toHaveAttribute('target', '_blank')
+    expect(document.querySelector('img')).toBeNull()
   })
 })
 
