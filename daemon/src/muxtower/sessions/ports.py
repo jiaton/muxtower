@@ -9,6 +9,7 @@ from muxtower.terminal.ports import PaneRef
 
 if TYPE_CHECKING:
     from muxtower.runtimes.models import AgentState
+    from muxtower.sessions.claude_processes import ClaudeProcess
     from muxtower.sessions.models import Conversation, Session
 
 
@@ -44,6 +45,10 @@ class SessionRepository(Protocol):
 class ClaudeProcessPort(Protocol):
     def remote_id(self, pane_pid: int) -> str | None:
         """The Remote Control session of the Claude Code process running in this pane, if any."""
+        ...
+
+    def running(self) -> dict[str, ClaudeProcess]:
+        """Claude Code processes on this machine with Remote Control on, by remote session id."""
         ...
 
 
