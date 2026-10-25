@@ -5,9 +5,9 @@ object per line, in the same shape as Remote Control's event log, so the same bu
 conversation items. This is where the history of a full-screen Claude Code lives: it draws on the
 terminal's alternate screen, so tmux keeps no scrollback.
 
-A transcript is read once when its conversation is first asked for (only its last part when it is large),
-then followed: `poll` reads what was appended and returns the new items. Subagent (sidechain) and meta
-lines are not the conversation.
+A transcript is read once when its conversation is first asked for (its last part, enough for
+FIRST_ITEMS items), then followed: `poll` reads what was appended and returns the new items. Subagent
+(sidechain) and meta lines are not the conversation.
 """
 
 import asyncio
@@ -25,7 +25,10 @@ from muxtower.sessions.models import Conversation, ConversationItem
 
 logger = logging.getLogger("muxtower.transcripts")
 
-TAIL_BYTES = 3_000_000  # a first read starts this far from the end of a large transcript
+# A first read takes the end of the transcript, growing until it holds enough of the conversation
+# (tool output and images make some transcripts tens of megabytes).
+TAILS = (4_000_000, 16_000_000, 64_000_000)
+FIRST_ITEMS = 150
 POLL_SECONDS = 1.5
 KINDS = {"user", "assistant"}
 
@@ -65,17 +68,32 @@ class Transcripts:
                 followed.offset, followed.partial, followed.builder = 0, b"", ConversationBuilder()
             if size == followed.offset:
                 return []
+            if followed.offset == 0:
+                return self._first(followed, size)
             with open(followed.path, "rb") as f:
-                if followed.offset == 0 and size > TAIL_BYTES:
-                    f.seek(size - TAIL_BYTES)
-                    f.readline()  # skip the cut line
-                else:
-                    f.seek(followed.offset)
+                f.seek(followed.offset)
                 chunk = followed.partial + f.read()
                 followed.offset = f.tell()
         except OSError as exc:
             logger.warning("cannot read transcript %s: %s", followed.path, exc)
             return []
+        return self._feed(followed, chunk)
+
+    def _first(self, followed: _Followed, size: int) -> list[ConversationItem]:
+        for tail in (*TAILS, size):
+            followed.seq, followed.builder = 0, ConversationBuilder()
+            with open(followed.path, "rb") as f:
+                if size > tail:
+                    f.seek(size - tail)
+                    f.readline()  # skip the cut line
+                chunk = f.read()
+                followed.offset = f.tell()
+            items = self._feed(followed, chunk)
+            if len(followed.builder.items) >= FIRST_ITEMS or size <= tail:
+                return items
+        return items
+
+    def _feed(self, followed: _Followed, chunk: bytes) -> list[ConversationItem]:
         *lines, followed.partial = chunk.split(b"\n")
         events = []
         for line in lines:

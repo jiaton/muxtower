@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from muxtower.sessions.claude_processes import ClaudeProcesses
-from muxtower.sessions.transcripts import TAIL_BYTES, Transcripts
+from muxtower.sessions.transcripts import TAILS, Transcripts
 from tests import screens
 from tests.fakes import FakeTmux
 from tests.test_linking import FakeProcesses
@@ -46,15 +46,14 @@ def test_reads_the_conversation_and_follows_what_is_appended(tmp_path: Path) -> 
     assert transcripts.poll({}) == {}  # gone: no longer followed
 
 
-def test_a_large_transcript_is_read_from_its_last_part(tmp_path: Path) -> None:
+def test_a_large_transcript_is_read_from_its_end_far_enough_back(tmp_path: Path) -> None:
     path = tmp_path / "big.jsonl"
-    filler = line("assistant", "x" * 1000)
     with path.open("w") as f:
-        for _ in range(TAIL_BYTES // len(filler) + 50):
-            f.write(filler)
+        f.write(line("user", "the first prompt"))
+        f.write(line("assistant", "y" * (TAILS[0] + 1000)))  # one huge event: the first tail is not enough
         f.write(line("assistant", "the latest"))
-    items = Transcripts().conversation("s1", str(path), 0, 5).items
-    assert items[-1].text == "the latest"
+    items = Transcripts().conversation("s1", str(path), 0, 400).items
+    assert [i.text for i in items][0] == "the first prompt" and items[-1].text == "the latest"
 
 
 def test_a_pane_finds_its_transcript_through_the_process_file(tmp_path: Path) -> None:
