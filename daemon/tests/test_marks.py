@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from muxtower.app import create_app
 from muxtower.config import load_settings
 from muxtower.infra.db import Database
-from muxtower.sessions.reads import Reads, SqliteReadRepository
+from muxtower.sessions.marks import SessionMarks, SqliteMarksRepository
 from muxtower.sources.remote_control.service import RemoteControlSource
 from tests import screens
 from tests.fakes import FakeTmux
@@ -16,25 +16,25 @@ from tests.rc_fakes import FakeRemoteControl, session
 T0 = datetime(2026, 10, 25, 12, 0, tzinfo=UTC)
 
 
-def reads(tmp_path: Path) -> Reads:
+def marks(tmp_path: Path) -> SessionMarks:
     db = Database(tmp_path / "db.sqlite")
     db.migrate()
-    return Reads(SqliteReadRepository(db))
+    return SessionMarks(SqliteMarksRepository(db))
 
 
 def test_a_finished_turn_is_unread_until_seen_and_survives_restarts(tmp_path: Path) -> None:
-    r = reads(tmp_path)
+    r = marks(tmp_path)
     assert not r.unread("s", source_unread=False, active_at=T0)
     r.finished("s", T0)
     assert r.unread("s", False, T0)
     r.seen("s", T0 + timedelta(seconds=1))
     assert not r.unread("s", False, T0)
     r.finished("s", T0 + timedelta(minutes=5))
-    assert reads(tmp_path).unread("s", False, T0)  # reloaded from SQLite
+    assert marks(tmp_path).unread("s", False, T0)  # reloaded from SQLite
 
 
 def test_marked_unread_until_seen_and_the_source_flag_counts_for_newer_activity(tmp_path: Path) -> None:
-    r = reads(tmp_path)
+    r = marks(tmp_path)
     r.seen("s", T0)
     r.mark_unread("s")
     assert r.unread("s", False, T0)
@@ -74,6 +74,18 @@ def test_a_finished_turn_shows_unread_with_its_time(app: FastAPI, client: TestCl
     app.state.monitor.tick()
     (listed,) = client.get("/v1/sessions", headers=auth).json()
     assert listed["unread"] is False and listed["finished_at"] is None
-    app.state.directory.reads.finished(listed["id"])
+    app.state.directory.marks.finished(listed["id"])
     (listed,) = client.get("/v1/sessions", headers=auth).json()
     assert listed["unread"] is True and listed["finished_at"]
+
+
+def test_hidden_sessions_are_marked_and_hidden_everywhere(app: FastAPI, client: TestClient, auth: dict[str, str],
+                                                          tmux: FakeTmux) -> None:  # fmt: skip
+    tmux.add_pane("default", "work", "claude").screen = screens.IDLE
+    app.state.monitor.tick()
+    (listed,) = client.get("/v1/sessions", headers=auth).json()
+    assert client.post(f"/v1/sessions/{listed['id']}/hide", json={}, headers=auth).status_code == 204
+    assert client.get("/v1/sessions", headers=auth).json()[0]["hidden"] is True
+    assert app.state.push.notify_done(listed["id"]) == 0
+    client.post(f"/v1/sessions/{listed['id']}/hide", json={"hidden": False}, headers=auth)
+    assert client.get("/v1/sessions", headers=auth).json()[0]["hidden"] is False

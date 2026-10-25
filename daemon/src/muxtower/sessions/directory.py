@@ -11,9 +11,9 @@ from typing import Literal
 from muxtower.approval.models import ApprovalResult
 from muxtower.approval.service import ApprovalService
 from muxtower.errors import Conflict, NotFound, Unavailable
+from muxtower.sessions.marks import SessionMarks
 from muxtower.sessions.models import Conversation, Session, SessionRole, UpdateSession
 from muxtower.sessions.ports import ClaudeProcessPort, SessionSource, SessionSourcePort
-from muxtower.sessions.reads import Reads
 from muxtower.sessions.service import SessionService
 from muxtower.sessions.transcripts import Transcripts
 from muxtower.summaries.service import SummaryService
@@ -50,7 +50,7 @@ class SessionDirectory:
         summaries: SummaryService | None = None,
         hub_name: str = "",
         processes: ClaudeProcessPort | None = None,
-        reads: Reads | None = None,
+        marks: SessionMarks | None = None,
         transcripts: Transcripts | None = None,
     ) -> None:
         self.local = local
@@ -60,7 +60,7 @@ class SessionDirectory:
         self.summaries = summaries
         self.hub_name = hub_name
         self.processes = processes
-        self.reads = reads
+        self.marks = marks
         self.transcripts = transcripts
         self.concierge_id: str | None = None  # set by the concierge service once its session runs
 
@@ -71,11 +71,13 @@ class SessionDirectory:
 
     def _decorate(self, session: Session) -> Session:
         """What the sources leave open: the machine, folder and origin of everything that runs on this
-        hub, whether the owner has seen its last turn, the reply summary, the concierge role."""
+        hub, the owner's marks (unread, hidden), the reply summary, the concierge role."""
         update: dict[str, object] = {}
-        if self.reads:
-            update["unread"] = self.reads.unread(session.id, session.unread, session.updated_at)
-            update["finished_at"] = self.reads.get(session.id).finished_at
+        if self.marks:
+            marks = self.marks.get(session.id)
+            update["unread"] = self.marks.unread(session.id, session.unread, session.updated_at)
+            update["finished_at"] = marks.finished_at
+            update["hidden"] = marks.hidden
         if session.source != SessionSource.REMOTE_CONTROL:
             update["machine"] = self.hub_name or session.machine
         elif self.processes and (process := self.processes.running().get(session.id)):
@@ -164,15 +166,21 @@ class SessionDirectory:
 
     # --- actions ------------------------------------------------------------------------------
 
+    def hide(self, session_id: str, hidden: bool) -> None:
+        """Out of the lists (or back in), for every source."""
+        session = self.get(session_id)
+        if self.marks is not None:
+            self.marks.hide(session.id, hidden)
+
     def mark_read(self, session_id: str, read: bool) -> None:
         """Read: the owner looked at it, here and (best effort) in the Claude apps. Unread: to come back to."""
         session = self.get(session_id)
-        if self.reads is None:
+        if self.marks is None:
             return
         if not read:
-            self.reads.mark_unread(session.id)
+            self.marks.mark_unread(session.id)
             return
-        self.reads.seen(session.id)
+        self.marks.seen(session.id)
         remote_id = session.remote_id or session.id
         source = self.source_of(remote_id)
         if source is not None and source.get(remote_id).unread:  # clients repeat this; ask only when needed

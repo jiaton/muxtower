@@ -2,7 +2,8 @@ import { Folder, Monitor } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { shortFolderNames, type SessionEntry } from '../model/facets'
 import type { Group, Section } from '../model/query'
-import { SessionRow, type RowContext } from './session-row'
+import { SessionListRow } from './session-list-row'
+import type { RowContext } from './session-row'
 
 type Extra = (entry: SessionEntry) => ReactNode
 
@@ -18,9 +19,9 @@ function Rows({
   extra?: Extra
 }) {
   return entries.map((entry) => (
-    <SessionRow key={entry.key} entry={entry} selected={entry.key === selectedKey} context={context}>
+    <SessionListRow key={entry.key} entry={entry} selected={entry.key === selectedKey} context={context}>
       {extra?.(entry)}
-    </SessionRow>
+    </SessionListRow>
   ))
 }
 

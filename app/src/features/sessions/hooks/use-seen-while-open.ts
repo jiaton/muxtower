@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import type { Session } from '@/lib/api/types'
-import { useMarkRead } from '../api/use-mark-read'
+import { useMarkRead } from '../api/use-session-marks'
 
 const HEARTBEAT_MS = 30_000 // under the daemon's 45 s "someone is watching" window
 

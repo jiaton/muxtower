@@ -79,6 +79,7 @@ class Session(BaseModel):
         default=False, description="finished a turn (or has news) since the owner last looked, or marked unread"
     )
     finished_at: datetime | None = Field(default=None, description="when it last finished a turn")
+    hidden: bool = Field(default=False, description="the owner hid it: kept out of the lists and done notifications")
     state: AgentState
     state_source: StateSource
     matched_rule: str | None
@@ -96,6 +97,10 @@ class CreateSession(BaseModel):
     cwd: str
     name: str | None = None
     args: list[str] = Field(default_factory=list, description="extra arguments for the agent binary")
+
+
+class HideSession(BaseModel):
+    hidden: bool = True
 
 
 class MarkRead(BaseModel):

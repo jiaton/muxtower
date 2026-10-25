@@ -1,5 +1,5 @@
 import { Link, Outlet, createFileRoute, useMatch } from '@tanstack/react-router'
-import { BellOff, CheckCheck, Plus, SearchX, Server } from 'lucide-react'
+import { BellOff, CheckCheck, EyeOff, Plus, SearchX, Server } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -109,6 +109,10 @@ function SessionsLayout() {
                 <EmptyState icon={<BellOff />} title="Nothing needs you right now" />
               ) : query.view === 'unread' ? (
                 <EmptyState icon={<CheckCheck />} title="All caught up" />
+              ) : query.view === 'hidden' ? (
+                <EmptyState icon={<EyeOff />} title="Nothing hidden">
+                  Swipe a session right, or use its menu, to hide it.
+                </EmptyState>
               ) : (
                 <EmptyState title="No sessions here" />
               )}
