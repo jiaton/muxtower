@@ -12,7 +12,7 @@ import { NewSessionDialog } from '@/features/sessions/components/new-session-dia
 import { SessionList } from '@/features/sessions/components/session-list'
 import { useScrollMemory } from '@/features/sessions/hooks/use-scroll-memory'
 import { useSessionEntries } from '@/features/sessions/hooks/use-session-entries'
-import { entryKey, isAssistant } from '@/features/sessions/model/facets'
+import { entryKey, folderName, isAssistant } from '@/features/sessions/model/facets'
 import { facetsOf, filterEntries, groupEntries, queryTitle } from '@/features/sessions/model/query'
 import { parseListSearch, toQuery } from '@/features/sessions/model/search'
 import { useListMemory, useListPrefs } from '@/features/sessions/store'
@@ -47,6 +47,8 @@ function SessionsLayout() {
   const count = visible.filter((e) => !isAssistant(e.session)).length
   const facets = facetsOf(entries)
   const selectedKey = open ? entryKey(open.params.daemonId, open.params.sessionId) : undefined
+  const { title, within } = queryTitle(query)
+  const counted = `${count} session${count === 1 ? '' : 's'}`
 
   return (
     <div className="flex min-w-0 flex-1">
@@ -55,8 +57,12 @@ function SessionsLayout() {
         aria-label="Sessions"
       >
         <PaneHeader
-          title={<h1 className="truncate">{queryTitle(query)}</h1>}
-          subtitle={`${count} session${count === 1 ? '' : 's'}`}
+          title={
+            <h1 className="truncate" title={title}>
+              {query.folder ? folderName(title) : title}
+            </h1>
+          }
+          subtitle={within ? `${within} · ${counted}` : counted}
           actions={
             <>
               <GroupMenu query={query} />
@@ -84,8 +90,9 @@ function SessionsLayout() {
               groups={groups}
               selectedKey={selectedKey}
               context={{
-                hideDevice: Boolean(query.device) || query.group === 'device',
-                hideFolder: Boolean(query.folder) || query.group === 'folder',
+                hideDevice: Boolean(query.device),
+                hideFolder: Boolean(query.folder),
+                hideSource: Boolean(query.source),
                 showDaemon: daemons.length > 1,
               }}
               extra={({ daemon, session }) =>

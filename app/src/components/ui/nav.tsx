@@ -1,13 +1,17 @@
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 
-/** Classes for a navigation entry (sidebar link); TanStack Router marks the active one with
- *  `data-status="active"`. */
+/** Classes for a navigation entry (sidebar link). The active one is marked by TanStack Router
+ *  (`data-status="active"`) or, where search params decide, by the caller (`data-current="true"`). */
 export const navItemClass = cn(
   'flex h-9 items-center gap-2.5 rounded-md px-2.5 text-sm text-fg-muted transition-colors hover:bg-surface-muted hover:text-fg',
   'data-[status=active]:bg-surface-muted data-[status=active]:font-medium data-[status=active]:text-fg',
+  'data-[current=true]:bg-surface-muted data-[current=true]:font-medium data-[current=true]:text-fg',
   '[&_svg]:size-4 [&_svg]:shrink-0',
 )
+
+/** A second-level entry (a folder under its device): smaller, indented past the parent's icon. */
+export const navSubItemClass = cn(navItemClass, 'h-8 pl-9 text-xs [&_svg]:size-3.5')
 
 /** The trailing count of a navigation entry; `alert` when some need attention. */
 export function NavCount({ count, alert }: { count: number; alert?: boolean }) {

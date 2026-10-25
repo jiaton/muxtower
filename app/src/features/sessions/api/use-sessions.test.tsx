@@ -6,7 +6,12 @@ import { wrapper } from '@/test/render'
 import { server } from '@/test/server'
 import { useAllSessions } from './use-sessions'
 
-const session = (id: string, needs_attention: boolean) => ({ id, name: id, needs_attention, state: needs_attention ? 'needs_answer' : 'idle' })
+const session = (id: string, needs_attention: boolean) => ({
+  id,
+  name: id,
+  needs_attention,
+  state: needs_attention ? 'needs_answer' : 'idle',
+})
 
 it('merges every daemon and keeps going when one is down', async () => {
   useDaemonsStore.setState({ daemons: [] })

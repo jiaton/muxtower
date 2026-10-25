@@ -7,9 +7,7 @@ import { daemonKey } from '@/lib/query'
 function usePatchCache(daemonId: string) {
   const queryClient = useQueryClient()
   return (session: Session) =>
-    queryClient.setQueryData<Session[]>(daemonKey(daemonId, 'sessions'), (list) =>
-      list?.map((s) => (s.id === session.id ? session : s)),
-    )
+    queryClient.setQueryData<Session[]>(daemonKey(daemonId, 'sessions'), (list) => list?.map((s) => (s.id === session.id ? session : s)))
 }
 
 export function useRuntimes(daemonId: string, enabled = true) {
@@ -46,11 +44,8 @@ export function useTerminateSession(daemonId: string, sessionId: string) {
   const client = useDaemonClient(daemonId)
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async () =>
-      check(await client!.DELETE('/v1/sessions/{session_id}', { params: { path: { session_id: sessionId } } })),
+    mutationFn: async () => check(await client!.DELETE('/v1/sessions/{session_id}', { params: { path: { session_id: sessionId } } })),
     onSuccess: () =>
-      queryClient.setQueryData<Session[]>(daemonKey(daemonId, 'sessions'), (list) =>
-        list?.filter((s) => s.id !== sessionId),
-      ),
+      queryClient.setQueryData<Session[]>(daemonKey(daemonId, 'sessions'), (list) => list?.filter((s) => s.id !== sessionId)),
   })
 }
