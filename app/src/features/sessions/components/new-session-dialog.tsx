@@ -1,6 +1,6 @@
 import { useNavigate } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
@@ -9,7 +9,8 @@ import { cn } from '@/lib/cn'
 import { usePairedDaemons } from '@/lib/daemons/store'
 import { useCreateSession, useRuntimes } from '../api/use-session-mutations'
 
-export function NewSessionDialog() {
+/** `trigger`: the element that opens it (a button), defaulting to a labelled one. */
+export function NewSessionDialog({ trigger }: { trigger?: ReactNode }) {
   const daemons = usePairedDaemons()
   const [open, setOpen] = useState(false)
   const [daemonId, setDaemonId] = useState<string>('')
@@ -28,9 +29,11 @@ export function NewSessionDialog() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus /> New session
-        </Button>
+        {trigger ?? (
+          <Button size="sm">
+            <Plus /> New session
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent title="New session" description="Starts an agent in a tmux session on the daemon's machine.">
         <form
@@ -42,7 +45,7 @@ export function NewSessionDialog() {
               {
                 onSuccess: (session) => {
                   setOpen(false)
-                  void navigate({ to: '/d/$daemonId/s/$sessionId', params: { daemonId: current!.id, sessionId: session.id } })
+                  void navigate({ to: '/d/$daemonId/s/$sessionId', params: { daemonId: current!.id, sessionId: session.id }, search: true })
                 },
               },
             )

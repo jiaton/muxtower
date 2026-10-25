@@ -1,36 +1,77 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronRight } from 'lucide-react'
 import type { ReactNode } from 'react'
-import type { Session } from '@/lib/api/types'
-import { StateBadge } from './state-badge'
+import { cn } from '@/lib/cn'
+import { ago } from '@/lib/time'
+import { OTHER_DEVICES, deviceOf, folderName, folderOf, isAssistant, sourceOf, type SessionEntry } from '../model/facets'
+import { StatusIcon } from './status-icon'
 
-/** One session: name, where it runs, state. `children` is an optional slot rendered under it (e.g. an
- *  approval card in the Inbox). */
-export function SessionRow({ daemonId, session, children }: { daemonId: string; session: Session; children?: ReactNode }) {
+export interface RowContext {
+  /** The list is already narrowed to one device / folder: do not repeat it on every row. */
+  hideDevice?: boolean
+  hideFolder?: boolean
+  /** Several daemons are paired: say which one reported the session. */
+  showDaemon?: boolean
+}
+
+/** What the agent is asking, or else what it did last, in one line. */
+function lineOf({ session }: SessionEntry): { text: string; asking: boolean } | null {
+  const pending = session.needs_attention ? session.pending : null
+  if (pending?.detail || pending?.tool_name) return { text: [pending.tool_name, pending.detail].filter(Boolean).join(': '), asking: true }
+  const said = session.summary?.needs || session.summary?.detail || session.summary?.recent || session.last_message
+  return said ? { text: said.replace(/\s+/g, ' ').trim(), asking: false } : null
+}
+
+/** One session in a list: state, name, when, where (device · folder · source), and one line of what it
+ *  says or asks. `children` is a slot under it (e.g. quick approval buttons). */
+export function SessionRow({
+  entry,
+  selected,
+  context = {},
+  children,
+}: {
+  entry: SessionEntry
+  selected?: boolean
+  context?: RowContext
+  children?: ReactNode
+}) {
+  const { daemon, session } = entry
+  const folder = folderOf(session)
+  const where = [
+    context.showDaemon ? daemon.name : null,
+    context.hideDevice ? null : (deviceOf(session) ?? OTHER_DEVICES),
+    context.hideFolder || !folder ? null : folderName(folder),
+    sourceOf(session),
+  ].filter(Boolean)
+  const line = lineOf(entry)
+
   return (
-    <div className="rounded-lg border border-border bg-surface shadow-card">
+    <div className={cn('border-b border-border', selected && 'bg-surface-muted')}>
       <Link
         to="/d/$daemonId/s/$sessionId"
-        params={{ daemonId, sessionId: session.id }}
-        className="flex items-center gap-3 rounded-lg px-4 py-3 hover:bg-surface-muted"
+        params={{ daemonId: daemon.id, sessionId: session.id }}
+        search={true}
+        aria-current={selected ? 'page' : undefined}
+        className="flex gap-3 px-3 py-2.5 outline-none hover:bg-surface-muted focus-visible:bg-surface-muted sm:px-4"
       >
+        <StatusIcon state={session.state} assistant={isAssistant(session)} className="mt-0.5" />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <span className="truncate font-medium">{session.name}</span>
-            <StateBadge state={session.state} />
+          <div className="flex items-baseline gap-2">
+            <span className={cn('min-w-0 flex-1 truncate', session.unread || session.needs_attention ? 'font-semibold' : 'font-medium')}>
+              {session.name}
+            </span>
+            <time
+              className="shrink-0 text-xs text-fg-muted tabular-nums"
+              dateTime={session.updated_at}
+              title={new Date(session.updated_at).toLocaleString()}
+            >
+              {ago(session.updated_at)}
+            </time>
           </div>
-          <p className="truncate text-xs text-fg-muted">
-            {[session.machine && `@${session.machine}`, session.origin?.replace('_', ' '), session.cwd || null]
-              .filter(Boolean)
-              .join(' · ') || session.runtime}
-          </p>
-          {session.summary?.detail || session.summary?.recent ? (
-            <p className="mt-0.5 line-clamp-2 text-sm text-fg">{session.summary.needs || session.summary.detail || session.summary.recent}</p>
-          ) : null}
+          <p className="truncate text-xs text-fg-muted">{where.join(' · ')}</p>
+          {line ? <p className={cn('mt-0.5 line-clamp-1 text-sm', line.asking ? 'text-fg' : 'text-fg-muted')}>{line.text}</p> : null}
         </div>
-        <ChevronRight className="size-4 shrink-0 text-fg-muted" aria-hidden />
       </Link>
-      {children ? <div className="border-t border-border px-4 py-3">{children}</div> : null}
+      {children ? <div className="px-3 pb-3 pl-10 sm:px-4 sm:pl-11">{children}</div> : null}
     </div>
   )
 }
