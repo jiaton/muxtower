@@ -14,4 +14,6 @@ export interface Daemon {
   rejected?: boolean
   /** This browser's push subscription on the daemon, if notifications are on. */
   pushSubscriptionId?: string
+  /** Push also says when an agent finishes a turn (default on). */
+  pushDone?: boolean
 }

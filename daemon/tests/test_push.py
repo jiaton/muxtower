@@ -46,3 +46,19 @@ def test_gone_subscription_is_removed(app: FastAPI, client: TestClient, auth: di
     tmux.add_pane("default", "work", "claude").screen = screens.QUESTION
     app.state.push.notify(app.state.monitor.tick().attention[0])
     assert app.state.push.repo.list() == []
+
+
+def test_finished_turns_notify_subscriptions_that_want_them(app: FastAPI, client: TestClient, auth: dict[str, str],
+                                                           tmux: FakeTmux) -> None:  # fmt: skip
+    sender = FakeSender()
+    app.state.push.sender = sender
+    client.post("/v1/push/subscriptions", json=SUB, headers=auth)
+    quiet = {**SUB, "endpoint": "https://push.example/quiet", "done": False}
+    assert client.post("/v1/push/subscriptions", json=quiet, headers=auth).json()["done"] is False
+
+    tmux.add_pane("default", "work", "claude").screen = screens.IDLE
+    app.state.monitor.tick()
+    (session,) = app.state.directory.list()
+    assert app.state.push.notify_done(session.id) == 1
+    endpoint, payload = sender.sent[0]
+    assert endpoint == SUB["endpoint"] and '"kind":"done"' in payload and '"title":"work"' in payload
