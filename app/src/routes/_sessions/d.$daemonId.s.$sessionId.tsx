@@ -1,10 +1,11 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { History, MessagesSquare, SquareTerminal } from 'lucide-react'
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { QueryState } from '@/components/query-state'
 import { Banner } from '@/components/ui/banner'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Pane } from '@/components/ui/pane'
+import { Pager } from '@/components/ui/pager'
 import { Segmented } from '@/components/ui/segmented'
 import { PendingActionCard } from '@/features/approval/components/pending-action-card'
 import { useConversation } from '@/features/conversation/api/use-conversation'
@@ -13,6 +14,7 @@ import { useSession } from '@/features/sessions/api/use-sessions'
 import { SessionActionsMenu } from '@/features/sessions/components/session-actions-menu'
 import { SessionHeader } from '@/features/sessions/components/session-header'
 import { useSeenWhileOpen } from '@/features/sessions/hooks/use-seen-while-open'
+import { useSessionDrawer } from '@/features/sessions/store'
 import { InputBar } from '@/features/terminal/components/input-bar'
 import { TerminalMenuItems } from '@/features/terminal/components/terminal-menu-items'
 import { TerminalView } from '@/features/terminal/components/terminal-view'
@@ -47,14 +49,20 @@ function SessionPage() {
 
 type View = 'terminal' | 'conversation'
 
-/** Header; what the agent is waiting for, if anything; the terminal or the conversation (a session
- *  with both offers a switch); the input bar. An archived session is its conversation only. */
+/** Header; what the agent is waiting for, if anything; the terminal or the conversation (a session with
+ *  both offers a switch, and a swipe between them); the input bar. Swiping right past the first view opens
+ *  the list (a drawer on phones). An archived session is its conversation only. */
 function SessionView({ daemonId, session }: { daemonId: string; session: Session }) {
   const { screen, conversation: hasConversation } = session.capabilities
   const [view, setView] = useState<View>(screen ? 'terminal' : 'conversation')
-  const terminal = useSessionTerminal(daemonId, session, view === 'terminal')
-  const conversation = useConversation(daemonId, session.id, view === 'conversation' && hasConversation)
+  // Both stay live while the session is open, so a swipe between them shows each as it is now (and the
+  // pane keeps its fit, instead of being given back and fitted again).
+  const terminal = useSessionTerminal(daemonId, session, screen)
+  const conversation = useConversation(daemonId, session.id, hasConversation)
   const setFit = useTerminalPrefs((s) => s.setFit)
+  const setDrawer = useSessionDrawer((s) => s.setOpen)
+  const openDrawer = useCallback(() => setDrawer(true), [setDrawer])
+  const both = screen && hasConversation
   useSeenWhileOpen(daemonId, session)
 
   return (
@@ -89,8 +97,15 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
         </div>
       ) : null}
 
-      {view === 'terminal' ? (
-        <>
+      <Pager
+        className="flex-1"
+        label="Session views"
+        index={both && view === 'conversation' ? 1 : 0}
+        onIndexChange={(page) => both && setView(page === 1 ? 'conversation' : 'terminal')}
+        onPastStart={openDrawer}
+      >
+        {screen ? (
+          <>
           {terminal.error ? <Banner tone="error">{terminal.error.message}</Banner> : null}
           {session.alt_screen && hasConversation ? (
             // A full-screen agent (Claude Code's fullscreen TUI) leaves tmux no scrollback to scroll.
@@ -112,13 +127,15 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
             onFit={terminal.fit ? terminal.onFit : undefined}
             onFitRequest={() => setFit(session.id, true)}
           />
-        </>
-      ) : (
-        <>
-          {conversation.error ? <Banner tone="error">{conversation.error.message}</Banner> : null}
-          <ConversationView items={conversation.data ?? []} />
-        </>
-      )}
+          </>
+        ) : null}
+        {hasConversation ? (
+          <>
+            {conversation.error ? <Banner tone="error">{conversation.error.message}</Banner> : null}
+            <ConversationView items={conversation.data ?? []} />
+          </>
+        ) : null}
+      </Pager>
 
       {session.archived_at ? null : (
         <footer className="shrink-0 border-t border-border bg-bg p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-3">
