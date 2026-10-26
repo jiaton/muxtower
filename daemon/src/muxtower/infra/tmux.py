@@ -70,9 +70,11 @@ class TmuxCli:
         return panes
 
     def capture(self, pane: PaneRef, ansi: bool = False, history: int = 0) -> str | None:
-        args = ["capture-pane", "-p", "-J", "-t", pane.pane_id]
-        if ansi:
-            args.append("-e")
+        """The pane's text (`ansi`: with its colors, for showing it). Plain text joins wrapped lines (-J),
+        so screen rules see a sentence whole; shown text does not, since a pane made narrower (a phone
+        fitting it) rewraps its history, and joined back those lines are wider than the pane."""
+        args = ["capture-pane", "-p", "-t", pane.pane_id]
+        args.append("-e" if ansi else "-J")
         if history:
             args += ["-S", f"-{history}"]
         result = self._run(pane.socket, *args, check=False)

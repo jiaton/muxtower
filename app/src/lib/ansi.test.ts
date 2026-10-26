@@ -25,13 +25,14 @@ describe('ansiToLines', () => {
     expect(ansiToLines('a\x1b[2Kb\x1b]0;title\x07c')).toEqual(['abc'])
   })
 
-  it('gives non-ASCII runs exactly the cells tmux gives them', () => {
+  it('gives non-ASCII runs exactly the cells tmux gives them, clipped to them', () => {
     expect(gridHtml('ab')).toBe('ab')
-    expect(gridHtml('x──y')).toBe('x<span class="inline-block" style="width:2ch">──</span>y')
-    const wide = (c: string) => `<span class="inline-block w-[2ch] text-center">${c}</span>`
+    const run = (text: string, cells: number) => `<span class="inline-block overflow-hidden align-top" style="width:${cells}ch">${text}</span>`
+    expect(gridHtml('x──y')).toBe(`x${run('──', 2)}y`)
+    const wide = (c: string) => `<span class="inline-block w-[2ch] overflow-hidden text-center align-top">${c}</span>`
     expect(gridHtml('会话 ok')).toBe(`${wide('会')}${wide('话')} ok`)
     expect(gridHtml('<中>')).toBe(`&lt;${wide('中')}&gt;`)
-    expect(gridHtml('●中')).toBe(`<span class="inline-block" style="width:1ch">●</span>${wide('中')}`)
+    expect(gridHtml('●中')).toBe(`${run('●', 1)}${wide('中')}`)
   })
 })
 

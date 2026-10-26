@@ -103,3 +103,22 @@ def test_release_gives_the_window_its_automatic_size_back() -> None:
         assert option == ""  # not pinned to manual: an attaching terminal sizes it again
     finally:
         subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)
+
+
+def test_a_narrowed_pane_shows_no_line_wider_than_itself() -> None:
+    from muxtower.infra.tmux import TmuxCli
+    from muxtower.terminal.ports import PaneRef
+
+    socket = f"mxt-test-{uuid.uuid4().hex[:8]}"
+    tmux = TmuxCli()
+    try:
+        script = "printf '%080d\\n' 0 | tr 0 x; sleep 30"  # a line as wide as the pane, like a rule of ─
+        pane = PaneRef(socket, tmux.new_session(socket, "fit", "/", ["sh", "-c", script], {}, 80, 10).pane_id)
+        time.sleep(0.5)
+        tmux.resize(pane, 50, 10)  # a phone fits it: tmux rewraps the line in two
+        time.sleep(0.3)
+        shown = tmux.capture(pane, ansi=True, history=20) or ""
+        assert max(len(line) for line in shown.split("\n")) <= 50
+        assert "x" * 80 in (tmux.capture(pane, history=20) or "")  # screen rules still see it whole
+    finally:
+        subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)

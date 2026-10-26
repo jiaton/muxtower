@@ -72,19 +72,22 @@ const escapeHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '
 // ASCII is drawn by the monospace font itself; anything else may come from a fallback font of another
 // width, so it gets exactly the cells tmux gives it (see cell-width.ts): each wide character its own
 // two-cell box, centered like a terminal draws it, and each run of other non-ASCII one box its width.
+// The boxes clip: a glyph drawn wider than its cells (a phone's fallback font, a rule of ─ across the
+// whole pane) would otherwise widen the view past the pane and let it scroll sideways. Aligned to the
+// top, since a clipping inline box sits on its bottom edge instead of the text's baseline.
 const NON_ASCII = /[^\x00-\x7f]+/g
 
 function cellsHtml(run: string): string {
   let html = ''
   let narrow = ''
   const flush = () => {
-    if (narrow) html += `<span class="inline-block" style="width:${textCells(narrow)}ch">${escapeHtml(narrow)}</span>`
+    if (narrow) html += `<span class="inline-block overflow-hidden align-top" style="width:${textCells(narrow)}ch">${escapeHtml(narrow)}</span>`
     narrow = ''
   }
   for (const char of run) {
     if (cellWidth(char.codePointAt(0)!) === 2) {
       flush()
-      html += `<span class="inline-block w-[2ch] text-center">${escapeHtml(char)}</span>`
+      html += `<span class="inline-block w-[2ch] overflow-hidden text-center align-top">${escapeHtml(char)}</span>`
     } else narrow += char
   }
   flush()
