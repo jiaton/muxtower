@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import { Dialog, DialogContent } from './dialog'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './dropdown-menu'
 import { Markdown } from './markdown'
 import { NavCount, NavSection } from './nav'
@@ -90,6 +92,37 @@ describe('DropdownMenu', () => {
     fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
     expect(onSelect).toHaveBeenCalled()
     expect(screen.queryByRole('menuitemcheckbox')).toBeNull() // closed after choosing
+  })
+
+  it('leaves the page clickable after a dialog opened from an item closes', () => {
+    function MenuWithDialog() {
+      const [open, setOpen] = useState(false)
+      return (
+        <>
+          <DropdownMenu>
+            <DropdownMenuTrigger>More</DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onSelect={() => setOpen(true)}>Rename</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {open ? (
+            <Dialog open onOpenChange={setOpen}>
+              <DialogContent title="Rename session">
+                <button type="button" onClick={() => setOpen(false)}>
+                  Cancel
+                </button>
+              </DialogContent>
+            </Dialog>
+          ) : null}
+        </>
+      )
+    }
+    render(<MenuWithDialog />)
+    fireEvent.pointerDown(screen.getByRole('button', { name: 'More' }), { button: 0, ctrlKey: false })
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Rename' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.body.style.pointerEvents).not.toBe('none')
   })
 })
 
