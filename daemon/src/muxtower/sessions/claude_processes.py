@@ -15,9 +15,10 @@ import json
 import os
 import re
 import time
-from collections.abc import Iterator
 from dataclasses import dataclass
 from pathlib import Path
+
+from muxtower.infra.procfs import Children, family
 
 SEARCH_DEPTH = 3
 BRIDGE_PREFIX = "session_"
@@ -44,43 +45,6 @@ def _remote_id(info: object) -> str | None:
     return None
 
 
-class _Children:
-    """Children of processes, for one search: from `/proc/<pid>/task/*/children` where the kernel keeps it,
-    else (kernels built without it) from every process's parent, read once."""
-
-    def __init__(self, proc: Path = Path("/proc")) -> None:
-        self.proc = proc
-        self._by_parent: dict[int, list[int]] | None = None
-
-    def __call__(self, pid: int) -> list[int]:
-        found: list[int] = []
-        try:
-            for task in (self.proc / str(pid) / "task").iterdir():
-                found += [int(c) for c in (task / "children").read_text().split()]
-            return found
-        except FileNotFoundError:
-            pass
-        except (OSError, ValueError):
-            return found
-        if self._by_parent is None:
-            self._by_parent = {}
-            for child, parent in self._parents():
-                self._by_parent.setdefault(parent, []).append(child)
-        return self._by_parent.get(pid, [])
-
-    def _parents(self) -> Iterator[tuple[int, int]]:
-        """(pid, parent pid) of every process, from `/proc/<pid>/stat`: the parent is the second field
-        after the command name, which is in parentheses and may hold anything."""
-        for entry in self.proc.iterdir():
-            if not entry.name.isdigit():
-                continue
-            try:
-                fields = (entry / "stat").read_text().rsplit(")", 1)[1].split()
-                yield int(entry.name), int(fields[1])
-            except (OSError, IndexError, ValueError):
-                continue
-
-
 class ClaudeProcesses:
     def __init__(self, claude_dir: Path | None = None, proc: Path = Path("/proc")) -> None:
         self.proc = proc
@@ -89,15 +53,9 @@ class ClaudeProcesses:
         self.projects_dir = home / "projects"
         self._running: tuple[float, dict[str, ClaudeProcess]] = (0.0, {})
 
-    def _family(self, pid: int, children: _Children, depth: int = SEARCH_DEPTH) -> Iterator[int]:
-        yield pid
-        if depth:
-            for child in children(pid):
-                yield from self._family(child, children, depth - 1)
-
     def _info(self, pane_pid: int) -> dict[str, object] | None:
         """The process file of the pane's Claude Code, if it runs one."""
-        for pid in self._family(pane_pid, _Children(self.proc)):
+        for pid in family(pane_pid, Children(self.proc), SEARCH_DEPTH):
             try:
                 info = json.loads((self.sessions_dir / f"{pid}.json").read_text())
             except (OSError, ValueError):

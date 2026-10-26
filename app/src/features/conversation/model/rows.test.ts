@@ -48,3 +48,10 @@ describe('toolRunSummary', () => {
     expect(toolRunSummary([tool('Bash', 'sleep 9', { status: 'running' })]).running).toBe(true)
   })
 })
+
+describe('Codex tool runs', () => {
+  it('counts Codex tools like their Claude Code kin', () => {
+    const run = [tool('exec_command', 'pytest -q'), tool('exec_command', 'ls'), tool('apply_patch', 'a.py'), tool('update_plan', '…')]
+    expect(toolRunSummary(run).text).toBe('Ran 2 commands, edited 1 file, updated the plan')
+  })
+})

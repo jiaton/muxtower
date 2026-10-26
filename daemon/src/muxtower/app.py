@@ -12,6 +12,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from muxtower import __version__
+from muxtower.agents.codex.processes import CodexProcesses
+from muxtower.agents.processes import AgentProcesses
 from muxtower.approval.auto import AutoApprover
 from muxtower.approval.service import ApprovalService
 from muxtower.asr.openai_compatible import OpenAICompatibleTranscriber
@@ -143,7 +145,8 @@ def create_app(
         SessionConfig(settings.tmux_socket, settings.adopt_sockets, settings.local_url, settings.state_dir),
     )
     remote_control = remote_control or build_remote_control(settings)
-    processes = ClaudeProcesses()  # links panes to Remote Control and to their transcripts
+    # Links panes to their agent's session: Remote Control, transcript, name (one plugin per agent).
+    processes = AgentProcesses([ClaudeProcesses(), CodexProcesses()])
     monitor = Monitor(sessions, processes)
     approvals = ApprovalService(sessions)
     terminal = TerminalService(sessions, monitor)
