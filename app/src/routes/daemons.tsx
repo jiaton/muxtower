@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { Pane, PaneBody, PaneHeader } from '@/components/ui/pane'
 import { DaemonCard } from '@/features/daemons/components/daemon-card'
 import { PresetWarning } from '@/features/daemons/components/preset-warning'
+import { InstallApp } from '@/features/install/components/install-app'
 import { AddDaemonDialog } from '@/features/pairing/components/add-daemon-dialog'
 import { ShareDevicesDialog } from '@/features/pairing/components/share-devices-dialog'
 import { PushToggle } from '@/features/push/components/push-toggle'
@@ -55,6 +56,7 @@ function DaemonsPage() {
               Run <code className="font-mono">muxtower pair</code> where your agents run, then tap Add.
             </EmptyState>
           )}
+          <InstallApp />
           {paired.length ? (
             <section className="flex flex-col gap-2">
               <h2 className="text-sm font-medium">Other devices</h2>
