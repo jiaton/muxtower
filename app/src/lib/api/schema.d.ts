@@ -388,7 +388,8 @@ export interface paths {
         put?: never;
         /**
          * Detect Placement
-         * @description Reads the session's whole log for the folder its tool calls ran in, and places it there.
+         * @description Reads the session's whole log for the folder its tool calls ran in: a suggestion to place it there
+         *     (PUT /placement), nothing is kept.
          */
         post: operations["detect_placement_v1_sessions__session_id__placement_detect_post"];
         delete?: never;
@@ -679,7 +680,7 @@ export interface components {
         DetectedFolder: {
             /**
              * Folder
-             * @description the folder its log names, now its placement; null when none
+             * @description the folder its log names, to place it there; null when none
              */
             folder: string | null;
         };

@@ -4,7 +4,9 @@ Claude Code keeps a file per running process, `~/.claude/sessions/<pid>.json`, w
 (`session_<id>`) is that process's Remote Control session (`cse_<id>` in the API). The pane's own process
 may be a shell, so its children are searched too (some kernels keep no list of children: then every
 process's parent is read). Its `sessionId` names the transcript Claude Code writes,
-`projects/<cwd, every non-alphanumeric as ->/<sessionId>.jsonl`. The file also says how Claude Code was started
+`projects/<cwd, every non-alphanumeric as ->/<sessionId>.jsonl`. The file also holds the session's
+name (what `/rename` set, or the one Claude Code gave it), which a tmux session goes by unless the owner
+named it in muxtower, and says how Claude Code was started
 (`entrypoint`: `cli`, `sdk-cli`, the desktop app or an IDE…), which is what the session's origin is. Its
 `tmux` field is not used: workers spawned by `claude remote-control` inherit it from wherever the server
 was started."""
@@ -106,6 +108,12 @@ class ClaudeProcesses:
     def remote_id(self, pane_pid: int) -> str | None:
         info = self._info(pane_pid)
         return _remote_id(info) if info else None  # None: no Claude Code, or one without Remote Control
+
+    def name(self, pane_pid: int) -> str | None:
+        """The session's name in Claude Code (what `/rename` set, or the one it gave itself)."""
+        info = self._info(pane_pid)
+        name = info.get("name") if info else None
+        return (name.strip()[:80] or None) if isinstance(name, str) else None
 
     def transcript(self, pane_pid: int) -> str | None:
         """The transcript file of the pane's Claude Code session, when it exists."""
