@@ -101,3 +101,17 @@ def test_user_file_replaces_builtin_and_bad_file_is_ignored(tmp_path: Path) -> N
 def test_new_runtime_can_be_added(tmp_path: Path) -> None:
     (tmp_path / "aider.toml").write_text('name = "aider"\nbinary = "aider"\n')
     assert "aider" in load_runtimes(tmp_path)
+
+
+def test_codex_dialogs_are_classified_and_approved_once() -> None:
+    rt = load_runtimes(None)["codex"]
+    command = rt.classify(screens.CODEX_COMMAND)
+    assert command.state == AgentState.NEEDS_PERMISSION and [o.key for o in command.options] == ["1", "2", "3"]
+    assert rt.choose_option(command.state, command.options) == "1"  # not "don't ask again"
+    assert rt.classify(screens.CODEX_EDITS).state == AgentState.NEEDS_PERMISSION
+    question = rt.classify(screens.CODEX_QUESTION)
+    assert question.state == AgentState.NEEDS_ANSWER and rt.choose_option(question.state, question.options) is None
+    assert rt.classify(screens.CODEX_WORKING).state == AgentState.BUSY
+    assert rt.classify(screens.CODEX_IDLE).state == AgentState.IDLE
+    trust = rt.classify(screens.CODEX_TRUST)
+    assert trust.state == AgentState.NEEDS_TRUST and rt.choose_option(trust.state, trust.options) == "1"

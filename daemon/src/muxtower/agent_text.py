@@ -20,7 +20,7 @@ def describe_tool_input(tool_input: Any) -> str | None:
     """The one thing a human needs to judge a tool call: the command, the path, the URL…"""
     if not isinstance(tool_input, dict):
         return None
-    for key in ("command", "file_path", "path", "url", "pattern", "query", "prompt", "plan"):
+    for key in ("command", "cmd", "file_path", "path", "url", "pattern", "query", "prompt", "plan"):
         value = tool_input.get(key)
         if isinstance(value, str) and value:
             return truncate(value)
