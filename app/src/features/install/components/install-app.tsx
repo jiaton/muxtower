@@ -30,6 +30,13 @@ export function InstallApp() {
         open it from there.
       </Section>
     )
+  if (option === 'menu')
+    return (
+      <Section>
+        Install muxtower as an app so that its notifications show its own name and icon: in Chrome's ⋮ menu, tap
+        Install app (or Add to home screen, then Install). Installed already? Open it from the home screen.
+      </Section>
+    )
   if (option === 'shortcut')
     return (
       <Section>

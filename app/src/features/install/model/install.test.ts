@@ -20,7 +20,7 @@ describe('installOption', () => {
   })
 
   it('tells Chrome from Android browsers that send its user agent', () => {
-    expect(installOption({ ...base, userAgent: CHROME_ANDROID, brands: ['Chromium', 'Google Chrome'] })).toBeNull()
+    expect(installOption({ ...base, userAgent: CHROME_ANDROID, brands: ['Chromium', 'Google Chrome'] })).toBe('menu')
     expect(installOption({ ...base, userAgent: CHROME_ANDROID, brands: ['Chromium', 'Not=A?Brand'] })).toBe('shortcut')
     expect(installOption({ ...base, userAgent: CHROME_ANDROID })).toBe('shortcut') // no userAgentData: Firefox
   })
