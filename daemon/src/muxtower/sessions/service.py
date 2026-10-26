@@ -103,6 +103,7 @@ class SessionService:
                 resize=True,
                 rename=True,
                 terminate=record.source == SessionSource.LAUNCHED,
+                archive=True,
             ),  # fmt: skip
             state=eff.state,
             state_source=eff.source,
@@ -181,10 +182,17 @@ class SessionService:
         return self.view(record)
 
     def terminate(self, session_id: str) -> None:
-        record = self.record(session_id)
-        if record.source != SessionSource.LAUNCHED:
+        if self.record(session_id).source != SessionSource.LAUNCHED:
             raise Conflict("this session was not started by muxtower; stop it from its own terminal")
-        self.tmux.kill_session(record.pane.socket, record.tmux_session)
+        self.close(session_id)
+
+    def close(self, session_id: str) -> None:
+        """Ends the agent: muxtower's own tmux session, or the pane it was found running in."""
+        record = self.record(session_id)
+        if record.source == SessionSource.LAUNCHED:
+            self.tmux.kill_session(record.pane.socket, record.tmux_session)
+        else:
+            self.tmux.kill_pane(record.pane)
         self.forget(record.id)
 
     def forget(self, session_id: str) -> None:

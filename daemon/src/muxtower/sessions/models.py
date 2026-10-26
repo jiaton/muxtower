@@ -47,8 +47,9 @@ class Capabilities(BaseModel):
     conversation: bool = Field(description="structured conversation items exist (GET /conversation)")
     keys: list[str] = Field(description="tmux key names input accepts; empty = any")
     resize: bool
-    terminate: bool
+    terminate: bool = Field(description="it can be stopped (DELETE); for an archived one: deleted from the archive")
     rename: bool
+    archive: bool = Field(default=False, description="it can be archived: ended, and kept to read (POST /archive)")
 
 
 class Session(BaseModel):
@@ -84,6 +85,9 @@ class Session(BaseModel):
     )
     finished_at: datetime | None = Field(default=None, description="when it last finished a turn")
     hidden: bool = Field(default=False, description="the owner hid it: kept out of the lists and done notifications")
+    archived_at: datetime | None = Field(
+        default=None, description="when the owner archived it: it no longer runs, its conversation stays readable"
+    )
     state: AgentState
     state_source: StateSource
     matched_rule: str | None

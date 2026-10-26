@@ -17,7 +17,9 @@ const MENU_LABEL: Record<SessionAction['id'], (session: Session) => string> = {
   read: (s) => (s.unread ? 'Mark as read' : 'Mark as unread'),
   rename: () => 'Rename',
   hide: (s) => (s.hidden ? 'Show in the list' : 'Hide from the list'),
+  archive: () => 'Archive',
   stop: () => 'Stop session',
+  delete: () => 'Delete from the archive',
 }
 
 /** The session actions as menu items (a row's hover menu, the session page's menu). */
@@ -46,7 +48,7 @@ export function SessionActionsMenu({ daemonId, session, items }: { daemonId: str
             {items}
             {items ? <DropdownMenuSeparator /> : null}
             <SessionActionItems session={session} actions={actions} />
-            {session.can_auto_approve ? (
+            {session.can_auto_approve && !session.archived_at ? (
               <DropdownMenuCheckboxItem
                 checked={session.auto_approve}
                 onCheckedChange={(on) => update.mutate({ auto_approve: on === true })}

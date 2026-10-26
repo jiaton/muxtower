@@ -42,6 +42,22 @@ class SessionRepository(Protocol):
     def load_hook_state(self, session_id: str) -> str | None: ...
 
 
+@dataclass(frozen=True)
+class ArchiveRecord:
+    session_id: str
+    remote_id: str | None
+    session: str  # the last view, JSON
+    transcript: str | None
+    items: str | None  # conversation items, JSON, when there is no transcript
+    archived_at: datetime
+
+
+class ArchiveRepository(Protocol):
+    def list(self) -> list[ArchiveRecord]: ...
+    def add(self, record: ArchiveRecord) -> None: ...
+    def delete(self, session_id: str) -> None: ...
+
+
 class ClaudeProcessPort(Protocol):
     def remote_id(self, pane_pid: int) -> str | None:
         """The Remote Control session of the Claude Code process running in this pane, if any."""
@@ -69,3 +85,6 @@ class SessionSourcePort(Protocol):
     def send_text(self, session_id: str, text: str) -> None: ...
     def send_key(self, session_id: str, key: str) -> None: ...
     def mark_read(self, session_id: str) -> None: ...
+    def archive(self, session_id: str) -> None:
+        """Ends the session on its source and archives it there (gone from its lists)."""
+        ...

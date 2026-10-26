@@ -1,5 +1,5 @@
 import { Link, useSearch } from '@tanstack/react-router'
-import { ChevronRight, CircleAlert, CircleCheck, EyeOff, Folder, Layers, LoaderCircle, Monitor } from 'lucide-react'
+import { Archive, ChevronRight, CircleAlert, CircleCheck, EyeOff, Folder, Layers, LoaderCircle, Monitor } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { NavCount, NavSection, navItemClass, navSubItemClass } from '@/components/ui/nav'
 import { cn } from '@/lib/cn'
@@ -45,6 +45,7 @@ const VIEW_ICONS: Record<View, typeof Layers> = {
   unread: CircleCheck,
   working: LoaderCircle,
   hidden: EyeOff,
+  archived: Archive,
 }
 const FOLDERS_SHOWN = 5
 
