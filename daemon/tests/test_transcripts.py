@@ -81,5 +81,9 @@ def test_a_full_screen_session_offers_its_transcript(app: FastAPI, client: TestC
     app.state.monitor.tick()
     (session,) = client.get("/v1/sessions", headers=auth).json()
     assert session["alt_screen"] is True and session["capabilities"]["conversation"] is True
+    assert session["terminal_attached"] is False
+    pane.info = dataclasses.replace(pane.info, attached=True)
+    app.state.monitor.tick()
+    assert client.get("/v1/sessions", headers=auth).json()[0]["terminal_attached"] is True
     conversation = client.get(f"/v1/sessions/{session['id']}/conversation", headers=auth).json()
     assert [i["text"] for i in conversation["items"]] == ["hello", "hi there"]
