@@ -16,11 +16,14 @@ export interface Nested<T> {
   total: number
 }
 
-/** The folder of `folders` that `folder` lies in most closely, if any. */
-function parentOf(folder: string, folders: string[]): string | undefined {
+/** The folders of `folders` that `folder` lies in, the closest first. */
+export function foldersAround(folder: string, folders: string[]): string[] {
   const inside = folders.filter((f) => f !== folder && folder.startsWith(f === '/' ? '/' : `${f}/`))
-  return inside.sort((a, b) => b.length - a.length)[0]
+  return inside.sort((a, b) => b.length - a.length)
 }
+
+/** The folder of `folders` that `folder` lies in most closely, if any. */
+const parentOf = (folder: string, folders: string[]): string | undefined => foldersAround(folder, folders)[0]
 
 /** Folders in tree order: each followed by the ones inside it, the most sessions first at every level;
  *  `last` (the unknown folder) at the end, at the top level. */
