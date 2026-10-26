@@ -24,6 +24,23 @@ async function registration(daemonId: string) {
   return navigator.serviceWorker.getRegistration(new URL(scopeFor(daemonId), location.origin).href)
 }
 
+/** Resolves once `reg` has an active worker: only then can it subscribe. A fresh registration's worker
+ *  is still installing (`navigator.serviceWorker.ready` waits for the page's own registration, not
+ *  this one). */
+export async function activated(reg: ServiceWorkerRegistration) {
+  const worker = reg.installing ?? reg.waiting
+  if (reg.active || !worker) return reg
+  await new Promise<void>((resolve, reject) => {
+    const settle = () => {
+      if (worker.state === 'activated') resolve()
+      else if (worker.state === 'redundant') reject(new Error('The notification worker failed to install.'))
+    }
+    worker.addEventListener('statechange', settle)
+    settle()
+  })
+  return reg
+}
+
 type Client = NonNullable<ReturnType<typeof useDaemonClient>>
 
 /** Registers (or updates: the daemon keys it by endpoint) this browser's subscription on the daemon. */
@@ -76,7 +93,7 @@ export function useTogglePush(daemonId: string) {
         scope: scopeFor(daemonId),
         type: import.meta.env.DEV ? 'module' : 'classic',
       })
-      await navigator.serviceWorker.ready
+      await activated(reg)
       const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: toUint8(public_key) })
       await save(client!, daemonId, sub, daemon?.pushDone ?? true)
       return true
