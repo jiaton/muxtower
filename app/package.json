@@ -12,7 +12,8 @@
     "check:tokens": "node scripts/check-tokens.mjs",
     "test": "vitest run",
     "gen:api": "openapi-typescript ../openapi.json -o src/lib/api/schema.d.ts",
-    "routes": "tsr generate"
+    "routes": "tsr generate",
+    "icons": "node scripts/icons.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.2.0",
@@ -35,6 +36,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/router-cli": "^1.167.40",
     "@tanstack/router-plugin": "^1.168.42",

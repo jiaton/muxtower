@@ -37,7 +37,8 @@ self.addEventListener('push', (event) => {
       requireInteraction: data.kind !== 'done',
       timestamp: Date.now(),
       data: { url },
-      icon: `${appBase()}icon.svg`,
+      icon: `${appBase()}icon-192.png`, // Android draws no SVG here
+      badge: `${appBase()}badge-96.png`, // the status bar's monochrome mark; without it, the browser's
     } as NotificationOptions),
   )
 })
