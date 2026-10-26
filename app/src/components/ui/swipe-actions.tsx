@@ -39,7 +39,7 @@ export function SwipeActions({ actions, children }: { actions: ReactNode; childr
     <div ref={root} className="relative overflow-hidden">
       <div
         ref={tray}
-        className="absolute inset-y-0 left-0 flex"
+        className={cn('absolute inset-y-0 left-0 flex', !offset && 'invisible')} // closed: nothing shows past the row as it moves
         aria-hidden={!open}
         inert={!open}
         onClick={() => setOffset(0)} // an action ran: close
