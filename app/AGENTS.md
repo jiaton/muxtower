@@ -48,7 +48,7 @@ Split before 250 lines or once a file mixes two domains.
 - A session opened from the list stays in it once it no longer matches (`useOpenedHere` remembers what was opened per query, `model/kept.ts` puts it in a last "Just opened" group). Rows and headers carry `data-flip`, and `useFlip` (`lib/`) slides them when groups change, also after the list was hidden (phones).
 - What can be done to a session is defined once, in `SessionActions` (render prop + its dialogs); a list row offers it as a swipe tray (`SwipeActions`) and a hover menu, the session page as its "⋯" menu.
 - Sidebar entries mark themselves current from the list's search params (`isCurrentScope`, `data-current`), because the router alone cannot tell while a session is open.
-- The input bar is one row (keys toggle, message box, Send); `KeyPad` opens above it, laid out like a keyboard (arrows as an inverted T, Enter at the right edge). Keys fire on pointer down without taking focus, so the phone keyboard stays as it was.
+- The input bar is one row (keys toggle, message box, Send); its text is a per-session draft in `useDrafts` (persisted), cleared once sent; `KeyPad` opens above it, laid out like a keyboard (arrows as an inverted T, Enter at the right edge). Keys fire on pointer down without taking focus, so the phone keyboard stays as it was.
 
 ## Daemons are plural
 

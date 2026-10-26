@@ -1,25 +1,36 @@
 import { Plus, SendHorizontal } from 'lucide-react'
-import { useState } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/input'
 import { cn } from '@/lib/cn'
 import { useSendInput } from '../api/use-terminal'
-import { useTerminalPrefs } from '../store'
+import { useDrafts, useTerminalPrefs } from '../store'
 import { KeyPad } from './key-pad'
 
 /** One row: the keys toggle, the message box (sent followed by Enter) and Send. The keys a phone
- *  keyboard lacks open above it, and stay open or closed as last left. `keys`: the key names this
- *  session accepts; empty means all of them. */
+ *  keyboard lacks open above it, and stay open or closed as last left. What is typed is kept per session
+ *  until it is sent (`useDrafts`). `keys`: the key names this session accepts; empty means all of them. */
 export function InputBar({ daemonId, sessionId, keys = [] }: { daemonId: string; sessionId: string; keys?: string[] }) {
   const send = useSendInput(daemonId, sessionId)
-  const [text, setText] = useState('')
+  const draftKey = `${daemonId}/${sessionId}`
+  const text = useDrafts((s) => s.drafts[draftKey] ?? '')
+  const setDraft = useDrafts((s) => s.setDraft)
+  const setText = (value: string) => setDraft(draftKey, value)
   const open = useTerminalPrefs((s) => s.keypad)
   const setOpen = useTerminalPrefs((s) => s.setKeypad)
 
   const submit = () => {
     if (!text.trim()) return
-    send.mutate({ text, enter: true }, { onSuccess: () => setText('') })
+    const sent = text
+    // Typed on while it was sending: keep what is newer.
+    send.mutate(
+      { text, enter: true },
+      {
+        onSuccess: () => {
+          if (useDrafts.getState().drafts[draftKey] === sent) setText('')
+        },
+      },
+    )
   }
 
   return (
