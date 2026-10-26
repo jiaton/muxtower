@@ -38,7 +38,7 @@ Split before 250 lines or once a file mixes two domains.
 
 ## Layout and navigation
 
-- Three widths: phone (one pane at a time, bottom tabs), `md` (list and session side by side), `lg` (plus the sidebar: views, devices each with its folders, sources, with counts). Panes are `Pane`/`PaneHeader`/`PaneBody` from `components/ui/pane.tsx`: a fixed header (back on phones, title, subtitle, actions) and a body that scrolls on its own.
+- Three widths: phone (one pane at a time, bottom tabs; with a session open, its header's menu button opens the list over it as a drawer: `components/ui/drawer.tsx`, the same mounted list, `useSessionDrawer`), `md` (list and session side by side), `lg` (plus the sidebar: views, devices each with its folders, sources, with counts). Panes are `Pane`/`PaneHeader`/`PaneBody` from `components/ui/pane.tsx`: a fixed header (back on phones, title, subtitle, actions) and a body that scrolls on its own.
 - What the session list shows (view, device, folder, source, grouping, search) lives in the URL search params of `_sessions`, so back, reload and links keep it; links into a session pass `search={true}` to keep it. The grouping chosen last is the default (`useListPrefs`).
 - Leaving a list and coming back lands where the reader was: the list stays mounted beside a session, and `useScrollMemory` restores the position per query when it shows again.
 - A page's secondary actions go in its "⋯" menu; features add entries through the menu's `items` slot (e.g. terminal settings into the session menu).

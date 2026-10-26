@@ -2,6 +2,7 @@ import { Link, Outlet, createFileRoute, useMatch } from '@tanstack/react-router'
 import { Archive, BellOff, CheckCheck, EyeOff, Plus, SearchX, Server } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
+import { Drawer } from '@/components/ui/drawer'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Pane, PaneBody, PaneHeader } from '@/components/ui/pane'
 import { QuickApproval } from '@/features/approval/components/quick-approval'
@@ -17,7 +18,7 @@ import { entryKey, folderName, isAssistant } from '@/features/sessions/model/fac
 import { keptEntries, keptGroups } from '@/features/sessions/model/kept'
 import { facetsOf, filterEntries, groupEntries, queryTitle } from '@/features/sessions/model/query'
 import { parseListSearch, toQuery } from '@/features/sessions/model/search'
-import { useListMemory, useListPrefs } from '@/features/sessions/store'
+import { useListMemory, useListPrefs, useSessionDrawer } from '@/features/sessions/store'
 import { cn } from '@/lib/cn'
 import { useUnpairedDaemons } from '@/lib/daemons/store'
 import { SPLIT_QUERY, useMediaQuery } from '@/lib/use-media-query'
@@ -25,8 +26,9 @@ import { SPLIT_QUERY, useMediaQuery } from '@/lib/use-media-query'
 export const Route = createFileRoute('/_sessions')({ validateSearch: parseListSearch, component: SessionsLayout })
 
 /**
- * The session list next to the open session (from `md`), or one of them at a time (phones). The list
- * stays mounted while a session is open, and keeps its scroll position per query.
+ * The session list next to the open session (from `md`), or on phones the list alone and, while a
+ * session is open, the list as a drawer over it (its header's menu button opens it). The list stays
+ * mounted while a session is open, and keeps its scroll position per query.
  */
 function SessionsLayout() {
   const search = Route.useSearch()
@@ -40,7 +42,13 @@ function SessionsLayout() {
   const split = useMediaQuery(SPLIT_QUERY)
   const listRef = useRef<HTMLDivElement>(null)
   const listKey = JSON.stringify(query)
-  useScrollMemory(listRef, listKey, split || !open, !loading)
+  const asDrawer = Boolean(open) && !split
+  const drawerOpen = useSessionDrawer((s) => s.open)
+  const setDrawer = useSessionDrawer((s) => s.setOpen)
+  useEffect(() => {
+    if (!asDrawer) setDrawer(false) // back on the list, or side by side: no drawer left open for later
+  }, [asDrawer, setDrawer])
+  useScrollMemory(listRef, listKey, !asDrawer || drawerOpen, !loading)
   useEffect(() => useListMemory.setState({ lastSearch: search }), [search])
 
   const visible = filterEntries(entries, query)
@@ -58,10 +66,8 @@ function SessionsLayout() {
 
   return (
     <div className="flex min-w-0 flex-1">
-      <Pane
-        className={cn('w-full border-r border-border md:w-80 md:shrink-0 xl:w-96', open ? 'hidden md:flex' : 'flex')}
-        aria-label="Sessions"
-      >
+      <Drawer drawer={asDrawer} open={drawerOpen} onOpenChange={setDrawer} label="Sessions">
+        <Pane className="flex w-full border-r border-border md:w-80 md:shrink-0 xl:w-96" aria-label="Sessions">
         <PaneHeader
           title={
             <h1 className="truncate" title={title}>
@@ -131,7 +137,8 @@ function SessionsLayout() {
             </div>
           )}
         </PaneBody>
-      </Pane>
+        </Pane>
+      </Drawer>
       <div className={cn('min-w-0 flex-1', open ? 'flex' : 'hidden md:flex')}>
         <Outlet />
       </div>
