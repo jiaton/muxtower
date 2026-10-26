@@ -42,9 +42,15 @@ def test_finds_claude_under_a_shell_where_the_kernel_lists_no_children(tmp_path:
 
 
 class FakeProcesses:
-    def __init__(self, links: dict[int, str], transcripts: dict[int, str] | None = None) -> None:
+    def __init__(
+        self, links: dict[int, str], transcripts: dict[int, str] | None = None, names: dict[int, str] | None = None
+    ) -> None:
         self.links = links
         self.transcripts = transcripts or {}
+        self.names = names or {}
+
+    def name(self, pane_pid: int) -> str | None:
+        return self.names.get(pane_pid)
 
     def remote_id(self, pane_pid: int) -> str | None:
         return self.links.get(pane_pid)
@@ -171,3 +177,26 @@ def test_running_processes_carry_folder_and_entrypoint(tmp_path: Path) -> None:
     (sessions / "999999999.json").write_text(json.dumps({"pid": 999999999, "bridgeSessionId": "session_gone"}))
     (process,) = ClaudeProcesses(tmp_path).running().values()
     assert (process.cwd, process.origin) == ("/srv/app", "claude_code_cli")
+
+
+def test_a_tmux_agent_goes_by_its_own_name_until_the_owner_names_it(tmp_path: Path) -> None:
+    tmux = FakeTmux()
+    pane = tmux.add_pane("default", "0", "claude")  # a tmux session named "0" says nothing
+    pane.info = dataclasses.replace(pane.info, pid=4242)
+    settings = load_settings(
+        config_file=tmp_path / "none.toml", env={},
+        overrides={"state_dir": tmp_path / "s", "config_dir": tmp_path / "c", "serve_ui": False},
+    )  # fmt: skip
+    app = create_app(settings, tmux=tmux, run_loops=False)
+    processes = FakeProcesses({}, names={4242: "Home project documentation"})
+    Monitor(app.state.sessions, processes).tick()
+    client = TestClient(app)
+    _, token = app.state.tokens.create("phone")
+    auth = {"Authorization": f"Bearer {token}"}
+    (listed,) = client.get("/v1/sessions", headers=auth).json()
+    assert listed["name"] == "Home project documentation"  # what Claude Code calls it, not "0"
+
+    client.patch(f"/v1/sessions/{listed['id']}", headers=auth, json={"name": "Docs"})
+    processes.names[4242] = "Something else"
+    Monitor(app.state.sessions, processes).tick()
+    assert client.get(f"/v1/sessions/{listed['id']}", headers=auth).json()["name"] == "Docs"  # the owner's wins

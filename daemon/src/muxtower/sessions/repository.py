@@ -18,6 +18,7 @@ def _record(row: sqlite3.Row) -> SessionRecord:
         hook_token_hash=row["hook_token_hash"],
         auto_approve=bool(row["auto_approve"]),
         created_at=datetime.fromisoformat(row["created_at"]),
+        named=bool(row["named"]),
     )
 
 
@@ -38,13 +39,14 @@ class SqliteSessionRepository:
         with self.db.connect() as conn:
             conn.execute(
                 """INSERT INTO sessions (id, name, runtime, cwd, source, socket, tmux_session, pane_id,
-                                         hook_token_hash, auto_approve, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                         hook_token_hash, auto_approve, created_at, named)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(id) DO UPDATE SET name = excluded.name, cwd = excluded.cwd,
-                       tmux_session = excluded.tmux_session, auto_approve = excluded.auto_approve""",
+                       tmux_session = excluded.tmux_session, auto_approve = excluded.auto_approve,
+                       named = excluded.named""",
                 (
                     r.id, r.name, r.runtime, r.cwd, r.source.value, r.pane.socket, r.tmux_session,
-                    r.pane.pane_id, r.hook_token_hash, int(r.auto_approve), r.created_at.isoformat(),
+                    r.pane.pane_id, r.hook_token_hash, int(r.auto_approve), r.created_at.isoformat(), int(r.named),
                 ),
             )  # fmt: skip
 
