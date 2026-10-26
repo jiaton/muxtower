@@ -1,7 +1,7 @@
 """Where a session runs, when its source does not say (`capabilities.place`): the Claude desktop app, for
 one, reports no machine for its sessions and, in the part of the log kept, often no folder. The owner
-places such a session by hand, or asks for its whole log to be read for the folder its tool calls ran
-in; either way it is kept as the owner's placement (`SessionMarks`), over what the source reports.
+places such a session by hand, kept as their placement (`SessionMarks`) over what the source reports;
+reading its whole log for the folder its tool calls ran in only suggests one, for the owner to save.
 """
 
 from muxtower.errors import Conflict
@@ -22,12 +22,9 @@ class Placements:
         return self.directory.get(session.id)
 
     def detect(self, session_id: str) -> str | None:
-        """Reads its whole log for its folder and, when one is named, keeps it as its folder."""
+        """The folder its whole log names, if any: a suggestion, nothing is kept."""
         session = self.directory.require(session_id, "place")
         source = self.directory.source_of(session.id)
         if source is None:
             raise Conflict("only sessions from another source can be detected")
-        folder = source.detect_folder(session.id)
-        if folder:
-            self.marks.place(session.id, self.marks.get(session.id).machine, folder)
-        return folder
+        return source.detect_folder(session.id)

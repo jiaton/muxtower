@@ -13,8 +13,8 @@ import { facetsOf } from '../model/query'
 const count = (n: number) => `${n} session${n === 1 ? '' : 's'}`
 
 /** Where a session runs, set by the owner when its source does not say (`capabilities.place`): a device
- *  and a folder, picked from those the lists already show or typed, or the folder found in its whole log
- *  (Detect). Clear goes back to what its source says. */
+ *  and a folder, picked from those the lists already show or typed. Detect fills in the folder its whole
+ *  log names, for the owner to check and save. Clear goes back to what its source says. */
 export function PlaceDialog({ daemonId, session, onClose }: { daemonId: string; session: Session; onClose: () => void }) {
   const place = usePlaceSession(daemonId, session.id)
   const detect = useDetectPlacement(daemonId, session.id)
@@ -69,7 +69,7 @@ export function PlaceDialog({ daemonId, session, onClose }: { daemonId: string; 
             <p className="text-xs text-fg-muted">
               {detect.data
                 ? detect.data.folder
-                  ? `Its tool calls ran in ${detect.data.folder}.`
+                  ? `Its tool calls ran in ${detect.data.folder}. Save to place it there.`
                   : 'Its log names no folder: place it by hand.'
                 : 'Reads its whole log for the folder its tool calls ran in.'}
             </p>

@@ -39,7 +39,10 @@ def test_the_owner_places_a_session_its_source_cannot_place(tmp_path: Path) -> N
     found = client.post("/v1/sessions/cse_desk/placement/detect", headers=auth).json()
     assert found == {"folder": "/Users/me/jobs"}  # from the start of its log
     desk = client.get("/v1/sessions/cse_desk", headers=auth).json()
-    assert (desk["machine"], desk["cwd"]) == ("Laptop", "/Users/me/jobs")  # the machine placed by hand stays
+    assert (desk["machine"], desk["cwd"]) == ("Laptop", "")  # only suggested: the owner saves it or not
+    both = {"machine": "Laptop", "folder": "/Users/me/jobs"}
+    desk = client.put("/v1/sessions/cse_desk/placement", headers=auth, json=both).json()
+    assert (desk["machine"], desk["cwd"]) == ("Laptop", "/Users/me/jobs")
 
     cleared = client.put("/v1/sessions/cse_desk/placement", headers=auth, json={}).json()
     assert (cleared["machine"], cleared["cwd"], cleared["placement"]) == (None, "", None)
