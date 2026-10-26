@@ -10,9 +10,11 @@ import { DaemonAlerts } from '@/features/sessions/components/daemon-alerts'
 import { FilterMenu, ListMenu, ScopeChip, SearchField, ViewTabs } from '@/features/sessions/components/list-controls'
 import { NewSessionDialog } from '@/features/sessions/components/new-session-dialog'
 import { SessionList } from '@/features/sessions/components/session-list'
+import { useOpenedHere } from '@/features/sessions/hooks/use-opened-here'
 import { useScrollMemory } from '@/features/sessions/hooks/use-scroll-memory'
 import { useSessionEntries } from '@/features/sessions/hooks/use-session-entries'
 import { entryKey, folderName, isAssistant } from '@/features/sessions/model/facets'
+import { keptEntries, keptGroups } from '@/features/sessions/model/kept'
 import { facetsOf, filterEntries, groupEntries, queryTitle } from '@/features/sessions/model/query'
 import { parseListSearch, toQuery } from '@/features/sessions/model/search'
 import { useListMemory, useListPrefs } from '@/features/sessions/store'
@@ -37,16 +39,20 @@ function SessionsLayout() {
   const open = useMatch({ from: '/_sessions/d/$daemonId/s/$sessionId', shouldThrow: false })
   const split = useMediaQuery(SPLIT_QUERY)
   const listRef = useRef<HTMLDivElement>(null)
-  useScrollMemory(listRef, JSON.stringify(query), split || !open, !loading)
+  const listKey = JSON.stringify(query)
+  useScrollMemory(listRef, listKey, split || !open, !loading)
   useEffect(() => useListMemory.setState({ lastSearch: search }), [search])
+
+  const visible = filterEntries(entries, query)
+  const selectedKey = open ? entryKey(open.params.daemonId, open.params.sessionId) : undefined
+  const opened = useOpenedHere(listKey, selectedKey, visible.some((e) => e.key === selectedKey))
+  const kept = keptEntries(entries, visible, opened, query)
 
   if (!daemons.length) return <Onboarding unpairedName={unpaired[0]?.name} unpairedUrl={unpaired[0]?.url} />
 
-  const visible = filterEntries(entries, query)
-  const groups = groupEntries(visible, query.group)
+  const groups = [...groupEntries(visible, query.group), ...keptGroups(kept)]
   const count = visible.filter((e) => !isAssistant(e.session)).length
   const facets = facetsOf(entries)
-  const selectedKey = open ? entryKey(open.params.daemonId, open.params.sessionId) : undefined
   const { title, within } = queryTitle(query)
   const counted = `${count} session${count === 1 ? '' : 's'}`
 
