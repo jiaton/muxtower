@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- The notification badge: Android draws only its alpha, in the status bar and the notification header -->
+  <g fill="#fff">
+    <circle cx="32" cy="7" r="5"/>
+    <path d="M26 14h12l4 14H22z"/>
+    <rect x="24" y="30" width="16" height="22"/>
+    <rect x="14" y="54" width="36" height="7" rx="3.5"/>
+  </g>
+</svg>
