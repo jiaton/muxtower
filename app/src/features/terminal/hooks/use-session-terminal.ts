@@ -4,10 +4,13 @@ import { useDaemonClient } from '@/lib/daemons/use-daemon-client'
 import { HISTORY_STEPS, usePaneSize, useScreen } from '../api/use-terminal'
 import { useTerminalPrefs } from '../store'
 
+const MAX_ROWS = 300 // the daemon's limit
+
 /** Screen, history depth and pane sizing for the session page. */
 export function useSessionTerminal(daemonId: string, session: Session, enabled: boolean) {
   const client = useDaemonClient(daemonId)
   const fontSize = useTerminalPrefs((s) => s.fontSize)
+  const screens = useTerminalPrefs((s) => s.screens)
   const fitPref = useTerminalPrefs((s) => s.fit[session.id])
   // By default, fit what nobody else may be watching: what muxtower started, or a pane no terminal is
   // attached to. A pane someone has open at their own size keeps it until fitting is asked for.
@@ -30,7 +33,11 @@ export function useSessionTerminal(daemonId: string, session: Session, enabled: 
     setHistory(next)
   }, [canLoadMore, next, screen.data])
 
-  const onFit = useCallback((size: { cols: number; rows: number }) => mutate.current(size), [])
+  // As wide as the view and `screens` views tall: the view scrolls through the rest.
+  const onFit = useCallback(
+    (size: { cols: number; rows: number }) => mutate.current({ cols: size.cols, rows: Math.min(MAX_ROWS, size.rows * screens) }),
+    [screens],
+  )
 
   // While fitting, the pane is sized for this screen; give the size back when fitting stops, the page
   // is left, or the tab closes (keepalive request, since the page is going away).
