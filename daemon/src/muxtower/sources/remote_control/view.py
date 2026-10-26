@@ -124,6 +124,7 @@ def to_session(rc: RcSession, environments: dict[str, str]) -> Session:
             terminate=False,
             rename=False,
             archive=True,
+            place=True,
         ),
         summary=summary,
         unread=bool(raw.get("unread")),

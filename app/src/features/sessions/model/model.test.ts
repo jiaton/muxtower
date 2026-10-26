@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Session } from '@/lib/api/types'
 import type { Daemon } from '@/lib/daemons/types'
-import { OTHER_DEVICES, deviceOf, folderOf, shortFolderNames, sourceOf, statusOf, type SessionEntry } from './facets'
+import { NO_ENVIRONMENT, deviceOf, folderOf, shortFolderNames, sourceOf, statusOf, type SessionEntry } from './facets'
 import { facetsOf, filterEntries, groupEntries } from './query'
 
 const daemon = { id: 'd1', name: 'hub', url: 'http://hub.test', token: 't' } as Daemon
@@ -74,7 +74,7 @@ describe('query', () => {
 
   it('groups by device, then folder (most sessions first), with the unknown ones last', () => {
     const groups = groupEntries(entries, 'device')
-    expect(groups.map((g) => g.label)).toEqual(['Assistant', 'hub', OTHER_DEVICES])
+    expect(groups.map((g) => g.label)).toEqual(['Assistant', 'hub', NO_ENVIRONMENT])
     expect(groups[1].sections!.map((s) => [s.label, s.entries.length])).toEqual([
       ['~/projects/web', 4],
       ['~/projects/api', 1],
@@ -125,7 +125,7 @@ describe('query', () => {
   it('filters by view, device, folder and text', () => {
     const ids = (q: Parameters<typeof filterEntries>[1]) => filterEntries(entries, q).map((e) => e.session.id)
     expect(ids({ view: 'needs', group: 'status' })).toEqual(['waiting-late', 'waiting-early'])
-    expect(ids({ view: 'all', group: 'status', device: OTHER_DEVICES })).toEqual(['away'])
+    expect(ids({ view: 'all', group: 'status', device: NO_ENVIRONMENT })).toEqual(['away'])
     expect(ids({ view: 'all', group: 'status', device: 'hub', folder: '~/projects/api' })).toEqual(['idle-new'])
     expect(ids({ view: 'all', group: 'status', source: 'Remote Control' })).toEqual(['away'])
     expect(ids({ view: 'all', group: 'status', q: 'BUSY' })).toEqual(['busy'])
@@ -136,7 +136,7 @@ describe('query', () => {
     expect(facets.views).toEqual({ all: 6, needs: 2, unread: 0, working: 1, hidden: 0, archived: 0 })
     expect(facets.devices.map(({ label, count, needs }) => ({ label, count, needs }))).toEqual([
       { label: 'hub', count: 5, needs: 2 },
-      { label: OTHER_DEVICES, count: 1, needs: 0 },
+      { label: NO_ENVIRONMENT, count: 1, needs: 0 },
     ])
     expect(facets.devices[0].folders).toEqual([
       { label: '~/projects/web', count: 4, needs: 2 },

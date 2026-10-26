@@ -9,6 +9,8 @@ clears all three.
 
 Hidden: kept out of the lists and their counts (shown on their own), and out of "done" notifications.
 
+Placed: where the owner says it runs (a machine, a folder), for sessions whose source does not say.
+
 Kept in memory, written through to SQLite.
 """
 
@@ -27,6 +29,8 @@ class Marks:
     seen_at: datetime | None = None
     marked_unread: bool = False
     hidden: bool = False
+    machine: str | None = None
+    folder: str | None = None
 
 
 class MarksRepository(Protocol):
@@ -48,7 +52,10 @@ class SqliteMarksRepository:
 
     def load(self) -> dict[str, Marks]:
         def record(r: sqlite3.Row) -> Marks:
-            return Marks(_time(r["finished_at"]), _time(r["seen_at"]), bool(r["marked_unread"]), bool(r["hidden"]))
+            return Marks(
+                _time(r["finished_at"]), _time(r["seen_at"]), bool(r["marked_unread"]), bool(r["hidden"]),
+                r["machine"], r["folder"],
+            )  # fmt: skip
 
         with self.db.connect() as conn:
             return {r["session_id"]: record(r) for r in conn.execute("SELECT * FROM session_marks")}
@@ -56,16 +63,19 @@ class SqliteMarksRepository:
     def save(self, session_id: str, record: Marks) -> None:
         with self.db.connect() as conn:
             conn.execute(
-                """INSERT INTO session_marks (session_id, finished_at, seen_at, marked_unread, hidden)
-                   VALUES (?, ?, ?, ?, ?)
+                """INSERT INTO session_marks (session_id, finished_at, seen_at, marked_unread, hidden, machine, folder)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(session_id) DO UPDATE SET finished_at = excluded.finished_at,
-                       seen_at = excluded.seen_at, marked_unread = excluded.marked_unread, hidden = excluded.hidden""",
+                       seen_at = excluded.seen_at, marked_unread = excluded.marked_unread, hidden = excluded.hidden,
+                       machine = excluded.machine, folder = excluded.folder""",
                 (
                     session_id,
                     _text(record.finished_at),
                     _text(record.seen_at),
                     int(record.marked_unread),
                     int(record.hidden),
+                    record.machine,
+                    record.folder,
                 ),  # fmt: skip
             )
 
@@ -97,6 +107,9 @@ class SessionMarks:
 
     def hide(self, session_id: str, hidden: bool) -> None:
         self._change(session_id, hidden=hidden)
+
+    def place(self, session_id: str, machine: str | None, folder: str | None) -> None:
+        self._change(session_id, machine=machine or None, folder=folder or None)
 
     def unread(self, session_id: str, source_unread: bool, active_at: datetime) -> bool:
         """`source_unread`: the source's own flag, about activity up to `active_at`."""

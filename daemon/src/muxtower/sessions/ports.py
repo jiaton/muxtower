@@ -88,3 +88,7 @@ class SessionSourcePort(Protocol):
     def archive(self, session_id: str) -> None:
         """Ends the session on its source and archives it there (gone from its lists)."""
         ...
+
+    def detect_folder(self, session_id: str) -> str | None:
+        """The folder the session's whole history names, if any (slow: reads all of it)."""
+        ...

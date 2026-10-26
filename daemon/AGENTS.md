@@ -22,8 +22,8 @@ src/muxtower/
   sessions/   registry, create/rename/terminate; directory.py: every session across sources, dispatch by capabilities;
               claude_processes.py: links a pane's Claude Code to its Remote Control session (one entry per agent)
               and to its transcript; transcripts.py: a tmux session's conversation, read from that transcript;
-              marks.py: the owner's marks (unread, hidden); archive.py: archived sessions (ended, kept to
-              read); merged.py: a tmux pane and its Remote Control session as one entry; turns.py: finished turns
+              marks.py: the owner's marks (unread, hidden); archive.py / archiving.py: archived sessions (ended, kept
+              to read); placement.py: where the owner says a session runs; merged.py: a tmux pane and its Remote Control session as one entry; turns.py: finished turns
   sources/    other session sources, one folder each (remote_control: Anthropic's Remote Control API)
   summaries/  short versions of long replies: a Summarizer port (claude/codex CLI adapters), SQLite cache, background loop
   asr/        speech to text for voice replies: a Transcriber port (OpenAI-compatible adapter: Groq, OpenAI)

@@ -2,7 +2,7 @@ import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { ago } from '@/lib/time'
-import { OTHER_DEVICES, deviceOf, folderName, folderOf, isAssistant, sourceOf, type SessionEntry } from '../model/facets'
+import { NO_ENVIRONMENT, deviceOf, folderName, folderOf, isAssistant, sourceOf, type SessionEntry } from '../model/facets'
 import { StatusIcon } from './status-icon'
 
 export interface RowContext {
@@ -47,7 +47,7 @@ export function SessionRow({
   const folder = folderOf(session)
   const where = [
     context.showDaemon ? daemon.name : null,
-    context.hideDevice ? null : (deviceOf(session) ?? OTHER_DEVICES),
+    context.hideDevice ? null : (deviceOf(session) ?? NO_ENVIRONMENT),
     context.hideFolder || !folder ? null : folderName(folder),
     context.hideSource ? null : sourceOf(session),
   ].filter(Boolean)

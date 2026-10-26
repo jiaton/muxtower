@@ -14,7 +14,7 @@ from muxtower.errors import Conflict, NotFound, Unavailable
 from muxtower.sessions.archive import SessionArchive
 from muxtower.sessions.marks import SessionMarks
 from muxtower.sessions.merged import deeper, merged
-from muxtower.sessions.models import Conversation, Session, SessionRole, UpdateSession
+from muxtower.sessions.models import Conversation, Placement, Session, SessionRole, UpdateSession
 from muxtower.sessions.ports import ClaudeProcessPort, SessionSource, SessionSourcePort
 from muxtower.sessions.service import SessionService
 from muxtower.sessions.transcripts import Transcripts
@@ -24,12 +24,11 @@ from muxtower.terminal.service import TerminalService
 
 logger = logging.getLogger("muxtower.sessions")
 
-Capability = Literal["screen", "conversation", "resize", "terminate", "rename", "archive"]
+Capability = Literal["screen", "conversation", "resize", "terminate", "rename", "archive", "place"]
 WHAT = {
     "screen": "a terminal screen", "conversation": "a structured conversation", "resize": "resizing",
-    "terminate": "stopping", "rename": "renaming", "archive": "archiving",
+    "terminate": "stopping", "rename": "renaming", "archive": "archiving", "place": "placing",
 }  # fmt: skip
-ARCHIVED_ITEMS = 400  # of a conversation that has no transcript, kept when it is archived
 
 
 class SessionDirectory:
@@ -65,10 +64,10 @@ class SessionDirectory:
 
     def _decorate(self, session: Session) -> Session:
         """What the sources leave open: the machine, folder and origin of everything that runs on this
-        hub, the owner's marks (unread, hidden), the reply summary, the concierge role."""
+        hub, the owner's marks (unread, hidden, where they placed it), the reply summary, the concierge role."""
         update: dict[str, object] = {}
-        if self.marks:
-            marks = self.marks.get(session.id)
+        marks = self.marks.get(session.id) if self.marks else None
+        if self.marks and marks:
             update["unread"] = self.marks.unread(session.id, session.unread, session.updated_at)
             update["finished_at"] = marks.finished_at
             update["hidden"] = marks.hidden
@@ -80,6 +79,10 @@ class SessionDirectory:
             update["origin"] = process.origin or session.origin  # what Claude Code says beats the tags
         if self.summaries and (summary := self.summaries.lookup(session.last_message)):
             update["reply_summary"] = summary
+        if marks and (marks.machine or marks.folder):  # the owner knows best
+            update["placement"] = Placement(machine=marks.machine, folder=marks.folder)
+            update["machine"] = marks.machine or update.get("machine", session.machine)
+            update["cwd"] = marks.folder or update.get("cwd", session.cwd)
         if self.concierge_id and session.id == self.concierge_id:
             update["role"] = SessionRole.CONCIERGE
             update["capabilities"] = session.capabilities.model_copy(update={"archive": False})  # it is restarted
@@ -188,24 +191,6 @@ class SessionDirectory:
         if self.source_of(session_id) is not None:
             self.require(session_id, "terminate")  # no source stops sessions yet
         self.local.terminate(session_id)  # explains itself for sessions muxtower did not start
-
-    def archive(self, session_id: str) -> None:
-        """Ends the session and keeps it to read: on Remote Control archived there first (if that fails,
-        nothing has changed), its tmux pane closed, its conversation kept (`SessionArchive`)."""
-        if self.archive_store is None:
-            raise Conflict("archiving is not available")
-        session = self.require(session_id, "archive")
-        own = self.source_of(session.id)
-        transcript = self.local.transcript_of(session.id) if own is None else None
-        items = None
-        if transcript is None and session.capabilities.conversation:
-            items = self.conversation(session.id, 0, ARCHIVED_ITEMS).items
-        remote_id = session.remote_id if own is None else session.id
-        if remote_id and (remote := self.source_of(remote_id)):
-            remote.archive(remote_id)
-        if own is None:
-            self.local.close(session.id)
-        self.archive_store.keep(session, transcript, items)
 
     def resize(self, session_id: str, body: Resize) -> None:
         self.require(session_id, "resize")

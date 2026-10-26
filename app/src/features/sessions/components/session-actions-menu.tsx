@@ -16,6 +16,7 @@ import { SessionActions, type SessionAction } from './session-actions'
 const MENU_LABEL: Record<SessionAction['id'], (session: Session) => string> = {
   read: (s) => (s.unread ? 'Mark as read' : 'Mark as unread'),
   rename: () => 'Rename',
+  place: () => 'Move…',
   hide: (s) => (s.hidden ? 'Show in the list' : 'Hide from the list'),
   archive: () => 'Archive',
   stop: () => 'Stop session',

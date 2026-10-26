@@ -43,8 +43,9 @@ export const placeOf = (session: Session): Place => (session.archived_at ? 'arch
 
 // --- device -------------------------------------------------------------------------------------
 
-/** Remote Control sessions that run on none of your daemons' machines, in no folder we know. */
-export const OTHER_DEVICES = 'Other devices'
+/** Sessions whose source names no machine (the Claude desktop app's, for one) and no folder that tells
+ *  one: said as it is, for the owner to place them (`capabilities.place`). */
+export const NO_ENVIRONMENT = 'No environment'
 
 /** The kind of machine a path belongs to, for sessions no daemon runs: the best name we have. */
 function platformOf(cwd: string | undefined): string | null {

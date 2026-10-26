@@ -26,6 +26,17 @@ class PendingAction(BaseModel):
     recommended: str | None = Field(default=None, description="option key approve picks when none is given")
 
 
+class Placement(BaseModel):
+    """Where the owner says a session runs, over what its source reports; empty fields are not placed."""
+
+    machine: str | None = Field(default=None, max_length=80, description="a machine, as the lists name it")
+    folder: str | None = Field(default=None, max_length=500, description="a folder: a path, ~ for home")
+
+
+class DetectedFolder(BaseModel):
+    folder: str | None = Field(description="the folder its log names, now its placement; null when none")
+
+
 class TurnSummary(BaseModel):
     """A short account of the latest turn, written by the agent's platform (Remote Control) or by us."""
 
@@ -50,6 +61,9 @@ class Capabilities(BaseModel):
     terminate: bool = Field(description="it can be stopped (DELETE); for an archived one: deleted from the archive")
     rename: bool
     archive: bool = Field(default=False, description="it can be archived: ended, and kept to read (POST /archive)")
+    place: bool = Field(
+        default=False, description="where it runs can be set by the owner or detected from its log (/placement)"
+    )
 
 
 class Session(BaseModel):
@@ -85,6 +99,9 @@ class Session(BaseModel):
     )
     finished_at: datetime | None = Field(default=None, description="when it last finished a turn")
     hidden: bool = Field(default=False, description="the owner hid it: kept out of the lists and done notifications")
+    placement: Placement | None = Field(
+        default=None, description="where the owner placed it; `machine` and `cwd` already follow it"
+    )
     archived_at: datetime | None = Field(
         default=None, description="when the owner archived it: it no longer runs, its conversation stays readable"
     )
