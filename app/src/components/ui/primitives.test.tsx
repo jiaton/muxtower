@@ -44,6 +44,16 @@ describe('Segmented', () => {
     fireEvent.click(screen.getByRole('radio', { name: 'B' }))
     expect(onChange).toHaveBeenCalledWith('b')
   })
+
+  it('takes a smaller text size when the labels do not fit', () => {
+    const widths = { offsetWidth: 300, clientWidth: 200 } // the full labels need 300px, the row has 200
+    const spies = Object.entries(widths).map(([key, px]) =>
+      vi.spyOn(HTMLElement.prototype, key as 'offsetWidth' | 'clientWidth', 'get').mockReturnValue(px),
+    )
+    render(<Segmented aria-label="Show" value="a" onChange={() => {}} options={[{ value: 'a', label: 'Needs you' }]} />)
+    expect(screen.getByRole('radio', { name: 'Needs you' })).toHaveClass('text-xs')
+    spies.forEach((spy) => spy.mockRestore())
+  })
 })
 
 describe('Nav', () => {
