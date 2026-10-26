@@ -1,5 +1,5 @@
 import { Link, Outlet, createFileRoute, useMatch } from '@tanstack/react-router'
-import { BellOff, CheckCheck, EyeOff, Plus, SearchX, Server } from 'lucide-react'
+import { Archive, BellOff, CheckCheck, EyeOff, Plus, SearchX, Server } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -120,6 +120,10 @@ function SessionsLayout() {
               ) : query.view === 'hidden' ? (
                 <EmptyState icon={<EyeOff />} title="Nothing hidden">
                   Swipe a session right, or use its menu, to hide it.
+                </EmptyState>
+              ) : query.view === 'archived' ? (
+                <EmptyState icon={<Archive />} title="Nothing archived">
+                  Archiving a session ends it and keeps its conversation here.
                 </EmptyState>
               ) : (
                 <EmptyState title="No sessions here" />

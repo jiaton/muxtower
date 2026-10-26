@@ -236,6 +236,15 @@ class RemoteControlSource:
         self.get(session_id)
         self.port.mark_read(session_id)
 
+    def archive(self, session_id: str) -> None:
+        """Archived on Remote Control (which ends its agent), and out of this cache at once rather than
+        at the next poll."""
+        self.get(session_id)
+        self.port.archive_session(session_id)
+        with self._lock:
+            self.sessions.pop(session_id, None)
+            self._unsent.pop(session_id, None)
+
     def send_key(self, session_id: str, key: str) -> None:
         self.get(session_id)
         if key not in KEYS:

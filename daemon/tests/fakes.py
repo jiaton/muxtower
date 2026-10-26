@@ -58,3 +58,6 @@ class FakeTmux:
         for key, pane in list(self.panes.items()):
             if key[0] == socket and pane.info.session_name == name:
                 del self.panes[key]
+
+    def kill_pane(self, pane: PaneRef) -> None:
+        self.panes.pop((pane.socket, pane.pane_id), None)

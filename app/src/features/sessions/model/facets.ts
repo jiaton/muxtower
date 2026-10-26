@@ -36,6 +36,11 @@ export function statusOf(session: Session): Status {
   return session.unread ? 'unread' : 'idle'
 }
 
+/** Where a session is listed: with the others, or set aside under Hidden or Archived (each only there). */
+export type Place = 'listed' | 'hidden' | 'archived'
+
+export const placeOf = (session: Session): Place => (session.archived_at ? 'archived' : session.hidden ? 'hidden' : 'listed')
+
 // --- device -------------------------------------------------------------------------------------
 
 /** Remote Control sessions that run on none of your daemons' machines, in no folder we know. */

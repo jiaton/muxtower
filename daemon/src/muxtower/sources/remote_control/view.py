@@ -117,7 +117,13 @@ def to_session(rc: RcSession, environments: dict[str, str]) -> Session:
         machine=machine(raw, environments),
         origin=origin(raw),
         capabilities=Capabilities(
-            screen=False, conversation=True, keys=list(KEYS), resize=False, terminate=False, rename=False
+            screen=False,
+            conversation=True,
+            keys=list(KEYS),
+            resize=False,
+            terminate=False,
+            rename=False,
+            archive=True,
         ),
         summary=summary,
         unread=bool(raw.get("unread")),

@@ -1,16 +1,16 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Eye, EyeOff, Mail, MailOpen, Pencil, Power, type LucideIcon } from 'lucide-react'
+import { Archive, Eye, EyeOff, Mail, MailOpen, Pencil, Power, Trash2, type LucideIcon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import type { Session } from '@/lib/api/types'
-import { useTerminateSession, useUpdateSession } from '../api/use-session-mutations'
+import { useArchiveSession, useTerminateSession, useUpdateSession } from '../api/use-session-mutations'
 import { useHideSession, useMarkRead } from '../api/use-session-marks'
 
 export interface SessionAction {
-  id: 'read' | 'rename' | 'hide' | 'stop'
+  id: 'read' | 'rename' | 'hide' | 'archive' | 'stop' | 'delete'
   label: string
   icon: LucideIcon
   tone?: 'accent' | 'neutral' | 'danger'
@@ -18,10 +18,11 @@ export interface SessionAction {
 }
 
 /** What the owner can do to a session from anywhere it is shown (a list row's swipe tray or menu, the
- *  session's own menu): mark read or unread, rename, hide or show, stop; rename and stop only where its
- *  capabilities allow. Renders `children(actions)` plus the dialogs they open. `open`: the session is the
- *  page being shown, so marking it unread or hiding it goes back to the list first (an open session is
- *  read, and a hidden one has no place beside the list). */
+ *  session's own menu): mark read or unread, rename, hide or show, archive, stop; rename, archive and stop
+ *  only where its capabilities allow. An archived session can only be deleted from the archive. Renders
+ *  `children(actions)` plus the dialogs they open (archive, stop and delete ask first). `open`: the session
+ *  is the page being shown, so marking it unread, hiding or deleting it goes back to the list first (an
+ *  open session is read, and a hidden one has no place beside the list); an archived one stays, read-only. */
 export function SessionActions({
   daemonId,
   session,
@@ -36,30 +37,41 @@ export function SessionActions({
   const navigate = useNavigate()
   const markRead = useMarkRead()
   const hide = useHideSession()
-  const [dialog, setDialog] = useState<'rename' | 'stop' | null>(null)
+  const [dialog, setDialog] = useState<'rename' | 'archive' | 'stop' | 'delete' | null>(null)
   const ids = { daemonId, sessionId: session.id }
   const leaving = (then: () => void) => (open ? () => void navigate({ to: '/', search: true }).then(then) : then)
 
-  const actions: SessionAction[] = [
-    session.unread
-      ? { id: 'read', label: 'Read', icon: MailOpen, tone: 'accent', run: () => markRead.mutate({ ...ids, read: true }) }
-      : { id: 'read', label: 'Unread', icon: Mail, tone: 'accent', run: leaving(() => markRead.mutate({ ...ids, read: false })) },
-  ]
-  if (session.capabilities.rename)
-    actions.push({ id: 'rename', label: 'Rename', icon: Pencil, tone: 'neutral', run: () => setDialog('rename') })
-  actions.push(
-    session.hidden
-      ? { id: 'hide', label: 'Show', icon: Eye, tone: 'neutral', run: () => hide.mutate({ ...ids, hidden: false }) }
-      : { id: 'hide', label: 'Hide', icon: EyeOff, tone: 'neutral', run: leaving(() => hide.mutate({ ...ids, hidden: true })) },
-  )
-  if (session.capabilities.terminate) actions.push({ id: 'stop', label: 'Stop', icon: Power, tone: 'danger', run: () => setDialog('stop') })
+  const actions: SessionAction[] = session.archived_at
+    ? [{ id: 'delete', label: 'Delete', icon: Trash2, tone: 'danger', run: () => setDialog('delete') }]
+    : liveActions()
+
+  function liveActions(): SessionAction[] {
+    const live: SessionAction[] = [
+      session.unread
+        ? { id: 'read', label: 'Read', icon: MailOpen, tone: 'accent', run: () => markRead.mutate({ ...ids, read: true }) }
+        : { id: 'read', label: 'Unread', icon: Mail, tone: 'accent', run: leaving(() => markRead.mutate({ ...ids, read: false })) },
+    ]
+    if (session.capabilities.rename) live.push({ id: 'rename', label: 'Rename', icon: Pencil, tone: 'neutral', run: () => setDialog('rename') })
+    live.push(
+      session.hidden
+        ? { id: 'hide', label: 'Show', icon: Eye, tone: 'neutral', run: () => hide.mutate({ ...ids, hidden: false }) }
+        : { id: 'hide', label: 'Hide', icon: EyeOff, tone: 'neutral', run: leaving(() => hide.mutate({ ...ids, hidden: true })) },
+    )
+    if (session.capabilities.archive) live.push({ id: 'archive', label: 'Archive', icon: Archive, tone: 'neutral', run: () => setDialog('archive') })
+    if (session.capabilities.terminate) live.push({ id: 'stop', label: 'Stop', icon: Power, tone: 'danger', run: () => setDialog('stop') })
+    return live
+  }
 
   return (
     <>
       {children(actions)}
       {dialog === 'rename' ? <RenameDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} /> : null}
+      {dialog === 'archive' ? <ArchiveDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} /> : null}
       {dialog === 'stop' ? (
-        <StopDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} onStopped={leaving(() => {})} />
+        <StopDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} onDone={leaving(() => {})} />
+      ) : null}
+      {dialog === 'delete' ? (
+        <DeleteDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} onDone={leaving(() => {})} />
       ) : null}
     </>
   )
@@ -89,42 +101,115 @@ function RenameDialog({ daemonId, session, onClose }: { daemonId: string; sessio
   )
 }
 
-function StopDialog({
-  daemonId,
-  session,
+interface Mutation {
+  mutate: (variables: undefined, options: { onSuccess: () => void }) => void
+  isPending: boolean
+  error: Error | null
+}
+
+/** Asks before something that cannot be undone, then runs it: `onDone` after it worked. */
+function ConfirmDialog({
+  title,
+  description,
+  confirm,
+  mutation,
   onClose,
-  onStopped,
+  onDone,
 }: {
-  daemonId: string
-  session: Session
+  title: string
+  description: string
+  confirm: ReactNode
+  mutation: Mutation
   onClose: () => void
-  onStopped: () => void
+  onDone?: () => void
 }) {
-  const terminate = useTerminateSession(daemonId, session.id)
   return (
     <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent title={`Stop ${session.name}?`} description="This ends the agent and kills its tmux session.">
-        {terminate.error ? <Banner tone="error">{terminate.error.message}</Banner> : null}
+      <DialogContent title={title} description={description}>
+        {mutation.error ? <Banner tone="error">{mutation.error.message}</Banner> : null}
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={onClose}>
             Cancel
           </Button>
           <Button
             variant="danger"
-            disabled={terminate.isPending}
+            disabled={mutation.isPending}
             onClick={() =>
-              terminate.mutate(undefined, {
+              mutation.mutate(undefined, {
                 onSuccess: () => {
                   onClose()
-                  onStopped()
+                  onDone?.()
                 },
               })
             }
           >
-            <Power /> Stop
+            {confirm}
           </Button>
         </div>
       </DialogContent>
     </Dialog>
+  )
+}
+
+interface DialogProps {
+  daemonId: string
+  session: Session
+  onClose: () => void
+  onDone?: () => void
+}
+
+function StopDialog({ daemonId, session, ...rest }: DialogProps) {
+  return (
+    <ConfirmDialog
+      title={`Stop ${session.name}?`}
+      description="This ends the agent and kills its tmux session."
+      confirm={
+        <>
+          <Power /> Stop
+        </>
+      }
+      mutation={useTerminateSession(daemonId, session.id)}
+      {...rest}
+    />
+  )
+}
+
+/** What archiving does here: where the session runs decides what ends. */
+function archiveEffect(session: Session): string {
+  const kept = 'Its conversation stays readable under Archived.'
+  if (session.tmux_pane && session.remote_id) return `This ends the agent, closes its tmux pane and archives it on Remote Control. ${kept}`
+  if (session.tmux_pane) return `This ends the agent and closes its tmux pane. ${kept}`
+  return `This archives it on Remote Control, which ends the agent. ${kept}`
+}
+
+function ArchiveDialog({ daemonId, session, ...rest }: DialogProps) {
+  return (
+    <ConfirmDialog
+      title={`Archive ${session.name}?`}
+      description={archiveEffect(session)}
+      confirm={
+        <>
+          <Archive /> Archive
+        </>
+      }
+      mutation={useArchiveSession(daemonId, session.id)}
+      {...rest}
+    />
+  )
+}
+
+function DeleteDialog({ daemonId, session, ...rest }: DialogProps) {
+  return (
+    <ConfirmDialog
+      title={`Delete ${session.name}?`}
+      description="It leaves the archive, and its conversation is no longer shown here."
+      confirm={
+        <>
+          <Trash2 /> Delete
+        </>
+      }
+      mutation={useTerminateSession(daemonId, session.id)}
+      {...rest}
+    />
   )
 }

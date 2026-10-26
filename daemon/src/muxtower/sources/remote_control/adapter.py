@@ -118,3 +118,7 @@ class AnthropicRemoteControl:
     def interrupt(self, session_id: str) -> None:
         with self._call():
             self.client.interrupt(session_id)
+
+    def archive_session(self, session_id: str) -> None:
+        with self._call():
+            self.client.archive_session(session_id)  # already archived counts as done

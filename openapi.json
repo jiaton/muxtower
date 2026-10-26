@@ -65,6 +65,12 @@
       "Capabilities": {
         "description": "What a client may offer for this session (sources differ).",
         "properties": {
+          "archive": {
+            "default": false,
+            "description": "it can be archived: ended, and kept to read (POST /archive)",
+            "title": "Archive",
+            "type": "boolean"
+          },
           "conversation": {
             "description": "structured conversation items exist (GET /conversation)",
             "title": "Conversation",
@@ -92,6 +98,7 @@
             "type": "boolean"
           },
           "terminate": {
+            "description": "it can be stopped (DELETE); for an archived one: deleted from the archive",
             "title": "Terminate",
             "type": "boolean"
           }
@@ -738,6 +745,19 @@
             "description": "draws full screen (alternate screen): tmux keeps no scrollback, see the conversation",
             "title": "Alt Screen",
             "type": "boolean"
+          },
+          "archived_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "when the owner archived it: it no longer runs, its conversation stays readable",
+            "title": "Archived At"
           },
           "auto_approve": {
             "title": "Auto Approve",
@@ -1861,6 +1881,7 @@
     },
     "/v1/sessions/{session_id}": {
       "delete": {
+        "description": "Stops the session (`capabilities.terminate`); an archived one is deleted from the archive.",
         "operationId": "terminate_session_v1_sessions__session_id__delete",
         "parameters": [
           {
@@ -2031,6 +2052,42 @@
           }
         },
         "summary": "Approve",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/archive": {
+      "post": {
+        "description": "Ends the session (closes its tmux pane, archives it on Remote Control) and keeps its conversation\nto read under `archived_at` (`capabilities.archive`).",
+        "operationId": "archive_session_v1_sessions__session_id__archive_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Archive Session",
         "tags": [
           "sessions"
         ]

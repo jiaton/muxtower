@@ -1,6 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { ArrowLeft } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { PaneHeader } from '@/components/ui/pane'
 import type { Session } from '@/lib/api/types'
@@ -22,7 +23,7 @@ export function SessionHeader({ session, actions }: { session: Session; actions?
       title={
         <>
           <h1 className="min-w-0 truncate">{session.name}</h1>
-          <StateBadge state={session.state} />
+          {session.archived_at ? <Badge>Archived</Badge> : <StateBadge state={session.state} />}
         </>
       }
       subtitle={<span title={session.cwd || undefined}>{where.join(' · ')}</span>}
