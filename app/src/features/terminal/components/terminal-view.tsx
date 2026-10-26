@@ -2,7 +2,6 @@ import { ArrowDown, LoaderCircle, MoveHorizontal } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ansiToLines } from '@/lib/ansi'
-import { textCells } from '@/lib/cell-width'
 import { align } from '../lines'
 
 interface Props {
@@ -18,25 +17,6 @@ interface Props {
 }
 
 const BOTTOM_SLACK = 24
-const MEASURED_CELLS = 10 // a rendered line at least this long says how wide a cell is
-
-/** How wide one cell is drawn: from the longest line on screen (what the reader's browser really draws,
- *  whatever font it found and however it scales text), else from the probe of ten cells. */
-function cellWidth(body: HTMLElement, probe: HTMLElement): number {
-  let longest: { line: Element; cells: number } | null = null
-  for (const line of body.children) {
-    const cells = textCells(line.textContent ?? '')
-    if (cells >= MEASURED_CELLS && cells > (longest?.cells ?? 0)) longest = { line, cells }
-  }
-  if (longest) {
-    const range = document.createRange()
-    range.selectNodeContents(longest.line)
-    const width = range.getBoundingClientRect().width
-    if (width > 0) return width / longest.cells
-  }
-  return probe.getBoundingClientRect().width / 10
-}
-
 /**
  * The pane's output as selectable text in a natively scrolling box (pixel scrolling with momentum,
  * no tmux copy mode). Each snapshot is diffed line by line against what is shown: lines pushed off
@@ -49,7 +29,6 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
   const probe = useRef<HTMLDivElement>(null)
   const shown = useRef<string[]>([])
   const atBottom = useRef(true)
-  const measureRef = useRef<(() => void) | null>(null)
   const [behind, setBehind] = useState(false)
   const [tooWide, setTooWide] = useState(false)
   const lines = useMemo(() => (ansi === undefined ? null : ansiToLines(ansi.replace(/\n+$/, ''))), [ansi])
@@ -98,9 +77,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
     }
     shown.current = lines
 
-    const overflowing = box.scrollWidth > box.clientWidth + 2
-    setTooWide(overflowing)
-    if (overflowing) measureRef.current?.() // fitted, yet drawn wider: measure the cells again
+    setTooWide(box.scrollWidth > box.clientWidth + 2)
     if (atBottom.current) box.scrollTop = box.scrollHeight
     else {
       box.scrollTop += delta
@@ -108,9 +85,9 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
     }
   }, [lines])
 
-  // Fit: how many cells across and lines down this box shows at the current font size, measured on what
-  // is drawn (`cellWidth`), again when the box resizes, fonts arrive, or output still overflows. The probe
-  // is one line of ten cells in the same font and line height as the output.
+  // Fit: how many cells across and lines down this box shows at the current font size, measured again
+  // when the box resizes or fonts arrive. The probe is one line of ten cells in the same font and line
+  // height as the output (whose non-ASCII text is boxed to its cells, see lib/ansi.ts).
   useEffect(() => {
     const box = scroller.current
     if (!box || !onFit) return
@@ -123,14 +100,13 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
         const style = getComputedStyle(box)
         const width = box.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
         const height = box.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
-        const cols = Math.max(20, Math.floor((width - 1) / cellWidth(body.current!, probe.current!)))
+        const cols = Math.max(20, Math.floor((width - 1) / (line.width / 10)))
         const rows = Math.min(200, Math.max(5, Math.floor(height / line.height)))
         if (`${cols}x${rows}` === sent) return
         sent = `${cols}x${rows}`
         onFit({ cols, rows })
       }, 250)
     }
-    measureRef.current = measure
     measure()
     const observer = new ResizeObserver(measure)
     observer.observe(box)
@@ -139,7 +115,6 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
       clearTimeout(timer)
       observer.disconnect()
       document.fonts?.removeEventListener('loadingdone', measure)
-      measureRef.current = null
     }
   }, [onFit, fontSize])
 
