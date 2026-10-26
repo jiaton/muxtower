@@ -10,6 +10,12 @@ def truncate(text: str) -> str:
     return text if len(text) <= DETAIL_LIMIT else text[:DETAIL_LIMIT] + "…"
 
 
+def tool_description(tool_input: Any) -> str | None:
+    """What the agent said a tool call does, when it said (Claude Code's Bash and Task take one)."""
+    value = tool_input.get("description") if isinstance(tool_input, dict) else None
+    return (value.strip()[:200] or None) if isinstance(value, str) else None
+
+
 def describe_tool_input(tool_input: Any) -> str | None:
     """The one thing a human needs to judge a tool call: the command, the path, the URL…"""
     if not isinstance(tool_input, dict):

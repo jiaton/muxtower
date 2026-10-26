@@ -1,5 +1,6 @@
 import type { ComponentProps } from 'react'
 import ReactMarkdown, { type Components } from 'react-markdown'
+import remarkCjkFriendly from 'remark-cjk-friendly'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/cn'
 
@@ -50,7 +51,7 @@ const components: Components = {
 export function Markdown({ children, className }: { children: string; className?: ComponentProps<'div'>['className'] }) {
   return (
     <div className={cn('flex min-w-0 flex-col gap-2 break-words', className)}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkCjkFriendly]} components={components}>
         {children}
       </ReactMarkdown>
     </div>

@@ -18,6 +18,14 @@ def test_prompt_reply_and_tool_lifecycle() -> None:
     assert b.last_reply == "Looking."
 
 
+def test_a_tool_call_keeps_its_own_description() -> None:
+    b = ConversationBuilder()
+    call = {"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "make check", "description": "Run checks"}}
+    b.feed([assistant(1, call)])
+    (item,) = b.after(0, 10)
+    assert (item.text, item.description) == ("make check", "Run checks")
+
+
 def test_injected_context_is_not_a_prompt_and_duplicates_are_ignored() -> None:
     b = ConversationBuilder()
     b.feed([user(1, "<system-reminder>internal</system-reminder>"), user(2, "/compact")])
