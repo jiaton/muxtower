@@ -35,3 +35,25 @@ export const useTerminalPrefs = create<TerminalPrefs>()(
     { name: 'muxtower.terminal', version: 1 },
   ),
 )
+
+interface Drafts {
+  /** Unsent messages, per session (`daemonId/sessionId`): kept through switching sessions, the phone
+   *  closing the app, a reload. */
+  drafts: Record<string, string>
+  setDraft: (key: string, text: string) => void
+}
+
+export const useDrafts = create<Drafts>()(
+  persist(
+    (set) => ({
+      drafts: {},
+      setDraft: (key, text) =>
+        set((s) => {
+          const drafts = { ...s.drafts, [key]: text }
+          if (!text) delete drafts[key]
+          return { drafts }
+        }),
+    }),
+    { name: 'muxtower.drafts', version: 1 },
+  ),
+)
