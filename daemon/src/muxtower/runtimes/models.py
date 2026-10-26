@@ -38,3 +38,4 @@ class RuntimeInfo(BaseModel):
     binary: str
     available: bool
     has_hooks: bool
+    headless: bool = False  # can also run without a terminal (Codex in muxtower's app-server)

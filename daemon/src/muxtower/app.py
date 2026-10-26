@@ -2,9 +2,8 @@
 
 import asyncio
 import logging
-import secrets
 import socket
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -16,15 +15,18 @@ from muxtower.agents.codex.processes import CodexProcesses
 from muxtower.agents.processes import AgentProcesses
 from muxtower.approval.auto import AutoApprover
 from muxtower.approval.service import ApprovalService
-from muxtower.asr.openai_compatible import OpenAICompatibleTranscriber
 from muxtower.asr.routes import router as asr_router
-from muxtower.asr.service import AsrService
 from muxtower.auth.deps import DAEMON_AUTH_HEADER
 from muxtower.auth.pairing import PairingService
-from muxtower.auth.repository import SqliteTokenRepository
 from muxtower.auth.routes import router as auth_router
-from muxtower.auth.service import TokenService
 from muxtower.auth.stream_cookie import StreamCookieSigner
+from muxtower.builders import (
+    build_asr,
+    build_codex,
+    build_remote_control,
+    build_summaries,
+    build_token_service,
+)
 from muxtower.concierge.service import ConciergeService
 from muxtower.concierge.store import FileConciergeStore
 from muxtower.config import Settings
@@ -48,20 +50,19 @@ from muxtower.sessions.archive_repository import SqliteArchiveRepository
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.claude_processes import ClaudeProcesses
 from muxtower.sessions.directory import SessionDirectory
+from muxtower.sessions.launcher import Launcher
 from muxtower.sessions.marks import SessionMarks, SqliteMarksRepository
 from muxtower.sessions.monitor import Monitor
 from muxtower.sessions.placement import Placements
+from muxtower.sessions.ports import SessionSourcePort
 from muxtower.sessions.repository import SqliteSessionRepository
 from muxtower.sessions.routes import router as sessions_router
 from muxtower.sessions.service import SessionConfig, SessionService
 from muxtower.sessions.transcripts import Transcripts
 from muxtower.sessions.turns import TurnWatcher
+from muxtower.sources.codex.service import CodexSource
 from muxtower.sources.remote_control.service import RemoteControlSource
-from muxtower.summaries.cli import ClaudeCodeSummarizer, CodexSummarizer
-from muxtower.summaries.ports import Summarizer
-from muxtower.summaries.repository import SqliteSummaryRepository
 from muxtower.summaries.routes import router as summaries_router
-from muxtower.summaries.service import SummaryService
 from muxtower.system.routes import router as system_router
 from muxtower.terminal.ports import TmuxPort
 from muxtower.terminal.service import TerminalService
@@ -69,58 +70,6 @@ from muxtower.terminal.stream import router as stream_router
 from muxtower.web import mount_ui
 
 logger = logging.getLogger("muxtower")
-
-CLI_TOKEN_NAME = "local-cli"  # noqa: S105 - a device name, not a secret
-
-
-def local_cli_token(settings: Settings) -> str:
-    """Token the `muxtower` command uses to talk to a daemon on the same machine (file mode 0600)."""
-    path = settings.state_dir / "cli-token"
-    if not path.exists():
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(secrets.token_urlsafe(32))
-        path.chmod(0o600)
-    return path.read_text().strip()
-
-
-def build_token_service(settings: Settings, db: Database | None = None) -> TokenService:
-    db = db or Database(settings.db_path)
-    db.migrate()
-    extra = {CLI_TOKEN_NAME: local_cli_token(settings)}
-    if settings.pairing.shared_token:
-        extra["shared"] = settings.pairing.shared_token
-    return TokenService(SqliteTokenRepository(db), extra)
-
-
-def build_remote_control(settings: Settings) -> RemoteControlSource | None:
-    rc = settings.remote_control
-    if not rc.enabled:
-        return None
-    from muxtower.sources.remote_control.adapter import AnthropicRemoteControl  # only when enabled
-
-    return RemoteControlSource(AnthropicRemoteControl(rc.credentials_path, rc.config_path), rc.environments)
-
-
-def build_summaries(settings: Settings, db: Database) -> SummaryService:
-    cfg = settings.summaries
-    workdir = settings.state_dir / "summarizer"  # empty: no project instructions for the summarizer
-    summarizer: Summarizer | None = None
-    if cfg.provider == "claude-code":
-        summarizer = ClaudeCodeSummarizer(workdir, cfg.binary or "claude", cfg.model or "haiku", cfg.timeout_seconds)
-    elif cfg.provider == "codex":
-        summarizer = CodexSummarizer(workdir, cfg.binary or "codex", cfg.model, cfg.timeout_seconds)
-    return SummaryService(summarizer, SqliteSummaryRepository(db), cfg.min_chars)
-
-
-def build_asr(settings: Settings, hints: Callable[[], list[str]]) -> AsrService:
-    cfg = settings.asr
-    key = cfg.key()
-    if cfg.provider == "off":
-        return AsrService(None, cfg.language)
-    if not key:
-        logger.warning("asr.provider is %s but no API key is set; voice is off", cfg.provider)
-        return AsrService(None, cfg.language)
-    return AsrService(OpenAICompatibleTranscriber(cfg.provider, key, cfg.model), cfg.language, hints, cfg.prompt)
 
 
 def _log_crash(task: asyncio.Task[None]) -> None:
@@ -133,6 +82,7 @@ def create_app(
     tmux: TmuxPort | None = None,
     run_loops: bool = True,
     remote_control: RemoteControlSource | None = None,
+    codex: CodexSource | None = None,
 ) -> FastAPI:
     db = Database(settings.db_path)
     tokens = build_token_service(settings, db)
@@ -145,6 +95,8 @@ def create_app(
         SessionConfig(settings.tmux_socket, settings.adopt_sockets, settings.local_url, settings.state_dir),
     )
     remote_control = remote_control or build_remote_control(settings)
+    codex = codex or build_codex(settings)
+    sources: list[SessionSourcePort] = [s for s in (remote_control, codex) if s is not None]
     # Links panes to their agent's session: Remote Control, transcript, name (one plugin per agent).
     processes = AgentProcesses([ClaudeProcesses(), CodexProcesses()])
     monitor = Monitor(sessions, processes)
@@ -155,7 +107,7 @@ def create_app(
     transcripts = Transcripts()
     archive = SessionArchive(SqliteArchiveRepository(db), transcripts)
     directory = SessionDirectory(
-        sessions, terminal, approvals, [remote_control] if remote_control else [], summaries, daemon_name, processes,
+        sessions, terminal, approvals, sources, summaries, daemon_name, processes,
         marks, transcripts, archive,
     )  # fmt: skip
     audit = AuditLog(db)
@@ -190,6 +142,8 @@ def create_app(
                 loops["concierge"] = concierge.run_loop(bus)
             if remote_control is not None:
                 loops["remote-control"] = remote_control.run_loop(bus, settings.remote_control.poll_seconds)
+            if codex is not None:
+                loops["codex"] = codex.run_loop(bus)
             for name, coro in loops.items():
                 task = asyncio.create_task(coro, name=name)
                 task.add_done_callback(_log_crash)
@@ -197,6 +151,8 @@ def create_app(
         yield
         for task in tasks:
             task.cancel()
+        if codex is not None:
+            codex.port.close()
 
     app = FastAPI(title="muxtower", version=__version__, lifespan=lifespan)
     app.state.settings = settings
@@ -209,6 +165,7 @@ def create_app(
     app.state.directory = directory
     app.state.placements = Placements(directory, marks)
     app.state.archiver = Archiver(directory, archive)
+    app.state.launcher = Launcher(directory, [codex] if codex else [])
     app.state.summaries = summaries
     app.state.concierge = concierge
     app.state.mcp = McpTools(directory, sessions, concierge, daemon_name)

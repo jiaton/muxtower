@@ -9,7 +9,7 @@ import urllib.error
 import urllib.request
 from typing import Any
 
-from muxtower.app import local_cli_token
+from muxtower.builders import local_cli_token
 from muxtower.config import Settings
 
 

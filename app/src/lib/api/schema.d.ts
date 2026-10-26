@@ -671,6 +671,12 @@ export interface components {
             args?: string[];
             /** Cwd */
             cwd: string;
+            /**
+             * Headless
+             * @description run it without a terminal, where the runtime can (`RuntimeInfo.headless`)
+             * @default false
+             */
+            headless: boolean;
             /** Name */
             name?: string | null;
             /** Runtime */
@@ -838,6 +844,11 @@ export interface components {
             binary: string;
             /** Has Hooks */
             has_hooks: boolean;
+            /**
+             * Headless
+             * @default false
+             */
+            headless: boolean;
             /** Name */
             name: string;
         };
@@ -998,7 +1009,7 @@ export interface components {
          * SessionSource
          * @enum {string}
          */
-        SessionSource: "launched" | "adopted" | "remote_control";
+        SessionSource: "launched" | "adopted" | "remote_control" | "codex";
         /** SessionsFrame */
         SessionsFrame: {
             /** Sessions */
