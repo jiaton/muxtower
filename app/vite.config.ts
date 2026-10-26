@@ -24,6 +24,9 @@ export default defineConfig({
       injectRegister: 'auto',
       injectManifest: { globPatterns: ['**/*.{js,css,html,svg,png,woff2}'] },
       devOptions: { enabled: false },
+      // Fetch the manifest with cookies: behind a sign-in gate, a manifest fetched without them is the
+      // sign-in page, and the browser then offers no install.
+      useCredentials: true,
       manifest: {
         name: 'muxtower',
         short_name: 'muxtower',

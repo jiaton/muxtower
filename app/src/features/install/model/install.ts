@@ -3,10 +3,12 @@
  *    Android installs a real app this way, whose notifications carry the app's name and icon;
  *  - `ios`: Safari on iPhone or iPad, which installs only by hand (Share › Add to Home Screen), and
  *    gives web apps push notifications only once they are added;
+ *  - `menu`: Chrome on Android that has not offered yet (it waits until the page has been used a little,
+ *    and never offers when the app is installed already): its own menu installs it;
  *  - `shortcut`: another Android browser (Vivaldi, Firefox, …), which adds at most a shortcut whose
  *    notifications stay under the browser's name;
- *  - null: installed already, or nothing worth saying (a desktop browser, Chrome that has not offered). */
-export type InstallOption = 'prompt' | 'ios' | 'shortcut' | null
+ *  - null: installed already, or nothing worth saying (a desktop browser that has not offered). */
+export type InstallOption = 'prompt' | 'ios' | 'menu' | 'shortcut' | null
 
 export interface InstallContext {
   standalone: boolean
@@ -21,6 +23,6 @@ export function installOption({ standalone, canPrompt, userAgent, brands }: Inst
   if (standalone) return null
   if (canPrompt) return 'prompt'
   if (/iPhone|iPad|iPod/.test(userAgent) || (/Macintosh/.test(userAgent) && /Mobile\//.test(userAgent))) return 'ios'
-  if (/Android/.test(userAgent) && !brands?.includes('Google Chrome')) return 'shortcut'
+  if (/Android/.test(userAgent)) return brands?.includes('Google Chrome') ? 'menu' : 'shortcut'
   return null
 }

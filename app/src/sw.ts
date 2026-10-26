@@ -2,10 +2,15 @@
 // One script, several registrations: the root one caches the app shell; one per daemon (scope
 // <base>push/<daemonId>/) holds that daemon's push subscription, since each daemon has its own VAPID key
 // and a registration can only hold one subscription.
+import { clientsClaim } from 'workbox-core'
 import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching'
 
 declare const self: ServiceWorkerGlobalScope
 
+// A new version takes over at once, and the open app reloads into it (registerType: 'autoUpdate').
+// Without this it waits until every tab of the app is closed, which on a phone can be never.
+void self.skipWaiting()
+clientsClaim()
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
 
