@@ -5,12 +5,12 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { PaneHeader } from '@/components/ui/pane'
 import type { Session } from '@/lib/api/types'
-import { OTHER_DEVICES, deviceOf, folderOf, sourceOf } from '../model/facets'
+import { NO_ENVIRONMENT, deviceOf, folderOf, sourceOf } from '../model/facets'
 import { StateBadge } from './state-badge'
 
 /** The top of a session page: back (phones), name and state, where it runs, and the page's actions. */
 export function SessionHeader({ session, actions }: { session: Session; actions?: ReactNode }) {
-  const where = [deviceOf(session) ?? OTHER_DEVICES, folderOf(session), sourceOf(session), session.runtime].filter(Boolean)
+  const where = [deviceOf(session) ?? NO_ENVIRONMENT, folderOf(session), sourceOf(session), session.runtime].filter(Boolean)
   return (
     <PaneHeader
       leading={

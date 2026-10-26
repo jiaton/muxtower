@@ -20,6 +20,7 @@ from muxtower.errors import Conflict, Invalid, NotFound, Unavailable
 from muxtower.infra.bus import EventBus
 from muxtower.runtimes.models import AgentState
 from muxtower.sessions.models import Conversation, ConversationItem, Session
+from muxtower.sources.remote_control.folder import WorkingFolder
 from muxtower.sources.remote_control.ports import RawEvent, RemoteControlPort
 from muxtower.sources.remote_control.view import KEYS, RcSession, to_session
 
@@ -28,6 +29,7 @@ logger = logging.getLogger("muxtower.remote_control")
 FIRST_LOAD_EVENTS = 150
 EVENTS_PER_PAGE = 200
 MAX_EVENT_PAGES = 5
+MAX_DETECT_PAGES = 50  # of a whole log read for its folder, on the owner's request
 MAX_SESSION_PAGES = 4
 DENY_MESSAGE = "Denied from muxtower."
 FINGERPRINT = ("last_event_at", "worker_status", "status_bucket", "unread", "title")
@@ -235,6 +237,19 @@ class RemoteControlSource:
     def mark_read(self, session_id: str) -> None:
         self.get(session_id)
         self.port.mark_read(session_id)
+
+    def detect_folder(self, session_id: str) -> str | None:
+        """The folder its whole log names (the cache holds its latest events only): what its tool calls
+        say they ran in. None when they say nothing."""
+        self.get(session_id)
+        folder, seq = WorkingFolder(), 0
+        for _ in range(MAX_DETECT_PAGES):
+            page = self.port.events_after(session_id, seq, EVENTS_PER_PAGE)
+            folder.feed(page)
+            if len(page) < EVENTS_PER_PAGE:
+                break
+            seq = max(e.seq for e in page)
+        return folder.cwd or None
 
     def archive(self, session_id: str) -> None:
         """Archived on Remote Control (which ends its agent), and out of this cache at once rather than

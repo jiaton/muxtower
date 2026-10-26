@@ -84,6 +84,12 @@
             "title": "Keys",
             "type": "array"
           },
+          "place": {
+            "default": false,
+            "description": "where it runs can be set by the owner or detected from its log (/placement)",
+            "title": "Place",
+            "type": "boolean"
+          },
           "rename": {
             "title": "Rename",
             "type": "boolean"
@@ -334,6 +340,27 @@
           "cwd"
         ],
         "title": "CreateSession",
+        "type": "object"
+      },
+      "DetectedFolder": {
+        "properties": {
+          "folder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the folder its log names, now its placement; null when none",
+            "title": "Folder"
+          }
+        },
+        "required": [
+          "folder"
+        ],
+        "title": "DetectedFolder",
         "type": "object"
       },
       "Device": {
@@ -595,6 +622,39 @@
           "state"
         ],
         "title": "PendingAction",
+        "type": "object"
+      },
+      "Placement": {
+        "description": "Where the owner says a session runs, over what its source reports; empty fields are not placed.",
+        "properties": {
+          "folder": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a folder: a path, ~ for home",
+            "title": "Folder"
+          },
+          "machine": {
+            "anyOf": [
+              {
+                "maxLength": 80,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a machine, as the lists name it",
+            "title": "Machine"
+          }
+        },
+        "title": "Placement",
         "type": "object"
       },
       "Resize": {
@@ -865,6 +925,17 @@
                 "type": "null"
               }
             ]
+          },
+          "placement": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Placement"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where the owner placed it; `machine` and `cwd` already follow it"
           },
           "remote_id": {
             "anyOf": [
@@ -2284,6 +2355,102 @@
           }
         },
         "summary": "Send Input",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/placement": {
+      "put": {
+        "description": "Where it runs, for a session whose source does not say (`capabilities.place`); empty fields clear.",
+        "operationId": "place_session_v1_sessions__session_id__placement_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Placement"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Place Session",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/placement/detect": {
+      "post": {
+        "description": "Reads the session's whole log for the folder its tool calls ran in, and places it there.",
+        "operationId": "detect_placement_v1_sessions__session_id__placement_detect_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DetectedFolder"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Detect Placement",
         "tags": [
           "sessions"
         ]
