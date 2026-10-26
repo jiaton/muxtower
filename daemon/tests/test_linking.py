@@ -27,6 +27,20 @@ def test_finds_the_remote_session_of_a_panes_claude_process(tmp_path: Path) -> N
     assert processes.remote_id(pid) is None
 
 
+def test_finds_claude_under_a_shell_where_the_kernel_lists_no_children(tmp_path: Path) -> None:
+    # a pane whose process is a shell that started Claude Code; this /proc has no task/*/children files
+    proc = tmp_path / "proc"
+    for pid, parent, comm in [(100, 1, "zsh"), (200, 100, "claude (x) y"), (300, 1, "sshd")]:
+        (proc / str(pid) / "task" / str(pid)).mkdir(parents=True)
+        (proc / str(pid) / "stat").write_text(f"{pid} ({comm}) S {parent} {pid} {pid} 0")
+    sessions = tmp_path / "claude" / "sessions"
+    sessions.mkdir(parents=True)
+    (sessions / "200.json").write_text(json.dumps({"pid": 200, "bridgeSessionId": "session_01SHELL"}))
+    processes = ClaudeProcesses(tmp_path / "claude", proc=proc)
+    assert processes.remote_id(100) == "cse_01SHELL"
+    assert processes.remote_id(300) is None
+
+
 class FakeProcesses:
     def __init__(self, links: dict[int, str], transcripts: dict[int, str] | None = None) -> None:
         self.links = links

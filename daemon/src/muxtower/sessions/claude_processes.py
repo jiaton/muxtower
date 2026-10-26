@@ -2,7 +2,8 @@
 
 Claude Code keeps a file per running process, `~/.claude/sessions/<pid>.json`, whose `bridgeSessionId`
 (`session_<id>`) is that process's Remote Control session (`cse_<id>` in the API). The pane's own process
-may be a shell, so its children are searched too. Its `sessionId` names the transcript Claude Code writes,
+may be a shell, so its children are searched too (some kernels keep no list of children: then every
+process's parent is read). Its `sessionId` names the transcript Claude Code writes,
 `projects/<cwd, every non-alphanumeric as ->/<sessionId>.jsonl`. The file also says how Claude Code was started
 (`entrypoint`: `cli`, `sdk-cli`, the desktop app or an IDE…), which is what the session's origin is. Its
 `tmux` field is not used: workers spawned by `claude remote-control` inherit it from wherever the server
@@ -41,32 +42,60 @@ def _remote_id(info: object) -> str | None:
     return None
 
 
-def _children(pid: int) -> list[int]:
-    found: list[int] = []
-    try:
-        for task in Path(f"/proc/{pid}/task").iterdir():
-            found += [int(c) for c in (task / "children").read_text().split()]
-    except (OSError, ValueError):
-        pass
-    return found
+class _Children:
+    """Children of processes, for one search: from `/proc/<pid>/task/*/children` where the kernel keeps it,
+    else (kernels built without it) from every process's parent, read once."""
+
+    def __init__(self, proc: Path = Path("/proc")) -> None:
+        self.proc = proc
+        self._by_parent: dict[int, list[int]] | None = None
+
+    def __call__(self, pid: int) -> list[int]:
+        found: list[int] = []
+        try:
+            for task in (self.proc / str(pid) / "task").iterdir():
+                found += [int(c) for c in (task / "children").read_text().split()]
+            return found
+        except FileNotFoundError:
+            pass
+        except (OSError, ValueError):
+            return found
+        if self._by_parent is None:
+            self._by_parent = {}
+            for child, parent in self._parents():
+                self._by_parent.setdefault(parent, []).append(child)
+        return self._by_parent.get(pid, [])
+
+    def _parents(self) -> Iterator[tuple[int, int]]:
+        """(pid, parent pid) of every process, from `/proc/<pid>/stat`: the parent is the second field
+        after the command name, which is in parentheses and may hold anything."""
+        for entry in self.proc.iterdir():
+            if not entry.name.isdigit():
+                continue
+            try:
+                fields = (entry / "stat").read_text().rsplit(")", 1)[1].split()
+                yield int(entry.name), int(fields[1])
+            except (OSError, IndexError, ValueError):
+                continue
 
 
 class ClaudeProcesses:
-    def __init__(self, claude_dir: Path | None = None) -> None:
+    def __init__(self, claude_dir: Path | None = None, proc: Path = Path("/proc")) -> None:
+        self.proc = proc
         home = claude_dir or Path(os.environ.get("CLAUDE_CONFIG_DIR") or Path.home() / ".claude")
         self.sessions_dir = home / "sessions"
         self.projects_dir = home / "projects"
         self._running: tuple[float, dict[str, ClaudeProcess]] = (0.0, {})
 
-    def _family(self, pid: int, depth: int = SEARCH_DEPTH) -> Iterator[int]:
+    def _family(self, pid: int, children: _Children, depth: int = SEARCH_DEPTH) -> Iterator[int]:
         yield pid
         if depth:
-            for child in _children(pid):
-                yield from self._family(child, depth - 1)
+            for child in children(pid):
+                yield from self._family(child, children, depth - 1)
 
     def _info(self, pane_pid: int) -> dict[str, object] | None:
         """The process file of the pane's Claude Code, if it runs one."""
-        for pid in self._family(pane_pid):
+        for pid in self._family(pane_pid, _Children(self.proc)):
             try:
                 info = json.loads((self.sessions_dir / f"{pid}.json").read_text())
             except (OSError, ValueError):
