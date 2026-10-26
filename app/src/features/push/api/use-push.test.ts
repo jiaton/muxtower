@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest'
-import { activated } from './use-push'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { useDaemonsStore } from '@/lib/daemons/store'
+import { activated, renewSubscription } from './use-push'
 
 /** A worker whose state can be moved along, as the browser does while installing it. */
 function worker(state: ServiceWorkerState) {
@@ -41,5 +42,33 @@ describe('activated', () => {
     const ready = activated(reg)
     installing.to('redundant')
     await expect(ready).rejects.toThrow(/failed to install/)
+  })
+})
+
+describe('renewSubscription', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  function browserWith(subscription: object | null) {
+    const getRegistration = vi.fn(async () => ({ pushManager: { getSubscription: async () => subscription } }))
+    vi.stubGlobal('navigator', { ...navigator, serviceWorker: { getRegistration } })
+  }
+  const client = () => ({ POST: vi.fn(async () => ({ data: { id: 'sub-1' }, response: new Response(null, { status: 200 }) })) })
+
+  it("registers the browser's subscription again, with this device's settings", async () => {
+    useDaemonsStore.setState({ daemons: [{ id: 'd1', name: 'nas', url: 'https://d', token: 't', pushDone: false }] } as never)
+    browserWith({ toJSON: () => ({ endpoint: 'https://push/1', keys: { p256dh: 'k', auth: 'a' } }) })
+    const c = client()
+    await renewSubscription(c as never, 'd1')
+    expect(c.POST).toHaveBeenCalledWith('/v1/push/subscriptions', {
+      body: { endpoint: 'https://push/1', keys: { p256dh: 'k', auth: 'a' }, client_ref: 'd1', done: false, muted: [] },
+    })
+    expect(useDaemonsStore.getState().daemons[0].pushSubscriptionId).toBe('sub-1')
+  })
+
+  it('does nothing when this browser has no subscription', async () => {
+    browserWith(null)
+    const c = client()
+    await renewSubscription(c as never, 'd1')
+    expect(c.POST).not.toHaveBeenCalled()
   })
 })

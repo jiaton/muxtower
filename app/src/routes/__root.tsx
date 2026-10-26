@@ -5,6 +5,7 @@ import { navItemClass, tabItemClass } from '@/components/ui/nav'
 import { NewSessionDialog } from '@/features/sessions/components/new-session-dialog'
 import { SessionsNav } from '@/features/sessions/components/sessions-nav'
 import { useListMemory } from '@/features/sessions/store'
+import { useKeepPushSubscriptions } from '@/features/push/hooks/use-keep-push-subscriptions'
 import { useDaemonStreams, useRecheckRejected } from '@/lib/api/streams'
 import { cn } from '@/lib/cn'
 import { useConfiguredDaemons } from '@/lib/runtime-config'
@@ -21,6 +22,7 @@ function RootLayout() {
   useConfiguredDaemons()
   useDaemonStreams()
   useRecheckRejected()
+  useKeepPushSubscriptions()
   const inSession = useMatch({ from: '/_sessions/d/$daemonId/s/$sessionId', shouldThrow: false }) !== undefined
   const lastSearch = useListMemory((s) => s.lastSearch)
 

@@ -107,7 +107,7 @@ With many sessions running, the owner needs to see which finished turns they hav
 
 ## Push
 
-Web Push with a per-daemon VAPID key. A browser registration holds one subscription, so the app registers its service worker once per daemon (scope `<base>push/<daemonId>/`, same script). The subscription belongs to the app's origin; the notification payload carries `daemon_id` and `session_id`, and a click opens `/d/<daemon>/s/<session>`. Filters per subscription: which states notify, whether finished turns do (`done`, on by default), muted sessions.
+Web Push with a per-daemon VAPID key. A browser registration holds one subscription, so the app registers its service worker once per daemon (scope `<base>push/<daemonId>/`, same script). The subscription belongs to the app's origin; the notification payload carries `daemon_id` and `session_id`, and a click opens `/d/<daemon>/s/<session>`. Filters per subscription: which states notify, whether finished turns do (`done`, on by default), muted sessions. A subscription belongs to the paired device that registered it: once that device is revoked, the daemon drops it at the next push instead of sending. The app registers its subscription again on every start, which keeps the daemon's copy current and ties older ones to their device. Registering a fresh worker waits for that registration's own worker to activate (`navigator.serviceWorker.ready` is the page's root registration).
 
 Two kinds of notification, both one per session (a newer one replaces the older, so a handled approval gives way to "Done"):
 
