@@ -105,9 +105,10 @@ class TmuxCli:
 
     def release_size(self, pane: PaneRef) -> None:
         """Undo resize(): `resize-window -x/-y` pins the window to a manual size, which would keep a
-        laptop that attaches later at the phone's width. Unset that and fit the attached clients again."""
-        self._run(pane.socket, "set-option", "-w", "-u", "-t", pane.pane_id, "window-size", check=False)
+        laptop that attaches later at the phone's width. Fit the attached clients again, then unset it:
+        in that order, since resize-window itself sets window-size to manual."""
         self._run(pane.socket, "resize-window", "-A", "-t", pane.pane_id, check=False)
+        self._run(pane.socket, "set-option", "-w", "-u", "-t", pane.pane_id, "window-size", check=False)
 
     def kill_session(self, socket: str, name: str) -> None:
         self._run(socket, "kill-session", "-t", f"={name}", check=False)
