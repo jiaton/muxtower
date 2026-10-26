@@ -3,7 +3,11 @@ import { Check } from 'lucide-react'
 import type { ComponentProps } from 'react'
 import { cn } from '@/lib/cn'
 
-export const DropdownMenu = Menu.Root
+/** Not modal: a modal menu locks the page while open, and a dialog opened from one of its items takes
+ *  that lock for the page's own state and puts it back on closing, leaving the page unclickable. */
+export function DropdownMenu({ modal = false, ...props }: ComponentProps<typeof Menu.Root>) {
+  return <Menu.Root modal={modal} {...props} />
+}
 export const DropdownMenuTrigger = Menu.Trigger
 export const DropdownMenuGroup = Menu.Group
 export const DropdownMenuRadioGroup = Menu.RadioGroup
