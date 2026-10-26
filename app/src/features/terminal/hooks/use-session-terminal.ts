@@ -9,7 +9,9 @@ export function useSessionTerminal(daemonId: string, session: Session, enabled: 
   const client = useDaemonClient(daemonId)
   const fontSize = useTerminalPrefs((s) => s.fontSize)
   const fitPref = useTerminalPrefs((s) => s.fit[session.id])
-  const fit = enabled && (fitPref ?? session.source === 'launched')
+  // By default, fit what nobody else may be watching: what muxtower started, or a pane no terminal is
+  // attached to. A pane someone has open at their own size keeps it until fitting is asked for.
+  const fit = enabled && (fitPref ?? (session.source === 'launched' || !session.terminal_attached))
   const [history, setHistory] = useState<number>(HISTORY_STEPS[0])
   const [waitingOn, setWaitingOn] = useState<string | undefined>(undefined)
   const screen = useScreen(daemonId, session.id, history, enabled)

@@ -891,6 +891,12 @@
               }
             ]
           },
+          "terminal_attached": {
+            "default": false,
+            "description": "a terminal is attached to its tmux session, so someone may be watching it at its own size",
+            "title": "Terminal Attached",
+            "type": "boolean"
+          },
           "tmux_pane": {
             "anyOf": [
               {

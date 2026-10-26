@@ -12,7 +12,7 @@ DEFAULT_SOCKET = "default"
 TIMEOUT_SECONDS = 3.0
 _FIELDS = (
     "#{pane_id}\t#{session_name}\t#{pane_current_command}\t#{pane_current_path}\t#{pane_pid}\t#{socket_path}"
-    "\t#{window_activity}\t#{alternate_on}"
+    "\t#{window_activity}\t#{alternate_on}\t#{session_attached}"
 )
 # A daemon started from inside tmux inherits $TMUX, which would make plain `tmux` (the "default" socket)
 # talk to that server instead of the user's default one.
@@ -60,13 +60,13 @@ class TmuxCli:
         panes = []
         for line in result.stdout.splitlines():
             parts = line.split("\t")
-            if len(parts) == 8:
+            if len(parts) == 9:
                 pid = int(parts[4]) if parts[4].isdigit() else 0
                 activity = int(parts[6]) if parts[6].isdigit() else 0
-                alternate = parts[7] == "1"
-                panes.append(
-                    PaneInfo(socket, parts[0], parts[1], parts[2], parts[3], pid, parts[5], activity, alternate)
-                )
+                alternate, attached = parts[7] == "1", parts[8] not in ("", "0")
+                pane_id, session, command, cwd, server = parts[0], parts[1], parts[2], parts[3], parts[5]
+                info = PaneInfo(socket, pane_id, session, command, cwd, pid, server, activity, alternate, attached)
+                panes.append(info)
         return panes
 
     def capture(self, pane: PaneRef, ansi: bool = False, history: int = 0) -> str | None:
