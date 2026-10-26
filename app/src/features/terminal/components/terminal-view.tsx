@@ -135,7 +135,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
       <div
         ref={scroller}
         onScroll={onScroll}
-        className="min-h-0 flex-1 overflow-auto overscroll-contain p-2 font-mono leading-snug whitespace-pre text-terminal-fg [-webkit-text-size-adjust:none] [overflow-anchor:none] [text-size-adjust:none] [&>div>div]:min-h-[1.375em]"
+        className="min-h-0 flex-1 overflow-auto overscroll-y-contain p-2 font-mono leading-snug whitespace-pre text-terminal-fg [-webkit-text-size-adjust:none] [overflow-anchor:none] [text-size-adjust:none] [&>div>div]:min-h-[1.375em]"
         style={{ fontSize }}
         role="log"
         aria-label="Session output"
