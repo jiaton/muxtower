@@ -26,7 +26,7 @@
 ## Architecture (layered — do not collapse)
 
 1. `src/components/ui/` — primitives only. The only place a new visual style is defined.
-2. `src/features/<name>/` — `daemons`, `sessions`, `terminal`, `conversation`, `approval`, `push`, `pairing`. Each owns `api/`, `hooks/`, `components/`, and pure logic in `model/` (e.g. `sessions/model/`: how sessions are classified, filtered, grouped, counted, and the list's URL params). No imports into another feature's internals; share through `src/lib/`.
+2. `src/features/<name>/` — `daemons`, `sessions`, `terminal`, `conversation`, `approval`, `push`, `pairing`, `install`. Each owns `api/`, `hooks/`, `components/`, and pure logic in `model/` (e.g. `sessions/model/`: how sessions are classified, filtered, grouped, counted, and the list's URL params). No imports into another feature's internals; share through `src/lib/`.
 3. `src/routes/` — compose features into pages. Layout and wiring only:
    - `__root.tsx`: the app shell (sidebar from `lg`, bottom tab bar below it, hidden on a phone while a session is open).
    - `_sessions.tsx`: pathless layout holding the session list (validates its URL search params); `_sessions/index.tsx` (`/`) and `_sessions/d.$daemonId.s.$sessionId.tsx` render beside it from `md`, instead of it below.
