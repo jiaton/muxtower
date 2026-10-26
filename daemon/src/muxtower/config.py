@@ -49,6 +49,14 @@ class RemoteControlSettings(BaseModel):
     config_path: Path | None = None  # default ~/.claude.json
 
 
+class CodexSettings(BaseModel):
+    """Codex beyond the terminal: `headless` runs Codex threads in muxtower's own Codex app-server (no
+    tmux), started from the app and answered from it, with the Codex login on this machine."""
+
+    headless: bool = False
+    binary: str = "codex"
+
+
 class SummarySettings(BaseModel):
     """Short versions of long replies (for the glasses), made by a coding agent CLI already logged in on
     this machine: "claude-code" (`claude -p`, default model haiku) or "codex" (`codex exec`)."""
@@ -110,6 +118,7 @@ class Settings(BaseModel):
     cors: CorsSettings = Field(default_factory=CorsSettings)
     pairing: PairingSettings = Field(default_factory=PairingSettings)
     remote_control: RemoteControlSettings = Field(default_factory=RemoteControlSettings)
+    codex: CodexSettings = Field(default_factory=CodexSettings)
     summaries: SummarySettings = Field(default_factory=SummarySettings)
     asr: AsrSettings = Field(default_factory=AsrSettings)
     concierge: ConciergeSettings = Field(default_factory=ConciergeSettings)

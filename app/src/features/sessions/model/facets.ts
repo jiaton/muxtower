@@ -88,7 +88,7 @@ export function shortFolderNames(folders: string[]): Map<string, string> {
 
 // --- source -------------------------------------------------------------------------------------
 
-export const SOURCES = ['muxtower', 'tmux', 'CLI', 'Desktop app', 'IDE', 'Mobile app', 'Web', 'SDK'] as const
+export const SOURCES = ['muxtower', 'tmux', 'Headless', 'CLI', 'Desktop app', 'IDE', 'Mobile app', 'Web', 'SDK'] as const
 
 const ORIGINS: [RegExp, string][] = [
   [/desktop/, 'Desktop app'],
@@ -99,11 +99,13 @@ const ORIGINS: [RegExp, string][] = [
   [/cli/, 'CLI'],
 ]
 
-/** How the session was started: by muxtower, found in tmux, or (Remote Control) from which app. A
- *  tmux session that also runs Remote Control counts as tmux: that is where you find it. */
+/** How the session was started: by muxtower (in tmux, or headless: no terminal), found in tmux, or (Remote
+ *  Control) from which app. A tmux session that also runs Remote Control counts as tmux: that is where
+ *  you find it. */
 export function sourceOf(session: Session): string {
   if (session.source === 'launched') return 'muxtower'
   if (session.source === 'adopted') return 'tmux'
+  if (session.source === 'codex') return 'Headless'
   const origin = session.origin?.toLowerCase()
   const match = origin ? ORIGINS.find(([pattern]) => pattern.test(origin)) : undefined
   return match?.[1] ?? origin ?? 'Remote Control'

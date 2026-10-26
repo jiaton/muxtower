@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { SuggestInput } from '@/components/ui/suggest-input'
+import { Switch } from '@/components/ui/switch'
 import { cn } from '@/lib/cn'
 import { usePairedDaemons } from '@/lib/daemons/store'
 import { useCreateSession, useRuntimes } from '../api/use-session-mutations'
@@ -24,6 +25,9 @@ export function NewSessionDialog({ trigger }: { trigger?: ReactNode }) {
   const [runtime, setRuntime] = useState('claude-code')
   const [cwd, setCwd] = useState('')
   const [name, setName] = useState('')
+  const [headless, setHeadless] = useState(false)
+  const canRunHeadless = Boolean(runtimes.data?.find((r) => r.name === runtime)?.headless)
+  const asHeadless = headless && canRunHeadless
   const { entries } = useSessionEntries()
   const folders = current ? folderSuggestions(entries, current.id) : []
 
@@ -40,13 +44,20 @@ export function NewSessionDialog({ trigger }: { trigger?: ReactNode }) {
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent title="New session" description="Starts an agent in a tmux session on the daemon's machine.">
+      <DialogContent
+        title="New session"
+        description={
+          asHeadless
+            ? "Starts an agent without a terminal on the daemon's machine: talk to it here."
+            : "Starts an agent in a tmux session on the daemon's machine."
+        }
+      >
         <form
           className="flex flex-col gap-4"
           onSubmit={(e) => {
             e.preventDefault()
             create.mutate(
-              { runtime, cwd, name: name.trim() || null },
+              { runtime, cwd, name: name.trim() || null, headless: asHeadless },
               {
                 onSuccess: (session) => {
                   setOpen(false)
@@ -85,6 +96,15 @@ export function NewSessionDialog({ trigger }: { trigger?: ReactNode }) {
               ))}
             </div>
           </fieldset>
+          {canRunHeadless ? (
+            <label className="flex items-center justify-between gap-3 text-sm font-medium">
+              <span className="flex flex-col">
+                Headless
+                <span className="font-normal text-fg-muted">No terminal; its approvals and replies come here</span>
+              </span>
+              <Switch checked={headless} onCheckedChange={setHeadless} aria-label="Headless" />
+            </label>
+          ) : null}
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Directory
             <SuggestInput

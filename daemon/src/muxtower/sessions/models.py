@@ -122,6 +122,9 @@ class CreateSession(BaseModel):
     cwd: str
     name: str | None = None
     args: list[str] = Field(default_factory=list, description="extra arguments for the agent binary")
+    headless: bool = Field(
+        default=False, description="run it without a terminal, where the runtime can (`RuntimeInfo.headless`)"
+    )
 
 
 class HideSession(BaseModel):

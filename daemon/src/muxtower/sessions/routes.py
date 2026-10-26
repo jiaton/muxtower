@@ -9,6 +9,7 @@ from muxtower.auth.routes import Audit
 from muxtower.runtimes.models import RuntimeInfo
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.directory import SessionDirectory
+from muxtower.sessions.launcher import Launcher
 from muxtower.sessions.models import (
     Conversation,
     CreateSession,
@@ -50,20 +51,28 @@ def _archiver(request: Request) -> Archiver:
     return archiver
 
 
+def _launcher(request: Request) -> Launcher:
+    launcher: Launcher = request.app.state.launcher
+    return launcher
+
+
 PlacementsDep = Annotated[Placements, Depends(_placements)]
+LauncherDep = Annotated[Launcher, Depends(_launcher)]
 ArchiverDep = Annotated[Archiver, Depends(_archiver)]
 
 
 @router.get("/runtimes")
-def list_runtimes(_: CurrentDevice, sessions: Sessions) -> list[RuntimeInfo]:
+def list_runtimes(_: CurrentDevice, sessions: Sessions, launcher: LauncherDep) -> list[RuntimeInfo]:
     import shutil
 
+    headless = launcher.headless_runtimes()
     return [
         RuntimeInfo(
             name=rt.name,
             binary=rt.config.binary,
             available=shutil.which(rt.config.binary) is not None,
             has_hooks=rt.config.hooks is not None,
+            headless=rt.name in headless,
         )
         for rt in sessions.runtimes.values()
     ]
@@ -75,9 +84,10 @@ def list_sessions(_: CurrentDevice, directory: Directory) -> list[Session]:
 
 
 @router.post("/sessions", status_code=201)
-async def create_session(body: CreateSession, device: CurrentDevice, sessions: Sessions, audit: Audit) -> Session:
-    session = await asyncio.to_thread(sessions.create, body)
-    audit.record(device.name, "create", session.id, f"runtime={session.runtime} cwd={session.cwd}")
+async def create_session(body: CreateSession, device: CurrentDevice, launcher: LauncherDep, audit: Audit) -> Session:
+    session = await asyncio.to_thread(launcher.create, body)
+    headless = " headless" if body.headless else ""
+    audit.record(device.name, "create", session.id, f"runtime={session.runtime} cwd={session.cwd}{headless}")
     return session
 
 

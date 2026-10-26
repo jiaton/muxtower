@@ -319,6 +319,12 @@
             "title": "Cwd",
             "type": "string"
           },
+          "headless": {
+            "default": false,
+            "description": "run it without a terminal, where the runtime can (`RuntimeInfo.headless`)",
+            "title": "Headless",
+            "type": "boolean"
+          },
           "name": {
             "anyOf": [
               {
@@ -691,6 +697,11 @@
           },
           "has_hooks": {
             "title": "Has Hooks",
+            "type": "boolean"
+          },
+          "headless": {
+            "default": false,
+            "title": "Headless",
             "type": "boolean"
           },
           "name": {
@@ -1079,7 +1090,8 @@
         "enum": [
           "launched",
           "adopted",
-          "remote_control"
+          "remote_control",
+          "codex"
         ],
         "title": "SessionSource",
         "type": "string"
