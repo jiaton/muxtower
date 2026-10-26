@@ -95,6 +95,8 @@ function SessionsLayout() {
             <SessionList
               groups={groups}
               selectedKey={selectedKey}
+              foldScope={query.group}
+              unfolded={Boolean(query.q?.trim())}
               context={{
                 hideDevice: Boolean(query.device),
                 hideFolder: Boolean(query.folder),

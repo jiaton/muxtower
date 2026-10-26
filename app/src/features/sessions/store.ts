@@ -10,7 +10,16 @@ interface ListPrefs {
   /** Devices whose folders are folded away in the sidebar. */
   folded: string[]
   toggleFolded: (device: string) => void
+  /** Groups and folder sections of the list that are collapsed (`foldKey`). */
+  collapsed: string[]
+  toggleCollapsed: (key: string) => void
 }
+
+/** Names a list group, or one of its sections, for `collapsed`: per grouping, so collapsing "Idle" by
+ *  status leaves a device of that name alone. */
+export const foldKey = (...parts: string[]) => parts.join('\u0000')
+
+const toggle = (list: string[], item: string) => (list.includes(item) ? list.filter((i) => i !== item) : [...list, item])
 
 export const useListPrefs = create<ListPrefs>()(
   persist(
@@ -18,8 +27,9 @@ export const useListPrefs = create<ListPrefs>()(
       group: 'status',
       setGroup: (group) => set({ group }),
       folded: [],
-      toggleFolded: (device) =>
-        set((s) => ({ folded: s.folded.includes(device) ? s.folded.filter((d) => d !== device) : [...s.folded, device] })),
+      toggleFolded: (device) => set((s) => ({ folded: toggle(s.folded, device) })),
+      collapsed: [],
+      toggleCollapsed: (key) => set((s) => ({ collapsed: toggle(s.collapsed, key) })),
     }),
     { name: 'muxtower.list', version: 1 },
   ),
