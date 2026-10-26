@@ -86,7 +86,7 @@ class SessionService:
             eff.pending.recommended = runtime.choose_option(eff.state, eff.pending.options)
         return Session(
             id=record.id,
-            name=record.name,
+            name=record.name if record.named else (live.title or record.name),  # else its tmux session's
             runtime=record.runtime,
             cwd=record.cwd,
             source=record.source,
@@ -165,6 +165,7 @@ class SessionService:
             hook_token_hash=_hash(hook_token),
             auto_approve=False,
             created_at=datetime.now(UTC),
+            named=bool(request.name),
         )
         self.repo.upsert(record)
         return self.view(record)
@@ -173,6 +174,7 @@ class SessionService:
         record = self.record(session_id)
         if patch.name is not None:
             record.name = patch.name
+            record.named = True
         if patch.auto_approve is not None:
             runtime = self.runtime_of(record)
             if patch.auto_approve and not (runtime and runtime.config.auto_approve_states):

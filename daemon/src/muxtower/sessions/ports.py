@@ -31,6 +31,7 @@ class SessionRecord:
     hook_token_hash: str | None
     auto_approve: bool
     created_at: datetime
+    named: bool = False  # the owner named it in muxtower: kept over the name its agent gives itself
 
 
 class SessionRepository(Protocol):
@@ -69,6 +70,10 @@ class ClaudeProcessPort(Protocol):
 
     def transcript(self, pane_pid: int) -> str | None:
         """The transcript file of the Claude Code session running in this pane, if any."""
+        ...
+
+    def name(self, pane_pid: int) -> str | None:
+        """The name the Claude Code session running in this pane goes by (/rename, or its own), if any."""
         ...
 
 

@@ -34,7 +34,7 @@ class Placement(BaseModel):
 
 
 class DetectedFolder(BaseModel):
-    folder: str | None = Field(description="the folder its log names, now its placement; null when none")
+    folder: str | None = Field(description="the folder its log names, to place it there; null when none")
 
 
 class TurnSummary(BaseModel):

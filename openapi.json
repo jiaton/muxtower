@@ -353,7 +353,7 @@
                 "type": "null"
               }
             ],
-            "description": "the folder its log names, now its placement; null when none",
+            "description": "the folder its log names, to place it there; null when none",
             "title": "Folder"
           }
         },
@@ -2415,7 +2415,7 @@
     },
     "/v1/sessions/{session_id}/placement/detect": {
       "post": {
-        "description": "Reads the session's whole log for the folder its tool calls ran in, and places it there.",
+        "description": "Reads the session's whole log for the folder its tool calls ran in: a suggestion to place it there\n(PUT /placement), nothing is kept.",
         "operationId": "detect_placement_v1_sessions__session_id__placement_detect_post",
         "parameters": [
           {
