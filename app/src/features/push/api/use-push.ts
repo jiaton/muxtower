@@ -54,6 +54,14 @@ async function save(client: Client, daemonId: string, sub: PushSubscription, don
   useDaemonsStore.getState().update(daemonId, { pushSubscriptionId: saved.id, pushDone: done })
 }
 
+/** Registers this browser's subscription for this daemon again, if it has one (see
+ *  `useKeepPushSubscriptions`). */
+export async function renewSubscription(client: Client, daemonId: string) {
+  const sub = await (await registration(daemonId))?.pushManager.getSubscription()
+  const daemon = useDaemonsStore.getState().daemons.find((d) => d.id === daemonId)
+  if (sub) await save(client, daemonId, sub, daemon?.pushDone ?? true)
+}
+
 /** Whether this browser currently receives pushes from this daemon. */
 export function usePushEnabled(daemonId: string) {
   return useQuery({
