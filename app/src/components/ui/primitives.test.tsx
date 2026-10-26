@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { Dialog, DialogContent } from './dialog'
+import { Drawer } from './drawer'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './dropdown-menu'
 import { Markdown } from './markdown'
 import { NavCount, NavSection } from './nav'
@@ -192,5 +193,29 @@ describe('SwipeActions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Hide' }))
     expect(hide).toHaveBeenCalled()
     expect(tray).toHaveAttribute('aria-hidden', 'true')
+  })
+})
+
+describe('Drawer', () => {
+  it('lays its children out in place, or slides them in over the page and closes on the scrim, Escape or a link', () => {
+    const onOpenChange = vi.fn()
+    const { rerender, container } = render(
+      <Drawer drawer={false} open={false} onOpenChange={onOpenChange} label="Sessions">
+        <a href="#s1">Session one</a>
+      </Drawer>,
+    )
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByRole('link', { name: 'Session one' })).toBeTruthy()
+
+    rerender(
+      <Drawer drawer open onOpenChange={onOpenChange} label="Sessions">
+        <a href="#s1">Session one</a>
+      </Drawer>,
+    )
+    expect(screen.getByRole('dialog', { name: 'Sessions' })).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    fireEvent.click(container.querySelector('[aria-hidden]')!)
+    fireEvent.click(screen.getByRole('link', { name: 'Session one' }))
+    expect(onOpenChange.mock.calls).toEqual([[false], [false], [false]])
   })
 })

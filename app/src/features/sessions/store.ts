@@ -44,3 +44,12 @@ interface ListMemory {
 
 /** Remembered for this visit only (not persisted). */
 export const useListMemory = create<ListMemory>()(() => ({ positions: {}, lastSearch: {} }))
+
+interface SessionDrawer {
+  /** The list is open over the session being shown (phones). */
+  open: boolean
+  setOpen: (open: boolean) => void
+}
+
+/** Where the list is a drawer (a phone showing a session): whether it is open. Not persisted. */
+export const useSessionDrawer = create<SessionDrawer>()((set) => ({ open: false, setOpen: (open) => set({ open }) }))
