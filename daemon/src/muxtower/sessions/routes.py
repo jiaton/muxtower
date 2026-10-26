@@ -130,14 +130,10 @@ def place_session(
 
 
 @router.post("/sessions/{session_id}/placement/detect")
-async def detect_placement(
-    session_id: str, request: Request, _: CurrentDevice, placements: PlacementsDep
-) -> DetectedFolder:
-    """Reads the session's whole log for the folder its tool calls ran in, and places it there."""
-    folder = await asyncio.to_thread(placements.detect, session_id)
-    if folder:
-        request.app.state.bus.publish("sessions", None)
-    return DetectedFolder(folder=folder)
+async def detect_placement(session_id: str, _: CurrentDevice, placements: PlacementsDep) -> DetectedFolder:
+    """Reads the session's whole log for the folder its tool calls ran in: a suggestion to place it there
+    (PUT /placement), nothing is kept."""
+    return DetectedFolder(folder=await asyncio.to_thread(placements.detect, session_id))
 
 
 @router.delete("/sessions/{session_id}", status_code=204)

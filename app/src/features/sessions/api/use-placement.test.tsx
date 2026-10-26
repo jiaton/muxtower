@@ -33,14 +33,14 @@ it('places a session and shows it there', async () => {
   expect(queryClient.getQueryData<Session[]>(daemonKey(daemon.id, 'sessions'))?.[0].machine).toBe('Laptop')
 })
 
-it('reloads the list when the log names a folder, and says when it names none', async () => {
+it('suggests the folder the log names, or says it names none, keeping nothing', async () => {
   const { daemon, queryClient, wrapper } = setup()
   let folder: string | null = '/Users/me/jobs'
   server.use(http.post(`${DAEMON_URL}/v1/sessions/s1/placement/detect`, () => HttpResponse.json({ folder })))
   const { result } = renderHook(() => useDetectPlacement(daemon.id, 's1'), { wrapper })
   result.current.mutate()
   await waitFor(() => expect(result.current.data).toEqual({ folder: '/Users/me/jobs' }))
-  expect(queryClient.getQueryState(daemonKey(daemon.id, 'sessions'))?.isInvalidated).toBe(true)
+  expect(queryClient.getQueryData<Session[]>(daemonKey(daemon.id, 'sessions'))?.[0].cwd).toBe('') // not placed
 
   folder = null
   result.current.mutate()

@@ -21,15 +21,12 @@ export function usePlaceSession(daemonId: string, sessionId: string) {
   })
 }
 
-/** Reads the session's whole log for its folder; when one is named, the session is placed there. */
+/** Reads the session's whole log for the folder its tool calls ran in: a suggestion, kept only once the
+ *  owner saves it (`usePlaceSession`). */
 export function useDetectPlacement(daemonId: string, sessionId: string) {
   const client = useDaemonClient(daemonId)
-  const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async () =>
       unwrap(await client!.POST('/v1/sessions/{session_id}/placement/detect', { params: { path: { session_id: sessionId } } })),
-    onSuccess: (found) => {
-      if (found.folder) void queryClient.invalidateQueries({ queryKey: daemonKey(daemonId, 'sessions') })
-    },
   })
 }
