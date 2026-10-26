@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nestFolders } from './folders'
+import { foldersAround, nestFolders } from './folders'
 
 const shape = (items: { label: string; count: number }[], last?: string) =>
   nestFolders(items, last).map((n) => [n.item.label, n.depth, n.name, n.total])
@@ -30,5 +30,13 @@ describe('nestFolders', () => {
       ['~/proj', 0, '~/proj', 1],
       ['~/projects/a', 0, '~/projects/a', 1],
     ])
+  })
+})
+
+describe('foldersAround', () => {
+  it('names the listed folders a folder lies in, the closest first', () => {
+    const listed = ['~/Documents/plans', '~/Documents', '~/Documents/plans-old', '~/code']
+    expect(foldersAround('~/Documents/plans/drafts/launch', listed)).toEqual(['~/Documents/plans', '~/Documents'])
+    expect(foldersAround('~/code', listed)).toEqual([])
   })
 })
