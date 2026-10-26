@@ -84,3 +84,22 @@ def test_resize_fits_the_pane_even_in_a_split_window() -> None:
         assert size == "48x30"
     finally:
         subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)
+
+
+def test_release_gives_the_window_its_automatic_size_back() -> None:
+    from muxtower.infra.tmux import TmuxCli
+    from muxtower.terminal.ports import PaneRef
+
+    socket = f"mxt-test-{uuid.uuid4().hex[:8]}"
+    tmux = TmuxCli()
+    try:
+        pane = PaneRef(socket, tmux.new_session(socket, "fit", "/", ["sh"], {}, 120, 40).pane_id)
+        tmux.resize(pane, 48, 30)
+        tmux.release_size(pane)
+        option = subprocess.run(
+            ["tmux", "-L", socket, "show-options", "-w", "-t", pane.pane_id, "window-size"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()  # fmt: skip
+        assert option == ""  # not pinned to manual: an attaching terminal sizes it again
+    finally:
+        subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)
