@@ -3,6 +3,7 @@
  * one device (and one of its folders) or one source, and a search; grouped by status, by device and
  * folder, or by source. Lives in the URL, so back, reload and links keep it.
  */
+import { nestFolders } from './folders'
 import {
   NO_ENVIRONMENT,
   SOURCES,
@@ -104,6 +105,12 @@ export interface Section {
   /** The full name when `label` is shortened. */
   title?: string
   entries: SessionEntry[]
+  /** In a tree of folders (`nestFolders`): how deep, the folder it lies in, its name there, and how many
+   *  sessions it holds with the folders inside it. */
+  depth?: number
+  parent?: string
+  name?: string
+  total?: number
 }
 
 export interface Group extends Section {
@@ -136,11 +143,21 @@ const bySize = (byKey: Map<string, SessionEntry[]>, last: string) =>
     (a, b) => Number(a === last) - Number(b === last) || byKey.get(b)!.length - byKey.get(a)!.length || a.localeCompare(b),
   )
 
-/** Folders of one device; none when no folder is known (a lone "Unknown folder" says nothing). */
+/** Folders of one device, as a tree (`nestFolders`); none when no folder is known (a lone "Unknown
+ *  folder" says nothing). */
 function folderSections(entries: SessionEntry[]): Section[] | undefined {
   const byFolder = bucket(entries, folderLabel)
   if (byFolder.size === 1 && byFolder.has(UNKNOWN_FOLDER)) return undefined
-  return bySize(byFolder, UNKNOWN_FOLDER).map((key) => ({ key, label: key, entries: byFolder.get(key)! }))
+  const folders = [...byFolder].map(([label, entries]) => ({ label, count: entries.length, entries }))
+  return nestFolders(folders, UNKNOWN_FOLDER).map(({ item, depth, parent, name, total }) => ({
+    key: item.label,
+    label: item.label,
+    entries: item.entries,
+    depth,
+    parent,
+    name,
+    total,
+  }))
 }
 
 /** Groups in display order; the assistant, when there is one, is pinned in a group of its own. */

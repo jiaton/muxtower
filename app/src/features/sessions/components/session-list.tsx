@@ -44,30 +44,73 @@ function HeaderCount({ entries, folded, className }: { entries: SessionEntry[]; 
 }
 
 /** The button a header is made of: it folds and unfolds what is under it. */
-function FoldButton({ folded, onToggle, className, children }: { folded: boolean; onToggle?: () => void; className: string; children: ReactNode }) {
+function FoldButton({
+  folded,
+  onToggle,
+  className,
+  indent,
+  children,
+}: {
+  folded: boolean
+  onToggle?: () => void
+  className: string
+  /** Extra room on the left, in rem (a nested folder). */
+  indent?: number
+  children: ReactNode
+}) {
   return (
-    <button type="button" aria-expanded={!folded} onClick={onToggle} disabled={!onToggle} className={cn('flex w-full items-center text-left', className)}>
+    <button
+      type="button"
+      aria-expanded={!folded}
+      onClick={onToggle}
+      disabled={!onToggle}
+      className={cn('flex w-full items-center text-left', className)}
+      style={indent ? { paddingLeft: `calc(0.75rem + ${indent}rem)` } : undefined}
+    >
       {onToggle ? <ChevronRight aria-hidden className={cn('transition-transform', !folded && 'rotate-90')} /> : null}
       {children}
     </button>
   )
 }
 
-/** A device's folder: a quieter, non-sticky second level under the device's sticky header. */
-function SectionHeader({ section, label, folded, onToggle }: { section: Section; label: string; folded: boolean; onToggle?: () => void }) {
+const INDENT_REM = 1 // per level of a folder inside another
+
+/** A device's folder: a quieter, non-sticky second level under the device's sticky header, indented
+ *  when it lies inside another listed folder. Folded, it counts what it holds with the folders inside. */
+function SectionHeader({
+  section,
+  label,
+  held,
+  folded,
+  onToggle,
+}: {
+  section: Section
+  label: string
+  held: SessionEntry[]
+  folded: boolean
+  onToggle?: () => void
+}) {
   return (
     <h4 data-flip={`section:${section.key}`} title={section.label}>
       <FoldButton
         folded={folded}
         onToggle={onToggle}
         className="gap-1.5 bg-surface-muted px-3 py-1 text-xs text-fg-muted hover:text-fg sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0"
+        indent={(section.depth ?? 0) * INDENT_REM}
       >
         <Folder aria-hidden />
         <span className="min-w-0 truncate font-medium text-fg">{label}</span>
-        <HeaderCount entries={section.entries} folded={folded} className="ml-auto" />
+        <HeaderCount entries={folded ? held : section.entries} folded={folded} className="ml-auto" />
       </FoldButton>
     </h4>
   )
+}
+
+/** A section's entries with those of the folders inside it (they follow it, deeper, in tree order). */
+function heldBy(sections: Section[], index: number): SessionEntry[] {
+  const depth = sections[index].depth ?? 0
+  const end = sections.findIndex((s, i) => i > index && (s.depth ?? 0) <= depth)
+  return sections.slice(index, end === -1 ? undefined : end).flatMap((s) => s.entries)
 }
 
 /** Which rows each group holds, whatever their order within it, and which are folded away. */
@@ -113,7 +156,8 @@ export function SessionList({
           hideFolder: context.hideFolder || group.implies.folder,
           hideSource: context.hideSource || group.implies.source,
         }
-        const names = group.sections ? shortFolderNames(group.sections.map((s) => s.label)) : null
+        const names = group.sections ? shortFolderNames(group.sections.filter((s) => !s.depth).map((s) => s.label)) : null
+        const closed = new Set<string>() // folded sections, and every one inside them
         const groupKey = keyOf(group.key)
         const groupFolded = isFolded(groupKey)
         return (
@@ -130,14 +174,20 @@ export function SessionList({
               </FoldButton>
             </h3>
             {groupFolded ? null : group.sections && names ? (
-              group.sections.map((section) => {
+              group.sections.map((section, index, sections) => {
+                if (section.parent && closed.has(section.parent)) {
+                  closed.add(section.key)
+                  return null
+                }
                 const sectionKey = keyOf(group.key, section.key)
                 const sectionFolded = isFolded(sectionKey)
+                if (sectionFolded) closed.add(section.key)
                 return (
                   <section key={section.key} aria-label={section.label}>
                     <SectionHeader
                       section={section}
-                      label={names.get(section.label) ?? section.label}
+                      label={section.depth ? (section.name ?? section.label) : (names.get(section.label) ?? section.label)}
+                      held={heldBy(sections, index)}
                       folded={sectionFolded}
                       onToggle={onToggle(sectionKey)}
                     />

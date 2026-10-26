@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react'
 import { NavCount, NavSection, navItemClass, navSubItemClass } from '@/components/ui/nav'
 import { cn } from '@/lib/cn'
 import { shortFolderNames } from '../model/facets'
+import { nestFolders } from '../model/folders'
 import { facetsOf, toggleable, VIEW_LABEL, VIEWS, type DeviceFacet, type View } from '../model/query'
 import { isCurrentScope, parseListSearch, scopeSearch, type ListSearch, type Scope } from '../model/search'
 import { useSessionEntries } from '../hooks/use-session-entries'
@@ -18,12 +19,15 @@ function ScopeLink({
   className,
   children,
   title,
+  indent,
 }: {
   search: ListSearch
   scope: Scope
   className: string
   children: ReactNode
   title?: string
+  /** Levels below its parent entry (a folder inside another). */
+  indent?: number
 }) {
   return (
     <Link
@@ -33,6 +37,7 @@ function ScopeLink({
       data-current={isCurrentScope(search, scope)}
       className={className}
       title={title}
+      style={indent ? { paddingLeft: `calc(2.25rem + ${indent}rem)` } : undefined}
     >
       {children}
     </Link>
@@ -49,13 +54,14 @@ const VIEW_ICONS: Record<View, typeof Layers> = {
 }
 const FOLDERS_SHOWN = 5
 
-/** A device and, unless folded, its folders. */
+/** A device and, unless folded, its folders: a folder inside another listed one indented under it. */
 function DeviceTree({ device, search }: { device: DeviceFacet; search: ListSearch }) {
   const folded = useListPrefs((s) => s.folded.includes(device.label))
   const toggle = useListPrefs((s) => s.toggleFolded)
   const [all, setAll] = useState(false)
-  const folders = all ? device.folders : device.folders.slice(0, FOLDERS_SHOWN)
-  const names = shortFolderNames(device.folders.map((f) => f.label))
+  const tree = nestFolders(device.folders)
+  const folders = all ? tree : tree.slice(0, FOLDERS_SHOWN)
+  const names = shortFolderNames(tree.filter((f) => !f.depth).map((f) => f.item.label))
   return (
     <div className="flex flex-col gap-0.5">
       <div className="relative">
@@ -78,16 +84,17 @@ function DeviceTree({ device, search }: { device: DeviceFacet; search: ListSearc
       </div>
       {folded
         ? null
-        : folders.map((f) => (
+        : folders.map(({ item: f, depth, name }) => (
             <ScopeLink
               key={f.label}
               search={search}
               scope={{ device: device.label, folder: f.label }}
               className={navSubItemClass}
               title={f.label}
+              indent={depth}
             >
               <Folder aria-hidden />
-              <span className="truncate">{names.get(f.label)}</span>
+              <span className="truncate">{depth ? name : names.get(f.label)}</span>
               <NavCount count={f.needs || f.count} alert={f.needs > 0} />
             </ScopeLink>
           ))}
