@@ -43,10 +43,12 @@ from muxtower.origins import OriginPolicy
 from muxtower.runtimes.spec import load_runtimes
 from muxtower.sessions.archive import SessionArchive
 from muxtower.sessions.archive_repository import SqliteArchiveRepository
+from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.claude_processes import ClaudeProcesses
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.marks import SessionMarks, SqliteMarksRepository
 from muxtower.sessions.monitor import Monitor
+from muxtower.sessions.placement import Placements
 from muxtower.sessions.repository import SqliteSessionRepository
 from muxtower.sessions.routes import router as sessions_router
 from muxtower.sessions.service import SessionConfig, SessionService
@@ -202,6 +204,8 @@ def create_app(
     app.state.sessions = sessions
     app.state.monitor = monitor
     app.state.directory = directory
+    app.state.placements = Placements(directory, marks)
+    app.state.archiver = Archiver(directory, archive)
     app.state.summaries = summaries
     app.state.concierge = concierge
     app.state.mcp = McpTools(directory, sessions, concierge, daemon_name)

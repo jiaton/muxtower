@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Archive, Eye, EyeOff, Mail, MailOpen, Pencil, Power, Trash2, type LucideIcon } from 'lucide-react'
+import { Archive, Eye, EyeOff, FolderInput, Mail, MailOpen, Pencil, Power, Trash2, type LucideIcon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input'
 import type { Session } from '@/lib/api/types'
 import { useArchiveSession, useTerminateSession, useUpdateSession } from '../api/use-session-mutations'
 import { useHideSession, useMarkRead } from '../api/use-session-marks'
+import { PlaceDialog } from './place-dialog'
 
 export interface SessionAction {
-  id: 'read' | 'rename' | 'hide' | 'archive' | 'stop' | 'delete'
+  id: 'read' | 'rename' | 'place' | 'hide' | 'archive' | 'stop' | 'delete'
   label: string
   icon: LucideIcon
   tone?: 'accent' | 'neutral' | 'danger'
@@ -18,8 +19,8 @@ export interface SessionAction {
 }
 
 /** What the owner can do to a session from anywhere it is shown (a list row's swipe tray or menu, the
- *  session's own menu): mark read or unread, rename, hide or show, archive, stop; rename, archive and stop
- *  only where its capabilities allow. An archived session can only be deleted from the archive. Renders
+ *  session's own menu): mark read or unread, rename, move (say where it runs), hide or show, archive, stop;
+ *  rename, move, archive and stop only where its capabilities allow. An archived session can only be deleted from the archive. Renders
  *  `children(actions)` plus the dialogs they open (archive, stop and delete ask first). `open`: the session
  *  is the page being shown, so marking it unread, hiding or deleting it goes back to the list first (an
  *  open session is read, and a hidden one has no place beside the list); an archived one stays, read-only. */
@@ -37,7 +38,7 @@ export function SessionActions({
   const navigate = useNavigate()
   const markRead = useMarkRead()
   const hide = useHideSession()
-  const [dialog, setDialog] = useState<'rename' | 'archive' | 'stop' | 'delete' | null>(null)
+  const [dialog, setDialog] = useState<'rename' | 'place' | 'archive' | 'stop' | 'delete' | null>(null)
   const ids = { daemonId, sessionId: session.id }
   const leaving = (then: () => void) => (open ? () => void navigate({ to: '/', search: true }).then(then) : then)
 
@@ -52,6 +53,7 @@ export function SessionActions({
         : { id: 'read', label: 'Unread', icon: Mail, tone: 'accent', run: leaving(() => markRead.mutate({ ...ids, read: false })) },
     ]
     if (session.capabilities.rename) live.push({ id: 'rename', label: 'Rename', icon: Pencil, tone: 'neutral', run: () => setDialog('rename') })
+    if (session.capabilities.place) live.push({ id: 'place', label: 'Move', icon: FolderInput, tone: 'neutral', run: () => setDialog('place') })
     live.push(
       session.hidden
         ? { id: 'hide', label: 'Show', icon: Eye, tone: 'neutral', run: () => hide.mutate({ ...ids, hidden: false }) }
@@ -66,6 +68,7 @@ export function SessionActions({
     <>
       {children(actions)}
       {dialog === 'rename' ? <RenameDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} /> : null}
+      {dialog === 'place' ? <PlaceDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} /> : null}
       {dialog === 'archive' ? <ArchiveDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} /> : null}
       {dialog === 'stop' ? (
         <StopDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} onDone={leaving(() => {})} />

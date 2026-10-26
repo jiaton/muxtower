@@ -7,8 +7,19 @@ from muxtower.approval.models import ApprovalResult, Approve
 from muxtower.auth.deps import CurrentDevice
 from muxtower.auth.routes import Audit
 from muxtower.runtimes.models import RuntimeInfo
+from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.directory import SessionDirectory
-from muxtower.sessions.models import Conversation, CreateSession, HideSession, MarkRead, Session, UpdateSession
+from muxtower.sessions.models import (
+    Conversation,
+    CreateSession,
+    DetectedFolder,
+    HideSession,
+    MarkRead,
+    Placement,
+    Session,
+    UpdateSession,
+)
+from muxtower.sessions.placement import Placements
 from muxtower.sessions.service import SessionService
 from muxtower.terminal.models import Resize, Screen, SendInput
 
@@ -25,8 +36,22 @@ def _directory(request: Request) -> SessionDirectory:
     return directory
 
 
+def _placements(request: Request) -> Placements:
+    placements: Placements = request.app.state.placements
+    return placements
+
+
 Sessions = Annotated[SessionService, Depends(_sessions)]
 Directory = Annotated[SessionDirectory, Depends(_directory)]
+
+
+def _archiver(request: Request) -> Archiver:
+    archiver: Archiver = request.app.state.archiver
+    return archiver
+
+
+PlacementsDep = Annotated[Placements, Depends(_placements)]
+ArchiverDep = Annotated[Archiver, Depends(_archiver)]
 
 
 @router.get("/runtimes")
@@ -94,6 +119,27 @@ def hide_session(session_id: str, body: HideSession, request: Request, _: Curren
     request.app.state.bus.publish("sessions", None)
 
 
+@router.put("/sessions/{session_id}/placement")
+def place_session(
+    session_id: str, body: Placement, request: Request, _: CurrentDevice, placements: PlacementsDep
+) -> Session:
+    """Where it runs, for a session whose source does not say (`capabilities.place`); empty fields clear."""
+    session = placements.place(session_id, body)
+    request.app.state.bus.publish("sessions", None)
+    return session
+
+
+@router.post("/sessions/{session_id}/placement/detect")
+async def detect_placement(
+    session_id: str, request: Request, _: CurrentDevice, placements: PlacementsDep
+) -> DetectedFolder:
+    """Reads the session's whole log for the folder its tool calls ran in, and places it there."""
+    folder = await asyncio.to_thread(placements.detect, session_id)
+    if folder:
+        request.app.state.bus.publish("sessions", None)
+    return DetectedFolder(folder=folder)
+
+
 @router.delete("/sessions/{session_id}", status_code=204)
 def terminate_session(
     session_id: str, request: Request, device: CurrentDevice, directory: Directory, audit: Audit
@@ -106,11 +152,11 @@ def terminate_session(
 
 @router.post("/sessions/{session_id}/archive", status_code=204)
 async def archive_session(
-    session_id: str, request: Request, device: CurrentDevice, directory: Directory, audit: Audit
+    session_id: str, request: Request, device: CurrentDevice, archiver: ArchiverDep, audit: Audit
 ) -> None:
     """Ends the session (closes its tmux pane, archives it on Remote Control) and keeps its conversation
     to read under `archived_at` (`capabilities.archive`)."""
-    await asyncio.to_thread(directory.archive, session_id)
+    await asyncio.to_thread(archiver.archive, session_id)
     audit.record(device.name, "archive", session_id)
     request.app.state.bus.publish("sessions", None)
 

@@ -4,7 +4,7 @@
  * folder, or by source. Lives in the URL, so back, reload and links keep it.
  */
 import {
-  OTHER_DEVICES,
+  NO_ENVIRONMENT,
   SOURCES,
   STATUSES,
   UNKNOWN_FOLDER,
@@ -27,7 +27,7 @@ export type GroupBy = (typeof GROUPINGS)[number]
 export interface SessionQuery {
   view: View
   group: GroupBy
-  /** A device label, or OTHER_DEVICES. */
+  /** A device label, or NO_ENVIRONMENT. */
   device?: string
   /** A folder (as `folderOf` shows it), or UNKNOWN_FOLDER; usually together with its device. */
   folder?: string
@@ -52,7 +52,7 @@ export const ASIDE_VIEWS: readonly View[] = ['hidden', 'archived']
 export const placeIn = (view: View): Place => (view === 'hidden' || view === 'archived' ? view : 'listed')
 export const GROUP_LABEL: Record<GroupBy, string> = { status: 'Status', device: 'Device and folder', source: 'Source', none: 'None' }
 
-export const deviceLabel = (entry: SessionEntry) => deviceOf(entry.session) ?? OTHER_DEVICES
+export const deviceLabel = (entry: SessionEntry) => deviceOf(entry.session) ?? NO_ENVIRONMENT
 export const folderLabel = (entry: SessionEntry) => folderOf(entry.session) ?? UNKNOWN_FOLDER
 const sourceLabel = (entry: SessionEntry) => sourceOf(entry.session)
 
@@ -156,7 +156,7 @@ export function groupEntries(entries: SessionEntry[], by: GroupBy): Group[] {
     const byDevice = bucket(rest, deviceLabel)
     return [
       ...groups,
-      ...bySize(byDevice, OTHER_DEVICES).map((key) => {
+      ...bySize(byDevice, NO_ENVIRONMENT).map((key) => {
         const sections = folderSections(byDevice.get(key)!)
         const entries = sections ? sections.flatMap((s) => s.entries) : byDevice.get(key)!
         return { key, label: key, implies: { device: true, folder: Boolean(sections) }, sections, entries }
@@ -216,7 +216,7 @@ export function facetsOf(entries: SessionEntry[]): Facets {
       hidden: entries.filter((e) => placeOf(e.session) === 'hidden').length,
       archived: entries.filter((e) => placeOf(e.session) === 'archived').length,
     },
-    devices: facet(counted, deviceLabel, OTHER_DEVICES).map((device) => {
+    devices: facet(counted, deviceLabel, NO_ENVIRONMENT).map((device) => {
       const folders = facet(
         counted.filter((e) => deviceLabel(e) === device.label),
         folderLabel,

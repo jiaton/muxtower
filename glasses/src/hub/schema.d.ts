@@ -357,6 +357,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_id}/placement": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Place Session
+         * @description Where it runs, for a session whose source does not say (`capabilities.place`); empty fields clear.
+         */
+        put: operations["place_session_v1_sessions__session_id__placement_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sessions/{session_id}/placement/detect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Detect Placement
+         * @description Reads the session's whole log for the folder its tool calls ran in, and places it there.
+         */
+        post: operations["detect_placement_v1_sessions__session_id__placement_detect_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_id}/read": {
         parameters: {
             query?: never;
@@ -533,6 +573,12 @@ export interface components {
              * @description tmux key names input accepts; empty = any
              */
             keys: string[];
+            /**
+             * Place
+             * @description where it runs can be set by the owner or detected from its log (/placement)
+             * @default false
+             */
+            place: boolean;
             /** Rename */
             rename: boolean;
             /** Resize */
@@ -628,6 +674,14 @@ export interface components {
             name?: string | null;
             /** Runtime */
             runtime: string;
+        };
+        /** DetectedFolder */
+        DetectedFolder: {
+            /**
+             * Folder
+             * @description the folder its log names, now its placement; null when none
+             */
+            folder: string | null;
         };
         /** Device */
         Device: {
@@ -752,6 +806,22 @@ export interface components {
             /** Tool Name */
             tool_name?: string | null;
         };
+        /**
+         * Placement
+         * @description Where the owner says a session runs, over what its source reports; empty fields are not placed.
+         */
+        Placement: {
+            /**
+             * Folder
+             * @description a folder: a path, ~ for home
+             */
+            folder?: string | null;
+            /**
+             * Machine
+             * @description a machine, as the lists name it
+             */
+            machine?: string | null;
+        };
         /** Resize */
         Resize: {
             /** Cols */
@@ -869,6 +939,8 @@ export interface components {
              */
             origin?: string | null;
             pending: components["schemas"]["PendingAction"] | null;
+            /** @description where the owner placed it; `machine` and `cwd` already follow it */
+            placement?: components["schemas"]["Placement"] | null;
             /**
              * Remote Id
              * @description this agent's Remote Control session, when it has one; listed once, under this id
@@ -1713,6 +1785,72 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    place_session_v1_sessions__session_id__placement_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Placement"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    detect_placement_v1_sessions__session_id__placement_detect_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DetectedFolder"];
+                };
             };
             /** @description Validation Error */
             422: {
