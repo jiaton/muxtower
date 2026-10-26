@@ -88,7 +88,7 @@ export function ConversationView({ items }: { items: ConversationItem[] }) {
         role="log"
         aria-label="Conversation"
         tabIndex={0}
-        className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-3 text-sm"
+        className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-y-contain p-3 text-sm"
         onScroll={() => {
           const el = box.current!
           atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < BOTTOM_SLACK

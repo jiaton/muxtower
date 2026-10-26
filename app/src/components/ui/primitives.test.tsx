@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { Dialog, DialogContent } from './dialog'
 import { Drawer } from './drawer'
+import { Pager } from './pager'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './dropdown-menu'
 import { Markdown } from './markdown'
 import { NavCount, NavSection } from './nav'
@@ -217,5 +218,26 @@ describe('Drawer', () => {
     fireEvent.click(container.querySelector('[aria-hidden]')!)
     fireEvent.click(screen.getByRole('link', { name: 'Session one' }))
     expect(onOpenChange.mock.calls).toEqual([[false], [false], [false]])
+  })
+})
+
+describe('Pager', () => {
+  it('shows one page of several, and a swipe right on the first one goes past it', () => {
+    const onPastStart = vi.fn()
+    render(
+      <Pager index={0} onPastStart={onPastStart} label="Views">
+        <p>Terminal</p>
+        <p>Conversation</p>
+      </Pager>,
+    )
+    const pager = screen.getByRole('region', { name: 'Views' })
+    expect(screen.getByText('Conversation').parentElement?.getAttribute('aria-hidden')).toBe('true')
+    fireEvent.touchStart(pager, { touches: [{ clientX: 10, clientY: 100 }] })
+    fireEvent.touchMove(pager, { touches: [{ clientX: 14, clientY: 140 }] }) // mostly down: a scroll
+    fireEvent.touchMove(pager, { touches: [{ clientX: 60, clientY: 140 }] })
+    expect(onPastStart).not.toHaveBeenCalled()
+    fireEvent.touchStart(pager, { touches: [{ clientX: 10, clientY: 100 }] })
+    fireEvent.touchMove(pager, { touches: [{ clientX: 60, clientY: 104 }] })
+    expect(onPastStart).toHaveBeenCalledTimes(1)
   })
 })
