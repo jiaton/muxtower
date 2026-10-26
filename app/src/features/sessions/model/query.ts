@@ -11,13 +11,15 @@ import {
   deviceOf,
   folderOf,
   isAssistant,
+  placeOf,
   sourceOf,
   statusOf,
+  type Place,
   type SessionEntry,
 } from './facets'
 
-/** What the list shows; hidden sessions are only in 'hidden', and counted nowhere else. */
-export const VIEWS = ['all', 'needs', 'unread', 'working', 'hidden'] as const
+/** What the list shows; hidden and archived sessions are only in their own view, and counted nowhere else. */
+export const VIEWS = ['all', 'needs', 'unread', 'working', 'hidden', 'archived'] as const
 export const GROUPINGS = ['status', 'device', 'source', 'none'] as const
 export type View = (typeof VIEWS)[number]
 export type GroupBy = (typeof GROUPINGS)[number]
@@ -40,7 +42,14 @@ export const VIEW_LABEL: Record<View, string> = {
   unread: 'Unread',
   working: 'Working',
   hidden: 'Hidden',
+  archived: 'Archived',
 }
+
+/** Views of sessions set aside (`Place`), reached from a menu rather than the tabs. */
+export const ASIDE_VIEWS: readonly View[] = ['hidden', 'archived']
+
+/** Where the sessions a view shows are listed. */
+export const placeIn = (view: View): Place => (view === 'hidden' || view === 'archived' ? view : 'listed')
 export const GROUP_LABEL: Record<GroupBy, string> = { status: 'Status', device: 'Device and folder', source: 'Source', none: 'None' }
 
 export const deviceLabel = (entry: SessionEntry) => deviceOf(entry.session) ?? OTHER_DEVICES
@@ -64,8 +73,8 @@ export function filterEntries(entries: SessionEntry[], query: SessionQuery): Ses
   const q = query.q?.trim().toLowerCase()
   return entries.filter((entry) => {
     const status = statusOf(entry.session)
-    if (Boolean(entry.session.hidden) !== (query.view === 'hidden')) return false
-    if (query.view !== 'all' && query.view !== 'hidden' && status !== query.view) return false
+    if (placeOf(entry.session) !== placeIn(query.view)) return false
+    if (placeIn(query.view) === 'listed' && query.view !== 'all' && status !== query.view) return false
     if (query.device && deviceLabel(entry) !== query.device) return false
     if (query.folder && folderLabel(entry) !== query.folder) return false
     if (query.source && sourceLabel(entry) !== query.source) return false
@@ -195,16 +204,17 @@ function facet(entries: SessionEntry[], labelOf: (e: SessionEntry) => string, la
 }
 
 /** Counts for the navigation: per view, per device and its folders, per source. The assistant is not
- *  counted, nor are hidden sessions anywhere but under `hidden`. */
+ *  counted, nor are hidden or archived sessions anywhere but in their own view. */
 export function facetsOf(entries: SessionEntry[]): Facets {
-  const counted = entries.filter((e) => !isAssistant(e.session) && !e.session.hidden)
+  const counted = entries.filter((e) => !isAssistant(e.session) && placeOf(e.session) === 'listed')
   return {
     views: {
       all: counted.length,
       needs: counted.filter((e) => statusOf(e.session) === 'needs').length,
       unread: counted.filter((e) => statusOf(e.session) === 'unread').length,
       working: counted.filter((e) => statusOf(e.session) === 'working').length,
-      hidden: entries.filter((e) => e.session.hidden).length,
+      hidden: entries.filter((e) => placeOf(e.session) === 'hidden').length,
+      archived: entries.filter((e) => placeOf(e.session) === 'archived').length,
     },
     devices: facet(counted, deviceLabel, OTHER_DEVICES).map((device) => {
       const folders = facet(

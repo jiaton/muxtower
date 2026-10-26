@@ -233,7 +233,10 @@ export interface paths {
         get: operations["get_session_v1_sessions__session_id__get"];
         put?: never;
         post?: never;
-        /** Terminate Session */
+        /**
+         * Terminate Session
+         * @description Stops the session (`capabilities.terminate`); an archived one is deleted from the archive.
+         */
         delete: operations["terminate_session_v1_sessions__session_id__delete"];
         options?: never;
         head?: never;
@@ -252,6 +255,27 @@ export interface paths {
         put?: never;
         /** Approve */
         post: operations["approve_v1_sessions__session_id__approve_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sessions/{session_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Archive Session
+         * @description Ends the session (closes its tmux pane, archives it on Remote Control) and keeps its conversation
+         *     to read under `archived_at` (`capabilities.archive`).
+         */
+        post: operations["archive_session_v1_sessions__session_id__archive_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -494,6 +518,12 @@ export interface components {
          */
         Capabilities: {
             /**
+             * Archive
+             * @description it can be archived: ended, and kept to read (POST /archive)
+             * @default false
+             */
+            archive: boolean;
+            /**
              * Conversation
              * @description structured conversation items exist (GET /conversation)
              */
@@ -512,7 +542,10 @@ export interface components {
              * @description a terminal screen can be shown (GET /screen)
              */
             screen: boolean;
-            /** Terminate */
+            /**
+             * Terminate
+             * @description it can be stopped (DELETE); for an archived one: deleted from the archive
+             */
             terminate: boolean;
         };
         /** ClaimRequest */
@@ -787,6 +820,11 @@ export interface components {
              * @default false
              */
             alt_screen: boolean;
+            /**
+             * Archived At
+             * @description when the owner archived it: it no longer runs, its conversation stays readable
+             */
+            archived_at?: string | null;
             /** Auto Approve */
             auto_approve: boolean;
             /** Can Auto Approve */
@@ -1515,6 +1553,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ApprovalResult"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_session_v1_sessions__session_id__archive_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

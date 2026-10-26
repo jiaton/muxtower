@@ -77,3 +77,7 @@ class FakeRemoteControl:
 
     def mark_read(self, session_id: str) -> None:
         self.calls.append(("mark_read", session_id))
+
+    def archive_session(self, session_id: str) -> None:
+        self.calls.append(("archive", session_id))
+        self.sessions = [s for s in self.sessions if s["id"] != session_id]

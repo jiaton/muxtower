@@ -41,6 +41,8 @@ from muxtower.notify.service import PushService
 from muxtower.notify.webpush_sender import WebPushSender
 from muxtower.origins import OriginPolicy
 from muxtower.runtimes.spec import load_runtimes
+from muxtower.sessions.archive import SessionArchive
+from muxtower.sessions.archive_repository import SqliteArchiveRepository
 from muxtower.sessions.claude_processes import ClaudeProcesses
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.marks import SessionMarks, SqliteMarksRepository
@@ -146,9 +148,10 @@ def create_app(
     summaries = build_summaries(settings, db)
     marks = SessionMarks(SqliteMarksRepository(db))
     transcripts = Transcripts()
+    archive = SessionArchive(SqliteArchiveRepository(db), transcripts)
     directory = SessionDirectory(
         sessions, terminal, approvals, [remote_control] if remote_control else [], summaries, daemon_name, processes,
-        marks, transcripts,
+        marks, transcripts, archive,
     )  # fmt: skip
     audit = AuditLog(db)
     concierge: ConciergeService | None = None

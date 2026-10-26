@@ -112,3 +112,7 @@ class TmuxCli:
 
     def kill_session(self, socket: str, name: str) -> None:
         self._run(socket, "kill-session", "-t", f"={name}", check=False)
+
+    def kill_pane(self, pane: PaneRef) -> None:
+        """Ends what runs in the pane (it gets a hangup) and closes it; an emptied window closes too."""
+        self._run(pane.socket, "kill-pane", "-t", pane.pane_id, check=False)

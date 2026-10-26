@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { CheckCheck, EyeOff, Folder, ListFilter, Monitor, Rows3, Search, X } from 'lucide-react'
+import { Archive, CheckCheck, EyeOff, Folder, ListFilter, Monitor, Rows3, Search, X } from 'lucide-react'
 import { Fragment, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,7 +15,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Segmented } from '@/components/ui/segmented'
 import { cn } from '@/lib/cn'
-import { GROUPINGS, GROUP_LABEL, VIEWS, VIEW_LABEL, type Facets, type GroupBy, type SessionQuery } from '../model/query'
+import { ASIDE_VIEWS, GROUPINGS, GROUP_LABEL, VIEWS, VIEW_LABEL, type Facets, type GroupBy, type SessionQuery } from '../model/query'
 import { useMarkRead } from '../api/use-session-marks'
 import { folderName, shortFolderNames, type SessionEntry } from '../model/facets'
 import { scopeOf, scopeSearch, type ListSearch, type Scope } from '../model/search'
@@ -69,9 +69,9 @@ export function ViewTabs({
     <Segmented
       className={className}
       aria-label="Show"
-      value={scopeOf(query) || query.view === 'hidden' ? ('none' as never) : query.view}
+      value={scopeOf(query) || ASIDE_VIEWS.includes(query.view) ? ('none' as never) : query.view}
       onChange={(view) => void navigate({ to: '/', search: scopeSearch(search, { view }) })}
-      options={VIEWS.filter((view) => view !== 'hidden').map((view) => ({
+      options={VIEWS.filter((view) => !ASIDE_VIEWS.includes(view)).map((view) => ({
         value: view,
         label: (
           <>
@@ -227,6 +227,14 @@ export function FilterMenu({
           <EyeOff className="text-fg-muted" aria-hidden />
           <span className="min-w-0 flex-1 truncate">Hidden sessions</span>
           {count(facets.views.hidden)}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          disabled={!facets.views.archived}
+          onSelect={() => void navigate({ to: '/', search: scopeSearch(search, { view: 'archived' }) })}
+        >
+          <Archive className="text-fg-muted" aria-hidden />
+          <span className="min-w-0 flex-1 truncate">Archived sessions</span>
+          {count(facets.views.archived)}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

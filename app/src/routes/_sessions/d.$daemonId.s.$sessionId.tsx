@@ -48,7 +48,7 @@ function SessionPage() {
 type View = 'terminal' | 'conversation'
 
 /** Header; what the agent is waiting for, if anything; the terminal or the conversation (a session
- *  with both offers a switch); the input bar. */
+ *  with both offers a switch); the input bar. An archived session is its conversation only. */
 function SessionView({ daemonId, session }: { daemonId: string; session: Session }) {
   const { screen, conversation: hasConversation } = session.capabilities
   const [view, setView] = useState<View>(screen ? 'terminal' : 'conversation')
@@ -120,9 +120,11 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
         </>
       )}
 
-      <footer className="shrink-0 border-t border-border bg-bg p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-3">
-        <InputBar daemonId={daemonId} sessionId={session.id} keys={session.capabilities.keys} />
-      </footer>
+      {session.archived_at ? null : (
+        <footer className="shrink-0 border-t border-border bg-bg p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-3">
+          <InputBar daemonId={daemonId} sessionId={session.id} keys={session.capabilities.keys} />
+        </footer>
+      )}
     </Pane>
   )
 }

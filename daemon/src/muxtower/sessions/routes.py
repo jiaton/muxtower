@@ -95,9 +95,24 @@ def hide_session(session_id: str, body: HideSession, request: Request, _: Curren
 
 
 @router.delete("/sessions/{session_id}", status_code=204)
-def terminate_session(session_id: str, device: CurrentDevice, directory: Directory, audit: Audit) -> None:
+def terminate_session(
+    session_id: str, request: Request, device: CurrentDevice, directory: Directory, audit: Audit
+) -> None:
+    """Stops the session (`capabilities.terminate`); an archived one is deleted from the archive."""
     directory.terminate(session_id)
     audit.record(device.name, "terminate", session_id)
+    request.app.state.bus.publish("sessions", None)
+
+
+@router.post("/sessions/{session_id}/archive", status_code=204)
+async def archive_session(
+    session_id: str, request: Request, device: CurrentDevice, directory: Directory, audit: Audit
+) -> None:
+    """Ends the session (closes its tmux pane, archives it on Remote Control) and keeps its conversation
+    to read under `archived_at` (`capabilities.archive`)."""
+    await asyncio.to_thread(directory.archive, session_id)
+    audit.record(device.name, "archive", session_id)
+    request.app.state.bus.publish("sessions", None)
 
 
 @router.get("/sessions/{session_id}/screen")

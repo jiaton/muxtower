@@ -49,3 +49,14 @@ export function useTerminateSession(daemonId: string, sessionId: string) {
       queryClient.setQueryData<Session[]>(daemonKey(daemonId, 'sessions'), (list) => list?.filter((s) => s.id !== sessionId)),
   })
 }
+
+/** Ends the session and keeps it to read under Archived; the list reloads to show it there. */
+export function useArchiveSession(daemonId: string, sessionId: string) {
+  const client = useDaemonClient(daemonId)
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async () =>
+      check(await client!.POST('/v1/sessions/{session_id}/archive', { params: { path: { session_id: sessionId } } })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: daemonKey(daemonId, 'sessions') }),
+  })
+}

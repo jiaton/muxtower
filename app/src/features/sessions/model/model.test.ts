@@ -104,6 +104,20 @@ describe('query', () => {
     expect([facets.views.all, facets.views.needs, facets.views.hidden]).toEqual([6, 2, 1])
   })
 
+  it('keeps archived sessions in their own view, apart from hidden ones', () => {
+    const withAside = [
+      ...entries,
+      entry('done', { archived_at: '2026-10-25T11:00:00Z' }),
+      entry('tucked', { hidden: true }),
+    ]
+    const ids = (view: 'all' | 'hidden' | 'archived') => filterEntries(withAside, { view, group: 'status' }).map((e) => e.session.id)
+    expect(ids('all')).not.toContain('done')
+    expect(ids('hidden')).toEqual(['tucked'])
+    expect(ids('archived')).toEqual(['done'])
+    const facets = facetsOf(withAside)
+    expect([facets.views.all, facets.views.hidden, facets.views.archived]).toEqual([6, 1, 1])
+  })
+
   it('groups by source', () => {
     expect(groupEntries(entries, 'source').map((g) => g.label)).toEqual(['Assistant', 'tmux', 'Remote Control'])
   })
@@ -119,7 +133,7 @@ describe('query', () => {
 
   it('counts views, devices with their folders, and sources, without the assistant', () => {
     const facets = facetsOf(entries)
-    expect(facets.views).toEqual({ all: 6, needs: 2, unread: 0, working: 1, hidden: 0 })
+    expect(facets.views).toEqual({ all: 6, needs: 2, unread: 0, working: 1, hidden: 0, archived: 0 })
     expect(facets.devices.map(({ label, count, needs }) => ({ label, count, needs }))).toEqual([
       { label: 'hub', count: 5, needs: 2 },
       { label: OTHER_DEVICES, count: 1, needs: 0 },
