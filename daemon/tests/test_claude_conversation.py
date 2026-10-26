@@ -20,7 +20,8 @@ def test_prompt_reply_and_tool_lifecycle() -> None:
 
 def test_a_tool_call_keeps_its_own_description() -> None:
     b = ConversationBuilder()
-    call = {"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "make check", "description": "Run checks"}}
+    tool_input = {"command": "make check", "description": "Run checks"}
+    call = {"type": "tool_use", "id": "t1", "name": "Bash", "input": tool_input}
     b.feed([assistant(1, call)])
     (item,) = b.after(0, 10)
     assert (item.text, item.description) == ("make check", "Run checks")
