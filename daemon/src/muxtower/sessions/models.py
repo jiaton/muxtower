@@ -146,6 +146,9 @@ class ConversationItem(BaseModel):
     kind: ConversationItemKind
     text: str | None = None
     tool_name: str | None = None
+    description: str | None = Field(
+        default=None, description="a tool call's own one-line account of itself, when the agent gave one"
+    )
     status: ItemStatus | None = None
 
 

@@ -221,6 +221,18 @@
             ],
             "title": "At"
           },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a tool call's own one-line account of itself, when the agent gave one",
+            "title": "Description"
+          },
           "kind": {
             "$ref": "#/components/schemas/ConversationItemKind"
           },

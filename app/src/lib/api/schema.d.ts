@@ -563,6 +563,11 @@ export interface components {
         ConversationItem: {
             /** At */
             at?: string | null;
+            /**
+             * Description
+             * @description a tool call's own one-line account of itself, when the agent gave one
+             */
+            description?: string | null;
             kind: components["schemas"]["ConversationItemKind"];
             /** Seq */
             seq: number;
