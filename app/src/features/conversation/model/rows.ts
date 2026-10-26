@@ -47,6 +47,10 @@ const KIND_OF: Record<string, keyof typeof ACTIVITIES> = {
   WebSearch: 'web', WebFetch: 'fetch',
   Task: 'agent', Agent: 'agent',
   TodoWrite: 'plan',
+  // Codex
+  exec_command: 'command', shell: 'command', local_shell: 'command', write_stdin: 'command',
+  apply_patch: 'edit', view_image: 'read', web_search: 'web', update_plan: 'plan',
+  spawn_agent: 'agent',
 }
 const activityOf = (tool: ConversationItem): Activity => {
   const kind = KIND_OF[tool.tool_name ?? ''] ?? (/plan/i.test(tool.tool_name ?? '') ? 'plan' : undefined)
