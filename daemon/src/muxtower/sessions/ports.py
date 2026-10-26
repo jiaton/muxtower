@@ -17,6 +17,7 @@ class SessionSource(StrEnum):
     LAUNCHED = "launched"  # started by muxtower on its own tmux socket
     ADOPTED = "adopted"  # an agent found running in some other tmux session
     REMOTE_CONTROL = "remote_control"  # a Claude Code Remote Control session, reached through Anthropic
+    CODEX = "codex"  # a Codex thread muxtower runs headless, in its own Codex app-server
 
 
 @dataclass
@@ -75,6 +76,14 @@ class ClaudeProcessPort(Protocol):
     def name(self, pane_pid: int) -> str | None:
         """The name the Claude Code session running in this pane goes by (/rename, or its own), if any."""
         ...
+
+
+class HeadlessStarter(Protocol):
+    """A source that also starts sessions of one runtime without a terminal."""
+
+    runtime: str
+
+    def start(self, cwd: str, name: str | None) -> Session: ...
 
 
 class SessionSourcePort(Protocol):

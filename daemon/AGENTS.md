@@ -26,7 +26,8 @@ src/muxtower/
               to read); placement.py: where the owner says a session runs; merged.py: a tmux pane and its Remote Control session as one entry; turns.py: finished turns
   agents/     agent plugins beyond the terminal: which session a pane runs, its transcript format
               (processes.py asks each in turn; codex/ here, Claude Code's in sessions/ for now)
-  sources/    other session sources, one folder each (remote_control: Anthropic's Remote Control API)
+  sources/    other session sources, one folder each (remote_control: Anthropic's Remote Control API;
+              codex: Codex threads run headless in muxtower's own Codex app-server)
   summaries/  short versions of long replies: a Summarizer port (claude/codex CLI adapters), SQLite cache, background loop
   asr/        speech to text for voice replies: a Transcriber port (OpenAI-compatible adapter: Groq, OpenAI)
   concierge/  the owner's assistant: a Claude Code session kept running, its MCP config, watched sessions
