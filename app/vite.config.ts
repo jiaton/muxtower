@@ -22,16 +22,26 @@ export default defineConfig({
       filename: 'sw.ts',
       registerType: 'autoUpdate',
       injectRegister: 'auto',
-      injectManifest: { globPatterns: ['**/*.{js,css,html,svg,woff2}'] },
+      injectManifest: { globPatterns: ['**/*.{js,css,html,svg,png,woff2}'] },
       devOptions: { enabled: false },
       manifest: {
         name: 'muxtower',
         short_name: 'muxtower',
         description: 'Approve and drive coding agents from your phone.',
         display: 'standalone',
+        // The app's light background (tokens.css --color-bg); index.html sets the bars per color scheme.
+        background_color: '#f8f9fa',
+        theme_color: '#f8f9fa',
         start_url: base,
         scope: base,
-        icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
+        // PNGs from `npm run icons`: Android installs the app (and shows its notifications as the app's,
+        // not the browser's) only with raster icons.
+        icons: [
+          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
       },
     }),
   ],

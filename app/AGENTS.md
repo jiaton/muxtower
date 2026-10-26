@@ -21,7 +21,7 @@
 - Routing: TanStack Router (file routes in `src/routes/`)
 - Server state: TanStack Query · Client state: Zustand (persisted) — Zustand only, no Context stores
 - Contract: `openapi-typescript` types from `../openapi.json` + `openapi-fetch`
-- Terminal: our own view (`features/terminal`): ANSI → HTML lines (`lib/ansi.ts`) in a natively scrolling box, diffed line by line (`features/terminal/lines.ts`); no xterm.js. Non-ASCII text gets exactly the cells tmux gives it (`lib/cell-width.ts`: each wide character a centered 2ch box, other runs their width in `ch`), so columns line up whatever fallback font draws it · PWA/push: `vite-plugin-pwa` (injectManifest, own service worker)
+- Terminal: our own view (`features/terminal`): ANSI → HTML lines (`lib/ansi.ts`) in a natively scrolling box, diffed line by line (`features/terminal/lines.ts`); no xterm.js. Non-ASCII text gets exactly the cells tmux gives it (`lib/cell-width.ts`: each wide character a centered 2ch box, other runs their width in `ch`), so columns line up whatever fallback font draws it · PWA/push: `vite-plugin-pwa` (injectManifest, own service worker). App and notification icons: SVG sources (`public/icon.svg`, `scripts/icons/`) rendered to the PNGs in `public/` by `npm run icons` (commit both); Android needs PNGs to install the app and to show its notifications under its own icon
 
 ## Architecture (layered — do not collapse)
 
