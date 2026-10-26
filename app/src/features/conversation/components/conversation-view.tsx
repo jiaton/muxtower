@@ -1,27 +1,55 @@
-import { ArrowDown } from 'lucide-react'
+import { ArrowDown, ChevronRight, CircleX, LoaderCircle } from 'lucide-react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Markdown } from '@/components/ui/markdown'
 import type { ConversationItem } from '@/lib/api/types'
 import { cn } from '@/lib/cn'
+import { conversationRows, toolName, toolRunSummary } from '../model/rows'
 
 const BOTTOM_SLACK = 24
 
-/** Runs of tool calls fold into one line ("Bash make · Read app.ts · …") so the prose stays readable. */
-type Row = { kind: 'item'; item: ConversationItem } | { kind: 'tools'; items: ConversationItem[] }
-
-function rows(items: ConversationItem[]): Row[] {
-  const out: Row[] = []
-  for (const item of items) {
-    const last = out[out.length - 1]
-    if (item.kind === 'tool' && last?.kind === 'tools') last.items.push(item)
-    else if (item.kind === 'tool') out.push({ kind: 'tools', items: [item] })
-    else if (item.kind !== 'result') out.push({ kind: 'item', item })
-  }
-  return out
+/** A run of tool calls as one line ("Ran 4 commands (2 failed)", or a single call's own description)
+ *  that opens to the calls themselves, so the prose stays readable. */
+function ToolRun({ tools }: { tools: ConversationItem[] }) {
+  const [open, setOpen] = useState(false)
+  const summary = toolRunSummary(tools)
+  return (
+    <div>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className="flex max-w-full items-start gap-1.5 text-left text-fg-muted hover:text-fg"
+      >
+        {summary.running ? <LoaderCircle className="mt-0.5 size-4 shrink-0 animate-spin" aria-hidden /> : null}
+        <span className="min-w-0">
+          {summary.text}
+          {summary.failed ? <span className="text-danger"> ({summary.failed} failed)</span> : null}
+        </span>
+        <ChevronRight className={cn('mt-0.5 size-4 shrink-0 transition-transform', open && 'rotate-90')} aria-hidden />
+      </button>
+      {open ? (
+        <ul className="mt-2 flex flex-col gap-2 border-l border-border pl-3">
+          {tools.map((tool) => (
+            <li key={tool.seq} className="flex flex-col gap-1">
+              <p className="flex items-center gap-1.5 text-xs text-fg-muted">
+                {tool.status === 'running' ? <LoaderCircle className="size-3.5 animate-spin" aria-label="Running" /> : null}
+                {tool.status === 'error' ? <CircleX className="size-3.5 text-danger" aria-label="Failed" /> : null}
+                <span className="font-medium">{toolName(tool)}</span>
+                {tool.description ? <span className="min-w-0 truncate">{tool.description}</span> : null}
+              </p>
+              {tool.text ? (
+                <pre className="max-h-40 overflow-auto rounded-sm bg-surface-muted px-2 py-1 font-mono text-xs break-all whitespace-pre-wrap">
+                  {tool.text}
+                </pre>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  )
 }
-
-const toolLabel = (t: ConversationItem) => `${t.tool_name ?? 'tool'}${t.text ? ` ${t.text.split('\n')[0].slice(0, 60)}` : ''}`
 
 function ItemView({ item }: { item: ConversationItem }) {
   if (item.kind === 'prompt')
@@ -44,7 +72,7 @@ export function ConversationView({ items }: { items: ConversationItem[] }) {
   const box = useRef<HTMLDivElement>(null)
   const atBottom = useRef(true)
   const [behind, setBehind] = useState(false)
-  const shown = rows(items)
+  const shown = conversationRows(items)
 
   useLayoutEffect(() => {
     const el = box.current
@@ -70,13 +98,7 @@ export function ConversationView({ items }: { items: ConversationItem[] }) {
         {shown.length === 0 ? <p className="text-fg-muted">No messages yet.</p> : null}
         {shown.map((row) =>
           row.kind === 'tools' ? (
-            <p key={`t${row.items[0].seq}`} className="font-mono text-xs text-fg-muted">
-              {row.items.map((t) => (
-                <span key={t.seq} className={cn(t.status === 'error' && 'text-danger')}>
-                  ◆ {toolLabel(t)}{' '}
-                </span>
-              ))}
-            </p>
+            <ToolRun key={`t${row.items[0].seq}`} tools={row.items} />
           ) : (
             <ItemView key={row.item.seq} item={row.item} />
           ),

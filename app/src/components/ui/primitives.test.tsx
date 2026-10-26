@@ -106,6 +106,11 @@ describe('Markdown', () => {
     expect(screen.getByRole('link', { name: 'docs' })).toHaveAttribute('target', '_blank')
     expect(document.querySelector('img')).toBeNull()
   })
+
+  it('bolds text that ends in CJK punctuation', () => {
+    render(<Markdown>{'**还没确认的：**关掉日志'}</Markdown>)
+    expect(screen.getByText('还没确认的：').tagName).toBe('STRONG')
+  })
 })
 
 describe('SuggestInput', () => {

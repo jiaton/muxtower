@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
-from muxtower.agent_text import describe_tool_input
+from muxtower.agent_text import describe_tool_input, tool_description
 from muxtower.sessions.models import ConversationItem, ConversationItemKind, ItemStatus
 
 
@@ -156,6 +156,7 @@ class ConversationBuilder:
                         kind=ConversationItemKind.TOOL,
                         tool_name=name,
                         text=describe_tool_input(block.get("input")),
+                        description=tool_description(block.get("input")),
                         status=ItemStatus.RUNNING,
                     )  # fmt: skip
                 )
