@@ -24,8 +24,8 @@ def vapid_key(_: CurrentDevice, push: Push) -> VapidKey:
 
 
 @router.post("/subscriptions")
-def subscribe(body: Subscribe, _: CurrentDevice, push: Push) -> Subscription:
-    return push.subscribe(body)
+def subscribe(body: Subscribe, device: CurrentDevice, push: Push) -> Subscription:
+    return push.subscribe(body, device.name)
 
 
 @router.delete("/subscriptions/{subscription_id}", status_code=204)

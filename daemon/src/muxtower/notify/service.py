@@ -20,16 +20,18 @@ WATCHING_SECONDS = 45  # a client looked at the session this recently: someone i
 
 class PushService:
     def __init__(
-        self, repo: SubscriptionRepository, sender: PushSender, sessions: SessionDirectory, daemon_name: str
-    ) -> None:
+        self, repo: SubscriptionRepository, sender: PushSender, sessions: SessionDirectory, daemon_name: str,
+        paired: Callable[[str], bool],
+    ) -> None:  # fmt: skip
         self.repo = repo
         self.sender = sender
         self.sessions = sessions
         self.daemon_name = daemon_name
+        self.paired = paired  # whether a device is still paired: a revoked one's subscriptions stop
 
-    def subscribe(self, body: Subscribe) -> Subscription:
+    def subscribe(self, body: Subscribe, device: str) -> Subscription:
         sub_id = hashlib.sha256(body.endpoint.encode()).hexdigest()[:24]
-        self.repo.upsert(sub_id, body)
+        self.repo.upsert(sub_id, body, device)
         return Subscription(id=sub_id, client_ref=body.client_ref, states=body.states, done=body.done, muted=body.muted)
 
     def unsubscribe(self, sub_id: str) -> bool:
@@ -61,6 +63,10 @@ class PushService:
     ) -> int:  # fmt: skip
         sent = 0
         for sub in self.repo.list():
+            if sub.device is None or not self.paired(sub.device):
+                logger.info("dropping the push subscription of %s: no longer paired", sub.device)
+                self.repo.delete(sub.id)
+                continue
             if not wants(sub) or view.id in sub.muted:
                 continue
             payload = PushPayload(

@@ -73,3 +73,19 @@ def test_no_finished_push_for_a_session_someone_is_watching(app: FastAPI, client
     (session,) = app.state.directory.list()
     client.post(f"/v1/sessions/{session.id}/read", json={}, headers=auth)
     assert app.state.push.notify_done(session.id) == 0
+
+
+def test_a_revoked_device_gets_no_more_pushes(app: FastAPI, client: TestClient, auth: dict[str, str],
+                                              tmux: FakeTmux) -> None:  # fmt: skip
+    sender = FakeSender()
+    app.state.push.sender = sender
+    _, other = app.state.tokens.create("old browser")
+    client.post("/v1/push/subscriptions", json=SUB, headers=auth)
+    old = {**SUB, "endpoint": "https://push.example/old"}
+    client.post("/v1/push/subscriptions", json=old, headers={"Authorization": f"Bearer {other}"})
+    assert client.delete("/v1/devices/old browser", headers=auth).status_code == 204
+
+    tmux.add_pane("default", "work", "claude").screen = screens.QUESTION
+    assert app.state.push.notify(app.state.monitor.tick().attention[0]) == 1
+    assert [endpoint for endpoint, _ in sender.sent] == ["https://push.example/a"]
+    assert [s.device for s in app.state.push.repo.list()] == ["phone"]

@@ -39,6 +39,9 @@ class TokenService:
             name, n = f"{wanted}-{n}", n + 1
         return name
 
+    def exists(self, name: str) -> bool:
+        return name in self.extra or any(t.name == name for t in self.repo.list())
+
     def revoke(self, name: str) -> bool:
         return self.repo.remove(name)
 

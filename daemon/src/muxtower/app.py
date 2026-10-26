@@ -156,7 +156,9 @@ def create_app(
         store = FileConciergeStore(settings.state_dir / "concierge.json", settings.state_dir / "concierge")
         mcp_url = f"{settings.local_url}/v1/mcp"
         concierge = ConciergeService(settings.concierge, sessions, directory, tokens, store, mcp_url)
-    push = PushService(SqliteSubscriptionRepository(db), WebPushSender(settings.state_dir), directory, daemon_name)
+    push = PushService(
+        SqliteSubscriptionRepository(db), WebPushSender(settings.state_dir), directory, daemon_name, tokens.exists
+    )
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
