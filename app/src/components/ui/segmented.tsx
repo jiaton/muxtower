@@ -30,7 +30,7 @@ export function Segmented<T extends string>({
           aria-checked={option.value === value}
           onClick={() => onChange(option.value)}
           className={cn(
-            'flex h-8 flex-1 items-center justify-center gap-1.5 rounded-sm px-2.5 text-sm whitespace-nowrap text-fg-muted transition-colors select-none focus-visible:outline-2 focus-visible:outline-focus',
+            'flex h-8 min-w-0 flex-1 items-center justify-center gap-1 overflow-hidden rounded-sm px-2 text-sm whitespace-nowrap text-fg-muted transition-colors select-none focus-visible:outline-2 focus-visible:outline-focus',
             option.value === value ? 'bg-surface font-medium text-fg shadow-card' : 'hover:text-fg',
           )}
         >

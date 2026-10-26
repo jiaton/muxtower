@@ -75,7 +75,15 @@ export function ViewTabs({
         value: view,
         label: (
           <>
-            {view === 'all' ? 'All' : VIEW_LABEL[view]}
+            {view === 'all' ? (
+              'All'
+            ) : view === 'needs' ? (
+              <span>
+                Needs<span className="max-[400px]:hidden"> you</span>
+              </span>
+            ) : (
+              VIEW_LABEL[view]
+            )}
             <span
               className={cn(
                 'tabular-nums',
