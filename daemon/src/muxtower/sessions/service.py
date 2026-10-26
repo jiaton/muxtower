@@ -95,6 +95,7 @@ class SessionService:
             tmux_pane=record.pane.pane_id,
             remote_id=live.remote_id,
             alt_screen=live.alt_screen,
+            terminal_attached=live.attached,
             capabilities=Capabilities(
                 screen=True,
                 conversation=live.transcript is not None,  # read from its transcript

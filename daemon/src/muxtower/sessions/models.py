@@ -67,6 +67,10 @@ class Session(BaseModel):
         default=False,
         description="draws full screen (alternate screen): tmux keeps no scrollback, see the conversation",
     )
+    terminal_attached: bool = Field(
+        default=False,
+        description="a terminal is attached to its tmux session, so someone may be watching it at its own size",
+    )
     role: SessionRole | None = None
     remote_id: str | None = Field(
         default=None, description="this agent's Remote Control session, when it has one; listed once, under this id"

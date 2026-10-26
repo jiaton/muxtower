@@ -844,6 +844,12 @@ export interface components {
             state_source: components["schemas"]["StateSource"];
             summary?: components["schemas"]["TurnSummary"] | null;
             /**
+             * Terminal Attached
+             * @description a terminal is attached to its tmux session, so someone may be watching it at its own size
+             * @default false
+             */
+            terminal_attached: boolean;
+            /**
              * Tmux Pane
              * @description pane id, e.g. %12, for attaching to the exact pane
              */
