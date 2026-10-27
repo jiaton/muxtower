@@ -3,7 +3,7 @@
 Claude Code keeps a file per running process, `~/.claude/sessions/<pid>.json`, whose `bridgeSessionId`
 (`session_<id>`) is that process's Remote Control session (`cse_<id>` in the API). The pane's own process
 may be a shell, so its children are searched too (some kernels keep no list of children: then every
-process's parent is read). Its `sessionId` names the transcript Claude Code writes,
+process's parent is read; on macOS, from `ps`). Its `sessionId` names the transcript Claude Code writes,
 `projects/<cwd, every non-alphanumeric as ->/<sessionId>.jsonl`. The file also holds the session's
 name (what `/rename` set, or the one Claude Code gave it), which a tmux session goes by unless the owner
 named it in muxtower, and says how Claude Code was started
@@ -18,7 +18,7 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-from muxtower.infra.procfs import Children, family
+from muxtower.infra.procfs import Children, alive, family
 
 SEARCH_DEPTH = 3
 BRIDGE_PREFIX = "session_"
@@ -95,7 +95,7 @@ class ClaudeProcesses:
             except (OSError, ValueError, AttributeError):
                 continue
             remote_id = _remote_id(info)
-            if remote_id and Path(f"/proc/{pid}").exists():
+            if remote_id and alive(pid):
                 entrypoint = info.get("entrypoint")
                 found[remote_id] = ClaudeProcess(
                     pid=pid, cwd=str(info.get("cwd") or ""), entrypoint=str(entrypoint) if entrypoint else None
