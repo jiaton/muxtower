@@ -14,3 +14,4 @@ daemon/src/muxtower/web/
 
 # Screen captures written for screenshot checks: never commit or ship them
 app/public/zz-*
+.claude/
