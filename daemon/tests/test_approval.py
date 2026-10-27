@@ -6,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from muxtower.errors import Conflict
-from muxtower.hooks.claude_code import HookEvent
+from muxtower.hooks.events import HookEvent
 from tests import screens
 from tests.fakes import FakePane, FakeTmux
 
