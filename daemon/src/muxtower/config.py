@@ -103,7 +103,7 @@ class HubSettings(BaseModel):
     """This daemon as a node of a hub (`muxtower pair --join`). Which hub it joined is kept in the state
     directory; only what to send along lives here."""
 
-    # Headers sent with every request to the hub, for a gate in front of it, e.g. {"X-Wicket-Token" = "…"}.
+    # Headers sent with every request to the hub, for a gate in front of it, e.g. {"X-Gate-Token" = "…"}.
     headers: dict[str, str] = Field(default_factory=dict)
 
 

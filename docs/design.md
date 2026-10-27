@@ -120,7 +120,7 @@ joined, if any; a node keeps its own API and UI.
   `muxtower pair --join <hub> --code <code>`, which has the node's daemon redeem it at
   `POST /v1/nodes/claim` for a token of the node's own, kept in its state directory (`hub.json`, 0600).
   A node token opens the node's link and nothing else (it is in its own table, `nodes`, not a device
-  token). Headers for a gate in front of the hub (`[hub] headers` in the node's config, e.g. a wicket
+  token). Headers for a gate in front of the hub (`[hub] headers` in the node's config, e.g. the gate's
   API token) go with every request to it. `DELETE /v1/nodes/{name}` removes a node: its link is closed
   with 4401 and the node forgets the hub; `muxtower pair --leave` stops a node reporting.
 - **The link** (`nodes/protocol.py`): one WebSocket the node opens to `/v1/nodes/link` (the token as a

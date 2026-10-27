@@ -68,8 +68,8 @@ class NodeLink:
     async def _quietly(self, code: int) -> None:
         try:
             await self._hangup(code)
-        except Exception:  # noqa: BLE001, S110 - already gone
-            pass
+        except Exception as exc:  # noqa: BLE001 - it may be gone already
+            logger.debug("hanging up on %s: %s", self.name, exc)
 
 
 def parse(raw: str) -> dict[str, Any] | None:

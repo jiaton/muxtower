@@ -6,6 +6,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from muxtower.errors import Invalid
+from muxtower.infra.audit import AuditLog
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.launcher import Launcher
@@ -18,14 +19,20 @@ def _json(value: Any) -> Any:
     return value.model_dump(mode="json") if isinstance(value, BaseModel) else value
 
 
+# What changes something here: audited as done by the hub, like a device's actions.
+MUTATING = frozenset({"input", "approve", "deny", "update", "terminate", "archive", "create"})
+
+
 class NodeApi:
     def __init__(
-        self, directory: SessionDirectory, launcher: Launcher, archiver: Archiver, placements: Placements
-    ) -> None:
+        self, directory: SessionDirectory, launcher: Launcher, archiver: Archiver, placements: Placements,
+        audit: AuditLog,
+    ) -> None:  # fmt: skip
         self.directory = directory
         self.launcher = launcher
         self.archiver = archiver
         self.placements = placements
+        self.audit = audit
 
     def sessions(self) -> list[dict[str, Any]]:
         """Everything it lists itself (not what its own nodes report: a node is no hub of the hub's)."""
@@ -34,6 +41,8 @@ class NodeApi:
     def handle(self, method: str, params: dict[str, Any]) -> Any:
         d = self.directory
         sid = str(params.get("session_id", ""))
+        if method in MUTATING:
+            self.audit.record("hub", method, sid or None)  # what was typed is never logged
         match method:
             case "conversation":
                 return _json(d.conversation(sid, int(params.get("after", 0)), int(params.get("limit", 100))))
