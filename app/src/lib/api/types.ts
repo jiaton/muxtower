@@ -3,6 +3,7 @@ import type { components } from './schema'
 type Schemas = components['schemas']
 export type Session = Schemas['Session']
 export type AgentState = Schemas['AgentState']
+export type NotifyLevel = Schemas['NotifyLevel']
 export type PendingAction = Schemas['PendingAction']
 export type Option = Schemas['Option']
 export type RuntimeInfo = Schemas['RuntimeInfo']
