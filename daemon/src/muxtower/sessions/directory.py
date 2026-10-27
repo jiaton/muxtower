@@ -14,7 +14,7 @@ from muxtower.errors import Conflict, NotFound, Unavailable
 from muxtower.sessions.archive import SessionArchive
 from muxtower.sessions.marks import SessionMarks
 from muxtower.sessions.merged import deeper, merged
-from muxtower.sessions.models import Conversation, Placement, Session, SessionRole, UpdateSession
+from muxtower.sessions.models import Conversation, NotifyLevel, Placement, Session, SessionRole, UpdateSession
 from muxtower.sessions.ports import ClaudeProcessPort, SessionSource, SessionSourcePort
 from muxtower.sessions.service import SessionService
 from muxtower.sessions.transcripts import Transcripts
@@ -71,6 +71,7 @@ class SessionDirectory:
             update["unread"] = self.marks.unread(session.id, session.unread, session.updated_at)
             update["finished_at"] = marks.finished_at
             update["hidden"] = marks.hidden
+            update["notify"] = NotifyLevel(marks.notify)
         if session.source != SessionSource.REMOTE_CONTROL:
             update["machine"] = self.hub_name or session.machine
         elif self.processes and (process := self.processes.running().get(session.id)):
@@ -160,6 +161,13 @@ class SessionDirectory:
         session = self.get(session_id)
         if self.marks is not None:
             self.marks.hide(session.id, hidden)
+
+    def set_notify(self, session_id: str, level: NotifyLevel) -> Session:
+        """Which push notifications it sends, for every source."""
+        session = self.get(session_id)
+        if self.marks is not None:
+            self.marks.set_notify(session.id, level.value)
+        return self.get(session_id)
 
     def mark_read(self, session_id: str, read: bool) -> None:
         """Read: the owner looked at it, here and (best effort) in the Claude apps. Unread: to come back to."""

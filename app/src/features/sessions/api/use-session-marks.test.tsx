@@ -7,7 +7,7 @@ import type { Session } from '@/lib/api/types'
 import { daemonKey } from '@/lib/query'
 import { addDaemon } from '@/test/render'
 import { DAEMON_URL, server } from '@/test/server'
-import { useHideSession, useMarkRead } from './use-session-marks'
+import { useHideSession, useMarkRead, useSessionNotify } from './use-session-marks'
 
 it('tells the daemon and shows the session read at once', async () => {
   const daemon = addDaemon()
@@ -47,4 +47,24 @@ it('hides a session on its daemon and in the list at once', async () => {
   expect(queryClient.getQueryData<Session[]>(daemonKey(daemon.id, 'sessions'))?.[0].hidden).toBe(true)
   await waitFor(() => expect(result.current.isSuccess).toBe(true))
   expect(bodies).toEqual([{ hidden: true }])
+})
+
+it('sets which notifications a session sends, on its daemon and in the list at once', async () => {
+  const daemon = addDaemon()
+  const bodies: unknown[] = []
+  server.use(
+    http.put(`${DAEMON_URL}/v1/sessions/s1/notify`, async ({ request }) => {
+      bodies.push(await request.json())
+      return HttpResponse.json({ id: 's1', notify: 'needs' })
+    }),
+  )
+  const queryClient = new QueryClient()
+  queryClient.setQueryData(daemonKey(daemon.id, 'sessions'), [{ id: 's1', notify: 'all' } as Session])
+  const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  const { result } = renderHook(() => useSessionNotify(), { wrapper })
+
+  result.current.mutate({ daemonId: daemon.id, sessionId: 's1', level: 'needs' })
+  expect(queryClient.getQueryData<Session[]>(daemonKey(daemon.id, 'sessions'))?.[0].notify).toBe('needs')
+  await waitFor(() => expect(result.current.isSuccess).toBe(true))
+  expect(bodies).toEqual([{ level: 'needs' }])
 })

@@ -22,7 +22,7 @@ src/muxtower/
   sessions/   registry, create/rename/terminate; directory.py: every session across sources, dispatch by capabilities;
               claude_processes.py: links a pane's Claude Code to its Remote Control session (one entry per agent)
               and to its transcript; transcripts.py: a tmux session's conversation, read from that transcript;
-              marks.py: the owner's marks (unread, hidden); archive.py / archiving.py: archived sessions (ended, kept
+              marks.py: the owner's marks (unread, hidden, notify level); archive.py / archiving.py: archived sessions (ended, kept
               to read); placement.py: where the owner says a session runs; merged.py: a tmux pane and its Remote Control session as one entry; turns.py: finished turns
   agents/     agent plugins beyond the terminal: which session a pane runs, its transcript format
               (processes.py asks each in turn; codex/ here, Claude Code's in sessions/ for now)

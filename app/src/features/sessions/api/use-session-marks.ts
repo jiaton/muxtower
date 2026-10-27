@@ -1,10 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { check, createDaemonClient } from '@/lib/api/client'
-import type { Session } from '@/lib/api/types'
+import type { NotifyLevel, Session } from '@/lib/api/types'
 import { useDaemonsStore } from '@/lib/daemons/store'
 import { daemonKey } from '@/lib/query'
 
-/** The owner's marks on a session (read, hidden) live on its daemon, so every device agrees. These
+/** The owner's marks on a session (read, hidden, which pushes it sends) live on its daemon, so every device agrees. These
  *  mutations take any daemon (one call can mark a whole list) and show the change in the cached list at
  *  once; other devices hear it through the daemon's stream. */
 
@@ -60,5 +60,23 @@ export function useHideSession() {
         check(await client.POST('/v1/sessions/{session_id}/hide', { params: { path: { session_id: sessionId } }, body: { hidden } }))
     },
     onMutate: ({ daemonId, sessionId, hidden }) => patch(daemonId, sessionId, { hidden }),
+  })
+}
+
+export interface SessionNotify {
+  daemonId: string
+  sessionId: string
+  level: NotifyLevel
+}
+
+export function useSessionNotify() {
+  const patch = usePatch()
+  return useMutation({
+    mutationFn: async ({ daemonId, sessionId, level }: SessionNotify) => {
+      const client = clientOf(daemonId)
+      if (client)
+        check(await client.PUT('/v1/sessions/{session_id}/notify', { params: { path: { session_id: sessionId } }, body: { level } }))
+    },
+    onMutate: ({ daemonId, sessionId, level }) => patch(daemonId, sessionId, { notify: level }),
   })
 }

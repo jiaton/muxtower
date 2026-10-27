@@ -9,6 +9,9 @@ clears all three.
 
 Hidden: kept out of the lists and their counts (shown on their own), and out of "done" notifications.
 
+Notify: which push notifications it sends (`NotifyLevel`), e.g. none from a session that checks on
+something every few minutes.
+
 Placed: where the owner says it runs (a machine, a folder), for sessions whose source does not say.
 
 Kept in memory, written through to SQLite.
@@ -31,6 +34,7 @@ class Marks:
     hidden: bool = False
     machine: str | None = None
     folder: str | None = None
+    notify: str = "all"
 
 
 class MarksRepository(Protocol):
@@ -54,7 +58,7 @@ class SqliteMarksRepository:
         def record(r: sqlite3.Row) -> Marks:
             return Marks(
                 _time(r["finished_at"]), _time(r["seen_at"]), bool(r["marked_unread"]), bool(r["hidden"]),
-                r["machine"], r["folder"],
+                r["machine"], r["folder"], r["notify"],
             )  # fmt: skip
 
         with self.db.connect() as conn:
@@ -63,11 +67,12 @@ class SqliteMarksRepository:
     def save(self, session_id: str, record: Marks) -> None:
         with self.db.connect() as conn:
             conn.execute(
-                """INSERT INTO session_marks (session_id, finished_at, seen_at, marked_unread, hidden, machine, folder)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)
+                """INSERT INTO session_marks
+                       (session_id, finished_at, seen_at, marked_unread, hidden, machine, folder, notify)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(session_id) DO UPDATE SET finished_at = excluded.finished_at,
                        seen_at = excluded.seen_at, marked_unread = excluded.marked_unread, hidden = excluded.hidden,
-                       machine = excluded.machine, folder = excluded.folder""",
+                       machine = excluded.machine, folder = excluded.folder, notify = excluded.notify""",
                 (
                     session_id,
                     _text(record.finished_at),
@@ -76,6 +81,7 @@ class SqliteMarksRepository:
                     int(record.hidden),
                     record.machine,
                     record.folder,
+                    record.notify,
                 ),  # fmt: skip
             )
 
@@ -107,6 +113,9 @@ class SessionMarks:
 
     def hide(self, session_id: str, hidden: bool) -> None:
         self._change(session_id, hidden=hidden)
+
+    def set_notify(self, session_id: str, level: str) -> None:
+        self._change(session_id, notify=level)
 
     def place(self, session_id: str, machine: str | None, folder: str | None) -> None:
         self._change(session_id, machine=machine or None, folder=folder or None)

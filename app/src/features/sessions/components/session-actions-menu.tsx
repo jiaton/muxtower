@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import type { Session } from '@/lib/api/types'
 import { useUpdateSession } from '../api/use-session-mutations'
+import { NotifyItems } from './notify-items'
 import { SessionActions, type SessionAction } from './session-actions'
 
 const MENU_LABEL: Record<SessionAction['id'], (session: Session) => string> = {
@@ -33,7 +34,7 @@ export function SessionActionItems({ session, actions }: { session: Session; act
 }
 
 /** The session page's "⋯" menu: other features' entries first (`items`, e.g. terminal settings), then
- *  what can be done to the session, and auto-approve where its runtime allows it. */
+ *  what can be done to the session, auto-approve where its runtime allows it, and its notifications. */
 export function SessionActionsMenu({ daemonId, session, items }: { daemonId: string; session: Session; items?: ReactNode }) {
   const update = useUpdateSession(daemonId, session.id)
   return (
@@ -57,6 +58,7 @@ export function SessionActionsMenu({ daemonId, session, items }: { daemonId: str
                 Auto-approve prompts
               </DropdownMenuCheckboxItem>
             ) : null}
+            <NotifyItems daemonId={daemonId} session={session} />
           </DropdownMenuContent>
         </DropdownMenu>
       )}

@@ -537,6 +537,16 @@
         "title": "Me",
         "type": "object"
       },
+      "NotifyLevel": {
+        "description": "Which push notifications a session sends, as the owner set it.",
+        "enum": [
+          "all",
+          "needs",
+          "off"
+        ],
+        "title": "NotifyLevel",
+        "type": "string"
+      },
       "Option": {
         "description": "One numbered choice in a dialog, e.g. key \"2\", label \"Yes, allow reads during this session\".",
         "properties": {
@@ -915,6 +925,11 @@
             "title": "Needs Attention",
             "type": "boolean"
           },
+          "notify": {
+            "$ref": "#/components/schemas/NotifyLevel",
+            "default": "all",
+            "description": "which push notifications it sends"
+          },
           "origin": {
             "anyOf": [
               {
@@ -1077,6 +1092,18 @@
           "updated_at"
         ],
         "title": "Session",
+        "type": "object"
+      },
+      "SessionNotify": {
+        "properties": {
+          "level": {
+            "$ref": "#/components/schemas/NotifyLevel"
+          }
+        },
+        "required": [
+          "level"
+        ],
+        "title": "SessionNotify",
         "type": "object"
       },
       "SessionRole": {
@@ -2367,6 +2394,59 @@
           }
         },
         "summary": "Send Input",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/notify": {
+      "put": {
+        "description": "Which push notifications it sends: all, only when it needs the owner, or none; the same on every\ndevice.",
+        "operationId": "set_notify_v1_sessions__session_id__notify_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionNotify"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Notify",
         "tags": [
           "sessions"
         ]
