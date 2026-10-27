@@ -42,8 +42,7 @@ class NodeSource:
     # --- which node ---------------------------------------------------------------------------
 
     def _copies(self, session_id: str) -> list[tuple[Node, Session]]:
-        with self.nodes._lock:
-            nodes = list(self.nodes.nodes.items())
+        nodes = list(self.nodes.all().items())
         if SEPARATOR in session_id:
             name, local = session_id.split(SEPARATOR, 1)
             node = dict(nodes).get(name)
@@ -86,8 +85,7 @@ class NodeSource:
         return self._resolve(session_id) is not None
 
     def views(self) -> list[Session]:
-        with self.nodes._lock:
-            nodes = list(self.nodes.nodes.values())
+        nodes = list(self.nodes.all().values())
         out = []
         for node in nodes:
             for session in list(node.sessions.values()):
@@ -179,8 +177,7 @@ class NodeSource:
         body = request.model_copy(update={"node": None}).model_dump(mode="json")
         result = Session.model_validate(self.call(name, "create", {"request": body}, CREATE_SECONDS))
         node = self.nodes.node(name)
-        with self.nodes._lock:
-            node.sessions.setdefault(result.id, result)  # listed before its node's next report comes
+        self.nodes.remember(node, result)
         return self.view(node, result)
 
     # --- screens (from the stream, on the event loop: never waits) ----------------------------
@@ -190,14 +187,7 @@ class NodeSource:
         if found is None:
             return
         node, session = found
-        with self.nodes._lock:
-            histories = node.screens.setdefault(session.id, [])
-            if watching:
-                histories.append(history)
-            elif history in histories:
-                histories.remove(history)
-            if not histories:
-                node.screens.pop(session.id, None)
+        self.nodes.watch(node, session.id, history, watching)
         link, loop = node.link, self.nodes.loop
         if link is not None and loop is not None:
             method = "watch_screen" if watching else "unwatch_screen"

@@ -125,6 +125,26 @@ class Nodes:
                 for name, node in sorted(self.nodes.items())
             ]
 
+    def all(self) -> dict[str, Node]:
+        with self._lock:
+            return dict(self.nodes)
+
+    def remember(self, node: Node, session: Session) -> None:
+        """A session the node just started, listed before its node's next report comes."""
+        with self._lock:
+            node.sessions = {**node.sessions, session.id: session}
+
+    def watch(self, node: Node, session_id: str, history: int, watching: bool) -> None:
+        """Which of the node's screens are watched here (to watch again after a reconnect)."""
+        with self._lock:
+            histories = node.screens.setdefault(session_id, [])
+            if watching:
+                histories.append(history)
+            elif history in histories:
+                histories.remove(history)
+            if not histories:
+                node.screens.pop(session_id, None)
+
     def node(self, name: str) -> Node:
         with self._lock:
             found = self.nodes.get(name)

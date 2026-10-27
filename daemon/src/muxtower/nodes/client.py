@@ -78,7 +78,10 @@ class HubClient:
             raise Invalid(detail or f"the hub refused the code ({response.status_code})")
         if response.status_code != 200:
             raise Unavailable(f"the hub answered {response.status_code}; is a gate in front of it ([hub] headers)?")
-        claimed = NodeClaimResult.model_validate(response.json())
+        try:
+            claimed = NodeClaimResult.model_validate(response.json())
+        except ValueError as exc:  # pydantic's ValidationError is one too
+            raise Unavailable("the hub's answer was not a node token; is a gate in front of it?") from exc
         self.store.save(Joined(url=url, name=claimed.name, token=claimed.token))
         self.error = None
         self._poke()

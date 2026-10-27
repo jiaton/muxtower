@@ -115,6 +115,7 @@ def create_app(
     marks = SessionMarks(SqliteMarksRepository(db))
     transcripts = Transcripts()
     archive = SessionArchive(SqliteArchiveRepository(db), transcripts)
+    audit = AuditLog(db)
     # Daemons joined to this one (nodes): their sessions are one more source.
     nodes = Nodes(SqliteNodeRepository(db), bus)
     node_sessions = NodeSource(nodes)
@@ -128,12 +129,11 @@ def create_app(
     # This daemon as a node of a hub, once it joined one (`muxtower pair --join`).
     hub = HubClient(
         HubStore(settings.state_dir / "hub.json"), settings.hub.headers,
-        NodeApi(directory, launcher, archiver, placements), monitor, bus,
+        NodeApi(directory, launcher, archiver, placements, audit), monitor, bus,
         lambda: node_protocol.Hello(
             protocol=node_protocol.PROTOCOL, name=daemon_name, version=__version__, runtimes=launcher.runtimes()
         ),
     )  # fmt: skip
-    audit = AuditLog(db)
     concierge: ConciergeService | None = None
     if settings.concierge.enabled:
         store = FileConciergeStore(settings.state_dir / "concierge.json", settings.state_dir / "concierge")
