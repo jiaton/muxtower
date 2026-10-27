@@ -6,10 +6,11 @@ import { SwipeAction, SwipeActions } from '@/components/ui/swipe-actions'
 import type { SessionEntry } from '../model/facets'
 import { SessionActions } from './session-actions'
 import { SessionActionItems } from './session-actions-menu'
+import { NotifyItems } from './notify-items'
 import { SessionRow, type RowContext } from './session-row'
 
 /** A row of the session list with its actions: swipe right on a touch screen, or the "⋯" that shows on
- *  hover with a mouse. */
+ *  hover with a mouse (which also sets its notifications; on a phone, the session's own menu does). */
 export function SessionListRow({
   entry,
   selected,
@@ -43,6 +44,7 @@ export function SessionListRow({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <SessionActionItems session={session} actions={actions} />
+                  <NotifyItems daemonId={daemon.id} session={session} />
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

@@ -357,6 +357,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_id}/notify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Notify
+         * @description Which push notifications it sends: all, only when it needs the owner, or none; the same on every
+         *     device.
+         */
+        put: operations["set_notify_v1_sessions__session_id__notify_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_id}/placement": {
         parameters: {
             query?: never;
@@ -773,6 +794,12 @@ export interface components {
             token_name: string;
         };
         /**
+         * NotifyLevel
+         * @description Which push notifications a session sends, as the owner set it.
+         * @enum {string}
+         */
+        NotifyLevel: "all" | "needs" | "off";
+        /**
          * Option
          * @description One numbered choice in a dialog, e.g. key "2", label "Yes, allow reads during this session".
          */
@@ -946,6 +973,11 @@ export interface components {
             /** Needs Attention */
             needs_attention: boolean;
             /**
+             * @description which push notifications it sends
+             * @default all
+             */
+            notify: components["schemas"]["NotifyLevel"];
+            /**
              * Origin
              * @description where it was started: cli, desktop_app, android…
              */
@@ -999,6 +1031,10 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+        };
+        /** SessionNotify */
+        SessionNotify: {
+            level: components["schemas"]["NotifyLevel"];
         };
         /**
          * SessionRole
@@ -1797,6 +1833,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_notify_v1_sessions__session_id__notify_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionNotify"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
             };
             /** @description Validation Error */
             422: {

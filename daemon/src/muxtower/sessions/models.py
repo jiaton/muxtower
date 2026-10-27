@@ -16,6 +16,14 @@ class StateSource(StrEnum):
     REMOTE = "remote"  # reported by the agent's own controller protocol (Remote Control)
 
 
+class NotifyLevel(StrEnum):
+    """Which push notifications a session sends, as the owner set it."""
+
+    ALL = "all"  # when it needs the owner, and when it finishes a turn
+    NEEDS = "needs"  # when it needs the owner: a prompt, or a finished turn whose summary asks for them
+    OFF = "off"  # none
+
+
 class PendingAction(BaseModel):
     """What the agent is waiting for. tool_name/detail come from hooks; options from the screen."""
 
@@ -99,6 +107,7 @@ class Session(BaseModel):
     )
     finished_at: datetime | None = Field(default=None, description="when it last finished a turn")
     hidden: bool = Field(default=False, description="the owner hid it: kept out of the lists and done notifications")
+    notify: NotifyLevel = Field(default=NotifyLevel.ALL, description="which push notifications it sends")
     placement: Placement | None = Field(
         default=None, description="where the owner placed it; `machine` and `cwd` already follow it"
     )
@@ -129,6 +138,10 @@ class CreateSession(BaseModel):
 
 class HideSession(BaseModel):
     hidden: bool = True
+
+
+class SessionNotify(BaseModel):
+    level: NotifyLevel
 
 
 class MarkRead(BaseModel):

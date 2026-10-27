@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { ago } from '@/lib/time'
 import { NO_ENVIRONMENT, deviceOf, folderName, folderOf, isAssistant, sourceOf, type SessionEntry } from '../model/facets'
+import { NOTIFY_LEVELS } from './notify-items'
 import { StatusIcon } from './status-icon'
 
 export interface RowContext {
@@ -52,6 +53,7 @@ export function SessionRow({
     context.hideSource ? null : sourceOf(session),
   ].filter(Boolean)
   const line = lineOf(entry)
+  const quieter = session.notify !== 'all' ? NOTIFY_LEVELS.find((l) => l.level === session.notify) : undefined
 
   return (
     <div className={cn('border-b border-border', selected && 'bg-surface-muted')}>
@@ -68,6 +70,9 @@ export function SessionRow({
             <span className={cn('min-w-0 flex-1 truncate', session.unread || session.needs_attention ? 'font-semibold' : 'font-medium')}>
               {session.name}
             </span>
+            {quieter ? (
+              <quieter.icon className="size-3.5 shrink-0 self-center text-fg-muted" role="img" aria-label={`Notifications: ${quieter.label}`} />
+            ) : null}
             <time
               className={cn('shrink-0 text-xs tabular-nums', session.unread ? 'font-medium text-accent' : 'text-fg-muted')}
               dateTime={session.updated_at}

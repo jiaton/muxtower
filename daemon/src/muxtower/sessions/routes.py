@@ -18,6 +18,7 @@ from muxtower.sessions.models import (
     MarkRead,
     Placement,
     Session,
+    SessionNotify,
     UpdateSession,
 )
 from muxtower.sessions.placement import Placements
@@ -127,6 +128,17 @@ def hide_session(session_id: str, body: HideSession, request: Request, _: Curren
     """Hide it from the lists (`{"hidden": false}` shows it again); the same on every device."""
     directory.hide(session_id, body.hidden)
     request.app.state.bus.publish("sessions", None)
+
+
+@router.put("/sessions/{session_id}/notify")
+def set_notify(
+    session_id: str, body: SessionNotify, request: Request, _: CurrentDevice, directory: Directory
+) -> Session:
+    """Which push notifications it sends: all, only when it needs the owner, or none; the same on every
+    device."""
+    session = directory.set_notify(session_id, body.level)
+    request.app.state.bus.publish("sessions", None)
+    return session
 
 
 @router.put("/sessions/{session_id}/placement")
