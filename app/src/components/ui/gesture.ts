@@ -3,15 +3,16 @@
  *  however it drifts after (`axisOf`, `holdScroll`); let go, its speed counts as much as how far it went
  *  (`landing`). */
 
-export const START_PX = 8 // how far a finger moves before the gesture counts as a swipe or a scroll
+export const START_PX = 10 // how far a finger moves before the gesture counts as a swipe or a scroll
 const SIDEWAYS = 1.2 // a swipe may rise this much per pixel across (about 50°) and still be sideways
 const PROJECT_MS = 200 // a released swipe lands where its speed would carry it in this long
-const FLICK = 0.3 // px/ms: let go this fast, a swipe goes on its way however short it was
+const FLICK = 0.4 // px/ms: let go this fast, a swipe goes on its way, short as it may be
+const FLICK_PX = 24 // but not one shorter than this: a twitch
 const SPEED_WINDOW_MS = 100
 const FRAME_MS = 16
-const LAND_SPEED = 2.5 // px/ms: a released swipe lands at least this fast, faster if the finger was
-const LAND_MS = [60, 120] as const // and takes no less, and no more, than this
-export const LAND_EASE = 'cubic-bezier(0.2, 0.9, 0.3, 1)' // quick to start, soft to stop
+const LAND_SPEED = 1.6 // px/ms: a released swipe lands at least this fast, faster if the finger was
+const LAND_MS = [110, 190] as const // and takes no less, and no more, than this
+export const LAND_EASE = 'cubic-bezier(0.25, 0.8, 0.25, 1)' // quick to start, easing into place
 
 /** The axis of a gesture that moved `dx`, `dy`: undefined until it moved far enough to tell. */
 export function axisOf(dx: number, dy: number): 'x' | 'y' | undefined {
@@ -42,10 +43,12 @@ export class Speed {
   }
 }
 
-/** Where a swipe let go at `offset`, moving at `speed`, comes to rest: a flick goes on as far as it
- *  can (±Infinity), a slower one a little ahead, one that stopped where it is. */
-export function landing(offset: number, speed: number): number {
-  if (Math.abs(speed) >= FLICK) return Math.sign(speed) * Infinity
+/** Where a swipe let go at `offset`, having `moved` that way, at `speed`, comes to rest: a flick goes on
+ *  as far as it can (±Infinity), a slower one a little ahead, one that stopped where it is. A finger
+ *  that only twitched (less than FLICK_PX) is where it is, however quick. */
+export function landing(offset: number, speed: number, moved: number): number {
+  if (Math.abs(moved) < FLICK_PX) return offset
+  if (Math.abs(speed) >= FLICK && Math.sign(speed) === Math.sign(moved)) return Math.sign(speed) * Infinity
   return offset + speed * PROJECT_MS
 }
 

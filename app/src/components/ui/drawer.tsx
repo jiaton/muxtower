@@ -115,7 +115,7 @@ function useSwipeClose(
       if (t && e.type === 'touchend') swipe.speed.add(t.clientX)
       const speed = swipe.speed.get()
       const width = el.offsetWidth
-      const shut = landing(swipe.at, speed) < -width / 2
+      const shut = landing(swipe.at, speed, swipe.at) < -width / 2
       const ms = landMs(shut ? width + swipe.at : swipe.at, speed)
       el.style.transition = `transform ${ms}ms ${LAND_EASE}`
       behind.style.transition = `opacity ${ms}ms ${LAND_EASE}`
