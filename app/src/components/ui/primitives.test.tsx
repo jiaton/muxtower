@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { Dialog, DialogContent } from './dialog'
 import { Drawer } from './drawer'
-import { axisOf, landing, Speed } from './gesture'
+import { axisOf, landing, landMs, Speed } from './gesture'
 import { Pager } from './pager'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './dropdown-menu'
 import { Markdown } from './markdown'
@@ -238,6 +238,27 @@ describe('Drawer', () => {
     fireEvent.click(screen.getByRole('link', { name: 'Session one' }))
     expect(onOpenChange.mock.calls).toEqual([[false], [false], [false]])
   })
+
+  it('closes on a swipe left, and leaves a swipe right to what is under it', () => {
+    const onOpenChange = vi.fn()
+    render(
+      <Drawer drawer open onOpenChange={onOpenChange} label="Sessions">
+        <p>list</p>
+      </Drawer>,
+    )
+    const panel = screen.getByRole('dialog', { name: 'Sessions' })
+    Object.defineProperty(panel, 'offsetWidth', { value: 320 })
+    fireEvent.touchStart(panel, { touches: [{ clientX: 200, clientY: 100 }] })
+    fireEvent.touchMove(panel, { touches: [{ clientX: 220, clientY: 102 }] }) // right: a row's
+    fireEvent.touchMove(panel, { touches: [{ clientX: 20, clientY: 102 }] })
+    fireEvent.touchEnd(panel, { changedTouches: [{ clientX: 20, clientY: 102 }] })
+    expect(onOpenChange).not.toHaveBeenCalled()
+    fireEvent.touchStart(panel, { touches: [{ clientX: 200, clientY: 100 }] })
+    fireEvent.touchMove(panel, { touches: [{ clientX: 190, clientY: 108 }] }) // tilted, left
+    expect(fireEvent.touchMove(panel, { touches: [{ clientX: 20, clientY: 160 }] })).toBe(false) // no scroll under it
+    fireEvent.touchEnd(panel, { changedTouches: [{ clientX: 20, clientY: 160 }] })
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
 })
 
 describe('Pager', () => {
@@ -286,10 +307,17 @@ describe('gestures', () => {
     expect([axisOf(10, 11), axisOf(10, 13), axisOf(-10, 2)]).toEqual(['x', 'y', 'x'])
     const speed = new Speed()
     speed.add(0, 1000)
+    speed.add(10, 1010)
     speed.add(60, 1050)
     expect(speed.get(1060)).toBeCloseTo(1.2)
     expect(speed.get(1300)).toBe(0) // it stopped before letting go
+    const held = new Speed()
+    held.add(0, 1000)
+    held.add(24, 1300) // pressed, held, then one quick move
+    held.add(24, 1302) // and the lift
+    expect(held.get(1302)).toBeGreaterThan(1)
     expect(landing(60, 1.2)).toBe(Infinity) // a short flick goes on
     expect(landing(-60, 0.1)).toBe(-40) // a slow one, a little ahead
+    expect([landMs(390, 0), landMs(190, 3), landMs(4, 0)]).toEqual([120, 63, 60]) // brief, however far
   })
 })
