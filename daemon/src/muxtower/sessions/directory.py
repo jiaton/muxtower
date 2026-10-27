@@ -6,16 +6,18 @@ gets a 409 instead of keys sent to the wrong place.
 """
 
 import logging
+from collections.abc import Callable
 from typing import Literal
 
 from muxtower.approval.models import ApprovalResult
 from muxtower.approval.service import ApprovalService
 from muxtower.errors import Conflict, NotFound, Unavailable
 from muxtower.sessions.archive import SessionArchive
+from muxtower.sessions.decorate import decorate
 from muxtower.sessions.marks import SessionMarks
-from muxtower.sessions.merged import deeper, merged
-from muxtower.sessions.models import Conversation, NotifyLevel, Placement, Session, SessionRole, UpdateSession
-from muxtower.sessions.ports import ClaudeProcessPort, SessionSource, SessionSourcePort
+from muxtower.sessions.merged import merged
+from muxtower.sessions.models import Conversation, NotifyLevel, Session, UpdateSession
+from muxtower.sessions.ports import ClaudeProcessPort, SessionSourcePort
 from muxtower.sessions.service import SessionService
 from muxtower.sessions.transcripts import Transcripts
 from muxtower.summaries.service import SummaryService
@@ -44,6 +46,7 @@ class SessionDirectory:
         marks: SessionMarks | None = None,
         transcripts: Transcripts | None = None,
         archive: SessionArchive | None = None,
+        accounts: Callable[[Session], str | None] | None = None,
     ) -> None:
         self.local = local
         self.terminal = terminal
@@ -55,6 +58,7 @@ class SessionDirectory:
         self.marks = marks
         self.transcripts = transcripts
         self.archive_store = archive
+        self.accounts = accounts  # the account a session here runs as (`agents/accounts.py`)
         self.concierge_id: str | None = None  # set by the concierge service once its session runs
 
     # --- reading ------------------------------------------------------------------------------
@@ -63,31 +67,7 @@ class SessionDirectory:
         return next((s for s in self.sources if s.owns(session_id)), None)
 
     def _decorate(self, session: Session) -> Session:
-        """What the sources leave open: the machine, folder and origin of everything that runs on this
-        hub, the owner's marks (unread, hidden, where they placed it), the reply summary, the concierge role."""
-        update: dict[str, object] = {}
-        marks = self.marks.get(session.id) if self.marks else None
-        if self.marks and marks:
-            update["unread"] = self.marks.unread(session.id, session.unread, session.updated_at)
-            update["finished_at"] = marks.finished_at
-            update["hidden"] = marks.hidden
-            update["notify"] = NotifyLevel(marks.notify)
-        if session.source != SessionSource.REMOTE_CONTROL:
-            update["machine"] = self.hub_name or session.machine
-        elif self.processes and (process := self.processes.running().get(session.id)):
-            update["machine"] = self.hub_name or session.machine
-            update["cwd"] = deeper(process.cwd, session.cwd)
-            update["origin"] = process.origin or session.origin  # what Claude Code says beats the tags
-        if self.summaries and (summary := self.summaries.lookup(session.last_message)):
-            update["reply_summary"] = summary
-        if marks and (marks.machine or marks.folder):  # the owner knows best
-            update["placement"] = Placement(machine=marks.machine, folder=marks.folder)
-            update["machine"] = marks.machine or update.get("machine", session.machine)
-            update["cwd"] = marks.folder or update.get("cwd", session.cwd)
-        if self.concierge_id and session.id == self.concierge_id:
-            update["role"] = SessionRole.CONCIERGE
-            update["capabilities"] = session.capabilities.model_copy(update={"archive": False})  # it is restarted
-        return session.model_copy(update=update) if update else session
+        return decorate(session, self)
 
     def _linked(self, local: Session) -> Session:
         """A tmux session whose Claude Code also runs Remote Control is listed once (`merged`)."""
@@ -103,12 +83,16 @@ class SessionDirectory:
         return [self._linked(s) for s in self.local.list()]
 
     def list(self) -> list[Session]:
+        """Every session once: one reported by two sources (a Remote Control session a node reports
+        too) is listed from the one that owns it (`source_of`), and one merged into another entry (a
+        tmux pane that also runs Remote Control, here or on a node) under that entry."""
         ended = self.archive_store.ended() if self.archive_store else set()
         locals_ = [s for s in self._locals() if s.id not in ended]
-        skip = ended | {s.remote_id for s in locals_ if s.remote_id}
-        remotes = [v for source in self.sources for v in source.views() if v.id not in skip]
+        remotes = [(source, v) for source in self.sources for v in source.views() if v.id not in ended]
+        merged_into = {s.remote_id for s in locals_ if s.remote_id} | {v.remote_id for _, v in remotes if v.remote_id}
+        kept = [v for source, v in remotes if v.id not in merged_into and self.source_of(v.id) is source]
         archived = self.archive_store.views() if self.archive_store else []
-        return [self._decorate(s) for s in locals_ + remotes] + archived
+        return [self._decorate(s) for s in locals_ + kept] + archived
 
     def get(self, session_id: str) -> Session:
         if self.archive_store and (archived := self.archive_store.get(session_id)):
@@ -153,6 +137,13 @@ class SessionDirectory:
     def screen(self, session_id: str, history: int) -> Screen:
         self.require(session_id, "screen")
         return self.terminal.screen(session_id, history)
+
+    def watch_screen(self, session_id: str, history: int, watching: bool) -> None:
+        """A client starts or stops watching a screen (the stream, on the event loop: never blocks)."""
+        if watching:
+            self.terminal.monitor.add_viewer(session_id, history)
+        else:
+            self.terminal.monitor.remove_viewer(session_id, history)
 
     # --- actions ------------------------------------------------------------------------------
 

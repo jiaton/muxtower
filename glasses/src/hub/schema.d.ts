@@ -76,6 +76,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/hub": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Hub Status */
+        get: operations["hub_status_v1_hub_get"];
+        put?: never;
+        /**
+         * Join Hub
+         * @description Joins this daemon to a hub as a node, with a pairing code made on the hub.
+         */
+        post: operations["join_hub_v1_hub_post"];
+        /**
+         * Leave Hub
+         * @description Stops reporting to the hub; the hub still lists this node (offline) until it is removed there.
+         */
+        delete: operations["leave_hub_v1_hub_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me": {
         parameters: {
             query?: never;
@@ -91,6 +116,64 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/nodes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Nodes */
+        get: operations["list_nodes_v1_nodes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/nodes/claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Claim Node
+         * @description Public: a daemon redeems a pairing code made here to join as a node. Its token opens its link
+         *     and nothing else.
+         */
+        post: operations["claim_node_v1_nodes_claim_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/nodes/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove Node
+         * @description Forgets a node: its link closes, its sessions leave the lists, and it can no longer link.
+         */
+        delete: operations["remove_node_v1_nodes__name__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -194,7 +277,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Runtimes */
+        /**
+         * List Runtimes
+         * @description What can be started here (a node's are in GET /v1/nodes).
+         */
         get: operations["list_runtimes_v1_runtimes_get"];
         put?: never;
         post?: never;
@@ -700,6 +786,11 @@ export interface components {
             headless: boolean;
             /** Name */
             name?: string | null;
+            /**
+             * Node
+             * @description start it on this node instead of here (GET /v1/nodes)
+             */
+            node?: string | null;
             /** Runtime */
             runtime: string;
         };
@@ -772,10 +863,49 @@ export interface components {
             hidden: boolean;
         };
         /**
+         * HubStatus
+         * @description This daemon as a node of a hub, if it joined one.
+         */
+        HubStatus: {
+            /**
+             * Connected
+             * @default false
+             */
+            connected: boolean;
+            /**
+             * Error
+             * @description why it is not connected, when it tried
+             */
+            error?: string | null;
+            /**
+             * Name
+             * @description its name on the hub
+             */
+            name?: string | null;
+            /**
+             * Url
+             * @description the hub it joined; null when it joined none
+             */
+            url?: string | null;
+        };
+        /**
          * ItemStatus
          * @enum {string}
          */
         ItemStatus: "running" | "done" | "error" | "pending" | "allowed" | "denied" | "answered" | "dismissed" | "cancelled";
+        /** JoinHub */
+        JoinHub: {
+            /**
+             * Code
+             * @description a pairing code made on the hub
+             */
+            code: string;
+            /**
+             * Url
+             * @description the hub's address
+             */
+            url: string;
+        };
         /** MarkRead */
         MarkRead: {
             /**
@@ -792,6 +922,66 @@ export interface components {
             features: components["schemas"]["Features"];
             /** Token Name */
             token_name: string;
+        };
+        /** NodeClaim */
+        NodeClaim: {
+            /**
+             * Code
+             * @description a pairing code made on the hub
+             */
+            code: string;
+            /**
+             * Name
+             * @description what the node calls itself; the hub may change it
+             */
+            name: string;
+        };
+        /** NodeClaimResult */
+        NodeClaimResult: {
+            /** Hub Name */
+            hub_name: string;
+            /**
+             * Name
+             * @description the name the hub gave it
+             */
+            name: string;
+            /**
+             * Token
+             * @description the node's own token, for the link only
+             */
+            token: string;
+        };
+        /**
+         * NodeInfo
+         * @description A daemon joined to this one: its sessions are listed here, as from any other source.
+         */
+        NodeInfo: {
+            /**
+             * Joined At
+             * Format: date-time
+             */
+            joined_at: string;
+            /**
+             * Last Seen
+             * @description when it was last connected
+             */
+            last_seen?: string | null;
+            /** Name */
+            name: string;
+            /** Online */
+            online: boolean;
+            /**
+             * Runtimes
+             * @description what can be started there
+             */
+            runtimes?: components["schemas"]["RuntimeInfo"][];
+            /**
+             * Sessions
+             * @description sessions it lists
+             */
+            sessions: number;
+            /** Version */
+            version?: string | null;
         };
         /**
          * NotifyLevel
@@ -924,6 +1114,11 @@ export interface components {
         /** Session */
         Session: {
             /**
+             * Account
+             * @description the account its agent runs as, as far as known (an email, or "API key")
+             */
+            account?: string | null;
+            /**
              * Alt Screen
              * @description draws full screen (alternate screen): tmux keeps no scrollback, see the conversation
              * @default false
@@ -973,10 +1168,27 @@ export interface components {
             /** Needs Attention */
             needs_attention: boolean;
             /**
+             * Node
+             * @description the node (another daemon joined to this one) it is reached through
+             */
+            node?: string | null;
+            /**
              * @description which push notifications it sends
              * @default all
              */
             notify: components["schemas"]["NotifyLevel"];
+            /**
+             * Offline
+             * @description its node is not connected: the last known view, read only until it is back
+             * @default false
+             */
+            offline: boolean;
+            /**
+             * On Host
+             * @description its agent runs on the daemon that lists it
+             * @default false
+             */
+            on_host: boolean;
             /**
              * Origin
              * @description where it was started: cli, desktop_app, android…
@@ -1327,6 +1539,77 @@ export interface operations {
             };
         };
     };
+    hub_status_v1_hub_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HubStatus"];
+                };
+            };
+        };
+    };
+    join_hub_v1_hub_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JoinHub"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HubStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    leave_hub_v1_hub_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     me_v1_me_get: {
         parameters: {
             query?: never;
@@ -1343,6 +1626,88 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Me"];
+                };
+            };
+        };
+    };
+    list_nodes_v1_nodes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeInfo"][];
+                };
+            };
+        };
+    };
+    claim_node_v1_nodes_claim_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NodeClaim"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NodeClaimResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    remove_node_v1_nodes__name__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

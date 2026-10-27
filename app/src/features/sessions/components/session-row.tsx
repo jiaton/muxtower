@@ -13,6 +13,8 @@ export interface RowContext {
   hideSource?: boolean
   /** Several daemons are paired: say which one reported the session. */
   showDaemon?: boolean
+  /** Sessions run as more than one account: say which this one runs as. */
+  showAccount?: boolean
 }
 
 /** One line of Markdown as plain text: no emphasis marks, code ticks or heading hashes. */
@@ -51,12 +53,13 @@ export function SessionRow({
     context.hideDevice ? null : (deviceOf(session) ?? NO_ENVIRONMENT),
     context.hideFolder || !folder ? null : folderName(folder),
     context.hideSource ? null : sourceOf(session),
+    context.showAccount && session.account ? session.account : null,
   ].filter(Boolean)
   const line = lineOf(entry)
   const quieter = session.notify !== 'all' ? NOTIFY_LEVELS.find((l) => l.level === session.notify) : undefined
 
   return (
-    <div className={cn('border-b border-border', selected && 'bg-surface-muted')}>
+    <div className={cn('border-b border-border', selected && 'bg-surface-muted', session.offline && 'opacity-60')}>
       <Link
         to="/d/$daemonId/s/$sessionId"
         params={{ daemonId: daemon.id, sessionId: session.id }}
@@ -81,7 +84,10 @@ export function SessionRow({
               {ago(session.updated_at)}
             </time>
           </div>
-          <p className="truncate text-xs text-fg-muted">{where.join(' · ')}</p>
+          <p className="truncate text-xs text-fg-muted">
+            {session.offline ? <span className="font-medium text-fg">Offline · </span> : null}
+            {where.join(' · ')}
+          </p>
           {line ? <p className={cn('mt-0.5 line-clamp-1 text-sm', line.asking ? 'text-fg' : 'text-fg-muted')}>{line.text}</p> : null}
         </div>
       </Link>

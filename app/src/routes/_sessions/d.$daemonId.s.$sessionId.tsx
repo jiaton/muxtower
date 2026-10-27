@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { History, MessagesSquare, SquareTerminal } from 'lucide-react'
+import { History, MessagesSquare, SquareTerminal, Unplug } from 'lucide-react'
 import { useCallback, useState } from 'react'
 import { QueryState } from '@/components/query-state'
 import { Banner } from '@/components/ui/banner'
@@ -51,7 +51,8 @@ type View = 'terminal' | 'conversation'
 
 /** Header; what the agent is waiting for, if anything; the terminal or the conversation (a session with
  *  both offers a switch, and a swipe between them); the input bar. Swiping right past the first view opens
- *  the list (a drawer on phones). An archived session is its conversation only. */
+ *  the list (a drawer on phones). An archived session is its conversation only; one whose node is offline
+ *  says so, read only. */
 function SessionView({ daemonId, session }: { daemonId: string; session: Session }) {
   const { screen, conversation: hasConversation } = session.capabilities
   const [view, setView] = useState<View>(screen ? 'terminal' : 'conversation')
@@ -97,8 +98,16 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
         </div>
       ) : null}
 
+      {session.offline ? (
+        <div className="flex-1 p-4">
+          <EmptyState icon={<Unplug />} title={`${session.node ?? 'Its computer'} is offline`}>
+            This is how it was when it was last connected. It comes back here, live, when that computer is on again.
+          </EmptyState>
+        </div>
+      ) : null}
+
       <Pager
-        className="flex-1"
+        className={session.offline ? 'hidden' : 'flex-1'}
         label="Session views"
         index={both && view === 'conversation' ? 1 : 0}
         onIndexChange={(page) => both && setView(page === 1 ? 'conversation' : 'terminal')}
@@ -137,7 +146,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
         ) : null}
       </Pager>
 
-      {session.archived_at ? null : (
+      {session.archived_at || session.offline ? null : (
         <footer className="shrink-0 border-t border-border bg-bg p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-3">
           <InputBar daemonId={daemonId} sessionId={session.id} keys={session.capabilities.keys} />
         </footer>

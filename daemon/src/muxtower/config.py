@@ -99,6 +99,14 @@ class ConciergeSettings(BaseModel):
     args: list[str] = Field(default_factory=list)  # extra `claude` arguments, e.g. a permission mode
 
 
+class HubSettings(BaseModel):
+    """This daemon as a node of a hub (`muxtower pair --join`). Which hub it joined is kept in the state
+    directory; only what to send along lives here."""
+
+    # Headers sent with every request to the hub, for a gate in front of it, e.g. {"X-Wicket-Token" = "…"}.
+    headers: dict[str, str] = Field(default_factory=dict)
+
+
 class Settings(BaseModel):
     name: str | None = None  # display name in the app; defaults to the hostname
     host: str = "127.0.0.1"
@@ -122,6 +130,7 @@ class Settings(BaseModel):
     summaries: SummarySettings = Field(default_factory=SummarySettings)
     asr: AsrSettings = Field(default_factory=AsrSettings)
     concierge: ConciergeSettings = Field(default_factory=ConciergeSettings)
+    hub: HubSettings = Field(default_factory=HubSettings)
 
     @property
     def db_path(self) -> Path:

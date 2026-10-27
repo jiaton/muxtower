@@ -22,12 +22,17 @@ src/muxtower/
   sessions/   registry, create/rename/terminate; directory.py: every session across sources, dispatch by capabilities;
               claude_processes.py: links a pane's Claude Code to its Remote Control session (one entry per agent)
               and to its transcript; transcripts.py: a tmux session's conversation, read from that transcript;
-              marks.py: the owner's marks (unread, hidden, notify level); archive.py / archiving.py: archived sessions (ended, kept
+              marks.py: the owner's marks (unread, hidden, notify level); decorate.py: what the directory fills in; archive.py / archiving.py: archived sessions (ended, kept
               to read); placement.py: where the owner says a session runs; merged.py: a tmux pane and its Remote Control session as one entry; turns.py: finished turns
   agents/     agent plugins beyond the terminal: which session a pane runs, its transcript format
-              (processes.py asks each in turn; codex/ here, Claude Code's in sessions/ for now)
+              (processes.py asks each in turn; codex/ here, Claude Code's in sessions/ for now);
+              accounts.py: the account each agent here runs as
   sources/    other session sources, one folder each (remote_control: Anthropic's Remote Control API;
               codex: Codex threads run headless in muxtower's own Codex app-server)
+  nodes/      other daemons joined to this one (hub and nodes): as a hub, hub.py (who joined, their last
+              report), source.py (their sessions as one more source), directory.py (what else goes to a
+              node), link.py; as a node, client.py (join, reconnect), session.py (one open link), api.py
+              (what the hub may do here), store.py; protocol.py: the frames between them; routes.py
   summaries/  short versions of long replies: a Summarizer port (claude/codex CLI adapters), SQLite cache, background loop
   asr/        speech to text for voice replies: a Transcriber port (OpenAI-compatible adapter: Groq, OpenAI)
   concierge/  the owner's assistant: a Claude Code session kept running, its MCP config, watched sessions

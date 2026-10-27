@@ -336,6 +336,18 @@
             ],
             "title": "Name"
           },
+          "node": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "start it on this node instead of here (GET /v1/nodes)",
+            "title": "Node"
+          },
           "runtime": {
             "title": "Runtime",
             "type": "string"
@@ -488,6 +500,54 @@
         "title": "HideSession",
         "type": "object"
       },
+      "HubStatus": {
+        "description": "This daemon as a node of a hub, if it joined one.",
+        "properties": {
+          "connected": {
+            "default": false,
+            "title": "Connected",
+            "type": "boolean"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "why it is not connected, when it tried",
+            "title": "Error"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "its name on the hub",
+            "title": "Name"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the hub it joined; null when it joined none",
+            "title": "Url"
+          }
+        },
+        "title": "HubStatus",
+        "type": "object"
+      },
       "ItemStatus": {
         "enum": [
           "running",
@@ -502,6 +562,30 @@
         ],
         "title": "ItemStatus",
         "type": "string"
+      },
+      "JoinHub": {
+        "properties": {
+          "code": {
+            "description": "a pairing code made on the hub",
+            "maxLength": 32,
+            "minLength": 4,
+            "title": "Code",
+            "type": "string"
+          },
+          "url": {
+            "description": "the hub's address",
+            "maxLength": 500,
+            "pattern": "^https?://",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "url",
+          "code"
+        ],
+        "title": "JoinHub",
+        "type": "object"
       },
       "MarkRead": {
         "properties": {
@@ -535,6 +619,118 @@
           "features"
         ],
         "title": "Me",
+        "type": "object"
+      },
+      "NodeClaim": {
+        "properties": {
+          "code": {
+            "description": "a pairing code made on the hub",
+            "maxLength": 32,
+            "minLength": 4,
+            "title": "Code",
+            "type": "string"
+          },
+          "name": {
+            "description": "what the node calls itself; the hub may change it",
+            "maxLength": 60,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "name"
+        ],
+        "title": "NodeClaim",
+        "type": "object"
+      },
+      "NodeClaimResult": {
+        "properties": {
+          "hub_name": {
+            "title": "Hub Name",
+            "type": "string"
+          },
+          "name": {
+            "description": "the name the hub gave it",
+            "title": "Name",
+            "type": "string"
+          },
+          "token": {
+            "description": "the node's own token, for the link only",
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "name",
+          "hub_name"
+        ],
+        "title": "NodeClaimResult",
+        "type": "object"
+      },
+      "NodeInfo": {
+        "description": "A daemon joined to this one: its sessions are listed here, as from any other source.",
+        "properties": {
+          "joined_at": {
+            "format": "date-time",
+            "title": "Joined At",
+            "type": "string"
+          },
+          "last_seen": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "when it was last connected",
+            "title": "Last Seen"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "online": {
+            "title": "Online",
+            "type": "boolean"
+          },
+          "runtimes": {
+            "description": "what can be started there",
+            "items": {
+              "$ref": "#/components/schemas/RuntimeInfo"
+            },
+            "title": "Runtimes",
+            "type": "array"
+          },
+          "sessions": {
+            "description": "sessions it lists",
+            "title": "Sessions",
+            "type": "integer"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Version"
+          }
+        },
+        "required": [
+          "name",
+          "online",
+          "joined_at",
+          "sessions"
+        ],
+        "title": "NodeInfo",
         "type": "object"
       },
       "NotifyLevel": {
@@ -821,6 +1017,18 @@
       },
       "Session": {
         "properties": {
+          "account": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the account its agent runs as, as far as known (an email, or \"API key\")",
+            "title": "Account"
+          },
           "alt_screen": {
             "default": false,
             "description": "draws full screen (alternate screen): tmux keeps no scrollback, see the conversation",
@@ -925,10 +1133,34 @@
             "title": "Needs Attention",
             "type": "boolean"
           },
+          "node": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the node (another daemon joined to this one) it is reached through",
+            "title": "Node"
+          },
           "notify": {
             "$ref": "#/components/schemas/NotifyLevel",
             "default": "all",
             "description": "which push notifications it sends"
+          },
+          "offline": {
+            "default": false,
+            "description": "its node is not connected: the last known view, read only until it is back",
+            "title": "Offline",
+            "type": "boolean"
+          },
+          "on_host": {
+            "default": false,
+            "description": "its agent runs on the daemon that lists it",
+            "title": "On Host",
+            "type": "boolean"
           },
           "origin": {
             "anyOf": [
@@ -1717,6 +1949,80 @@
         ]
       }
     },
+    "/v1/hub": {
+      "delete": {
+        "description": "Stops reporting to the hub; the hub still lists this node (offline) until it is removed there.",
+        "operationId": "leave_hub_v1_hub_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Leave Hub",
+        "tags": [
+          "nodes"
+        ]
+      },
+      "get": {
+        "operationId": "hub_status_v1_hub_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HubStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Hub Status",
+        "tags": [
+          "nodes"
+        ]
+      },
+      "post": {
+        "description": "Joins this daemon to a hub as a node, with a pairing code made on the hub.",
+        "operationId": "join_hub_v1_hub_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinHub"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HubStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Join Hub",
+        "tags": [
+          "nodes"
+        ]
+      }
+    },
     "/v1/me": {
       "get": {
         "description": "Lets a client check that its token works and learn the daemon's display name.",
@@ -1736,6 +2042,109 @@
         "summary": "Me",
         "tags": [
           "system"
+        ]
+      }
+    },
+    "/v1/nodes": {
+      "get": {
+        "operationId": "list_nodes_v1_nodes_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/NodeInfo"
+                  },
+                  "title": "Response List Nodes V1 Nodes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Nodes",
+        "tags": [
+          "nodes"
+        ]
+      }
+    },
+    "/v1/nodes/claim": {
+      "post": {
+        "description": "Public: a daemon redeems a pairing code made here to join as a node. Its token opens its link\nand nothing else.",
+        "operationId": "claim_node_v1_nodes_claim_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NodeClaim"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NodeClaimResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Claim Node",
+        "tags": [
+          "nodes"
+        ]
+      }
+    },
+    "/v1/nodes/{name}": {
+      "delete": {
+        "description": "Forgets a node: its link closes, its sessions leave the lists, and it can no longer link.",
+        "operationId": "remove_node_v1_nodes__name__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Node",
+        "tags": [
+          "nodes"
         ]
       }
     },
@@ -1902,6 +2311,7 @@
     },
     "/v1/runtimes": {
       "get": {
+        "description": "What can be started here (a node's are in GET /v1/nodes).",
         "operationId": "list_runtimes_v1_runtimes_get",
         "responses": {
           "200": {

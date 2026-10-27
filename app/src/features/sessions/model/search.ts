@@ -7,6 +7,7 @@ export interface ListSearch {
   device?: string
   folder?: string
   source?: string
+  account?: string
   q?: string
 }
 
@@ -21,6 +22,7 @@ export function parseListSearch(raw: Record<string, unknown>): ListSearch {
     device: text(raw.device),
     folder: text(raw.folder),
     source: text(raw.source),
+    account: text(raw.account),
     q: text(raw.q),
   }
 }
@@ -31,6 +33,7 @@ export const toQuery = (search: ListSearch, defaultGroup: GroupBy): SessionQuery
   device: search.device,
   folder: search.folder,
   source: search.source,
+  account: search.account,
   q: search.q,
 })
 
@@ -39,10 +42,11 @@ export interface Scope {
   device?: string
   folder?: string
   source?: string
+  account?: string
 }
 
-/** Search params for a scope chosen in the navigation: a view, a device (and one of its folders), or a
- *  source. Grouping and search text stay. */
+/** Search params for a scope chosen in the navigation: a view, a device (and one of its folders), a
+ *  source or an account. Grouping and search text stay. */
 export const scopeSearch = (current: ListSearch, scope: Scope): ListSearch => ({
   group: current.group,
   q: current.q,
@@ -50,15 +54,24 @@ export const scopeSearch = (current: ListSearch, scope: Scope): ListSearch => ({
   device: scope.device,
   folder: scope.folder,
   source: scope.source,
+  account: scope.account,
 })
 
 /** The scope a query is narrowed to, if any. */
 export const scopeOf = (query: SessionQuery): Scope | null =>
-  query.device || query.folder || query.source ? { device: query.device, folder: query.folder, source: query.source } : null
+  query.device || query.folder || query.source || query.account
+    ? { device: query.device, folder: query.folder, source: query.source, account: query.account }
+    : null
 
 /** Whether the list shows exactly this scope (the sidebar's current entry). */
 export function isCurrentScope(search: ListSearch, scope: Scope): boolean {
   const view = search.view ?? 'all'
-  if (scope.view) return !search.device && !search.folder && !search.source && view === scope.view
-  return search.device === scope.device && search.folder === scope.folder && search.source === scope.source && view === 'all'
+  if (scope.view) return !search.device && !search.folder && !search.source && !search.account && view === scope.view
+  return (
+    search.device === scope.device &&
+    search.folder === scope.folder &&
+    search.source === scope.source &&
+    search.account === scope.account &&
+    view === 'all'
+  )
 }
