@@ -1,14 +1,17 @@
 /**
  * What the session list shows: a view (what needs you, what works, everything), optionally narrowed to
- * one device (and one of its folders) or one source, and a search; grouped by status, by device and
- * folder, or by source. Lives in the URL, so back, reload and links keep it.
+ * one device (and one of its folders), one source or one account, and a search; grouped by status, by
+ * device and folder, by source or by account (offered only when there is more than one). Lives in the URL, so back, reload and links keep it.
  */
 import { nestFolders } from './folders'
 import {
   NO_ENVIRONMENT,
   SOURCES,
   STATUSES,
+  UNKNOWN_ACCOUNT,
   UNKNOWN_FOLDER,
+  accountOf,
+  accountsDiffer,
   deviceOf,
   folderOf,
   isAssistant,
@@ -21,7 +24,7 @@ import {
 
 /** What the list shows; hidden and archived sessions are only in their own view, and counted nowhere else. */
 export const VIEWS = ['all', 'needs', 'unread', 'working', 'hidden', 'archived'] as const
-export const GROUPINGS = ['status', 'device', 'source', 'none'] as const
+export const GROUPINGS = ['status', 'device', 'source', 'account', 'none'] as const
 export type View = (typeof VIEWS)[number]
 export type GroupBy = (typeof GROUPINGS)[number]
 
@@ -34,6 +37,8 @@ export interface SessionQuery {
   folder?: string
   /** A source label (`sourceOf`). */
   source?: string
+  /** An account label (`accountOf`). */
+  account?: string
   q?: string
 }
 
@@ -51,11 +56,18 @@ export const ASIDE_VIEWS: readonly View[] = ['hidden', 'archived']
 
 /** Where the sessions a view shows are listed. */
 export const placeIn = (view: View): Place => (view === 'hidden' || view === 'archived' ? view : 'listed')
-export const GROUP_LABEL: Record<GroupBy, string> = { status: 'Status', device: 'Device and folder', source: 'Source', none: 'None' }
+export const GROUP_LABEL: Record<GroupBy, string> = {
+  status: 'Status',
+  device: 'Device and folder',
+  source: 'Source',
+  account: 'Account',
+  none: 'None',
+}
 
 export const deviceLabel = (entry: SessionEntry) => deviceOf(entry.session) ?? NO_ENVIRONMENT
 export const folderLabel = (entry: SessionEntry) => folderOf(entry.session) ?? UNKNOWN_FOLDER
 const sourceLabel = (entry: SessionEntry) => sourceOf(entry.session)
+const accountLabel = (entry: SessionEntry) => accountOf(entry.session)
 
 function matchesText(entry: SessionEntry, q: string): boolean {
   const { session } = entry
@@ -64,6 +76,7 @@ function matchesText(entry: SessionEntry, q: string): boolean {
     folderLabel(entry),
     deviceLabel(entry),
     sourceLabel(entry),
+    session.account,
     session.summary?.detail,
     session.summary?.recent,
   ]
@@ -79,6 +92,7 @@ export function filterEntries(entries: SessionEntry[], query: SessionQuery): Ses
     if (query.device && deviceLabel(entry) !== query.device) return false
     if (query.folder && folderLabel(entry) !== query.folder) return false
     if (query.source && sourceLabel(entry) !== query.source) return false
+    if (query.account && accountLabel(entry) !== query.account) return false
     return !q || matchesText(entry, q)
   })
 }
@@ -97,6 +111,7 @@ export interface Implied {
   device?: boolean
   folder?: boolean
   source?: boolean
+  account?: boolean
 }
 
 export interface Section {
@@ -181,6 +196,12 @@ export function groupEntries(entries: SessionEntry[], by: GroupBy): Group[] {
     ]
   }
 
+  if (by === 'account') {
+    const byAccount = bucket(rest, accountLabel)
+    const keys = bySize(byAccount, UNKNOWN_ACCOUNT)
+    return [...groups, ...keys.map((key) => ({ key, label: key, entries: byAccount.get(key)!, implies: { account: true } }))]
+  }
+
   const keyOf = by === 'status' ? (e: SessionEntry) => statusOf(e.session) : sourceLabel
   const byKey = bucket(rest, keyOf)
   const keys = [...byKey.keys()].sort(orderBy(by === 'status' ? STATUS_ORDER : SOURCE_ORDER))
@@ -204,6 +225,8 @@ export interface Facets {
   /** Each device with its folders: where things run, then what they work on. */
   devices: DeviceFacet[]
   sources: Facet[]
+  /** Empty when every session runs as the same account (or none says). */
+  accounts: Facet[]
 }
 
 function facet(entries: SessionEntry[], labelOf: (e: SessionEntry) => string, last: string): Facet[] {
@@ -243,20 +266,23 @@ export function facetsOf(entries: SessionEntry[]): Facets {
       return { ...device, folders: folders.length === 1 && folders[0].label === UNKNOWN_FOLDER ? [] : folders }
     }),
     sources: facet(counted, sourceLabel, '').sort((a, b) => orderBy(SOURCE_ORDER)(a.label, b.label)),
+    accounts: accountsDiffer(counted.map((e) => e.session)) ? facet(counted, accountLabel, UNKNOWN_ACCOUNT) : [],
   }
 }
 
-/** Folders where sessions of one daemon run on its own machine (where a new session would start), the
- *  most used first: what the New session dialog suggests. */
-export function folderSuggestions(entries: SessionEntry[], daemonId: string): Facet[] {
-  const local = entries.filter((e) => e.daemon.id === daemonId && e.session.machine && folderOf(e.session))
+/** Folders where sessions of one daemon run on its own machine, or on one of its nodes (where a new
+ *  session would start), the most used first: what the New session dialog suggests. */
+export function folderSuggestions(entries: SessionEntry[], daemonId: string, node: string | null = null): Facet[] {
+  const local = entries.filter(
+    (e) => e.daemon.id === daemonId && (e.session.node ?? null) === node && e.session.on_host && folderOf(e.session),
+  )
   return facet(local, folderLabel, '')
 }
 
 /** A title for what the list shows, and where that is when the title is a folder. */
 export function queryTitle(query: SessionQuery): { title: string; within?: string } {
   if (query.folder) return { title: query.folder, within: query.device }
-  return { title: query.device ?? query.source ?? VIEW_LABEL[query.view] }
+  return { title: query.device ?? query.source ?? query.account ?? VIEW_LABEL[query.view] }
 }
 
 /** Whether a "show all" toggle is worth having for a list of `count` showing `shown`. */

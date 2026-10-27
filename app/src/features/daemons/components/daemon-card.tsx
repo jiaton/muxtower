@@ -10,6 +10,7 @@ import { useDaemonsStore } from '@/lib/daemons/store'
 import type { Daemon } from '@/lib/daemons/types'
 import { useDaemonMe } from '../api/use-daemon-me'
 import { DevicesList } from './devices-list'
+import { NodesList } from './nodes-list'
 
 function useStatus(daemon: Daemon) {
   const me = useDaemonMe(daemon.id)
@@ -50,6 +51,7 @@ export function DaemonCard({ daemon, actions }: { daemon: Daemon; actions?: Reac
           <p className="font-mono text-xs break-all text-fg-muted">{daemon.url}</p>
           {actions}
           {daemon.token && !daemon.rejected ? <DevicesList daemonId={daemon.id} /> : null}
+          {daemon.token && !daemon.rejected ? <NodesList daemonId={daemon.id} url={daemon.url} /> : null}
           <Button variant="ghost" size="sm" className="self-start text-danger" onClick={() => remove(daemon.id)}>
             <Trash2 /> Forget on this device
           </Button>

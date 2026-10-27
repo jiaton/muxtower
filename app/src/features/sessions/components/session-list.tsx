@@ -155,6 +155,7 @@ export function SessionList({
           hideDevice: context.hideDevice || group.implies.device,
           hideFolder: context.hideFolder || group.implies.folder,
           hideSource: context.hideSource || group.implies.source,
+          showAccount: context.showAccount && !group.implies.account,
         }
         const names = group.sections ? shortFolderNames(group.sections.filter((s) => !s.depth).map((s) => s.label)) : null
         const closed = new Set<string>() // folded sections, and every one inside them

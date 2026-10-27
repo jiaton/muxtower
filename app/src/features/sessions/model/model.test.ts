@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Session } from '@/lib/api/types'
 import type { Daemon } from '@/lib/daemons/types'
 import { NO_ENVIRONMENT, deviceOf, folderOf, shortFolderNames, sourceOf, statusOf, type SessionEntry } from './facets'
-import { facetsOf, filterEntries, groupEntries } from './query'
+import { facetsOf, filterEntries, folderSuggestions, groupEntries } from './query'
 
 const daemon = { id: 'd1', name: 'hub', url: 'http://hub.test', token: 't' } as Daemon
 
@@ -144,5 +144,33 @@ describe('query', () => {
     ])
     expect(facets.devices[1].folders).toEqual([]) // only an unknown folder
     expect(facets.sources.map((s) => s.label)).toEqual(['tmux', 'Remote Control'])
+  })
+})
+
+describe('accounts', () => {
+  const work = entry('w', { account: 'me@work.test' })
+  const own = entry('o', { account: 'me@home.test' })
+  const key = entry('k', { account: 'API key' })
+
+  it('are a facet, a filter and a grouping only when sessions run as more than one', () => {
+    expect(facetsOf([work, entry('x', { account: 'me@work.test' })]).accounts).toEqual([])
+    const facets = facetsOf([work, own, key, entry('u')])
+    expect(facets.accounts.map((a) => a.label)).toEqual(['API key', 'me@home.test', 'me@work.test', 'Unknown account'])
+    expect(filterEntries([work, own, key], { view: 'all', group: 'status', account: 'me@work.test' })).toEqual([work])
+    const groups = groupEntries([work, own, entry('w2', { account: 'me@work.test' })], 'account')
+    expect(groups.map((g) => [g.label, g.entries.length, g.implies.account])).toEqual([
+      ['me@work.test', 2, true],
+      ['me@home.test', 1, true],
+    ])
+  })
+})
+
+describe('new session folders', () => {
+  it('come from where a new session would start: this daemon, or one of its nodes', () => {
+    const here = entry('h', { on_host: true, cwd: '/home/me/projects/web' })
+    const elsewhere = entry('e', { on_host: false, cwd: '/home/me/projects/other' })
+    const mac = entry('m', { on_host: true, node: 'mac', cwd: '/Users/me/code/app' })
+    expect(folderSuggestions([here, elsewhere, mac], 'd1').map((f) => f.label)).toEqual(['~/projects/web'])
+    expect(folderSuggestions([here, elsewhere, mac], 'd1', 'mac').map((f) => f.label)).toEqual(['~/code/app'])
   })
 })

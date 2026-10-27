@@ -63,20 +63,9 @@ ArchiverDep = Annotated[Archiver, Depends(_archiver)]
 
 
 @router.get("/runtimes")
-def list_runtimes(_: CurrentDevice, sessions: Sessions, launcher: LauncherDep) -> list[RuntimeInfo]:
-    import shutil
-
-    headless = launcher.headless_runtimes()
-    return [
-        RuntimeInfo(
-            name=rt.name,
-            binary=rt.config.binary,
-            available=shutil.which(rt.config.binary) is not None,
-            has_hooks=rt.config.hooks is not None,
-            headless=rt.name in headless,
-        )
-        for rt in sessions.runtimes.values()
-    ]
+def list_runtimes(_: CurrentDevice, launcher: LauncherDep) -> list[RuntimeInfo]:
+    """What can be started here (a node's are in GET /v1/nodes)."""
+    return launcher.runtimes()
 
 
 @router.get("/sessions")

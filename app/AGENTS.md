@@ -31,7 +31,7 @@
    - `__root.tsx`: the app shell (sidebar from `lg`, bottom tab bar below it, hidden on a phone while a session is open).
    - `_sessions.tsx`: pathless layout holding the session list (validates its URL search params); `_sessions/index.tsx` (`/`) and `_sessions/d.$daemonId.s.$sessionId.tsx` render beside it from `md`, instead of it below.
    - `daemons.tsx`, `pair.tsx`.
-4. `src/lib/` — shared by every feature: `daemons/` (the persisted daemon list + `useDaemonClient`), `api/` (client factory, generated `schema.d.ts` + `types.ts` aliases, `stream.ts`/`streams.ts`), `runtime-config.ts`, `query.ts`, `agent-state.ts`.
+4. `src/lib/` — shared by every feature: `daemons/` (the persisted daemon list + `useDaemonClient`, and `useNodes`: the computers joined to a daemon, which the sessions and daemons features both use), `api/` (client factory, generated `schema.d.ts` + `types.ts` aliases, `stream.ts`/`streams.ts`), `runtime-config.ts`, `query.ts`, `agent-state.ts`.
 5. `src/sw.ts` — the service worker (own tsconfig: `tsconfig.sw.json`).
 
 Split before 250 lines or once a file mixes two domains.
@@ -54,6 +54,8 @@ Split before 250 lines or once a file mixes two domains.
 - The input bar is one row (keys toggle, message box, Send); its text is a per-session draft in `useDrafts` (persisted), cleared once sent; `KeyPad` opens above it, laid out like a keyboard (arrows as an inverted T, Enter at the right edge). Keys fire on pointer down without taking focus, so the phone keyboard stays as it was.
 
 ## Daemons are plural
+
+A daemon can also be a hub: other computers' daemons join it as nodes (`docs/design.md` › Hub and nodes), and their sessions come in its own list, each with `node` set (the New session dialog can start one there; one whose node is away is `offline`, shown dimmed and read only). The Daemons page lists a daemon's nodes and makes the code a computer joins with. Accounts are shown (a row's place line, a filter, a grouping) only when the sessions run as more than one (`accountsDiffer`).
 
 - The daemon list lives in `src/lib/daemons/store.ts` (Zustand, persisted): `{id, name, url, token, preset?, streamAuth?, pushSubscriptionId?}`. Nothing about a daemon is baked into the bundle; defaults come only from the runtime `/config.json`. Selectors that build arrays use `useShallow`.
 - Get a client with `useDaemonClient(daemonId)`; never construct `fetch` calls or URLs in components.

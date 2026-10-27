@@ -77,7 +77,7 @@ function SessionsLayout() {
           subtitle={within ? `${within} · ${counted}` : counted}
           actions={
             <>
-              <ListMenu query={query} unread={visible.filter((e) => e.session.unread)} />
+              <ListMenu query={query} unread={visible.filter((e) => e.session.unread)} accounts={facets.accounts.length > 0} />
               <FilterMenu query={query} search={search} facets={facets} className="lg:hidden" />
               <div className="lg:hidden">
                 <NewSessionDialog
@@ -108,6 +108,7 @@ function SessionsLayout() {
                 hideFolder: Boolean(query.folder),
                 hideSource: Boolean(query.source),
                 showDaemon: daemons.length > 1,
+                showAccount: facets.accounts.length > 0 && !query.account,
               }}
               extra={({ daemon, session }) =>
                 session.needs_attention && session.pending ? (

@@ -54,8 +54,24 @@ def candidates(port: int) -> list[tuple[str, str]]:
     return found
 
 
+def cmd_join(args: argparse.Namespace, daemon: LocalDaemon) -> int:
+    """This daemon reports to a hub: its sessions are listed and driven there too."""
+    if args.leave:
+        daemon.request("DELETE", "/v1/hub")
+        print("left the hub; remove this node there too (Daemons › Nodes) to drop its sessions")
+        return 0
+    code = args.code or input("pairing code from the hub: ").strip()
+    status = daemon.request("POST", "/v1/hub", {"url": args.join, "code": code})
+    print(f"joined {status['url']} as {status['name']}")
+    if not status["connected"]:
+        print("linking… `muxtower` shows whether it is connected")
+    return 0
+
+
 def cmd_pair(args: argparse.Namespace, daemon: LocalDaemon) -> int:
     daemon.ensure_running()
+    if args.join or args.leave:
+        return cmd_join(args, daemon)
     if args.revoke:
         daemon.request("DELETE", f"/v1/devices/{quote(args.revoke)}")
         print(f"revoked {args.revoke!r}")

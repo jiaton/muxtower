@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from muxtower import __version__
+from muxtower.agents.accounts import Accounts
 from muxtower.agents.codex.processes import CodexProcesses
 from muxtower.agents.processes import AgentProcesses
 from muxtower.approval.auto import AutoApprover
@@ -39,6 +40,15 @@ from muxtower.infra.tmux import TmuxCli, TmuxError
 from muxtower.mcp.routes import router as mcp_router
 from muxtower.mcp.service import McpTools
 from muxtower.net import ClientAddress
+from muxtower.nodes import protocol as node_protocol
+from muxtower.nodes.api import NodeApi
+from muxtower.nodes.client import HubClient
+from muxtower.nodes.directory import HubDirectory
+from muxtower.nodes.hub import Nodes
+from muxtower.nodes.repository import SqliteNodeRepository
+from muxtower.nodes.routes import router as nodes_router
+from muxtower.nodes.source import NodeSource
+from muxtower.nodes.store import HubStore
 from muxtower.notify.repository import SqliteSubscriptionRepository
 from muxtower.notify.routes import router as push_router
 from muxtower.notify.service import PushService
@@ -49,7 +59,6 @@ from muxtower.sessions.archive import SessionArchive
 from muxtower.sessions.archive_repository import SqliteArchiveRepository
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.claude_processes import ClaudeProcesses
-from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.launcher import Launcher
 from muxtower.sessions.marks import SessionMarks, SqliteMarksRepository
 from muxtower.sessions.monitor import Monitor
@@ -106,9 +115,23 @@ def create_app(
     marks = SessionMarks(SqliteMarksRepository(db))
     transcripts = Transcripts()
     archive = SessionArchive(SqliteArchiveRepository(db), transcripts)
-    directory = SessionDirectory(
+    # Daemons joined to this one (nodes): their sessions are one more source.
+    nodes = Nodes(SqliteNodeRepository(db), bus)
+    node_sessions = NodeSource(nodes)
+    directory = HubDirectory(
         sessions, terminal, approvals, sources, summaries, daemon_name, processes,
-        marks, transcripts, archive,
+        marks, transcripts, archive, Accounts(), nodes=node_sessions,
+    )  # fmt: skip
+    launcher = Launcher(directory, [codex] if codex else [], node_sessions)
+    archiver = Archiver(directory, archive)
+    placements = Placements(directory, marks)
+    # This daemon as a node of a hub, once it joined one (`muxtower pair --join`).
+    hub = HubClient(
+        HubStore(settings.state_dir / "hub.json"), settings.hub.headers,
+        NodeApi(directory, launcher, archiver, placements), monitor, bus,
+        lambda: node_protocol.Hello(
+            protocol=node_protocol.PROTOCOL, name=daemon_name, version=__version__, runtimes=launcher.runtimes()
+        ),
     )  # fmt: skip
     audit = AuditLog(db)
     concierge: ConciergeService | None = None
@@ -144,6 +167,7 @@ def create_app(
                 loops["remote-control"] = remote_control.run_loop(bus, settings.remote_control.poll_seconds)
             if codex is not None:
                 loops["codex"] = codex.run_loop(bus)
+            loops["hub"] = hub.run_loop()
             for name, coro in loops.items():
                 task = asyncio.create_task(coro, name=name)
                 task.add_done_callback(_log_crash)
@@ -163,9 +187,11 @@ def create_app(
     app.state.sessions = sessions
     app.state.monitor = monitor
     app.state.directory = directory
-    app.state.placements = Placements(directory, marks)
-    app.state.archiver = Archiver(directory, archive)
-    app.state.launcher = Launcher(directory, [codex] if codex else [])
+    app.state.placements = placements
+    app.state.archiver = archiver
+    app.state.launcher = launcher
+    app.state.nodes = nodes
+    app.state.hub = hub
     app.state.summaries = summaries
     app.state.concierge = concierge
     app.state.mcp = McpTools(directory, sessions, concierge, daemon_name)
@@ -207,7 +233,7 @@ def create_app(
         app.add_exception_handler(error, handler)
 
     routers = (system_router, auth_router, sessions_router, summaries_router, asr_router, mcp_router, stream_router,
-               push_router, hooks_router)  # fmt: skip
+               push_router, hooks_router, nodes_router)  # fmt: skip
     for router in routers:
         app.include_router(router)
 
