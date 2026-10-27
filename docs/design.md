@@ -108,6 +108,46 @@ A Claude Code process can be both a tmux pane and a Remote Control session. The 
 
 With many sessions running, the owner needs to see which finished turns they have not looked at yet: those are what to pick up next. The daemon keeps, per session, when it last finished a turn (`sessions/turns.py`) and when anyone last looked at it (`sessions/marks.py`, table `session_marks`), so every device agrees. A session is `unread` when it finished after the last look, when its source's own flag says so for activity since then (Remote Control's unread, shared with the Claude apps), or when the owner marked it unread to come back to. `POST /v1/sessions/{id}/read` (`{"read": false}` marks unread) is sent by a client when it opens a session, when an open session gets news, and every 30 s while it stays on screen; reading also marks the session read on Remote Control. A session looked at in the last 45 s gets no "done" notification: someone is watching it. The same store keeps which sessions the owner **hid** (`POST /v1/sessions/{id}/hide`): they leave every list and count, show only under "Hidden", and send no "done" notifications (a hidden session that gets blocked still alerts). Hiding keeps the agent running; **archiving** ends it (`POST /v1/sessions/{id}/archive`, after the owner confirms): its tmux pane closes (muxtower's own tmux session, for one it started), a Remote Control session is archived there too (first, so a failure changes nothing), and the session is kept to read under "Archived" (`sessions/archive.py`, table `archived_sessions`): its last view, and its conversation from the Claude Code transcript (the file outlives the process) or, without one, the items it had. An archived session is read-only (no screen, no input, no read state); `DELETE` deletes it from the archive. In the list, a resting unread session is its own status, "Finished, unread", between "Needs you" and "Working" (a check in the accent color, bold name); the list menu marks everything shown read, the session menu marks one unread.
 
+## Hub and nodes
+
+One daemon is the **hub** (the one that is always on, which phones use); other computers' daemons
+(a Mac, a Windows machine, another server) join it as **nodes**. Their sessions are listed, driven,
+approved and notified through the hub as if they ran there, so a phone pairs with the hub alone and
+needs no address of a laptop's. Every daemon is both: a hub to whatever joins it, and a node of the hub it
+joined, if any; a node keeps its own API and UI.
+
+- **Joining**: on the hub, a pairing code (`muxtower pair`, or Daemons › Join a computer); on the node,
+  `muxtower pair --join <hub> --code <code>`, which has the node's daemon redeem it at
+  `POST /v1/nodes/claim` for a token of the node's own, kept in its state directory (`hub.json`, 0600).
+  A node token opens the node's link and nothing else (it is in its own table, `nodes`, not a device
+  token). Headers for a gate in front of the hub (`[hub] headers` in the node's config, e.g. a gate
+  API token) go with every request to it. `DELETE /v1/nodes/{name}` removes a node: its link is closed
+  with 4401 and the node forgets the hub; `muxtower pair --leave` stops a node reporting.
+- **The link** (`nodes/protocol.py`): one WebSocket the node opens to `/v1/nodes/link` (the token as a
+  `bearer.` subprotocol), JSON frames both ways: requests and their answers (`{id, method, params}`,
+  `{id, result | error{status, message}}`) and events. The node says hello (protocol version, name,
+  version, what it can start), then reports its sessions whole on every change (debounced, and every
+  minute regardless: idempotent, so a reconnect needs no catching up), conversation items as its own
+  stream has them, and the screens the hub watches. The hub's requests are the API's own verbs
+  (conversation, screen, input, approve, deny, resize, update, terminate, archive, mark read, detect
+  folder, create, watch a screen); errors travel as statuses and come out as the same exception, so a
+  409 on the node is a 409 from the hub. The node reconnects with backoff (1 s doubling to 30 s,
+  jittered); either side restarts whenever it likes.
+- **On the hub**, a node's sessions are one more session source (`nodes/source.py`), so read state,
+  hidden, notification levels, placement, finished turns, push and the assistant work on them
+  unchanged; what only a daemon can do (a screen, input as typed, resizing, renaming, stopping, starting
+  one: `CreateSession.node`) goes to the node too (`nodes/directory.py`). Ids are `<node>~<its id>`,
+  except a Remote Control session's, which is the account's wherever it is listed: reported by the hub's
+  own Remote Control and by a node, it is one session, the node's when its agent runs there (`on_host`:
+  the node has its process, terminal and transcript), else the hub's. A tmux pane that also runs Remote
+  Control, on a node, is one entry there and hides the hub's copy, as on one daemon. Attention is
+  announced when a node's report shows a session starting to need the owner (not on first sight).
+- **Offline**: the node's last report is kept in SQLite, so while it sleeps or the hub restarts its
+  sessions are still listed, marked `offline`, read only (no capabilities, no alert), until it is back.
+- **Accounts**: each daemon says which account its agents run as (`agents/accounts.py`, from the
+  agents' own login files, who only: a claude.ai email, a ChatGPT email, or "API key"); the app shows it,
+  and offers it as a filter and a grouping, only when sessions run as more than one.
+
 ## Push
 
 Web Push with a per-daemon VAPID key. A browser registration holds one subscription, so the app registers its service worker once per daemon (scope `<base>push/<daemonId>/`, same script). The subscription belongs to the app's origin; the notification payload carries `daemon_id` and `session_id`, and a click opens `/d/<daemon>/s/<session>`. Filters per subscription: which states notify, whether finished turns do (`done`, on by default), muted sessions; and per session, the owner's level (below). A subscription belongs to the paired device that registered it: once that device is revoked, the daemon drops it at the next push instead of sending. The app registers its subscription again on every start, which keeps the daemon's copy current and ties older ones to their device. Registering a fresh worker waits for that registration's own worker to activate (`navigator.serviceWorker.ready` is the page's root registration).

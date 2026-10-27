@@ -13,7 +13,8 @@ dependencies = [
     "libtmux>=0.61",
     "pywebpush>=2.0",
     "segno>=1.6",
-    "httpx>=0.27",  # vendored claude_rc (Remote Control)
+    "httpx>=0.27",  # vendored claude_rc (Remote Control), joining a hub
+    "websockets>=14",  # Codex's app-server, a node's link to its hub
 ]
 
 [project.scripts]

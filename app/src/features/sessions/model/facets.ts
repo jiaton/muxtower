@@ -1,6 +1,6 @@
 /**
  * The ways a session is classified: what it needs (status), where it runs (device), what it works on
- * (folder) and how it was started (source). Pure functions over the API's Session, so every list,
+ * (folder), how it was started (source) and which account it runs as. Pure functions over the API's Session, so every list,
  * filter and count agrees.
  */
 import type { Session } from '@/lib/api/types'
@@ -110,5 +110,15 @@ export function sourceOf(session: Session): string {
   const match = origin ? ORIGINS.find(([pattern]) => pattern.test(origin)) : undefined
   return match?.[1] ?? origin ?? 'Remote Control'
 }
+
+// --- account ------------------------------------------------------------------------------------
+
+export const UNKNOWN_ACCOUNT = 'Unknown account'
+
+/** The account its agent runs as (an email, or "API key"), as its daemon knows it. */
+export const accountOf = (session: Session): string => session.account ?? UNKNOWN_ACCOUNT
+
+/** Whether accounts are worth showing at all: only when the sessions run as more than one. */
+export const accountsDiffer = (sessions: Session[]) => new Set(sessions.map((s) => s.account).filter(Boolean)).size > 1
 
 export const isAssistant = (session: Session) => session.role === 'concierge'

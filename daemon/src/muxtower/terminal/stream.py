@@ -13,7 +13,7 @@ from pydantic import BaseModel, Field, ValidationError
 
 from muxtower.auth.deps import WS_BEARER_PREFIX, WS_SUBPROTOCOL, CurrentDevice
 from muxtower.auth.stream_cookie import COOKIE_NAME, COOKIE_PATH, MAX_AGE_SECONDS
-from muxtower.errors import Conflict, NotFound
+from muxtower.errors import Conflict, NotFound, Unavailable
 from muxtower.infra.tmux import TmuxError
 from muxtower.sessions.models import ConversationItem, Session
 
@@ -115,7 +115,7 @@ class _Connection:
         await self.send(SessionsFrame(sessions=sessions))
 
     async def handle(self, message: StreamSubscribe) -> None:
-        bus, monitor = self.app.state.bus, self.app.state.monitor
+        bus, directory = self.app.state.bus, self.app.state.directory
         if message.topic == "sessions":
             if message.type == "subscribe":
                 bus.subscribe("sessions", self.queue)
@@ -130,17 +130,22 @@ class _Connection:
         if message.type == "unsubscribe":
             if session_id in self.screens:
                 bus.unsubscribe(f"screen:{session_id}", self.queue)
-                monitor.remove_viewer(session_id, self.screens.pop(session_id))
+                directory.watch_screen(session_id, self.screens.pop(session_id), False)
             return
         try:
             screen = await asyncio.to_thread(self.app.state.directory.screen, session_id, message.history)
-        except (NotFound, Conflict, TmuxError) as exc:  # unknown session, no screen, pane gone, tmux failure
+        except (
+            NotFound,
+            Conflict,
+            TmuxError,
+            Unavailable,
+        ) as exc:  # unknown session, no screen, pane gone, tmux failure
             await self.send(ErrorFrame(message=str(exc) or "cannot open screen"))
             return
         if session_id in self.screens:
-            monitor.remove_viewer(session_id, self.screens[session_id])
+            directory.watch_screen(session_id, self.screens[session_id], False)
         self.screens[session_id] = message.history
-        monitor.add_viewer(session_id, message.history)
+        directory.watch_screen(session_id, message.history, True)
         bus.subscribe(f"screen:{session_id}", self.queue)
         await self.send(ScreenFrame(session_id=session_id, ansi=screen.ansi or screen.text))
 
@@ -151,7 +156,7 @@ class _Connection:
             return
         try:
             latest = await asyncio.to_thread(self.app.state.directory.conversation, session_id, 0, 100)
-        except (NotFound, Conflict) as exc:
+        except (NotFound, Conflict, Unavailable) as exc:
             await self.send(ErrorFrame(message=str(exc)))
             return
         bus.subscribe(f"conversation:{session_id}", self.queue)
@@ -178,7 +183,7 @@ class _Connection:
     def close(self) -> None:
         self.app.state.bus.unsubscribe_all(self.queue)
         for session_id, history in self.screens.items():
-            self.app.state.monitor.remove_viewer(session_id, history)
+            self.app.state.directory.watch_screen(session_id, history, False)
 
 
 @router.websocket("/stream")

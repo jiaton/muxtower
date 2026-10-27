@@ -53,7 +53,8 @@ class PairingService:
             raise TooManyRequests("too many pairing attempts; wait a minute")
         window.append(now)
 
-    def claim(self, code: str, device_name: str, client: str) -> ClaimResult:
+    def redeem(self, code: str, client: str) -> None:
+        """Uses the code up, for whatever joins with it (a device here, or a node: `nodes/hub.py`)."""
         self._rate_limit(client)
         now = datetime.now(UTC).isoformat()
         with self.db.connect() as conn:
@@ -66,6 +67,8 @@ class PairingService:
         if not used:
             raise Unauthorized("pairing code is wrong, used, or expired")
 
+    def claim(self, code: str, device_name: str, client: str) -> ClaimResult:
+        self.redeem(code, client)
         if self.settings.mode == PairingMode.SHARED:
             if not self.settings.shared_token:
                 raise Invalid("pairing.mode is 'shared' but pairing.shared_token is not set")

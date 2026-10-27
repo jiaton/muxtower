@@ -3,7 +3,7 @@
 muxtower                 status: daemon, sessions
 muxtower run AGENT ...   start an agent in a managed tmux session (starts the daemon if needed)
 muxtower attach [NAME]   open a session in this terminal
-muxtower pair            add a device with a one-time code
+muxtower pair            add a device with a one-time code (--join HUB: join a hub as a node)
 muxtower serve           run the daemon in the foreground (for systemd, Docker)
 """
 
@@ -45,6 +45,12 @@ def cmd_status(_: argparse.Namespace, daemon: LocalDaemon) -> int:
         f"daemon: running at {daemon.url}"
         + (f", public at {daemon.settings.public_url}" if daemon.settings.public_url else "")
     )
+    hub = daemon.request("GET", "/v1/hub")
+    if hub.get("url"):
+        state = "connected" if hub["connected"] else f"not connected ({hub.get('error') or 'linking'})"
+        print(f"node {hub['name']} of {hub['url']}: {state}")
+    for node in daemon.request("GET", "/v1/nodes"):
+        print(f"node {node['name']}: {'online' if node['online'] else 'offline'}, {node['sessions']} sessions")
     if not sessions:
         print("no sessions; start one with `muxtower run claude`")
     for s in sessions:
@@ -100,6 +106,9 @@ def main(argv: list[str] | None = None) -> None:
     pair.add_argument("--url", help="address the device reaches this daemon at")
     pair.add_argument("--app", help="hosted app URL to open instead of the daemon's own UI")
     pair.add_argument("--revoke", metavar="NAME", help="revoke a paired device instead")
+    pair.add_argument("--join", metavar="HUB", help="join this daemon to a hub as a node, e.g. https://hub.example")
+    pair.add_argument("--code", help="with --join: a pairing code made on the hub (`muxtower pair` there)")
+    pair.add_argument("--leave", action="store_true", help="stop reporting to the hub this daemon joined")
     pair.set_defaults(func=cmd_pair)
 
     add_serve_parser(sub)

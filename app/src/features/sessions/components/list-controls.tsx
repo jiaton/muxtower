@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Archive, CheckCheck, EyeOff, Folder, ListFilter, Monitor, Rows3, Search, X } from 'lucide-react'
+import { Archive, CheckCheck, EyeOff, Folder, ListFilter, Monitor, Rows3, Search, UserRound, X } from 'lucide-react'
 import { Fragment, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -99,7 +99,7 @@ export function ViewTabs({
 
 /** The list's view menu: how rows are grouped (remembered as the default), and marking what it shows
  *  read. */
-export function ListMenu({ query, unread }: { query: SessionQuery; unread: SessionEntry[] }) {
+export function ListMenu({ query, unread, accounts }: { query: SessionQuery; unread: SessionEntry[]; accounts: boolean }) {
   const navigate = useNavigate()
   const setGroup = useListPrefs((s) => s.setGroup)
   const markRead = useMarkRead()
@@ -120,7 +120,7 @@ export function ListMenu({ query, unread }: { query: SessionQuery; unread: Sessi
             void navigate({ to: '.', search: (prev: ListSearch) => ({ ...prev, group }) })
           }}
         >
-          {GROUPINGS.map((group) => (
+          {GROUPINGS.filter((group) => group !== 'account' || accounts).map((group) => (
             <DropdownMenuRadioItem key={group} value={group}>
               {GROUP_LABEL[group]}
             </DropdownMenuRadioItem>
@@ -139,14 +139,15 @@ export function ListMenu({ query, unread }: { query: SessionQuery; unread: Sessi
 }
 
 const SEP = '\u0000'
-const encodeScope = (scope: Scope | null) => (scope ? [scope.device ?? '', scope.folder ?? '', scope.source ?? ''].join(SEP) : '')
+const encodeScope = (scope: Scope | null) =>
+  scope ? [scope.device ?? '', scope.folder ?? '', scope.source ?? '', scope.account ?? ''].join(SEP) : ''
 function decodeScope(value: string): Scope {
   if (!value) return { view: 'all' }
-  const [device, folder, source] = value.split(SEP)
-  return { device: device || undefined, folder: folder || undefined, source: source || undefined }
+  const [device, folder, source, account] = value.split(SEP)
+  return { device: device || undefined, folder: folder || undefined, source: source || undefined, account: account || undefined }
 }
 
-/** One device (or one of its folders) or one source (where the sidebar is not shown). */
+/** One device (or one of its folders), one source or one account (where the sidebar is not shown). */
 export function FilterMenu({
   query,
   search,
@@ -167,7 +168,7 @@ export function FilterMenu({
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="Filter by device, folder or source"
+          aria-label="Filter by device, folder, source or account"
           title="Filter"
           className={cn(scope && 'text-accent', className)}
         >
@@ -218,6 +219,19 @@ export function FilterMenu({
               </DropdownMenuRadioItem>
             )
           })}
+          {facets.accounts.length ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Accounts</DropdownMenuLabel>
+              {facets.accounts.map((a) => (
+                <DropdownMenuRadioItem key={a.label} value={encodeScope({ account: a.label })}>
+                  <UserRound className="text-fg-muted" aria-hidden />
+                  <span className="min-w-0 flex-1 truncate">{a.label}</span>
+                  {count(a.count)}
+                </DropdownMenuRadioItem>
+              ))}
+            </>
+          ) : null}
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem
@@ -241,11 +255,11 @@ export function FilterMenu({
   )
 }
 
-/** What the list is narrowed to (device › folder, or a source), with a way out. */
+/** What the list is narrowed to (device › folder, a source, or an account), with a way out. */
 export function ScopeChip({ query, search }: { query: SessionQuery; search: ListSearch }) {
   const scope = scopeOf(query)
   if (!scope) return null
-  const label = [scope.device, scope.folder ? folderName(scope.folder) : null, scope.source].filter(Boolean).join(' › ')
+  const label = [scope.device, scope.folder ? folderName(scope.folder) : null, scope.source, scope.account].filter(Boolean).join(' › ')
   return (
     <Link
       to="/"

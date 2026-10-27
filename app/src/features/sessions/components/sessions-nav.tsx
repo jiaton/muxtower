@@ -1,5 +1,5 @@
 import { Link, useSearch } from '@tanstack/react-router'
-import { Archive, ChevronRight, CircleAlert, CircleCheck, EyeOff, Folder, Layers, LoaderCircle, Monitor } from 'lucide-react'
+import { Archive, ChevronRight, CircleAlert, CircleCheck, EyeOff, Folder, Layers, LoaderCircle, Monitor, UserRound } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { NavCount, NavSection, navItemClass, navSubItemClass } from '@/components/ui/nav'
 import { cn } from '@/lib/cn'
@@ -107,7 +107,8 @@ function DeviceTree({ device, search }: { device: DeviceFacet; search: ListSearc
   )
 }
 
-/** The sidebar: views, each device with its folders, and sources, each with its count. The router
+/** The sidebar: views, each device with its folders, sources, and accounts when there is more than one,
+ *  each with its count. The router
  *  marks the entry whose search params the list shows (data-status=active), also while one of its
  *  sessions is open. */
 export function SessionsNav() {
@@ -146,6 +147,17 @@ export function SessionsNav() {
           )
         })}
       </NavSection>
+      {facets.accounts.length ? (
+        <NavSection title="Accounts">
+          {facets.accounts.map((a) => (
+            <ScopeLink key={a.label} search={search} scope={{ account: a.label }} className={navItemClass}>
+              <UserRound aria-hidden />
+              <span className="truncate">{a.label}</span>
+              <NavCount count={a.needs || a.count} alert={a.needs > 0} />
+            </ScopeLink>
+          ))}
+        </NavSection>
+      ) : null}
     </nav>
   )
 }

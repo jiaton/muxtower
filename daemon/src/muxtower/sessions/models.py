@@ -114,6 +114,16 @@ class Session(BaseModel):
     archived_at: datetime | None = Field(
         default=None, description="when the owner archived it: it no longer runs, its conversation stays readable"
     )
+    node: str | None = Field(
+        default=None, description="the node (another daemon joined to this one) it is reached through"
+    )
+    on_host: bool = Field(default=False, description="its agent runs on the daemon that lists it")
+    offline: bool = Field(
+        default=False, description="its node is not connected: the last known view, read only until it is back"
+    )
+    account: str | None = Field(
+        default=None, description='the account its agent runs as, as far as known (an email, or "API key")'
+    )
     state: AgentState
     state_source: StateSource
     matched_rule: str | None
@@ -134,6 +144,7 @@ class CreateSession(BaseModel):
     headless: bool = Field(
         default=False, description="run it without a terminal, where the runtime can (`RuntimeInfo.headless`)"
     )
+    node: str | None = Field(default=None, description="start it on this node instead of here (GET /v1/nodes)")
 
 
 class HideSession(BaseModel):
