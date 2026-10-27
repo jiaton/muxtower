@@ -2,7 +2,7 @@ import { Children, useEffect, useLayoutEffect, useRef, useState, type ReactNode 
 import { cn } from '@/lib/cn'
 import { axisOf, holdScroll, LAND_EASE, landing, landMs, Speed } from './gesture'
 
-const EDGE_PX = 24 // how far a finger moves right, past the first page, to count as a swipe out
+const EDGE_PX = 40 // how far a finger moves right, past the first page, to count as a swipe out
 const RESIST = 0.3 // past the last page a swipe moves the pages this much per pixel
 const WHEEL_PX = 60 // a trackpad's sideways scroll this far turns the page
 
@@ -121,7 +121,7 @@ export function Pager({
       const t = e.changedTouches[0]
       if (t) g.speed.add(t.clientX)
       const speed = g.speed.get()
-      const to = landing(g.at, speed)
+      const to = landing(g.at, speed, g.at - g.from)
       const pages = Math.min(1, Math.round(Math.abs(to) / Math.max(1, el.clientWidth)))
       turn.current(state.current.shown - Math.sign(to) * pages, g.at, speed)
     }
