@@ -1,18 +1,21 @@
 """One open link from this node to its hub: what the node tells the hub, and the hub's requests."""
 
 import asyncio
+import logging
 from collections.abc import Callable
 from typing import Any
 
 from websockets.asyncio.client import ClientConnection
 from websockets.exceptions import ConnectionClosed
 
-from muxtower.errors import Invalid
+from muxtower.errors import Invalid, Unavailable
 from muxtower.infra.bus import EventBus
 from muxtower.nodes import protocol
 from muxtower.nodes.api import NodeApi
 from muxtower.nodes.link import parse
 from muxtower.sessions.monitor import Monitor
+
+logger = logging.getLogger("muxtower.hub")
 
 RESEND_SECONDS = 60.0
 DEBOUNCE_SECONDS = 0.3
@@ -96,6 +99,8 @@ class LinkSession:
                 result = await asyncio.to_thread(self.api.handle, method, params)
             reply = protocol.answer(frame["id"], result)
         except Exception as exc:  # noqa: BLE001 - every failure goes back to the hub as its status
+            if protocol.status_of(exc) == 502 and not isinstance(exc, Unavailable):
+                logger.exception("the hub's %s failed here", method)
             reply = protocol.failure(frame["id"], exc)
         try:
             await self.ws.send(reply)
