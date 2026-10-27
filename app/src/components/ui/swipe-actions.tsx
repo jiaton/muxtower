@@ -1,22 +1,26 @@
-import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ComponentType, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
-import { axisOf, holdScroll, landing, Speed } from './gesture'
+import { axisOf, holdScroll, LAND_EASE, landing, landMs, Speed } from './gesture'
 
 const OVERDRAG_PX = 24
 
+type Gesture = { x: number; y: number; dx: number; from: number; axis?: 'x' | 'y'; speed: Speed }
+
 /** A list row that a finger can swipe right to reveal `actions` on its left (like a mail app). A
  *  vertical move scrolls as usual; once a swipe, a finger drifting up or down keeps it a swipe, and let
- *  go, it opens or closes by how far and how fast it went. A tap on the row while it is open closes it
- *  instead of opening the row; pressing anywhere else closes it too. Mice and keyboards do not swipe:
- *  give them another way to the same actions (a menu). */
+ *  go, it opens or closes by how far and how fast it went (a short flick is enough). A tap on the row
+ *  while it is open closes it instead of opening the row; pressing anywhere else closes it too. An open
+ *  row says so (`data-swipe-open`), for a swipe around it (a drawer's) to leave it to the row. Mice and
+ *  keyboards do not swipe: give them another way to the same actions (a menu). */
 export function SwipeActions({ actions, children }: { actions: ReactNode; children: ReactNode }) {
   const root = useRef<HTMLDivElement>(null)
   const tray = useRef<HTMLDivElement>(null)
   const row = useRef<HTMLDivElement>(null)
-  const gesture = useRef<{ x: number; y: number; from: number; axis?: 'x' | 'y'; speed: Speed } | null>(null)
+  const gesture = useRef<Gesture | null>(null)
   const swiped = useRef(false)
   const [offset, setOffset] = useState(0)
   const [dragging, setDragging] = useState(false)
+  const [slide, setSlide] = useState(landMs(Infinity))
   const open = offset > 0 && !dragging
   const width = () => tray.current?.offsetWidth ?? 0
 
@@ -31,38 +35,62 @@ export function SwipeActions({ actions, children }: { actions: ReactNode; childr
     return () => document.removeEventListener('pointerdown', outside)
   }, [open])
 
-  const end = (cancelled: boolean) => {
+  /** The row `dx` across from where the gesture began, as the finger has it. */
+  const follow = (g: Gesture, dx: number) => setOffset(Math.max(0, Math.min(width() + OVERDRAG_PX, g.from + dx)))
+
+  const end = (e: ReactPointerEvent) => {
     const g = gesture.current
     gesture.current = null
-    if (g?.axis !== 'x') return
+    if (!g) return
+    const lifted = e.type === 'pointerup' // a cancel may carry no position: the last move's then
+    const dx = lifted ? e.clientX - g.x : g.dx
+    if (lifted) g.speed.add(e.clientX)
+    if (!g.axis && lifted && axisOf(dx, e.clientY - g.y) === 'x') {
+      g.axis = 'x' // a flick so quick that its only move is the lift
+      swiped.current = true
+      follow(g, dx)
+    }
+    if (g.axis !== 'x') return
     setDragging(false)
-    const speed = cancelled ? 0 : g.speed.get()
-    setOffset((o) => (landing(o, speed) > width() / 2 ? width() : 0))
+    const speed = g.speed.get()
+    const at = Math.max(0, g.from + dx)
+    const to = landing(at, speed) > width() / 2 ? width() : 0
+    setSlide(landMs(to - at, speed))
+    setOffset(to)
   }
 
   return (
-    <div ref={root} className="relative overflow-hidden">
+    <div ref={root} className="relative overflow-hidden" data-swipe-open={open || undefined}>
       <div
         ref={tray}
         className={cn('absolute inset-y-0 left-0 flex', !offset && 'invisible')} // closed: nothing shows past the row as it moves
         aria-hidden={!open}
         inert={!open}
-        onClick={() => setOffset(0)} // an action ran: close
+        onClick={() => {
+          setSlide(landMs(Infinity))
+          setOffset(0) // an action ran: close
+        }}
       >
         {actions}
       </div>
       <div
         ref={row}
-        className={cn('relative touch-pan-y bg-bg', !dragging && 'transition-transform duration-200 ease-out')}
-        style={{ transform: offset ? `translateX(${offset}px)` : undefined }}
+        className="relative touch-pan-y bg-bg"
+        style={{
+          transform: offset ? `translateX(${offset}px)` : undefined,
+          transition: dragging ? undefined : `transform ${slide}ms ${LAND_EASE}`,
+        }}
         onPointerDown={(e) => {
           swiped.current = false
-          if (e.pointerType !== 'mouse') gesture.current = { x: e.clientX, y: e.clientY, from: offset, speed: new Speed() }
+          if (e.pointerType === 'mouse') return
+          gesture.current = { x: e.clientX, y: e.clientY, dx: 0, from: offset, speed: new Speed() }
+          gesture.current.speed.add(e.clientX) // from the first touch: a short flick has few moves
         }}
         onPointerMove={(e) => {
           const g = gesture.current
           if (!g) return
-          const dx = e.clientX - g.x
+          const dx = (g.dx = e.clientX - g.x)
+          g.speed.add(e.clientX)
           if (!g.axis) {
             g.axis = axisOf(dx, e.clientY - g.y)
             if (g.axis !== 'x') return
@@ -71,16 +99,18 @@ export function SwipeActions({ actions, children }: { actions: ReactNode; childr
           }
           if (g.axis !== 'x') return
           swiped.current = true
-          g.speed.add(e.clientX)
-          setOffset(Math.max(0, Math.min(width() + OVERDRAG_PX, g.from + dx)))
+          follow(g, dx)
         }}
-        onPointerUp={() => end(false)}
-        onPointerCancel={() => end(true)}
+        onPointerUp={end}
+        onPointerCancel={end}
         onClickCapture={(e) => {
           if (!swiped.current && offset === 0) return
           e.preventDefault() // the end of a swipe, or a tap that closes the tray, is not a click on the row
           e.stopPropagation()
-          if (!swiped.current) setOffset(0)
+          if (!swiped.current) {
+            setSlide(landMs(Infinity))
+            setOffset(0)
+          }
         }}
       >
         {children}

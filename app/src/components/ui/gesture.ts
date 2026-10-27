@@ -8,6 +8,10 @@ const SIDEWAYS = 1.2 // a swipe may rise this much per pixel across (about 50°)
 const PROJECT_MS = 200 // a released swipe lands where its speed would carry it in this long
 const FLICK = 0.3 // px/ms: let go this fast, a swipe goes on its way however short it was
 const SPEED_WINDOW_MS = 100
+const FRAME_MS = 16
+const LAND_SPEED = 2.5 // px/ms: a released swipe lands at least this fast, faster if the finger was
+const LAND_MS = [60, 120] as const // and takes no less, and no more, than this
+export const LAND_EASE = 'cubic-bezier(0.2, 0.9, 0.3, 1)' // quick to start, soft to stop
 
 /** The axis of a gesture that moved `dx`, `dy`: undefined until it moved far enough to tell. */
 export function axisOf(dx: number, dy: number): 'x' | 'y' | undefined {
@@ -15,11 +19,16 @@ export function axisOf(dx: number, dy: number): 'x' | 'y' | undefined {
   return Math.abs(dy) < Math.abs(dx) * SIDEWAYS ? 'x' : 'y'
 }
 
-/** The recent positions of a finger along one axis, for its speed when it lets go. */
+/** The recent positions of a finger along one axis, for its speed when it lets go. The first is where it
+ *  pressed. */
 export class Speed {
   private samples: { t: number; x: number }[] = []
 
   add(x: number, t = performance.now()) {
+    const press = this.samples.length === 1 ? this.samples[0]! : undefined
+    // A finger held still sends no moves: its first one, long after the press, is a move that began in
+    // the frame before it (press, hold, flick), not one spread over the whole hold.
+    if (press && t - press.t > 2 * FRAME_MS) press.t = t - FRAME_MS
     this.samples.push({ t, x })
     while (this.samples.length > 2 && t - this.samples[0]!.t > SPEED_WINDOW_MS) this.samples.shift()
   }
@@ -38,6 +47,13 @@ export class Speed {
 export function landing(offset: number, speed: number): number {
   if (Math.abs(speed) >= FLICK) return Math.sign(speed) * Infinity
   return offset + speed * PROJECT_MS
+}
+
+/** How long a released swipe takes to land `px` away: at the finger's speed or a brisk one, and briefly
+ *  either way, so the next screen is there as the finger lifts. */
+export function landMs(px: number, speed = 0): number {
+  const ms = Math.abs(px) / Math.max(Math.abs(speed), LAND_SPEED)
+  return Math.round(Math.min(LAND_MS[1], Math.max(LAND_MS[0], ms)))
 }
 
 /** Keeps the browser from scrolling under a touch while `active()`: once a gesture is a sideways swipe,
