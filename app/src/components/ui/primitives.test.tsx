@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { Dialog, DialogContent } from './dialog'
 import { Drawer } from './drawer'
+import { axisOf, landing, Speed } from './gesture'
 import { Pager } from './pager'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './dropdown-menu'
 import { Markdown } from './markdown'
@@ -195,6 +196,24 @@ describe('SwipeActions', () => {
     expect(hide).toHaveBeenCalled()
     expect(tray).toHaveAttribute('aria-hidden', 'true')
   })
+
+  it('opens on a tilted, drifting flick that is short of halfway', () => {
+    render(
+      <SwipeActions actions={<SwipeAction icon={() => null} label="Hide" onClick={() => {}} />}>
+        <span>row</span>
+      </SwipeActions>,
+    )
+    const row = screen.getByText('row').parentElement!
+    const tray = screen.getByRole('button', { name: 'Hide', hidden: true }).parentElement!
+    Object.defineProperty(tray, 'offsetWidth', { value: 128 })
+    row.setPointerCapture = () => {}
+    fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 10, clientY: 10, pointerId: 1 })
+    fireEvent.pointerMove(row, { pointerType: 'touch', clientX: 20, clientY: 21, pointerId: 1 }) // 48° off level
+    expect(fireEvent.touchMove(row, { touches: [{ clientX: 50, clientY: 60 }] })).toBe(false) // drifts: no scroll
+    fireEvent.pointerMove(row, { pointerType: 'touch', clientX: 50, clientY: 60, pointerId: 1 })
+    fireEvent.pointerUp(row, { pointerType: 'touch', clientX: 50, clientY: 60, pointerId: 1 })
+    expect(tray).toHaveAttribute('aria-hidden', 'false')
+  })
 })
 
 describe('Drawer', () => {
@@ -239,5 +258,38 @@ describe('Pager', () => {
     fireEvent.touchStart(pager, { touches: [{ clientX: 10, clientY: 100 }] })
     fireEvent.touchMove(pager, { touches: [{ clientX: 60, clientY: 104 }] })
     expect(onPastStart).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps a tilted swipe a swipe however it drifts, and lands on the next page as soon as it lets go', () => {
+    const onIndexChange = vi.fn()
+    render(
+      <Pager index={0} onIndexChange={onIndexChange} label="Views">
+        <p>Terminal</p>
+        <p>Conversation</p>
+      </Pager>,
+    )
+    const pager = screen.getByRole('region', { name: 'Views' })
+    Object.defineProperty(pager, 'clientWidth', { value: 400 })
+    fireEvent.touchStart(pager, { touches: [{ clientX: 300, clientY: 100 }] })
+    fireEvent.touchMove(pager, { touches: [{ clientX: 290, clientY: 108 }] }) // 39° off level: sideways
+    expect(fireEvent.touchMove(pager, { touches: [{ clientX: 80, clientY: 190 }] })).toBe(false) // drifts: no scroll
+    fireEvent.touchEnd(pager, { touches: [] })
+    expect(onIndexChange).toHaveBeenCalledWith(1)
+    expect(screen.getByText('Conversation').parentElement?.getAttribute('aria-hidden')).toBe('false') // takes taps now
+    expect(pager.firstElementChild).toHaveStyle({ transform: 'translateX(calc(-100% + 0px))' })
+  })
+})
+
+describe('gestures', () => {
+  it('tell a swipe from a scroll by its first pixels, and carry a flick on', () => {
+    expect(axisOf(4, 3)).toBeUndefined()
+    expect([axisOf(10, 11), axisOf(10, 13), axisOf(-10, 2)]).toEqual(['x', 'y', 'x'])
+    const speed = new Speed()
+    speed.add(0, 1000)
+    speed.add(60, 1050)
+    expect(speed.get(1060)).toBeCloseTo(1.2)
+    expect(speed.get(1300)).toBe(0) // it stopped before letting go
+    expect(landing(60, 1.2)).toBe(Infinity) // a short flick goes on
+    expect(landing(-60, 0.1)).toBe(-40) // a slow one, a little ahead
   })
 })

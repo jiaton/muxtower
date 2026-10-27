@@ -34,6 +34,18 @@ def test_injected_context_is_not_a_prompt_and_duplicates_are_ignored() -> None:
     assert [i.text for i in b.after(0, 10)] == ["/compact"]
 
 
+def test_a_slash_command_shows_as_typed_and_not_what_it_expands_to() -> None:
+    b = ConversationBuilder()
+    typed = (
+        "<command-message>loop</command-message>\n<command-name>/loop</command-name>\n"
+        "<command-args>60 check mail</command-args>"
+    )
+    expanded = user(2, "# /loop — schedule a recurring or self-paced prompt")
+    expanded.payload["isSynthetic"] = True
+    b.feed([user(1, typed), expanded, user(3, "<command-name>/clear</command-name>")])
+    assert [i.text for i in b.after(0, 10)] == ["/loop 60 check mail", "/clear"]
+
+
 def test_permission_prompt_until_answered() -> None:
     b = ConversationBuilder()
     b.feed([permission(5, "r1", "Bash", {"command": "rm -rf build"})])

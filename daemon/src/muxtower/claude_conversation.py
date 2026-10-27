@@ -7,6 +7,7 @@ ExitPlanMode arrive this way too), `control_response` (any controller's answer) 
 end). Everything else (system, progress, rate limits) is not conversation.
 """
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -30,6 +31,9 @@ SLOTS = 16
 MAX_ITEMS = 400
 # Injected context, not something a person typed.
 SYNTHETIC_PREFIXES = ("<command-", "<local-command", "<system-reminder", "<task-notification", "Caveat:")
+# A slash command as typed (`/loop 5m check the build`). What it expands to (a skill's prompt) comes in
+# the next event, marked `isSynthetic` (`isMeta` in a transcript), and is not shown.
+COMMAND = re.compile(r"<command-name>\s*(\S+?)\s*</command-name>(?:.*?<command-args>(.*?)</command-args>)?", re.S)
 QUESTION_TOOLS = {"AskUserQuestion"}
 UNLISTED_TOOLS = {"AskUserQuestion", "ExitPlanMode"}  # shown as their prompt, not as a tool call
 
@@ -61,6 +65,14 @@ def _at(value: str | None) -> datetime | None:
         return datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError:
         return None
+
+
+def _typed(text: str) -> str | None:
+    """A prompt as the person typed it: its text, a slash command as `/name args`, nothing if injected."""
+    if command := COMMAND.search(text):
+        name = command[1] if command[1].startswith("/") else f"/{command[1]}"
+        return f"{name} {(command[2] or '').strip()}".strip()
+    return None if text.startswith(SYNTHETIC_PREFIXES) else text
 
 
 def _blocks(payload: dict[str, Any]) -> list[dict[str, Any]]:
@@ -128,9 +140,8 @@ class ConversationBuilder:
                         done := self._set_status(seq, ItemStatus.ERROR if block.get("is_error") else ItemStatus.DONE)
                     ):
                         out.append(done)
-                elif block.get("type") == "text":
-                    text = str(block.get("text") or "").strip()
-                    if text and not text.startswith(SYNTHETIC_PREFIXES):
+                elif block.get("type") == "text" and not (payload.get("isSynthetic") or payload.get("isMeta")):
+                    if text := _typed(str(block.get("text") or "").strip()):
                         texts.append(text)
             if texts:
                 out.append(ConversationItem(seq=base, at=at, kind=ConversationItemKind.PROMPT, text="\n".join(texts)))
