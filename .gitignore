@@ -11,3 +11,6 @@ daemon/src/muxtower/web/
 .env
 .env.*
 !.env.example
+
+# Screen captures written for screenshot checks: never commit or ship them
+app/public/zz-*
