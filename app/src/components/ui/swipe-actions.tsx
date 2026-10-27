@@ -1,22 +1,26 @@
 import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
+import { axisOf, holdScroll, landing, Speed } from './gesture'
 
-const START_PX = 8 // how far a finger moves before the gesture counts as a swipe or a scroll
 const OVERDRAG_PX = 24
 
 /** A list row that a finger can swipe right to reveal `actions` on its left (like a mail app). A
- *  vertical move scrolls as usual; a tap on the row while it is open closes it instead of opening the
- *  row; pressing anywhere else closes it too. Mice and keyboards do not swipe: give them another way to
- *  the same actions (a menu). */
+ *  vertical move scrolls as usual; once a swipe, a finger drifting up or down keeps it a swipe, and let
+ *  go, it opens or closes by how far and how fast it went. A tap on the row while it is open closes it
+ *  instead of opening the row; pressing anywhere else closes it too. Mice and keyboards do not swipe:
+ *  give them another way to the same actions (a menu). */
 export function SwipeActions({ actions, children }: { actions: ReactNode; children: ReactNode }) {
   const root = useRef<HTMLDivElement>(null)
   const tray = useRef<HTMLDivElement>(null)
-  const gesture = useRef<{ x: number; y: number; from: number; axis?: 'x' | 'y' } | null>(null)
+  const row = useRef<HTMLDivElement>(null)
+  const gesture = useRef<{ x: number; y: number; from: number; axis?: 'x' | 'y'; speed: Speed } | null>(null)
   const swiped = useRef(false)
   const [offset, setOffset] = useState(0)
   const [dragging, setDragging] = useState(false)
   const open = offset > 0 && !dragging
   const width = () => tray.current?.offsetWidth ?? 0
+
+  useEffect(() => holdScroll(row.current!, () => gesture.current?.axis === 'x'), [])
 
   useEffect(() => {
     if (!open) return
@@ -27,12 +31,13 @@ export function SwipeActions({ actions, children }: { actions: ReactNode; childr
     return () => document.removeEventListener('pointerdown', outside)
   }, [open])
 
-  const end = () => {
+  const end = (cancelled: boolean) => {
     const g = gesture.current
     gesture.current = null
     if (g?.axis !== 'x') return
     setDragging(false)
-    setOffset((o) => (o > width() / 2 ? width() : 0))
+    const speed = cancelled ? 0 : g.speed.get()
+    setOffset((o) => (landing(o, speed) > width() / 2 ? width() : 0))
   }
 
   return (
@@ -47,30 +52,30 @@ export function SwipeActions({ actions, children }: { actions: ReactNode; childr
         {actions}
       </div>
       <div
+        ref={row}
         className={cn('relative touch-pan-y bg-bg', !dragging && 'transition-transform duration-200 ease-out')}
         style={{ transform: offset ? `translateX(${offset}px)` : undefined }}
         onPointerDown={(e) => {
           swiped.current = false
-          if (e.pointerType !== 'mouse') gesture.current = { x: e.clientX, y: e.clientY, from: offset }
+          if (e.pointerType !== 'mouse') gesture.current = { x: e.clientX, y: e.clientY, from: offset, speed: new Speed() }
         }}
         onPointerMove={(e) => {
           const g = gesture.current
           if (!g) return
           const dx = e.clientX - g.x
           if (!g.axis) {
-            const dy = e.clientY - g.y
-            if (Math.max(Math.abs(dx), Math.abs(dy)) < START_PX) return
-            g.axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y'
-            if (g.axis === 'y') return
+            g.axis = axisOf(dx, e.clientY - g.y)
+            if (g.axis !== 'x') return
             e.currentTarget.setPointerCapture(e.pointerId)
             setDragging(true)
           }
           if (g.axis !== 'x') return
           swiped.current = true
+          g.speed.add(e.clientX)
           setOffset(Math.max(0, Math.min(width() + OVERDRAG_PX, g.from + dx)))
         }}
-        onPointerUp={end}
-        onPointerCancel={end}
+        onPointerUp={() => end(false)}
+        onPointerCancel={() => end(true)}
         onClickCapture={(e) => {
           if (!swiped.current && offset === 0) return
           e.preventDefault() // the end of a swipe, or a tap that closes the tray, is not a click on the row
