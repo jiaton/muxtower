@@ -1,22 +1,25 @@
 from fastapi import APIRouter, HTTPException, Request, Response
-from pydantic import ValidationError
 
-from muxtower.hooks.claude_code import SESSION_HEADER, HookEvent
+from muxtower.hooks.events import SESSION_HEADER
+from muxtower.hooks.harnesses import harness
 
 router = APIRouter(prefix="/v1/hooks", include_in_schema=False)
 
 
-@router.post("/claude-code")
-async def claude_code_hook(request: Request) -> Response:
-    """Receives Claude Code http hooks for sessions muxtower launched. Always answers with an empty
-    200 so Claude Code proceeds exactly as it would without the hook."""
+@router.post("/{name}")
+async def receive_hook(name: str, request: Request) -> Response:
+    """Receives the hook events of sessions muxtower launched, from the harness `name` (claude-code,
+    codex). Always answers with an empty 200 so the agent proceeds exactly as it would without the hook."""
+    found = harness(name)
+    if found is None:
+        raise HTTPException(status_code=404, detail="no such hook harness")
     scheme, _, token = request.headers.get("authorization", "").partition(" ")
     session_id = request.headers.get(SESSION_HEADER.lower(), "")
     if scheme.lower() != "bearer" or not token or not session_id:
         raise HTTPException(status_code=401, detail="missing hook credentials")
     try:
-        event = HookEvent.model_validate_json(await request.body())
-    except ValidationError as exc:
+        event = found.event(await request.body())
+    except ValueError as exc:
         raise HTTPException(status_code=422, detail="not a hook event") from exc
     app = request.app.state
     if app.sessions.apply_hook(session_id, token, event):

@@ -1,7 +1,6 @@
 """Session lifecycle and views: create, list, rename, terminate, hook ingestion."""
 
 import hashlib
-import json
 import os
 import secrets
 import time
@@ -11,7 +10,9 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from muxtower.errors import Conflict, Invalid, NotFound, Unauthorized
-from muxtower.hooks import claude_code
+from muxtower.hooks.events import HookEvent, apply_event
+from muxtower.hooks.harnesses import harness
+from muxtower.hooks.ports import HookLaunch
 from muxtower.runtimes.models import ATTENTION_STATES, AgentState
 from muxtower.runtimes.spec import Runtime
 from muxtower.sessions.live import Effective, HookState, LiveSession, merge
@@ -144,11 +145,9 @@ class SessionService:
         session_id = uuid.uuid4().hex[:12]
         hook_token = secrets.token_urlsafe(24)
         argv = [runtime.config.binary]
-        if runtime.config.hooks == "claude-code":
-            hook_file = self.config.state_dir / "hooks" / f"{session_id}.json"
-            hook_file.parent.mkdir(parents=True, exist_ok=True)
-            hook_file.write_text(json.dumps(claude_code.hook_settings(self.config.local_url)))
-            argv += ["--settings", str(hook_file)]
+        if hooks := harness(runtime.config.hooks):
+            url = f"{self.config.local_url}/v1/hooks/{hooks.name}"
+            argv += hooks.launch_args(HookLaunch(session_id, hook_token, url, self.hook_files))
         argv += request.args
 
         tmux_session = f"mxt-{session_id[:8]}"
@@ -200,12 +199,17 @@ class SessionService:
     def forget(self, session_id: str) -> None:
         self.repo.delete(session_id)
         self.live.pop(session_id, None)
-        hook_file = self.config.state_dir / "hooks" / f"{session_id}.json"
-        hook_file.unlink(missing_ok=True)
+        for hook_file in self.hook_files.glob(f"{session_id}.*"):
+            hook_file.unlink(missing_ok=True)
 
     # --- hooks ---------------------------------------------------------------------------------
 
-    def apply_hook(self, session_id: str, hook_token: str, event: claude_code.HookEvent) -> bool:
+    @property
+    def hook_files(self) -> Path:
+        """Where harnesses keep the files they write for a session's hooks, named after its id."""
+        return self.config.state_dir / "hooks"
+
+    def apply_hook(self, session_id: str, hook_token: str, event: HookEvent) -> bool:
         """Returns True when the session entered an attention state."""
         record = self.repo.get(session_id)
         if record is None or record.hook_token_hash is None:
@@ -214,7 +218,8 @@ class SessionService:
             raise Unauthorized("bad hook token")
         live = self.live_of(session_id)
         before = self.effective(record).state
-        live.hook = claude_code.apply_event(live.hook, event)
+        hooks = harness(runtime.config.hooks) if (runtime := self.runtime_of(record)) else None
+        live.hook = apply_event(live.hook, event, hooks.asking) if hooks else apply_event(live.hook, event)
         if live.hook is not None and live.hook.last_message:
             live.last_message = live.hook.last_message
         self.repo.save_hook_state(session_id, live.hook.dump() if live.hook else None)

@@ -1,6 +1,6 @@
 # AGENTS.md — daemon
 
-Python package `muxtower`: one command, `muxtower`: `muxtower serve` runs the daemon (FastAPI), the other subcommands manage it locally. It owns agent sessions in tmux on a dedicated socket (`-L muxtower`), detects what each agent is waiting for (Claude Code HTTP hooks first, configurable screen rules as fallback), and exposes sessions, terminal I/O, approvals and Web Push over `/v1`. Optional session sources add sessions it reaches another way (Claude Code Remote Control). Talks to: tmux (subprocess, argv only), SQLite, Web Push endpoints, and when configured: Anthropic's Remote Control API, a speech-to-text provider (Groq/OpenAI), and the `claude`/`codex` CLI for reply summaries. Design: `../docs/design.md`.
+Python package `muxtower`: one command, `muxtower`: `muxtower serve` runs the daemon (FastAPI), the other subcommands manage it locally. It owns agent sessions in tmux on a dedicated socket (`-L muxtower`), detects what each agent is waiting for (the agent's hooks first — Claude Code, Codex — configurable screen rules as fallback), and exposes sessions, terminal I/O, approvals and Web Push over `/v1`. Optional session sources add sessions it reaches another way (Claude Code Remote Control). Talks to: tmux (subprocess, argv only), SQLite, Web Push endpoints, and when configured: Anthropic's Remote Control API, a speech-to-text provider (Groq/OpenAI), and the `claude`/`codex` CLI for reply summaries. Design: `../docs/design.md`.
 
 ## Setup / Test / Run
 
@@ -35,7 +35,9 @@ src/muxtower/
   terminal/   capture, input, resize, stream frames
   approval/   pending actions, approve/deny, auto-approve policy
   runtimes/   one adapter per agent (claude_code, codex, generic) + screen-rule engine + default rule TOMLs
-  hooks/      ingest endpoints for agent hook events
+  hooks/      agent hooks: one harness per agent (ports.py HookHarness; claude_code.py, codex.py, listed in
+              harnesses.py), the shared event vocabulary and state (events.py), the stdlib-only relay
+              for command hooks (relay.py), the ingest endpoint
   notify/     Web Push (VAPID, subscriptions, dispatcher)
   auth/       device tokens, pairing, request/WS auth dependencies
   infra/      tmux adapter (subprocess, argv only), SQLite (one shared connection) + migrations, event bus, audit log

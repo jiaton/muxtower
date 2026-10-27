@@ -4,7 +4,8 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from muxtower.hooks.claude_code import HookEvent, apply_event
+from muxtower.hooks.claude_code import ClaudeCodeHooks
+from muxtower.hooks.events import HookEvent, apply_event
 from muxtower.runtimes.models import AgentState
 from tests.fakes import FakeTmux
 
@@ -29,10 +30,13 @@ def test_stop_keeps_last_message_and_end_clears() -> None:
 
 
 def test_question_and_plan_from_pre_tool_use() -> None:
+    asking = ClaudeCodeHooks.asking
     q = apply_event(None, ev(hook_event_name="PreToolUse", tool_name="AskUserQuestion",
-                             tool_input={"questions": [{"question": "Which DB?"}]}))  # fmt: skip
+                             tool_input={"questions": [{"question": "Which DB?"}]}), asking)  # fmt: skip
     assert q and q.state == AgentState.NEEDS_ANSWER and q.detail == "Which DB?"
-    p = apply_event(None, ev(hook_event_name="PreToolUse", tool_name="ExitPlanMode", tool_input={"plan": "1. x"}))
+    p = apply_event(
+        None, ev(hook_event_name="PreToolUse", tool_name="ExitPlanMode", tool_input={"plan": "1. x"}), asking
+    )
     assert p and p.state == AgentState.PLAN_REVIEW
 
 
