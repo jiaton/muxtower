@@ -54,7 +54,7 @@ export function SwipeActions({ actions, children }: { actions: ReactNode; childr
     setDragging(false)
     const speed = g.speed.get()
     const at = Math.max(0, g.from + dx)
-    const to = landing(at, speed) > width() / 2 ? width() : 0
+    const to = landing(at, speed, dx) > width() / 2 ? width() : 0
     setSlide(landMs(to - at, speed))
     setOffset(to)
   }

@@ -316,8 +316,9 @@ describe('gestures', () => {
     held.add(24, 1300) // pressed, held, then one quick move
     held.add(24, 1302) // and the lift
     expect(held.get(1302)).toBeGreaterThan(1)
-    expect(landing(60, 1.2)).toBe(Infinity) // a short flick goes on
-    expect(landing(-60, 0.1)).toBe(-40) // a slow one, a little ahead
-    expect([landMs(390, 0), landMs(190, 3), landMs(4, 0)]).toEqual([120, 63, 60]) // brief, however far
+    expect(landing(60, 1.2, 60)).toBe(Infinity) // a short flick goes on
+    expect(landing(-60, 0.1, -60)).toBe(-40) // a slow one, a little ahead
+    expect(landing(12, 2, 12)).toBe(12) // a twitch stays where it is, however quick
+    expect([landMs(390, 0), landMs(240, 1.6), landMs(4, 3)]).toEqual([190, 150, 110]) // brief, never abrupt
   })
 })
