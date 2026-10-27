@@ -6,6 +6,9 @@ import { NewSessionDialog } from '@/features/sessions/components/new-session-dia
 import { SessionsNav } from '@/features/sessions/components/sessions-nav'
 import { useListMemory } from '@/features/sessions/store'
 import { useKeepPushSubscriptions } from '@/features/push/hooks/use-keep-push-subscriptions'
+import { useCloseSettledNotifications, useNotificationClicks } from '@/features/push/hooks/use-notifications'
+import { useAllSessions } from '@/features/sessions/api/use-sessions'
+import { isSettled } from '@/features/sessions/model/facets'
 import { useDaemonStreams, useRecheckRejected } from '@/lib/api/streams'
 import { cn } from '@/lib/cn'
 import { useConfiguredDaemons } from '@/lib/runtime-config'
@@ -23,6 +26,16 @@ function RootLayout() {
   useDaemonStreams()
   useRecheckRejected()
   useKeepPushSubscriptions()
+  useNotificationClicks()
+  const daemons = useAllSessions()
+  useCloseSettledNotifications(
+    (daemonId, sessionId, since) => {
+      const known = daemons.find((d) => d.daemon.id === daemonId)
+      const session = known && known.updatedAt >= since ? known.sessions.find((s) => s.id === sessionId) : undefined
+      return session && isSettled(session)
+    },
+    daemons.map((d) => d.updatedAt).join(),
+  )
   const inSession = useMatch({ from: '/_sessions/d/$daemonId/s/$sessionId', shouldThrow: false }) !== undefined
   const lastSearch = useListMemory((s) => s.lastSearch)
 
