@@ -32,7 +32,7 @@ export function SessionHeader({ session, actions }: { session: Session; actions?
       title={
         <>
           <h1 className="min-w-0 truncate">{session.name}</h1>
-          {session.archived_at ? <Badge>Archived</Badge> : <StateBadge state={session.state} />}
+          {session.archived_at ? <Badge>Archived</Badge> : session.offline ? <Badge>Offline</Badge> : <StateBadge state={session.state} />}
         </>
       }
       subtitle={<span title={session.cwd || undefined}>{where.join(' · ')}</span>}
