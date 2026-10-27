@@ -1,9 +1,8 @@
 import { Children, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
-import { axisOf, holdScroll, landing, Speed } from './gesture'
+import { axisOf, holdScroll, LAND_EASE, landing, landMs, Speed } from './gesture'
 
 const EDGE_PX = 24 // how far a finger moves right, past the first page, to count as a swipe out
-const LAND = 'transform 220ms cubic-bezier(0.2, 0.9, 0.3, 1)' // quick to start, soft to stop
 const RESIST = 0.3 // past the last page a swipe moves the pages this much per pixel
 const WHEEL_PX = 60 // a trackpad's sideways scroll this far turns the page
 
@@ -12,10 +11,10 @@ type Gesture = { x: number; y: number; from: number; at: number; axis?: 'x' | 'y
 /**
  * Pages side by side, one page wide each, swiped between: the pages follow a sideways finger and, let go,
  * land on the page its distance and speed point to, at once: that page is the one shown (and takes
- * taps) as it slides in. `index` is the page shown: changing it slides there, and a swipe that lands on
- * another page reports it (`onIndexChange`). A swipe to the right on the first page has nowhere to go:
- * `onPastStart` (e.g. open a drawer). A page that scrolls sideways itself (wide output) takes the swipe
- * while it can still scroll that way.
+ * taps) as it slides in, as fast as the finger went. `index` is the page shown: changing it slides there,
+ * and a swipe that lands on another page reports it (`onIndexChange`). A swipe to the right on the first
+ * page has nowhere to go: `onPastStart` (e.g. open a drawer). A page that scrolls sideways itself (wide
+ * output) takes the swipe while it can still scroll that way.
  */
 export function Pager({
   index,
@@ -46,25 +45,29 @@ export function Pager({
 
   useEffect(() => setShown(index), [index])
 
-  /** The pages `px` off the page shown, sliding there or (`land` false) at once. */
-  const place = useRef((px: number, land: boolean) => {
+  /** The pages `px` off the page shown, sliding there in `ms` (0: at once). */
+  const place = useRef((px: number, ms: number) => {
     const el = track.current
     if (!el) return
-    el.style.transition = land ? LAND : 'none'
+    el.style.transition = ms ? `transform ${ms}ms ${LAND_EASE}` : 'none'
     el.style.transform = `translateX(calc(${-state.current.shown * 100}% + ${px}px))`
   })
 
-  // The page shown: at once the first time, then sliding.
+  // The page shown: at once the first time, then sliding (as fast as the swipe that turned it).
   const placed = useRef(false)
+  const slide = useRef(landMs(Infinity))
   useLayoutEffect(() => {
-    place.current(0, placed.current)
+    place.current(0, placed.current ? slide.current : 0)
     placed.current = true
+    slide.current = landMs(Infinity)
   }, [shown])
 
-  const turn = useRef((to: number) => {
+  /** To page `to`, from `at` px off the page shown, moving at `speed`. */
+  const turn = useRef((to: number, at = 0, speed = 0) => {
     const { shown: from, count } = state.current
     const page = Math.max(0, Math.min(count - 1, to))
-    if (page === from) return place.current(0, true)
+    slide.current = landMs(at + (page - from) * (root.current?.clientWidth ?? 0), speed) // the way left to go
+    if (page === from) return place.current(0, slide.current)
     state.current.shown = page
     setShown(page)
     changed.current?.(page)
@@ -76,13 +79,17 @@ export function Pager({
     const el = root.current!
     const down = (e: TouchEvent) => {
       const t = e.touches[0]
-      gesture.current = e.touches.length === 1 && t ? { x: t.clientX, y: t.clientY, from: 0, at: 0, speed: new Speed() } : null
+      gesture.current = null
+      if (e.touches.length !== 1 || !t) return
+      gesture.current = { x: t.clientX, y: t.clientY, from: 0, at: 0, speed: new Speed() }
+      gesture.current.speed.add(t.clientX) // from the first touch: a short flick has few moves
     }
     const move = (e: TouchEvent) => {
       const g = gesture.current
       const t = e.touches[0]
       if (!g || !t) return
       const dx = t.clientX - g.x
+      g.speed.add(t.clientX)
       if (!g.axis) {
         g.axis = axisOf(dx, t.clientY - g.y)
         if (!g.axis) return
@@ -95,7 +102,7 @@ export function Pager({
       if (page === 0 && pastStart.current && g.from + dx > 0) {
         if (dx > EDGE_PX) {
           gesture.current = null
-          place.current(0, true)
+          place.current(0, landMs(g.at))
           pastStart.current()
         }
         return
@@ -105,30 +112,30 @@ export function Pager({
       const min = -(count - 1 - page) * width
       const max = page * width
       g.at = raw > max ? max + (raw - max) * RESIST : raw < min ? min + (raw - min) * RESIST : raw
-      g.speed.add(t.clientX)
-      place.current(g.at, false)
+      place.current(g.at, 0)
     }
-    const up = (cancelled: boolean) => () => {
+    const up = (e: TouchEvent) => {
       const g = gesture.current
       gesture.current = null
       if (g?.axis !== 'x') return
-      const width = Math.max(1, el.clientWidth)
-      const to = landing(g.at, cancelled ? 0 : g.speed.get())
-      turn.current(state.current.shown - Math.sign(to) * Math.min(1, Math.round(Math.abs(to) / width)))
+      const t = e.changedTouches[0]
+      if (t) g.speed.add(t.clientX)
+      const speed = g.speed.get()
+      const to = landing(g.at, speed)
+      const pages = Math.min(1, Math.round(Math.abs(to) / Math.max(1, el.clientWidth)))
+      turn.current(state.current.shown - Math.sign(to) * pages, g.at, speed)
     }
-    const ended = up(false)
-    const cancelled = up(true)
     el.addEventListener('touchstart', down, { passive: true })
     el.addEventListener('touchmove', move, { passive: true })
-    el.addEventListener('touchend', ended)
-    el.addEventListener('touchcancel', cancelled)
+    el.addEventListener('touchend', up)
+    el.addEventListener('touchcancel', up)
     const release = holdScroll(el, () => gesture.current?.axis === 'x') // after `move`: from the move that tells
     return () => {
       release()
       el.removeEventListener('touchstart', down)
       el.removeEventListener('touchmove', move)
-      el.removeEventListener('touchend', ended)
-      el.removeEventListener('touchcancel', cancelled)
+      el.removeEventListener('touchend', up)
+      el.removeEventListener('touchcancel', up)
     }
   }, [])
 
