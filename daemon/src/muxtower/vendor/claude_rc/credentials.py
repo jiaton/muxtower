@@ -3,7 +3,9 @@
 The Claude Code CLI logs in through claude.ai (OAuth) and stores the resulting
 tokens in ``~/.claude/.credentials.json`` and account metadata (including the
 organization UUID that the API requires as the ``x-organization-uuid`` header)
-in ``~/.claude.json``.
+in ``~/.claude.json``. On macOS the tokens are in the login Keychain instead (a generic password,
+service ``Claude Code-credentials``, account the user's name, holding the same JSON), unless the CLI
+fell back to the file.
 
 This module reads those files so a third-party program can authenticate exactly
 the way the claude.ai/code web app does, and refreshes the access token against
@@ -21,6 +23,8 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -38,6 +42,7 @@ OAUTH_USER_AGENT = "anthropic-sdk-typescript/0.94.0 userOAuthProvider"
 
 DEFAULT_CREDENTIALS_PATH = Path.home() / ".claude" / ".credentials.json"
 DEFAULT_CONFIG_PATH = Path.home() / ".claude.json"
+KEYCHAIN_SERVICE = "Claude Code-credentials"
 
 # Environment overrides (handy in CI / other machines).
 ENV_ACCESS_TOKEN = "CLAUDE_RC_ACCESS_TOKEN"
@@ -66,6 +71,12 @@ class OAuthCredentials:
     client_id: Optional[str] = None
     trusted_device_token: Optional[str] = None
     source_path: Optional[Path] = None
+    keychain: bool = False  # read from (and written back to) the macOS Keychain
+
+    @property
+    def stored(self) -> bool:
+        """Read from somewhere it can be read again (and written back to)."""
+        return bool(self.source_path or self.keychain)
 
     def is_expired(self, skew_seconds: int = 60) -> bool:
         """True if the token is expired (or within ``skew_seconds`` of it)."""
@@ -80,6 +91,7 @@ class OAuthCredentials:
         block: dict,
         source_path: Optional[Path] = None,
         trusted_device_token: Optional[str] = None,
+        keychain: bool = False,
     ) -> "OAuthCredentials":
         token = block.get("accessToken")
         if not token:
@@ -93,6 +105,7 @@ class OAuthCredentials:
             client_id=block.get("clientId"),
             trusted_device_token=trusted_device_token,
             source_path=source_path,
+            keychain=keychain,
         )
 
     def to_block(self) -> dict:
@@ -114,12 +127,25 @@ def load_credentials(path: os.PathLike | str | None = None) -> OAuthCredentials:
     Priority:
       1. ``CLAUDE_RC_ACCESS_TOKEN`` env var (no refresh possible).
       2. ``~/.claude/.credentials.json`` (``claudeAiOauth`` block).
+      3. On macOS, without that file, the Keychain item the CLI keeps.
     """
     env_token = os.environ.get(ENV_ACCESS_TOKEN) or os.environ.get(ENV_CLI_OAUTH_TOKEN)
     if env_token:
         return OAuthCredentials(access_token=env_token)
 
     p = Path(path) if path else DEFAULT_CREDENTIALS_PATH
+    if not p.exists() and not path and sys.platform == "darwin":
+        stored = _keychain_read()
+        if stored is None:
+            raise CredentialsError(
+                f"no Claude login in the Keychain ({KEYCHAIN_SERVICE}) or at {p}. Run `claude` and `/login` first."
+            )
+        block = stored.get("claudeAiOauth")
+        if not isinstance(block, dict):
+            raise CredentialsError("the Keychain's Claude login has no claudeAiOauth block (an API key login?)")
+        return OAuthCredentials.from_block(
+            block, trusted_device_token=stored.get("trustedDeviceToken"), keychain=True
+        )
     if not p.exists():
         raise CredentialsError(
             f"credentials file not found at {p}. Run `claude` and `/login` first, "
@@ -230,15 +256,21 @@ def refresh_credentials(
         client_id=creds.client_id,
         trusted_device_token=creds.trusted_device_token,
         source_path=creds.source_path,
+        keychain=creds.keychain,
     )
 
-    if persist and new.source_path:
+    if persist and new.stored:
         _persist(new)
     return new
 
 
 def _persist(creds: OAuthCredentials) -> None:
     """Atomically write refreshed tokens back, preserving other keys."""
+    if creds.keychain:
+        data = _keychain_read() or {}
+        data["claudeAiOauth"] = creds.to_block()
+        _keychain_write(data)
+        return
     path = creds.source_path
     if not path:
         return
@@ -251,3 +283,38 @@ def _persist(creds: OAuthCredentials) -> None:
     tmp.write_text(json.dumps(data, indent=2))
     os.chmod(tmp, 0o600)
     os.replace(tmp, path)
+
+
+def _keychain_account() -> str:
+    return os.environ.get("USER") or os.getlogin()
+
+
+def _keychain_read() -> Optional[dict]:
+    """The JSON the CLI keeps in the Keychain, or ``None``."""
+    try:
+        out = subprocess.run(
+            ["security", "find-generic-password", "-a", _keychain_account(), "-s", KEYCHAIN_SERVICE, "-w"],
+            capture_output=True, text=True, timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if out.returncode != 0:
+        return None
+    try:
+        data = json.loads(out.stdout.strip())
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _keychain_write(data: dict) -> None:
+    """Replaces the Keychain item, as the CLI does: the secret goes hex-encoded over stdin to
+    ``security -i``, never on a command line."""
+    secret = json.dumps(data).encode().hex()
+    command = f'add-generic-password -U -a "{_keychain_account()}" -s "{KEYCHAIN_SERVICE}" -X "{secret}"\n'
+    try:
+        out = subprocess.run(["security", "-i"], input=command, capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise CredentialsError(f"could not write the Keychain: {exc}") from exc
+    if out.returncode != 0:
+        raise CredentialsError("could not write the Keychain")

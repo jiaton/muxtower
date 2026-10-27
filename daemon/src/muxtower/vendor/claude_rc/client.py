@@ -174,7 +174,7 @@ class RemoteControlClient:
         disk copy is the only valid one. A long-lived client must therefore
         treat the file, not its memory, as the source of truth. No-op when the
         credentials didn't come from a file (env var / explicit object)."""
-        if not self._creds.source_path:
+        if not self._creds.stored:
             return False
         try:
             fresh = load_credentials(self._creds_path)

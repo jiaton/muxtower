@@ -7,3 +7,8 @@
 It talks to Anthropic's **private, undocumented** Remote Control endpoints. When they change, update
 this copy (or patch it here) and record the new commit above. Only `muxtower.sources.remote_control`
 imports it.
+
+Patched here:
+- `credentials.py`: on macOS, without `~/.claude/.credentials.json`, the login is read from (and
+  refreshed tokens written back to) the Keychain item the CLI keeps (`OAuthCredentials.keychain`).
+- `client.py`: re-reads stored credentials from either place (`OAuthCredentials.stored`).
