@@ -1,16 +1,14 @@
-"""Claude Code integration: the `--settings` JSON that points its http hooks at the daemon, and the
-mapping from hook events to agent state. Nothing is written to the user's own settings.json."""
+"""Claude Code's hooks: a `--settings` file whose http hooks post every event to the daemon, with the
+session's id and token taken from its environment. Nothing is written to the user's own settings.json."""
 
-import time
+import json
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import ValidationError
 
-from muxtower.agent_text import describe_tool_input, truncate
-from muxtower.runtimes.models import AgentState
-from muxtower.sessions.live import HookState
+from muxtower.hooks.events import SESSION_HEADER, AskingTools, HookEvent
+from muxtower.hooks.ports import HookLaunch
 
-SESSION_HEADER = "X-Muxtower-Session"
 EVENTS = [
     "SessionStart",
     "SessionEnd",
@@ -26,10 +24,10 @@ EVENTS = [
 ]
 
 
-def hook_settings(daemon_url: str) -> dict[str, Any]:
+def hook_settings(hook_url: str) -> dict[str, Any]:
     hook = {
         "type": "http",
-        "url": f"{daemon_url}/v1/hooks/claude-code",
+        "url": hook_url,
         "headers": {
             "Authorization": "Bearer ${MUXTOWER_HOOK_TOKEN}",
             SESSION_HEADER: "${MUXTOWER_SESSION_ID}",
@@ -40,52 +38,18 @@ def hook_settings(daemon_url: str) -> dict[str, Any]:
     return {"hooks": {event: [{"hooks": [hook]}] for event in EVENTS}}
 
 
-class HookEvent(BaseModel):
-    model_config = ConfigDict(extra="allow")
+class ClaudeCodeHooks:
+    name = "claude-code"
+    asking = AskingTools(questions=frozenset({"AskUserQuestion"}), plans=frozenset({"ExitPlanMode"}))
 
-    hook_event_name: str
-    tool_name: str | None = None
-    tool_input: Any = None
-    notification_type: str | None = None
-    message: str | None = None
-    last_assistant_message: str | None = None
+    def launch_args(self, launch: HookLaunch) -> list[str]:
+        settings = launch.files / f"{launch.session_id}.json"
+        settings.parent.mkdir(parents=True, exist_ok=True)
+        settings.write_text(json.dumps(hook_settings(launch.url)))
+        return ["--settings", str(settings)]
 
-
-def apply_event(previous: HookState | None, event: HookEvent) -> HookState | None:
-    """Next hook state for a session after `event`; None means "no hook opinion" (session ended)."""
-    now = time.monotonic()
-    last_message = previous.last_message if previous else None
-    name = event.hook_event_name
-
-    def state(s: AgentState, tool: str | None = None, detail: str | None = None) -> HookState:
-        return HookState(state=s, at=now, tool_name=tool, detail=detail, last_message=last_message)
-
-    if name == "SessionEnd":
-        return None
-    if name == "PermissionRequest":
-        return state(AgentState.NEEDS_PERMISSION, event.tool_name, describe_tool_input(event.tool_input))
-    if name == "PreToolUse" and event.tool_name == "AskUserQuestion":
-        return state(AgentState.NEEDS_ANSWER, event.tool_name, describe_tool_input(event.tool_input))
-    if name == "PreToolUse" and event.tool_name == "ExitPlanMode":
-        return state(AgentState.PLAN_REVIEW, event.tool_name, describe_tool_input(event.tool_input))
-    if name == "Notification":
-        kind = event.notification_type
-        if kind == "permission_prompt":
-            if previous is not None and previous.state == AgentState.NEEDS_PERMISSION:
-                return previous  # keep the tool details from PermissionRequest
-            return state(AgentState.NEEDS_PERMISSION, detail=event.message)
-        if kind in ("elicitation_dialog", "agent_needs_input"):
-            return state(AgentState.NEEDS_ANSWER, detail=event.message)
-        if kind == "idle_prompt":
-            return state(AgentState.IDLE)
-        return previous
-    if name == "Stop":
-        if event.last_assistant_message:
-            last_message = truncate(event.last_assistant_message)
-        return state(AgentState.IDLE)
-    if name == "StopFailure":
-        return state(AgentState.ERROR, detail=event.message)
-    if name == "SessionStart":
-        return state(AgentState.IDLE)
-    # UserPromptSubmit, PreToolUse, PostToolUse(Failure), PermissionDenied: the agent is working.
-    return state(AgentState.BUSY)
+    def event(self, body: bytes) -> HookEvent:
+        try:
+            return HookEvent.model_validate_json(body)
+        except ValidationError as exc:
+            raise ValueError("not a Claude Code hook event") from exc

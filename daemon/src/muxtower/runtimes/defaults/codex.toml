@@ -1,9 +1,18 @@
-# Codex (the `codex` TUI). No hooks are wired yet, so these screen rules are the state source; they
-# follow the dialogs of Codex's TUI (its own snapshot tests). Rules are tried in order, first match wins.
+# Codex (the `codex` TUI). Sessions muxtower starts report through Codex's hooks (hooks/codex.py); these
+# screen rules are the state source for adopted panes and the cross-check. They follow the dialogs of
+# Codex's TUI (its own snapshot tests). Rules are tried in order, first match wins.
 # Override by copying this file to ~/.config/muxtower/runtimes/codex.toml.
 name = "codex"
 binary = "codex"
+hooks = "codex"
 default_state = "idle"
+
+[[rules]]
+# Codex asks at startup to trust hooks it does not know yet; muxtower trusts its own, so this means a
+# hook of the owner's or one Codex hashes differently. Approving continues without trusting them.
+name = "hooks-review"
+state = "needs_trust"
+pattern = 'Hooks\s+need\s+review'
 
 [[rules]]
 name = "workspace-trust"
@@ -44,7 +53,7 @@ default = ['^Yes\b']
 [approve.prefer]
 # Once: "don't ask again" writes a lasting rule for the command or files, which is the owner's call.
 needs_permission = ['^Yes,\s*proceed\b', '^Yes\b']
-needs_trust = ['^Yes\b']
+needs_trust = ['^Yes\b', '^Continue\s+without\s+trusting']
 needs_answer = []
 
 [deny]
