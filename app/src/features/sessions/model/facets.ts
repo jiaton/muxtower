@@ -122,3 +122,6 @@ export const accountOf = (session: Session): string => session.account ?? UNKNOW
 export const accountsDiffer = (sessions: Session[]) => new Set(sessions.map((s) => s.account).filter(Boolean)).size > 1
 
 export const isAssistant = (session: Session) => session.role === 'concierge'
+
+/** Seen and answered: nothing about it waits for the owner (its notifications can go). */
+export const isSettled = (session: Session) => !session.unread && !session.needs_attention

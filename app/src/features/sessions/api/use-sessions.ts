@@ -39,6 +39,7 @@ export interface DaemonSessions {
   sessions: Session[]
   error: Error | null
   isPending: boolean
+  updatedAt: number // when the sessions were last fetched or streamed (epoch ms; 0 before)
 }
 
 /** Every paired daemon's sessions, for the Inbox. One failing daemon never hides the others. */
@@ -53,6 +54,7 @@ export function useAllSessions(): DaemonSessions[] {
         sessions: r.data ?? [],
         error: r.error,
         isPending: r.isPending,
+        updatedAt: r.dataUpdatedAt,
       })),
   })
 }

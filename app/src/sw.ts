@@ -21,6 +21,14 @@ interface PushPayload {
   kind?: 'attention' | 'done'
   title: string
   body: string
+  settled?: string[] // sessions notified about before, seen or answered since
+}
+
+/** This registration's notifications of these sessions of daemon `ref`, which can go. */
+async function closeSettled(ref: string, sessions: string[]) {
+  if (!sessions.length) return
+  const tags = new Set(sessions.map((id) => `${ref}:${id}`))
+  for (const shown of await self.registration.getNotifications()) if (tags.has(shown.tag)) shown.close()
 }
 
 const appBase = () => {
@@ -34,17 +42,21 @@ self.addEventListener('push', (event) => {
   const url = `${appBase()}d/${encodeURIComponent(data.client_ref)}/s/${encodeURIComponent(data.session_id)}`
   event.waitUntil(
     // One notification per session: a newer one replaces it (a finished turn replaces a handled
-    // approval) and alerts again. Something waiting for you stays on screen until dismissed.
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      tag: `${data.client_ref}:${data.session_id}`,
-      renotify: true,
-      requireInteraction: data.kind !== 'done',
-      timestamp: Date.now(),
-      data: { url },
-      icon: `${appBase()}icon-192.png`, // Android draws no SVG here
-      badge: `${appBase()}badge-96.png`, // the status bar's monochrome mark; without it, the browser's
-    } as NotificationOptions),
+    // approval) and alerts again. Something waiting for you stays on screen until dismissed or settled
+    // (seen or answered): the app closes those it sees settled, and each push names the ones settled since.
+    Promise.all([
+      closeSettled(data.client_ref, data.settled ?? []),
+      self.registration.showNotification(data.title, {
+        body: data.body,
+        tag: `${data.client_ref}:${data.session_id}`,
+        renotify: true,
+        requireInteraction: data.kind !== 'done',
+        timestamp: Date.now(),
+        data: { url, at: Date.now() }, // when it came (Safari has no `timestamp`)
+        icon: `${appBase()}icon-192.png`, // Android draws no SVG here
+        badge: `${appBase()}badge-96.png`, // the status bar's monochrome mark; without it, the browser's
+      } as NotificationOptions),
+    ]),
   )
 })
 
@@ -54,10 +66,13 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil(
     (async () => {
       const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      // The app open already goes there itself (`useNotificationClicks`): this registration (a
+      // daemon's, for its push subscription) does not control the app's pages, so it cannot navigate
+      // them, and a navigation would reload the app anyway.
       for (const client of windows) {
         if ('focus' in client) {
-          await client.focus()
-          await client.navigate(url).catch(() => client.postMessage({ type: 'navigate', url }))
+          client.postMessage({ type: 'navigate', url })
+          await client.focus().catch(() => undefined)
           return
         }
       }

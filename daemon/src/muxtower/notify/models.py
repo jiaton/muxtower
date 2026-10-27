@@ -40,3 +40,7 @@ class PushPayload(BaseModel):
     kind: Literal["attention", "done"] = Field(description="needs the owner, or finished a turn")
     title: str
     body: str
+    settled: list[str] = Field(
+        default_factory=list,
+        description="sessions notified about before, seen or answered since: their notifications can go",
+    )

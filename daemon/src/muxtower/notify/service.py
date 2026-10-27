@@ -1,6 +1,8 @@
 import asyncio
 import hashlib
 import logging
+import threading
+import time
 from collections.abc import Callable
 from typing import Any, Literal
 
@@ -18,6 +20,8 @@ logger = logging.getLogger("muxtower.push")
 WATCHING_SECONDS = 45  # a client looked at the session this recently: someone is watching it
 SUMMARY_WAIT_SECONDS = 60.0  # how long a finished turn's summary may take to come
 SUMMARY_POLL_SECONDS = 3.0
+NOTIFIED_KEPT = 64  # sessions remembered as notified about, for telling devices when they are settled
+NOTIFIED_SECONDS = 86_400
 
 
 def summarized(summary: TurnSummary | None) -> bool:
@@ -39,6 +43,8 @@ class PushService:
         self.sessions = sessions
         self.daemon_name = daemon_name
         self.paired = paired  # whether a device is still paired: a revoked one's subscriptions stop
+        self._notified: dict[str, float] = {}  # session id -> when it was last notified about
+        self._lock = threading.Lock()  # pushes go out from worker threads
 
     def subscribe(self, body: Subscribe, device: str) -> Subscription:
         sub_id = hashlib.sha256(body.endpoint.encode()).hexdigest()[:24]
@@ -75,11 +81,26 @@ class PushService:
         needs_only = view.notify == NotifyLevel.NEEDS
         return self._send(view, "done", title, body, lambda sub: sub.done or needs_only)
 
+    def _settled(self, sending: str) -> list[str]:
+        """Sessions notified about that the owner has seen (read) or answered since. A push cannot be sent
+        just to take a notification away (iOS revokes a subscription whose pushes show nothing; Chrome
+        shows one of its own), so the next push that is sent anyway says which ones can go."""
+        now = time.monotonic()
+        with self._lock:
+            recent = [sid for sid, at in self._notified.items() if now - at <= NOTIFIED_SECONDS and sid != sending]
+        settled = []
+        for session_id in recent:
+            view = self.sessions.find(session_id)
+            if view is None or not (view.unread or view.needs_attention):
+                settled.append(session_id)
+        return settled
+
     def _send(
         self, view: Session, kind: Literal["attention", "done"], title: str, body: str,
         wants: Callable[[StoredSubscription], bool],
     ) -> int:  # fmt: skip
         sent = 0
+        settled = self._settled(view.id)
         for sub in self.repo.list():
             if sub.device is None or not self.paired(sub.device):
                 logger.info("dropping the push subscription of %s: no longer paired", sub.device)
@@ -90,11 +111,19 @@ class PushService:
             payload = PushPayload(
                 client_ref=sub.client_ref, daemon_name=self.daemon_name, session_id=view.id,
                 session_name=view.name, state=view.state, kind=kind, title=title[:80], body=body[:300],
+                settled=settled,
             )  # fmt: skip
             if self.sender.send(sub, payload.model_dump_json()):
                 sent += 1
             else:
                 self.repo.delete(sub.id)
+        if sent:
+            with self._lock:
+                for session_id in [*settled, view.id]:
+                    self._notified.pop(session_id, None)
+                self._notified[view.id] = time.monotonic()  # newest last: the oldest is the first to go
+                while len(self._notified) > NOTIFIED_KEPT:
+                    del self._notified[next(iter(self._notified))]
         return sent
 
     def _waits_for_summary(self, session_id: str) -> bool:
