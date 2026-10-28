@@ -26,6 +26,7 @@ class HookEvent(BaseModel):
     notification_type: str | None = None
     message: str | None = None
     last_assistant_message: str | None = None
+    transcript_path: str | None = None  # where the agent writes its transcript now (Claude Code)
 
 
 @dataclass(frozen=True)
