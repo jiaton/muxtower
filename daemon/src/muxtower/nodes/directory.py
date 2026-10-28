@@ -6,6 +6,7 @@ Every daemon is built with it; one that no node has joined behaves exactly as `S
 from typing import Any
 
 from muxtower.errors import Conflict
+from muxtower.nodes.processes import NodeProcesses
 from muxtower.nodes.source import NodeSource
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.models import Conversation, Session, UpdateSession
@@ -13,11 +14,23 @@ from muxtower.terminal.models import Resize, Screen, SendInput
 
 
 class HubDirectory(SessionDirectory):
-    def __init__(self, *args: Any, nodes: NodeSource, **kwargs: Any) -> None:
+    def __init__(self, *args: Any, nodes: NodeSource, node_processes: NodeProcesses, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.nodes = nodes
+        self.node_processes = node_processes
         self.sources = [nodes, *self.sources]  # asked first: it yields what it does not run (`owns`)
         nodes.elsewhere = lambda session_id: any(s is not nodes and s.owns(session_id) for s in self.sources)
+
+    def _decorate(self, session: Session) -> Session:
+        """Also: a session no daemon runs, in a folder of the one node of its kind, is taken for that
+        node's; a machine the owner named as a node is spelled as the node is."""
+        session = super()._decorate(session)
+        machine = session.machine
+        if machine is None and session.node is None and not session.on_host:
+            machine = self.node_processes.machine_for(session.cwd)
+        if machine:
+            machine = self.node_processes.named(machine) or machine
+        return session.model_copy(update={"machine": machine}) if machine != session.machine else session
 
     def _on_node(self, session_id: str) -> bool:
         """Its node has it, and it is not one kept in the archive here."""

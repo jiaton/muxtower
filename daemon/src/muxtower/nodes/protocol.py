@@ -7,9 +7,11 @@ Three kinds of frame, in both directions:
 
 The node speaks first (`hello`), then sends `sessions` (every one of its sessions, whole, whenever any
 changes: idempotent, so a reconnect needs no catching up), `conversation` (new items, as its own stream
-has them) and `screen` (frames of the screens the hub watches). The hub asks the node to act on its
-sessions with requests named like the daemon's own API (`METHODS`). Errors travel as HTTP statuses and
-come out on the other side as the same exception, so a 409 from a node is a 409 from the hub.
+has them), `screen` (frames of the screens the hub watches) and `running` (which Remote Control
+sessions have their Claude Code process there: `processes.py`); a peer ignores events it does not
+know. The hub asks the node to act on its sessions with requests named like the daemon's own API
+(`METHODS`). Errors travel as HTTP statuses and come out on the other side as the same exception, so a
+409 from a node is a 409 from the hub.
 
 PROTOCOL is raised only by a change an older peer cannot read; the hub refuses another one."""
 
@@ -43,6 +45,7 @@ class Hello(BaseModel):
     name: str = Field(description="the node's own name for itself (the hub names it as it was joined)")
     version: str
     runtimes: list[RuntimeInfo] = Field(default_factory=list)
+    platform: str | None = Field(default=None, description="sys.platform there: darwin, linux, win32")
 
 
 def status_of(exc: Exception) -> int:

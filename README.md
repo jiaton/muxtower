@@ -75,7 +75,7 @@ muxtower pair --join https://hub.example --code K7QM-3XPA
 
 While a node is asleep its sessions stay listed, marked offline. Each daemon reports which account its agents run as; when there is more than one (another Claude account, Claude Code with an API key), the app shows it and can filter and group by it. Remove a node in the app (Daemons). If a gate in front of the hub wants its own header, give it to the node in `[hub] headers`.
 
-Claude sessions started outside tmux (the desktop app, an IDE, `claude remote-control`) reach the hub through Remote Control: turn `remote_control.enabled` on for the node too, so they are listed as that computer's, where their process and transcript are. On macOS the node reads the Claude login from the Keychain, as Claude Code does (`security` may ask once to allow it).
+Claude sessions started outside tmux (the desktop app, an IDE, `claude remote-control`) are listed by the hub's own Remote Control, as that computer's when their process runs on a node: the node says which run there, from Claude Code's own files, with no login of its own. A node signed in to another Claude account lists that account's sessions itself: turn `remote_control.enabled` on for it (on macOS it reads the Claude login from the Keychain, as Claude Code does).
 
 ## The web app
 

@@ -15,6 +15,8 @@ class NodeRecord:
     version: str | None = None
     runtimes: list[dict[str, Any]] = field(default_factory=list)
     sessions: list[dict[str, Any]] = field(default_factory=list)  # as the node reported them, its own ids
+    platform: str | None = None  # sys.platform there
+    running: list[dict[str, Any]] = field(default_factory=list)  # its Claude Code processes (`processes.py`)
 
 
 class NodeRepository(Protocol):
@@ -44,6 +46,8 @@ class SqliteNodeRepository:
                 version=r["version"],
                 runtimes=json.loads(r["runtimes"]),
                 sessions=json.loads(r["sessions"]),
+                platform=r["platform"],
+                running=json.loads(r["running"]),
             )  # fmt: skip
             for r in rows
         ]
@@ -59,10 +63,12 @@ class SqliteNodeRepository:
         """What it last reported."""
         with self.db.connect() as conn:
             conn.execute(
-                "UPDATE nodes SET last_seen = ?, version = ?, runtimes = ?, sessions = ? WHERE name = ?",
+                "UPDATE nodes SET last_seen = ?, version = ?, runtimes = ?, sessions = ?, platform = ?, running = ?"
+                " WHERE name = ?",
                 (
                     record.last_seen.isoformat() if record.last_seen else None, record.version,
-                    json.dumps(record.runtimes), json.dumps(record.sessions), record.name,
+                    json.dumps(record.runtimes), json.dumps(record.sessions), record.platform,
+                    json.dumps(record.running), record.name,
                 ),
             )  # fmt: skip
 

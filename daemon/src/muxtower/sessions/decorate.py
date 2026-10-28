@@ -28,7 +28,9 @@ def decorate(session: Session, directory: SessionDirectory) -> Session:
         if session.source != SessionSource.REMOTE_CONTROL:
             update.update(machine=d.hub_name or session.machine, on_host=True)
         elif d.processes and (process := d.processes.running().get(session.id)):
-            update.update(machine=d.hub_name or session.machine, on_host=True)
+            # Its process is here, or on a node (which says so without listing it: `nodes/processes.py`).
+            here = process.machine is None
+            update.update(machine=process.machine or d.hub_name or session.machine, on_host=here)
             update["cwd"] = deeper(process.cwd, session.cwd)
             update["origin"] = process.origin or session.origin  # what Claude Code says beats the tags
         if d.accounts and (account := d.accounts(session)):

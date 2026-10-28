@@ -142,6 +142,14 @@ joined, if any; a node keeps its own API and UI.
   the node has its process, terminal and transcript), else the hub's. A tmux pane that also runs Remote
   Control, on a node, is one entry there and hides the hub's copy, as on one daemon. Attention is
   announced when a node's report shows a session starting to need the owner (not on first sight).
+- **Where a Remote Control session runs**: Claude Code keeps a file per process on its own machine
+  naming its Remote Control session, so a node reports the ids, folders and entrypoints of those it runs
+  (`running`, every few seconds when they change; `nodes/processes.py`) without listing them or reading
+  a Claude login, and the hub lists its own copy as that computer's (machine, folder, origin; not
+  `on_host`). One that no longer runs, in a folder of a kind of machine (`/Users/…`, `C:\…`), is taken
+  for the one node of that kind (the hello says `sys.platform`), and a machine the owner typed that names
+  a node ("Mac") is spelled as the node is. A node signed in to another account lists that account's
+  sessions itself (`remote_control.enabled`; on macOS from the Keychain item Claude Code keeps).
 - **Offline**: the node's last report is kept in SQLite, so while it sleeps or the hub restarts its
   sessions are still listed, marked `offline`, read only (no capabilities, no alert), until it is back.
 - **Accounts**: each daemon says which account its agents run as (`agents/accounts.py`, from the

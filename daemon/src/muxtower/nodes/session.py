@@ -11,13 +11,14 @@ from websockets.exceptions import ConnectionClosed
 from muxtower.errors import Invalid, Unavailable
 from muxtower.infra.bus import EventBus
 from muxtower.nodes import protocol
-from muxtower.nodes.api import NodeApi
+from muxtower.nodes.api import CHANGES_LIST, NodeApi
 from muxtower.nodes.link import parse
 from muxtower.sessions.monitor import Monitor
 
 logger = logging.getLogger("muxtower.hub")
 
 RESEND_SECONDS = 60.0
+PROCESS_SECONDS = 5.0  # how often its Claude Code processes are looked at (files, no network)
 DEBOUNCE_SECONDS = 0.3
 
 
@@ -43,7 +44,7 @@ class LinkSession:
         bus.subscribe("sessions", self.queue)
         bus.subscribe("conversation:*", self.queue)
         self.dirty.set()
-        tasks = [asyncio.create_task(t) for t in (self.read(), self.pump(), self.report())]
+        tasks = [asyncio.create_task(t) for t in (self.read(), self.pump(), self.report(), self.processes())]
         try:
             done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
             for task in done:
@@ -67,6 +68,16 @@ class LinkSession:
             sessions = await asyncio.to_thread(self.api.sessions)
             await self.ws.send(protocol.event("sessions", sessions))
             await asyncio.sleep(DEBOUNCE_SECONDS)
+
+    async def processes(self) -> None:
+        """Which Remote Control sessions run here: when that changes (the first time on every link)."""
+        sent: list[dict[str, Any]] | None = None
+        while True:
+            running = await asyncio.to_thread(self.api.running)
+            if running != sent:
+                await self.ws.send(protocol.event("running", running))
+                sent = running
+            await asyncio.sleep(PROCESS_SECONDS)
 
     async def pump(self) -> None:
         while True:
@@ -97,6 +108,8 @@ class LinkSession:
                 self.watch(str(params.get("session_id")), int(params.get("history", 200)), method == "watch_screen")
             else:
                 result = await asyncio.to_thread(self.api.handle, method, params)
+                if method in CHANGES_LIST:
+                    self.bus.publish("sessions", None)  # for this node's own clients and the hub
             reply = protocol.answer(frame["id"], result)
         except Exception as exc:  # noqa: BLE001 - every failure goes back to the hub as its status
             if protocol.status_of(exc) == 502 and not isinstance(exc, Unavailable):

@@ -170,6 +170,7 @@ class Nodes:
             old, node.link = node.link, link
             node.record.version = hello.version
             node.record.runtimes = [r.model_dump(mode="json") for r in hello.runtimes]
+            node.record.platform = hello.platform or node.record.platform
             node.record.last_seen = datetime.now(UTC)
             watched = {sid: list(h) for sid, h in node.screens.items()}
         if old is not None:
@@ -200,6 +201,17 @@ class Nodes:
             self._forward(name, data, "conversation")
         elif kind == "screen" and isinstance(data, dict):
             self._forward(name, data, "screen")
+        elif kind == "running" and isinstance(data, list):
+            self._running(name, data)
+
+    def _running(self, name: str, raw: list[dict[str, Any]]) -> None:
+        with self._lock:
+            node = self.nodes.get(name)
+            if node is None or node.record.running == raw:
+                return
+            node.record.running = raw
+        self.repo.save(node.record)
+        self.bus.publish("sessions", None)
 
     def _sessions(self, name: str, raw: list[dict[str, Any]]) -> None:
         fresh = _parse(raw, name)
