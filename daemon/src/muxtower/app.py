@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import socket
+import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -45,6 +46,7 @@ from muxtower.nodes.api import NodeApi
 from muxtower.nodes.client import HubClient
 from muxtower.nodes.directory import HubDirectory
 from muxtower.nodes.hub import Nodes
+from muxtower.nodes.processes import NodeProcesses
 from muxtower.nodes.repository import SqliteNodeRepository
 from muxtower.nodes.routes import router as nodes_router
 from muxtower.nodes.source import NodeSource
@@ -119,9 +121,11 @@ def create_app(
     # Daemons joined to this one (nodes): their sessions are one more source.
     nodes = Nodes(SqliteNodeRepository(db), bus)
     node_sessions = NodeSource(nodes)
+    node_processes = NodeProcesses(nodes)  # where the Remote Control sessions listed here run, if on a node
+    processes.plugins.append(node_processes)
     directory = HubDirectory(
         sessions, terminal, approvals, sources, summaries, daemon_name, processes,
-        marks, transcripts, archive, Accounts(), nodes=node_sessions,
+        marks, transcripts, archive, Accounts(), nodes=node_sessions, node_processes=node_processes,
     )  # fmt: skip
     launcher = Launcher(directory, [codex] if codex else [], node_sessions)
     archiver = Archiver(directory, archive)
@@ -129,9 +133,10 @@ def create_app(
     # This daemon as a node of a hub, once it joined one (`muxtower pair --join`).
     hub = HubClient(
         HubStore(settings.state_dir / "hub.json"), settings.hub.headers,
-        NodeApi(directory, launcher, archiver, placements, audit), monitor, bus,
+        NodeApi(directory, launcher, archiver, placements, audit, processes), monitor, bus,
         lambda: node_protocol.Hello(
-            protocol=node_protocol.PROTOCOL, name=daemon_name, version=__version__, runtimes=launcher.runtimes()
+            protocol=node_protocol.PROTOCOL, name=daemon_name, version=__version__, runtimes=launcher.runtimes(),
+            platform=sys.platform,
         ),
     )  # fmt: skip
     concierge: ConciergeService | None = None

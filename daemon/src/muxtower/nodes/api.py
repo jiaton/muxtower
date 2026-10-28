@@ -7,11 +7,13 @@ from pydantic import BaseModel
 
 from muxtower.errors import Invalid
 from muxtower.infra.audit import AuditLog
+from muxtower.nodes.processes import report
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.launcher import Launcher
 from muxtower.sessions.models import CreateSession, UpdateSession
 from muxtower.sessions.placement import Placements
+from muxtower.sessions.ports import ClaudeProcessPort
 from muxtower.terminal.models import Resize, SendInput
 
 
@@ -21,13 +23,16 @@ def _json(value: Any) -> Any:
 
 # What changes something here: audited as done by the hub, like a device's actions.
 MUTATING = frozenset({"input", "approve", "deny", "update", "terminate", "archive", "create"})
+# What changes the list here (as the same routes say for a device): the hub hears of it at once.
+CHANGES_LIST = MUTATING | {"mark_read"}
 
 
 class NodeApi:
     def __init__(
         self, directory: SessionDirectory, launcher: Launcher, archiver: Archiver, placements: Placements,
-        audit: AuditLog,
+        audit: AuditLog, processes: ClaudeProcessPort,
     ) -> None:  # fmt: skip
+        self.processes = processes
         self.directory = directory
         self.launcher = launcher
         self.archiver = archiver
@@ -37,6 +42,10 @@ class NodeApi:
     def sessions(self) -> list[dict[str, Any]]:
         """Everything it lists itself (not what its own nodes report: a node is no hub of the hub's)."""
         return [s.model_dump(mode="json") for s in self.directory.list() if s.node is None]
+
+    def running(self) -> list[dict[str, Any]]:
+        """Its Claude Code processes with Remote Control on, which the hub lists itself (`processes.py`)."""
+        return report(self.processes.running())
 
     def handle(self, method: str, params: dict[str, Any]) -> Any:
         d = self.directory

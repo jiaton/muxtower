@@ -4,6 +4,7 @@ then driven through the hub as if it ran there."""
 
 import asyncio
 import socket
+import sys
 import threading
 import time
 from collections.abc import Callable, Iterator
@@ -109,6 +110,7 @@ def test_a_node_s_session_is_driven_through_its_hub(hub: tuple[FastAPI, str], tm
         sid = session["id"]
         assert sid.startswith("mac~") and session["machine"] == "mac" and session["state"] == "needs_permission"
         assert [n["online"] for n in phone.get("/v1/nodes").json()] == [True]
+        assert hub_app.state.nodes.node("mac").record.platform == sys.platform
 
         # Its screen, input and approval go to the node's pane.
         assert "rm -rf build/" in phone.get(f"/v1/sessions/{sid}/screen").json()["text"]
@@ -117,6 +119,10 @@ def test_a_node_s_session_is_driven_through_its_hub(hub: tuple[FastAPI, str], tm
         assert ("text", "hi") in pane.sent and ("key", "Enter") in pane.sent
         assert phone.post(f"/v1/sessions/{sid}/resize", json={"cols": 80, "rows": 40}).status_code == 204
         assert ("resize", "80x40") in pane.sent
+
+        # What the hub changes there is listed here at once, not at the next resend.
+        assert phone.patch(f"/v1/sessions/{sid}", json={"name": "renamed"}).status_code == 200
+        _until(lambda: (s := listed()) and s["name"] == "renamed", seconds=5)
 
         # A change there reaches the list here.
         pane.screen = screens.IDLE

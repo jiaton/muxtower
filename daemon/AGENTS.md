@@ -31,8 +31,9 @@ src/muxtower/
               codex: Codex threads run headless in muxtower's own Codex app-server)
   nodes/      other daemons joined to this one (hub and nodes): as a hub, hub.py (who joined, their last
               report), source.py (their sessions as one more source), directory.py (what else goes to a
-              node), link.py; as a node, client.py (join, reconnect), session.py (one open link), api.py
-              (what the hub may do here), store.py; protocol.py: the frames between them; routes.py
+              node), processes.py (where the hub's Remote Control sessions run), link.py; as a node,
+              client.py (join, reconnect), session.py (one open link), api.py (what the hub may do
+              here), store.py; protocol.py: the frames between them; routes.py
   summaries/  short versions of long replies: a Summarizer port (claude/codex CLI adapters), SQLite cache, background loop
   asr/        speech to text for voice replies: a Transcriber port (OpenAI-compatible adapter: Groq, OpenAI)
   concierge/  the owner's assistant: a Claude Code session kept running, its MCP config, watched sessions

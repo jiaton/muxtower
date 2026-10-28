@@ -31,6 +31,7 @@ class ClaudeProcess:
     pid: int
     cwd: str
     entrypoint: str | None = None
+    machine: str | None = None  # the node it runs on, as its hub knows it; None: this machine
 
     @property
     def origin(self) -> str | None:
