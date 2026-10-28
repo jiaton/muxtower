@@ -10,6 +10,7 @@ import { Segmented } from '@/components/ui/segmented'
 import { SelectionAction } from '@/components/ui/selection-action'
 import { PendingActionCard } from '@/features/approval/components/pending-action-card'
 import { useConversation } from '@/features/conversation/api/use-conversation'
+import { useDaemonMe } from '@/features/daemons/api/use-daemon-me'
 import { ConversationView } from '@/features/conversation/components/conversation-view'
 import { useSession } from '@/features/sessions/api/use-sessions'
 import { SessionActionsMenu } from '@/features/sessions/components/session-actions-menu'
@@ -22,6 +23,9 @@ import { TerminalMenuItems } from '@/features/terminal/components/terminal-menu-
 import { TerminalView } from '@/features/terminal/components/terminal-view'
 import { useSessionTerminal } from '@/features/terminal/hooks/use-session-terminal'
 import { draftKey, useDrafts, useTerminalPrefs } from '@/features/terminal/store'
+import { MicButton } from '@/features/voice/components/mic-button'
+import { VoiceBar } from '@/features/voice/components/voice-bar'
+import { useDictation } from '@/features/voice/hooks/use-dictation'
 import type { Session } from '@/lib/api/types'
 import { useOutgoing } from '@/lib/use-outbox'
 
@@ -72,6 +76,13 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
   useSeenWhileOpen(daemonId, session)
   const views = useRef<HTMLDivElement>(null)
   const addQuote = useDrafts((s) => s.addQuote)
+  const setDraft = useDrafts((s) => s.setDraft)
+  // Spoken words go into the message box after what is typed, to read before sending.
+  const dictation = useDictation(daemonId, !!useDaemonMe(daemonId).data?.features.asr, (said) => {
+    const key = draftKey(daemonId, session.id)
+    const typed = useDrafts.getState().drafts[key]?.trimEnd()
+    setDraft(key, typed ? `${typed} ${said}` : said)
+  })
   const writable = !session.archived_at && !session.offline
   const send = useSendInput(daemonId, session.id)
   // A reply the agent offered (its next step), sent like one typed: shown on its way, gone if it fails.
@@ -172,7 +183,15 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
           {/* Select what the agent wrote, then Reply: it waits above the message box as a quote. */}
           <SelectionAction within={views} label="Reply" icon={Reply} onAction={(text) => addQuote(draftKey(daemonId, session.id), text)} />
           <footer className="shrink-0 border-t border-border bg-bg p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-3">
-            <InputBar daemonId={daemonId} sessionId={session.id} keys={session.capabilities.keys} track={outgoing.track} />
+            {dictation.error ? <Banner tone="error">{dictation.error}</Banner> : null}
+            <InputBar
+              daemonId={daemonId}
+              sessionId={session.id}
+              keys={session.capabilities.keys}
+              track={outgoing.track}
+              extra={dictation.available ? <MicButton dictation={dictation} /> : null}
+              cover={dictation.active ? <VoiceBar dictation={dictation} /> : null}
+            />
           </footer>
         </>
       ) : null}

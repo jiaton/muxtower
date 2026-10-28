@@ -12,6 +12,10 @@ PROVIDERS = {
 TIMEOUT = httpx.Timeout(60, connect=10)
 
 
+# The provider tells the format by the file's name: a phone browser records WebM (Chrome) or MP4 (Safari).
+EXTENSIONS = {"audio/webm": "webm", "audio/ogg": "ogg", "audio/mpeg": "mp3", "audio/mp4": "mp4", "audio/m4a": "m4a"}
+
+
 class OpenAICompatibleTranscriber:
     def __init__(self, provider: str, api_key: str, model: str | None = None) -> None:
         base_url, default_model = PROVIDERS[provider]
@@ -31,7 +35,7 @@ class OpenAICompatibleTranscriber:
                 self.url,
                 headers={"Authorization": f"Bearer {self.api_key}"},
                 data=data,
-                files={"file": ("speech.wav", audio, content_type)},
+                files={"file": (f"speech.{EXTENSIONS.get(content_type, 'wav')}", audio, content_type)},
                 timeout=TIMEOUT,
             )
         except httpx.HTTPError as exc:

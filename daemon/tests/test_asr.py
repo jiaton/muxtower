@@ -62,6 +62,19 @@ def test_provider_errors_become_unavailable(monkeypatch: pytest.MonkeyPatch) -> 
     assert "sk-secret" not in str(caught.value) and "401" in str(caught.value)
 
 
+def test_a_browser_recording_is_named_by_its_format(monkeypatch: pytest.MonkeyPatch) -> None:
+    names: list[str] = []
+
+    def answer(*_: object, files: dict[str, tuple[str, bytes, str]], **__: object) -> httpx.Response:
+        names.append(files["file"][0])
+        return httpx.Response(200, json={"text": "ok"})
+
+    monkeypatch.setattr(httpx, "post", answer)
+    for kind in ("audio/webm", "audio/mp4", "audio/wav"):
+        OpenAICompatibleTranscriber("groq", "k").transcribe(WAV, kind, None, None)
+    assert names == ["speech.webm", "speech.mp4", "speech.wav"]  # the provider tells the format by it
+
+
 def test_summary_route_and_reply_summary(make_app: Callable[..., FastAPI]) -> None:
     app = make_app()
     client, auth = _client(app)

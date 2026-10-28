@@ -1,5 +1,5 @@
 import { Plus, SendHorizontal } from 'lucide-react'
-import { useEffect, useRef, type KeyboardEvent } from 'react'
+import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/input'
@@ -23,17 +23,22 @@ const TOUCH = '(pointer: coarse)' // a phone: its keyboard covers half the scree
  *  message leaves the box at once and waits at the end of the conversation (`useOutgoing`); if it
  *  cannot be sent, it comes back into the box. Enter sends with a keyboard; on a phone, return is a new line and Send sends, so
  *  the keyboard can be put away and more quoted first. `keys`: the key names this session accepts; empty
- *  means all of them. */
+ *  means all of them. Other features add to it: `extra` beside Send (the microphone), and `cover`, shown
+ *  instead of the row while it is there (speaking). */
 export function InputBar({
   daemonId,
   sessionId,
   keys = [],
   track,
+  extra,
+  cover,
 }: {
   daemonId: string
   sessionId: string
   keys?: string[]
   track?: Track
+  extra?: ReactNode
+  cover?: ReactNode
 }) {
   const send = useSendInput(daemonId, sessionId)
   const draftKey = keyOf(daemonId, sessionId)
@@ -98,7 +103,9 @@ export function InputBar({
     <div className="flex flex-col gap-2">
       {send.isError ? <Banner tone="error">{send.error.message}</Banner> : null}
       {open ? <KeyPad keys={keys} onKey={(key) => send.mutate({ key })} /> : null}
+      {cover ? <div className="flex items-end">{cover}</div> : null}
       <form
+        hidden={!!cover}
         className="flex items-end gap-1.5"
         onSubmit={(e) => {
           e.preventDefault()
@@ -132,6 +139,7 @@ export function InputBar({
             className="max-h-40 field-sizing-content border-0 bg-transparent focus-visible:outline-none"
           />
         </div>
+        {extra}
         <Button type="submit" size="icon" className="shrink-0" aria-label="Send" disabled={send.isPending || !message}>
           <SendHorizontal />
         </Button>
