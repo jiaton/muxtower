@@ -12,7 +12,8 @@ MAX_HISTORY = 5000
 MIN_ROWS = 40
 
 
-PASTE_SECONDS = 0.3  # for the agent to take a pasted image in before what follows
+PASTE_SECONDS = 0.3  # for the agent to take a paste in before what follows
+TYPE_UP_TO = 200  # characters of a single line typed as keys; longer, or several lines, is pasted
 
 
 class TerminalService:
@@ -37,12 +38,18 @@ class TerminalService:
             tmux.paste(record.pane, str(self.images.save(image)))
             time.sleep(PASTE_SECONDS)
         if body.text is not None:
-            if body.text:
+            # Typed, a newline is a key press (Claude Code kept only the last lines of a long message);
+            # pasted, the text arrives whole and the agent takes it as one paste.
+            pasted = "\n" in body.text or len(body.text) > TYPE_UP_TO
+            if pasted:
+                tmux.paste(record.pane, body.text)
+            elif body.text:
                 tmux.send_text(record.pane, body.text)
             if body.enter:
                 runtime = self.sessions.runtime_of(record)
-                if runtime and runtime.config.enter_delay:
-                    time.sleep(runtime.config.enter_delay)
+                delay = runtime.config.enter_delay if runtime else 0.0
+                if pause := max(delay, PASTE_SECONDS if pasted else 0.0):
+                    time.sleep(pause)
                 tmux.send_key(record.pane, "Enter")
         elif body.key is not None:
             tmux.send_key(record.pane, body.key)

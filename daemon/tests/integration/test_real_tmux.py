@@ -145,3 +145,24 @@ def test_an_agent_is_not_launched_as_another_claude_session_s_child(tmp_path: Pa
         assert "KEPT=1" in seen
     finally:
         subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)
+
+
+def test_a_pasted_message_arrives_whole(tmp_path: Path) -> None:
+    from muxtower.infra.tmux import TmuxCli
+    from muxtower.terminal.ports import PaneRef
+
+    socket = f"mxt-test-{uuid.uuid4().hex[:8]}"
+    out = tmp_path / "out.txt"
+    tmux = TmuxCli()
+    pane = tmux.new_session(socket, "cat", str(tmp_path), ["sh", "-c", f"stty raw -echo; cat > {out}"], {}, 80, 24)
+    try:
+        time.sleep(0.3)
+        text = "\n".join(f"[11:{i:02d}] Them: line {i}, with some words to make it long enough" for i in range(57))
+        tmux.paste(PaneRef(socket=socket, pane_id=pane.pane_id), text)
+        deadline = time.monotonic() + 5
+        while not out.exists() or len(out.read_bytes()) < len(text):
+            assert time.monotonic() < deadline, "the paste never arrived"
+            time.sleep(0.1)
+        assert out.read_text().replace("\r", "\n") == text  # all ~4 KB, nothing dropped
+    finally:
+        subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)

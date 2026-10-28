@@ -142,3 +142,20 @@ def test_codex_gets_a_pause_between_text_and_its_enter(app: FastAPI, client: Tes
     monkeypatch.setattr("muxtower.terminal.service.time.sleep", pauses.append)
     assert client.post(f"/v1/sessions/{sid}/input", json={"text": "hi", "enter": True}, headers=auth).status_code == 204
     assert pane.sent == [("text", "hi"), ("key", "Enter")] and pauses == [0.15]
+
+
+def test_a_long_or_multi_line_message_is_pasted_not_typed(app: FastAPI, client: TestClient, auth: dict[str, str],
+                                                          tmux: FakeTmux, monkeypatch) -> None:  # type: ignore[no-untyped-def]  # fmt: skip
+    pane = tmux.add_pane("default", "work", "claude")
+    app.state.monitor.tick()
+    sid = client.get("/v1/sessions", headers=auth).json()[0]["id"]
+    pauses: list[float] = []
+    monkeypatch.setattr("muxtower.terminal.service.time.sleep", pauses.append)
+    transcript = "\n".join(f"[11:{i:02d}] Them: line {i} of the call" for i in range(57))  # ~2 KB, 57 lines
+    for text in (transcript, "x" * 500):
+        assert (
+            client.post(f"/v1/sessions/{sid}/input", json={"text": text, "enter": True}, headers=auth).status_code
+            == 204
+        )
+    assert pane.sent == [("paste", transcript), ("key", "Enter"), ("paste", "x" * 500), ("key", "Enter")]
+    assert pauses == [0.3, 0.3]  # the paste lands before the Enter that sends it
