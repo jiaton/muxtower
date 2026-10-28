@@ -55,6 +55,7 @@ src/muxtower/
   vendor/     third-party code copied in (with LICENSE + VENDORED.md); only adapters import it; not linted
   agent_text.py  one-line descriptions of tool inputs, shared by hooks and sources
   claude_conversation.py  Claude Code's event log → conversation items, shared by Remote Control and transcripts
+  claude_next_step.py     Claude desktop's next-step box (its `wrap_up` tool call) → a `next_step` item with replies to pick
   errors.py   domain errors (NotFound/Invalid/Conflict/Forbidden) mapped to HTTP in app.py
   origins.py  CORS + WebSocket Origin policy
   config.py   settings (TOML + MUXTOWER_* env)

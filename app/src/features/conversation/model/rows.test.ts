@@ -4,7 +4,12 @@ import { conversationRows, toolName, toolRunSummary } from './rows'
 
 let seq = 0
 const tool = (tool_name: string, text: string, extra: Partial<ConversationItem> = {}): ConversationItem => ({
-  seq: ++seq, kind: 'tool', tool_name, text, status: 'done', ...extra,
+  seq: ++seq,
+  kind: 'tool',
+  tool_name,
+  text,
+  status: 'done',
+  ...extra,
 })
 const reply = (text: string): ConversationItem => ({ seq: ++seq, kind: 'reply', text })
 
@@ -12,6 +17,21 @@ describe('conversationRows', () => {
   it('folds runs of tool calls between prose, and leaves out turn ends', () => {
     const rows = conversationRows([reply('a'), tool('Bash', 'ls'), tool('Read', '/x'), reply('b'), { seq: ++seq, kind: 'result' }])
     expect(rows.map((r) => (r.kind === 'tools' ? r.items.length : r.item.text))).toEqual(['a', 2, 'b'])
+  })
+})
+
+describe('the next step the agent offers', () => {
+  const step = (status: ConversationItem['status']): ConversationItem => ({
+    seq: ++seq, kind: 'next_step', text: 'Read it.', ask: 'Start?', status, actions: [{ label: 'Start', message: 'Go.' }],
+  }) // prettier-ignore
+
+  it('comes last, after the closing reply, while nobody has answered it', () => {
+    const rows = conversationRows([step('pending'), reply('Done reading.')])
+    expect(rows.map((r) => r.kind)).toEqual(['item', 'next'])
+  })
+
+  it('goes once the owner wrote', () => {
+    expect(conversationRows([step('answered'), reply('a')]).map((r) => r.kind)).toEqual(['item'])
   })
 })
 

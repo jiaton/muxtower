@@ -5,7 +5,7 @@ import { ConversationView } from './conversation-view'
 
 const outgoing = (id: string, text: string, state: ShownOutgoing['state']): ShownOutgoing => ({
   id, text, state, sentAt: 0, afterSeq: 1, sending: state === 'sending',
-})  // prettier-ignore
+}) // prettier-ignore
 
 it('shows what was sent and is not in the conversation yet at its end, and lets an unconfirmed one go', () => {
   const dismiss = vi.fn()
@@ -21,4 +21,20 @@ it('shows what was sent and is not in the conversation yet at its end, and lets 
   expect(log.querySelectorAll('[data-outgoing]')).toHaveLength(2)
   fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
   expect(dismiss).toHaveBeenCalledWith('b')
+})
+
+it("offers the agent's next step as buttons that send its replies, until something is on its way", () => {
+  const reply = vi.fn()
+  const items = [
+    { seq: 1, kind: 'next_step' as const, text: 'Read the take-home.', ask: 'Start on it?', status: 'pending' as const,
+      actions: [{ label: 'Start', message: 'Start on a branch.' }, { label: 'Not now', message: 'Not now.' }] },
+    { seq: 2, kind: 'reply' as const, text: 'Done reading.' },
+  ] // prettier-ignore
+  const { rerender } = render(<ConversationView items={items} onReply={reply} />)
+  const card = screen.getByRole('region', { name: 'Next step' })
+  expect(card.textContent).toMatch(/Read the take-home\..*Start on it\?/)
+  fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+  expect(reply).toHaveBeenCalledWith('Start on a branch.')
+  rerender(<ConversationView items={items} onReply={reply} pending={[outgoing('a', 'Start on a branch.', 'sending')]} />)
+  expect(screen.queryByRole('region', { name: 'Next step' })).toBeNull()
 })

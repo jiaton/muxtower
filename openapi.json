@@ -222,6 +222,26 @@
       "ConversationItem": {
         "description": "One normalized entry of a session's conversation. `seq` orders items; an item can be sent again\nwith the same `seq` when its status changes (a tool finishing, a prompt being answered).",
         "properties": {
+          "actions": {
+            "description": "next_step: replies to pick, each sent as the owner's message",
+            "items": {
+              "$ref": "#/components/schemas/NextStepAction"
+            },
+            "title": "Actions",
+            "type": "array"
+          },
+          "ask": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "next_step: the question its actions answer",
+            "title": "Ask"
+          },
           "at": {
             "anyOf": [
               {
@@ -300,7 +320,8 @@
           "tool",
           "approval",
           "question",
-          "result"
+          "result",
+          "next_step"
         ],
         "title": "ConversationItemKind",
         "type": "string"
@@ -643,6 +664,25 @@
           "features"
         ],
         "title": "Me",
+        "type": "object"
+      },
+      "NextStepAction": {
+        "properties": {
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "message": {
+            "description": "sent as the owner's message when picked",
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label",
+          "message"
+        ],
+        "title": "NextStepAction",
         "type": "object"
       },
       "NodeClaim": {

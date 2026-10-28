@@ -6,6 +6,7 @@ import type { ConversationItem } from '@/lib/api/types'
 import { cn } from '@/lib/cn'
 import type { ShownOutgoing } from '@/lib/outbox'
 import { conversationRows, toolName, toolRunSummary } from '../model/rows'
+import { NextStepCard } from './next-step-card'
 
 const BOTTOM_SLACK = 24
 
@@ -88,16 +89,18 @@ function OutgoingView({ message, onDismiss }: { message: ShownOutgoing; onDismis
 }
 
 /** The conversation as readable text: prompts, replies, folded tool runs, prompts to answer, then what
- *  was sent and is not in it yet (`pending`). Follows new items while at the bottom; holds still while
- *  the reader is scrolled up. */
+ *  was sent and is not in it yet (`pending`), or else the next step the agent offers (`onReply` sends a
+ *  pick). Follows new items while at the bottom; holds still while the reader is scrolled up. */
 export function ConversationView({
   items,
   pending = [],
   onDismiss,
+  onReply,
 }: {
   items: ConversationItem[]
   pending?: ShownOutgoing[]
   onDismiss?: (id: string) => void
+  onReply?: (text: string) => void
 }) {
   const box = useRef<HTMLDivElement>(null)
   const atBottom = useRef(true)
@@ -129,6 +132,10 @@ export function ConversationView({
         {shown.map((row) =>
           row.kind === 'tools' ? (
             <ToolRun key={`t${row.items[0].seq}`} tools={row.items} />
+          ) : row.kind === 'next' ? (
+            pending.length ? null : (
+              <NextStepCard key={`n${row.item.seq}`} item={row.item} onReply={onReply} />
+            )
           ) : (
             <ItemView key={row.item.seq} item={row.item} />
           ),

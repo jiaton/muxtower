@@ -1,16 +1,21 @@
 import type { ConversationItem } from '@/lib/api/types'
 
-/** What the conversation shows: items, and runs of tool calls folded into one line. */
-export type Row = { kind: 'item'; item: ConversationItem } | { kind: 'tools'; items: ConversationItem[] }
+/** What the conversation shows: items, runs of tool calls folded into one line, and the next step the
+ *  agent offers (Claude desktop's box: replies to pick), last, while nobody has answered it. */
+export type Row =
+  { kind: 'item'; item: ConversationItem } | { kind: 'tools'; items: ConversationItem[] } | { kind: 'next'; item: ConversationItem }
 
 export function conversationRows(items: ConversationItem[]): Row[] {
   const out: Row[] = []
+  let next: ConversationItem | undefined
   for (const item of items) {
     const last = out[out.length - 1]
-    if (item.kind === 'tool' && last?.kind === 'tools') last.items.push(item)
+    if (item.kind === 'next_step') next = item
+    else if (item.kind === 'tool' && last?.kind === 'tools') last.items.push(item)
     else if (item.kind === 'tool') out.push({ kind: 'tools', items: [item] })
     else if (item.kind !== 'result') out.push({ kind: 'item', item })
   }
+  if (next?.status === 'pending' && next.actions?.length) out.push({ kind: 'next', item: next })
   return out
 }
 
@@ -40,16 +45,32 @@ const ACTIVITIES: Record<string, Activity> = {
   plan: { one: () => 'Updated the plan', many: () => 'updated the plan' },
 }
 const KIND_OF: Record<string, keyof typeof ACTIVITIES> = {
-  Bash: 'command', PowerShell: 'command', BashOutput: 'command',
-  Read: 'read', NotebookRead: 'read',
-  Edit: 'edit', MultiEdit: 'edit', Write: 'edit', NotebookEdit: 'edit',
-  Grep: 'search', Glob: 'search', LS: 'search',
-  WebSearch: 'web', WebFetch: 'fetch',
-  Task: 'agent', Agent: 'agent',
+  Bash: 'command',
+  PowerShell: 'command',
+  BashOutput: 'command',
+  Read: 'read',
+  NotebookRead: 'read',
+  Edit: 'edit',
+  MultiEdit: 'edit',
+  Write: 'edit',
+  NotebookEdit: 'edit',
+  Grep: 'search',
+  Glob: 'search',
+  LS: 'search',
+  WebSearch: 'web',
+  WebFetch: 'fetch',
+  Task: 'agent',
+  Agent: 'agent',
   TodoWrite: 'plan',
   // Codex
-  exec_command: 'command', shell: 'command', local_shell: 'command', write_stdin: 'command',
-  apply_patch: 'edit', view_image: 'read', web_search: 'web', update_plan: 'plan',
+  exec_command: 'command',
+  shell: 'command',
+  local_shell: 'command',
+  write_stdin: 'command',
+  apply_patch: 'edit',
+  view_image: 'read',
+  web_search: 'web',
+  update_plan: 'plan',
   spawn_agent: 'agent',
 }
 const activityOf = (tool: ConversationItem): Activity => {

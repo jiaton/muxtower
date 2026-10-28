@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Any
 
 from muxtower.agent_text import describe_tool_input, tool_description
+from muxtower.claude_next_step import WRAP_UP_TOOLS, next_step
 from muxtower.sessions.models import ConversationItem, ConversationItemKind, ItemStatus
 
 
@@ -35,7 +36,7 @@ SYNTHETIC_PREFIXES = ("<command-", "<local-command", "<system-reminder", "<task-
 # the next event, marked `isSynthetic` (`isMeta` in a transcript), and is not shown.
 COMMAND = re.compile(r"<command-name>\s*(\S+?)\s*</command-name>(?:.*?<command-args>(.*?)</command-args>)?", re.S)
 QUESTION_TOOLS = {"AskUserQuestion"}
-UNLISTED_TOOLS = {"AskUserQuestion", "ExitPlanMode"}  # shown as their prompt, not as a tool call
+UNLISTED_TOOLS = {"AskUserQuestion", "ExitPlanMode", *WRAP_UP_TOOLS}  # shown as their prompt, not as a tool call
 
 
 @dataclass
@@ -88,6 +89,7 @@ class ConversationBuilder:
     latest_event_seq: int = 0
     _tools: dict[str, int] = field(default_factory=dict)  # tool_use_id -> item seq
     _requests: dict[str, PendingRequest] = field(default_factory=dict)  # unresolved prompts
+    _next_steps: list[int] = field(default_factory=list)  # next_step items nobody has answered yet
 
     @property
     def pending(self) -> PendingRequest | None:
@@ -145,6 +147,8 @@ class ConversationBuilder:
                         texts.append(text)
             if texts:
                 out.append(ConversationItem(seq=base, at=at, kind=ConversationItemKind.PROMPT, text="\n".join(texts)))
+                out += [i for s in self._next_steps if (i := self._set_status(s, ItemStatus.ANSWERED))]
+                self._next_steps.clear()
 
         elif kind == "assistant":
             prose = [str(b.get("text") or "") for b in _blocks(payload) if b.get("type") == "text"]
@@ -155,6 +159,10 @@ class ConversationBuilder:
                 index = 1
             for block in _blocks(payload):
                 name = str(block.get("name") or "")
+                if index < SLOTS and (step := next_step(block, base + index, at)):
+                    out.append(step)
+                    self._next_steps.append(step.seq)
+                    index += 1
                 if block.get("type") != "tool_use" or name in UNLISTED_TOOLS or index >= SLOTS:
                     continue
                 seq = base + index
