@@ -122,3 +122,26 @@ def test_a_narrowed_pane_shows_no_line_wider_than_itself() -> None:
         assert "x" * 80 in (tmux.capture(pane, history=20) or "")  # screen rules still see it whole
     finally:
         subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)
+
+
+def test_an_agent_is_not_launched_as_another_claude_session_s_child(tmp_path: Path) -> None:
+    """A daemon started from inside a Claude Code session, on a tmux server started from one too."""
+    from muxtower.infra.tmux import TmuxCli
+
+    socket = f"mxt-test-{uuid.uuid4().hex[:8]}"
+    marked = {**os.environ, "CLAUDE_CODE_CHILD_SESSION": "1", "CLAUDE_CODE_BRIDGE_SESSION_ID": "x"}
+    subprocess.run(["tmux", "-L", socket, "new-session", "-d", "-s", "first"], env=marked, check=True)
+    try:
+        out = tmp_path / "env.txt"
+        TmuxCli().new_session(
+            socket, "agent", str(tmp_path), ["sh", "-c", f"env > {out}"], {"KEPT": "1"}, 80, 24
+        )  # fmt: skip
+        deadline = time.monotonic() + 5
+        while not out.exists() or "KEPT" not in out.read_text():
+            assert time.monotonic() < deadline, "the agent never ran"
+            time.sleep(0.1)
+        seen = out.read_text()
+        assert "CLAUDE_CODE_CHILD_SESSION" not in seen and "CLAUDE_CODE_BRIDGE_SESSION_ID" not in seen
+        assert "KEPT=1" in seen
+    finally:
+        subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)
