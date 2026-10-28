@@ -188,6 +188,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
               daemonId={daemonId}
               sessionId={session.id}
               keys={session.capabilities.keys}
+              images={session.capabilities.images}
               track={outgoing.track}
               extra={dictation.available ? <MicButton dictation={dictation} /> : null}
               cover={dictation.active ? <VoiceBar dictation={dictation} /> : null}

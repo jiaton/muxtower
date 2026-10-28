@@ -3,6 +3,7 @@ import time
 from muxtower.errors import NotFound
 from muxtower.sessions.monitor import Monitor
 from muxtower.sessions.service import SessionService
+from muxtower.terminal.images import ImageDrop
 from muxtower.terminal.models import Resize, Screen, SendInput
 
 MAX_HISTORY = 5000
@@ -11,10 +12,14 @@ MAX_HISTORY = 5000
 MIN_ROWS = 40
 
 
+PASTE_SECONDS = 0.3  # for the agent to take a pasted image in before what follows
+
+
 class TerminalService:
-    def __init__(self, sessions: SessionService, monitor: Monitor) -> None:
+    def __init__(self, sessions: SessionService, monitor: Monitor, images: ImageDrop) -> None:
         self.sessions = sessions
         self.monitor = monitor
+        self.images = images
 
     def screen(self, session_id: str, history: int) -> Screen:
         record = self.sessions.record(session_id)
@@ -28,8 +33,12 @@ class TerminalService:
     def send(self, session_id: str, body: SendInput) -> None:
         record = self.sessions.record(session_id)
         tmux = self.sessions.tmux
+        for image in body.images:  # each becomes [Image #n] in the prompt, ahead of the words
+            tmux.paste(record.pane, str(self.images.save(image)))
+            time.sleep(PASTE_SECONDS)
         if body.text is not None:
-            tmux.send_text(record.pane, body.text)
+            if body.text:
+                tmux.send_text(record.pane, body.text)
             if body.enter:
                 runtime = self.sessions.runtime_of(record)
                 if runtime and runtime.config.enter_delay:

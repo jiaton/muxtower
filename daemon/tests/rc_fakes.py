@@ -69,8 +69,8 @@ class FakeRemoteControl:
     def answer_question(self, session_id: str, request_id: str, answers: dict[str, str], **kw: Any) -> None:
         self.calls.append(("answer", session_id, request_id, answers))
 
-    def send_message(self, session_id: str, text: str) -> None:
-        self.calls.append(("message", session_id, text))
+    def send_message(self, session_id: str, text: str, images: list[Any] | None = None) -> None:
+        self.calls.append(("message", session_id, text, *([len(images)] if images else [])))
 
     def interrupt(self, session_id: str) -> None:
         self.calls.append(("interrupt", session_id))

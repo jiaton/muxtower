@@ -110,6 +110,7 @@ class SessionService:
                 rename=True,
                 terminate=record.source == SessionSource.LAUNCHED,
                 archive=True,
+                images=True,  # saved here and pasted in as their paths
             ),  # fmt: skip
             state=eff.state,
             state_source=eff.source,

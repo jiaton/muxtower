@@ -208,14 +208,16 @@ class SessionDirectory:
             raise Conflict(f"this session takes only these keys: {', '.join(keys)}")
         source = self.source_of(session_id)
         remote = self.source_of(session.remote_id) if session.remote_id else None
+        if body.images and not session.capabilities.images:
+            raise Conflict("this session takes no images")
         if source is None and remote is not None and session.remote_id and body.text is not None:
             # Also on Remote Control: send the message there, structured, instead of typing it into a
             # terminal that may be showing a dialog.
-            remote.send_text(session.remote_id, body.text)
+            remote.send_text(session.remote_id, body.text, body.images)
         elif source is None:
             self.terminal.send(session_id, body)
         elif body.text is not None:
-            source.send_text(session_id, body.text)  # a message is sent whole; `enter` is implied
+            source.send_text(session_id, body.text, body.images)  # a message is sent whole; `enter` is implied
         elif body.key is not None:
             source.send_key(session_id, body.key)
 

@@ -5,6 +5,11 @@ import { InputBar } from './input-bar'
 
 const mutate = vi.fn((_body: unknown, options?: { onSuccess?: () => void; onError?: () => void }) => options?.onSuccess?.())
 vi.mock('../api/use-terminal', () => ({ useSendInput: () => ({ mutate, isPending: false, isError: false }) }))
+// jsdom draws no pictures: one that fits is sent as it is anyway.
+vi.mock('../images', async (actual) => ({
+  ...(await actual<typeof import('../images')>()),
+  shrink: async (file: Blob) => ({ blob: file, type: file.type }),
+}))
 
 /** A screen that is a phone's (a coarse pointer) or not. */
 function device(phone: boolean) {
@@ -99,5 +104,31 @@ describe('InputBar', () => {
     expect(tracked.failed).toHaveBeenCalled()
     expect(box()).toHaveValue('Friday\nand Saturday')
     expect(useDrafts.getState().quotes['nas/s1']).toEqual([{ text: 'Pick a date', reply: '' }])
+  })
+
+  it('takes pasted pictures where the session does, shows them over the words and sends them along', async () => {
+    device(false)
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: () => undefined }))
+    render(<InputBar daemonId="nas" sessionId="s1" images />)
+    const shot = new File([new Uint8Array([137, 80, 78, 71])], 'shot.png', { type: 'image/png' })
+    await act(async () => {
+      fireEvent.paste(box(), { clipboardData: { files: [shot] } })
+    })
+    expect(screen.getByRole('list', { name: 'Pictures' }).querySelectorAll('img')).toHaveLength(1)
+    fireEvent.change(box(), { target: { value: 'what broke?' } })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    })
+    await vi.waitFor(() => expect(mutate).toHaveBeenCalled())
+    expect(mutate.mock.calls[0]![0]).toEqual({
+      text: 'what broke?', enter: true, images: [{ media_type: 'image/png', data: 'iVBORw==' }],
+    }) // prettier-ignore
+    expect(screen.queryByRole('list', { name: 'Pictures' })).toBeNull()
+  })
+
+  it('offers no pictures where the session takes none', () => {
+    device(false)
+    render(<InputBar daemonId="nas" sessionId="s1" />)
+    expect(screen.queryByRole('button', { name: 'Add pictures' })).toBeNull()
   })
 })

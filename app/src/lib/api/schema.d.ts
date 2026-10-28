@@ -682,6 +682,12 @@ export interface components {
              */
             conversation: boolean;
             /**
+             * Images
+             * @description a message to it may carry images (SendInput.images)
+             * @default false
+             */
+            images: boolean;
+            /**
              * Keys
              * @description tmux key names input accepts; empty = any
              */
@@ -912,6 +918,19 @@ export interface components {
              * @description the hub it joined; null when it joined none
              */
             url?: string | null;
+        };
+        /** ImageInput */
+        ImageInput: {
+            /**
+             * Data
+             * @description the image, base64
+             */
+            data: string;
+            /**
+             * Media Type
+             * @enum {string}
+             */
+            media_type: "image/png" | "image/jpeg" | "image/gif" | "image/webp";
         };
         /**
          * ItemStatus
@@ -1169,7 +1188,8 @@ export interface components {
         };
         /**
          * SendInput
-         * @description Either literal `text` (optionally followed by Enter) or one tmux `key` name.
+         * @description Either literal `text` (optionally followed by Enter) or one tmux `key` name. A message (`text`) may
+         *     carry `images` where the session takes them (`capabilities.images`).
          */
         SendInput: {
             /**
@@ -1177,6 +1197,8 @@ export interface components {
              * @default false
              */
             enter: boolean;
+            /** Images */
+            images?: components["schemas"]["ImageInput"][];
             /** Key */
             key?: string | null;
             /** Text */

@@ -78,6 +78,7 @@ from muxtower.sources.codex.shared import SharedCodexSource
 from muxtower.sources.remote_control.service import RemoteControlSource
 from muxtower.summaries.routes import router as summaries_router
 from muxtower.system.routes import router as system_router
+from muxtower.terminal.images import ImageDrop
 from muxtower.terminal.ports import TmuxPort
 from muxtower.terminal.service import TerminalService
 from muxtower.terminal.stream import router as stream_router
@@ -117,7 +118,7 @@ def create_app(
     processes = AgentProcesses([ClaudeProcesses(), CodexProcesses(shared=codex_shared is not None)])
     monitor = Monitor(sessions, processes)
     approvals = ApprovalService(sessions)
-    terminal = TerminalService(sessions, monitor)
+    terminal = TerminalService(sessions, monitor, ImageDrop(settings.state_dir / "images"))
     summaries = build_summaries(settings, db)
     marks = SessionMarks(SqliteMarksRepository(db))
     transcripts = Transcripts()
