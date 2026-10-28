@@ -151,8 +151,11 @@ joined, if any; a node keeps its own API and UI.
   a node ("Mac") is spelled as the node is. A node signed in to another account lists that account's
   sessions itself (`remote_control.enabled`; on macOS from the Keychain item Claude Code keeps).
 - **Versions**: releases go to PyPI (a `vX.Y.Z` tag publishes one); daemons only tell each other their
-  versions. The hub says its own first on every link (`hub`), even to a node it is about to refuse
-  for speaking another `PROTOCOL`; such a node installs the hub's version from PyPI (pipx, or pip
+  versions. Each side speaks link protocols `OLDEST`..`PROTOCOL`; a link speaks the older side's
+  `PROTOCOL`, and the hub refuses a node only when that is older than either side still speaks
+  (`protocol.agree`), so raising `PROTOCOL` alone asks no node to update and raising `OLDEST` does.
+  The hub says its own version first on every link (`hub`), even to a node it is about to refuse;
+  such a node installs the hub's version from PyPI (pipx, or pip
   outside pipx) and execs itself, the same pid, so a service manager sees no exit
   (`nodes/update.py`). A node that is only older is told (`HubStatus.update`, `NodeInfo.update`), and
   follows every update with `hub.update = "always"`. Never downgrades; a source checkout installs

@@ -5,6 +5,7 @@ muxtower run AGENT ...   start an agent in a managed tmux session (starts the da
 muxtower attach [NAME]   open a session in this terminal
 muxtower pair            add a device with a one-time code (--join HUB: join a hub as a node)
 muxtower serve           run the daemon in the foreground (for systemd, Docker)
+muxtower --version       this install's version, and the hub links it speaks
 """
 
 import argparse
@@ -12,10 +13,12 @@ import os
 import shutil
 import sys
 
+from muxtower import __version__
 from muxtower.cli.client import DaemonError, LocalDaemon
 from muxtower.cli.pair import cmd_pair
 from muxtower.cli.serve import add_serve_parser
 from muxtower.config import load_settings
+from muxtower.nodes.protocol import OLDEST, PROTOCOL
 
 
 def _attach(session: dict[str, str]) -> int:
@@ -41,10 +44,13 @@ def cmd_status(_: argparse.Namespace, daemon: LocalDaemon) -> int:
         print(__doc__.split("\n", 2)[2] if __doc__ else "")
         return 0
     sessions = daemon.request("GET", "/v1/sessions")
+    running = daemon.request("GET", "/v1/health").get("version")
     print(
-        f"daemon: running at {daemon.url}"
+        f"daemon: muxtower {running} running at {daemon.url}"
         + (f", public at {daemon.settings.public_url}" if daemon.settings.public_url else "")
     )
+    if running != __version__:
+        print(f"  muxtower {__version__} is installed: restart the daemon to run it")
     hub = daemon.request("GET", "/v1/hub")
     if hub.get("url"):
         state = "connected" if hub["connected"] else f"not connected ({hub.get('error') or 'linking'})"
@@ -93,6 +99,8 @@ def cmd_attach(args: argparse.Namespace, daemon: LocalDaemon) -> int:
 
 def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(prog="muxtower", description="Approve and drive coding agents from your phone.")
+    links = str(PROTOCOL) if OLDEST == PROTOCOL else f"{OLDEST}..{PROTOCOL}"
+    p.add_argument("--version", action="version", version=f"muxtower {__version__} (hub link protocol {links})")
     sub = p.add_subparsers(dest="command")
 
     run = sub.add_parser("run", help="start an agent in a managed tmux session")

@@ -14,7 +14,10 @@ know. The hub asks the node to act on its sessions with requests named like the 
 HTTP statuses and come out on the other side as the same exception, so a 409 from a node is a 409
 from the hub.
 
-PROTOCOL is raised only by a change an older peer cannot read; the hub refuses another one."""
+PROTOCOL is raised only by a change an older peer cannot read (a new event or field is not one). A side
+may keep speaking older protocols, back to OLDEST: the link speaks the older of the two sides'
+PROTOCOLs, and the hub refuses a node only when that is older than either side still speaks (`agree`).
+So a release that raises PROTOCOL but keeps OLDEST asks no node to update; raising OLDEST does."""
 
 import json
 from typing import Any
@@ -24,7 +27,8 @@ from pydantic import BaseModel, Field
 from muxtower.errors import Conflict, Forbidden, Invalid, NotFound, TooManyRequests, Unauthorized, Unavailable
 from muxtower.runtimes.models import RuntimeInfo
 
-PROTOCOL = 1
+PROTOCOL = 1  # the newest link this side speaks
+OLDEST = 1  # the oldest it still speaks
 MAX_FRAME_BYTES = 16 * 1024 * 1024
 CLOSE_REVOKED = 4401  # the hub no longer knows this node: it should stop trying
 CLOSE_INCOMPATIBLE = 4400
@@ -47,6 +51,13 @@ class Hello(BaseModel):
     version: str
     runtimes: list[RuntimeInfo] = Field(default_factory=list)
     platform: str | None = Field(default=None, description="sys.platform there: darwin, linux, win32")
+    oldest: int | None = Field(default=None, description="the oldest protocol it still speaks (else just `protocol`)")
+
+
+def agree(protocol: int, oldest: int | None) -> int | None:
+    """The protocol a link with a peer speaking `oldest`..`protocol` speaks, or None when there is none."""
+    spoken = min(PROTOCOL, protocol)
+    return spoken if spoken >= max(OLDEST, oldest or protocol) else None
 
 
 def status_of(exc: Exception) -> int:

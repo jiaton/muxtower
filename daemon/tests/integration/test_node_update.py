@@ -10,16 +10,18 @@ from fastapi import FastAPI
 
 from muxtower import __version__
 from muxtower.app import create_app
-from muxtower.nodes.protocol import PROTOCOL, Hello
+from muxtower.nodes.protocol import PROTOCOL, Hello, agree
 from muxtower.nodes.update import Policy, newer
 from tests.fakes import FakeTmux
 from tests.integration.test_node_link import Running, _free_port, _settings, _until, hub  # noqa: F401 - a fixture
 
 
-def _node(tmp_path: Path, policy: Policy, protocol: int) -> tuple[FastAPI, list[list[str]], threading.Event]:
+def _node(
+    tmp_path: Path, policy: Policy, protocol: int, oldest: int | None = None
+) -> tuple[FastAPI, list[list[str]], threading.Event]:
     node = create_app(_settings(tmp_path, "mac", _free_port()), tmux=FakeTmux(), run_loops=False)
     client = node.state.hub
-    client.hello = lambda: Hello(protocol=protocol, name="mac", version="0.0.9")
+    client.hello = lambda: Hello(protocol=protocol, oldest=oldest, name="mac", version="0.0.9")
     updater = client.updater
     updater.policy, updater.version, updater.source = policy, "0.0.9", False
     ran: list[list[str]] = []
@@ -74,6 +76,28 @@ def test_an_older_node_is_told_and_follows_only_when_it_always_does(
         assert restarted.wait(10) and ran[0][-1] == f"muxtower=={__version__}"
     finally:
         link.stop()
+
+
+def test_a_newer_node_that_still_speaks_the_hub_s_protocol_links(
+    hub: tuple[FastAPI, str],  # noqa: F811
+    tmp_path: Path,
+) -> None:
+    hub_app, hub_url = hub
+    node, ran, _ = _node(tmp_path, "incompatible", PROTOCOL + 1, oldest=PROTOCOL)
+    link = Running(node.state.hub.run_loop())
+    try:
+        _join(hub_app, hub_url, node)
+        assert _until(lambda: node.state.hub.status().connected)
+        assert ran == [] and node.state.hub.status().error is None
+    finally:
+        link.stop()
+
+
+def test_a_link_speaks_the_older_side_s_protocol_while_both_still_speak_it() -> None:
+    assert agree(PROTOCOL, None) == PROTOCOL
+    assert agree(PROTOCOL + 1, PROTOCOL) == PROTOCOL  # a newer node talks down
+    assert agree(PROTOCOL + 1, None) is None  # one that no longer speaks this hub's protocol
+    assert agree(PROTOCOL - 1, None) is None  # older than this hub still speaks (OLDEST)
 
 
 def test_versions_compare_as_releases() -> None:

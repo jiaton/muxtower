@@ -136,8 +136,8 @@ def create_app(
         HubStore(settings.state_dir / "hub.json"), settings.hub.headers,
         NodeApi(directory, launcher, archiver, placements, audit, processes), monitor, bus,
         lambda: node_protocol.Hello(
-            protocol=node_protocol.PROTOCOL, name=daemon_name, version=__version__, runtimes=launcher.runtimes(),
-            platform=sys.platform,
+            protocol=node_protocol.PROTOCOL, oldest=node_protocol.OLDEST, name=daemon_name, version=__version__,
+            runtimes=launcher.runtimes(), platform=sys.platform,
         ),
         Updater(settings.hub.update),
     )  # fmt: skip
