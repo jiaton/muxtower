@@ -64,17 +64,17 @@ class ClaudeProcesses:
             return info if isinstance(info, dict) else None
         return None
 
-    def remote_id(self, pane_pid: int) -> str | None:
+    def remote_id(self, pane_pid: int, screen: str = "") -> str | None:
         info = self._info(pane_pid)
         return _remote_id(info) if info else None  # None: no Claude Code, or one without Remote Control
 
-    def name(self, pane_pid: int) -> str | None:
+    def name(self, pane_pid: int, screen: str = "") -> str | None:
         """The session's name in Claude Code (what `/rename` set, or the one it gave itself)."""
         info = self._info(pane_pid)
         name = info.get("name") if info else None
         return (name.strip()[:80] or None) if isinstance(name, str) else None
 
-    def transcript(self, pane_pid: int) -> str | None:
+    def transcript(self, pane_pid: int, screen: str = "") -> str | None:
         """The transcript file of the pane's Claude Code session, when it exists."""
         info = self._info(pane_pid)
         if not info or not isinstance(info.get("sessionId"), str) or not isinstance(info.get("cwd"), str):

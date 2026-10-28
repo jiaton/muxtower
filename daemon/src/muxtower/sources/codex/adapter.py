@@ -42,18 +42,22 @@ class CodexAppServer:
         self._waiting: dict[int, queue.Queue[dict[str, Any]]] = {}
         self._messages: queue.Queue[Message] = queue.Queue()
         self._next_id = 0
+        self._noisy = True  # a server muxtower runs itself should come up: say so when it does not
 
     # --- lifecycle ----------------------------------------------------------------------------
 
+    def _alive(self) -> bool:
+        return self._ws is not None and self._process is not None and self._process.poll() is None
+
     def ensure(self) -> bool:
         with self._lock:
-            if self._ws is not None and self._process is not None and self._process.poll() is None:
+            if self._alive():
                 return True
             self._stop()
             try:
                 self._start()
             except (OSError, TimeoutError, ValueError) as exc:
-                logger.warning("codex app-server did not start: %s", exc)
+                logger.log(logging.WARNING if self._noisy else logging.DEBUG, "codex app-server: %s", exc)
                 self._stop()
                 return False
         try:
@@ -61,6 +65,8 @@ class CodexAppServer:
             self._send({"method": "initialized"})
         except (Unavailable, Conflict) as exc:
             logger.warning("codex app-server did not initialize: %s", exc)
+            with self._lock:
+                self._stop()  # a connection that never said hello is not one to go on with
             return False
         logger.info("codex app-server up on %s", self.socket_path)
         return True
@@ -176,3 +182,28 @@ def default_socket(state_dir: Path) -> Path:
         return path
     base = Path(os.environ.get("XDG_RUNTIME_DIR") or tempfile.gettempdir()) / f"muxtower-{os.getuid()}"
     return base / f"codex-{hashlib.sha256(str(state_dir).encode()).hexdigest()[:8]}.sock"
+
+
+class SharedAppServer(CodexAppServer):
+    """The app-server Codex itself keeps for the `codex` TUIs, desktop app and editors on this machine,
+    reached on its control socket as one more client. Never started here (that is Codex's own business:
+    a TUI starts it when it needs one), only joined while it runs."""
+
+    def __init__(self, socket_path: Path) -> None:
+        super().__init__("codex", socket_path, socket_path)
+        self._noisy = False  # Codex may simply not be running one
+
+    def _alive(self) -> bool:
+        return self._ws is not None
+
+    def _start(self) -> None:
+        if not self.socket_path.exists():
+            raise TimeoutError("Codex runs no shared app-server")
+        self._ws = unix_connect(str(self.socket_path), uri="ws://localhost/", compression=None, max_size=None)
+        threading.Thread(target=self._read, args=(self._ws,), name="codex-shared", daemon=True).start()
+
+
+def shared_socket() -> Path:
+    """Where Codex keeps the control socket of its shared app-server."""
+    home = Path(os.environ.get("CODEX_HOME") or Path.home() / ".codex")
+    return home / "app-server-control" / "app-server-control.sock"

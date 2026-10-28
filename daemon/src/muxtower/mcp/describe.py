@@ -1,6 +1,6 @@
 """How the MCP tools say what a session is, keeping three things apart: the device it runs on, what
-reaches it (the muxtower daemon on a device, through tmux or headless, or only the Claude account's
-Remote Control), and the agent harness (Claude Code from the CLI, the desktop app…, or Codex). What is
+reaches it (the muxtower daemon on a device, through tmux, headless or Codex's shared app-server, or only the
+Claude account's Remote Control), and the agent harness (Claude Code from the CLI, the desktop app…, or Codex). What is
 not known is said to be unknown: a session nobody places is not the hub's."""
 
 from muxtower.nodes.processes import platform_of
@@ -35,13 +35,19 @@ def harness(s: Session) -> str:
 
 def reached(s: Session, hub: str) -> str:
     daemon = f"muxtower on {s.node or hub}"
-    also = ", also Remote Control" if s.remote_id else ""
+    also = (
+        (", also in Codex's shared app-server" if s.runtime == "codex" else ", also Remote Control")
+        if s.remote_id
+        else ""
+    )
     if s.source is SessionSource.LAUNCHED:
         return f"{daemon}: started in tmux{also}"
     if s.source is SessionSource.ADOPTED:
         return f"{daemon}: found in tmux{also}"
     if s.source is SessionSource.CODEX:
         return f"{daemon}: headless"
+    if s.source is SessionSource.CODEX_SHARED:
+        return f"{daemon}: in Codex's shared app-server"
     return "the Claude account's Remote Control"
 
 

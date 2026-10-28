@@ -8,7 +8,8 @@ with `task_complete` (or `turn_complete`, `turn_aborted`). Approval prompts are 
 the file cannot tell a waiting turn from a working one: the screen does.
 
 In "code mode" a tool call is a script (`custom_tool_call` named `exec`) that calls the real tools, as
-`tools.exec_command({"cmd": …})`: the first one it calls names the call.
+`tools.exec_command({cmd: …})` (a JavaScript object: its keys may be bare): the first one it calls names
+the call.
 """
 
 import json
@@ -24,8 +25,10 @@ TOOL_CALLS = {"function_call", "custom_tool_call", "local_shell_call", "web_sear
 TOOL_OUTPUTS = {"function_call_output", "custom_tool_call_output", "local_shell_call_output"}
 TURN_ENDS = {"task_complete", "turn_complete"}
 ABORTED = {"turn_aborted", "task_aborted"}
-SCRIPT_CALL = re.compile(r"tools\.(\w+)\(\s*(\{.*?\})\s*\)", re.S)
-FAILED = re.compile(r"^(Script failed|Process exited with code [1-9])|Exit code: [1-9]", re.M)
+SCRIPT_CALL = re.compile(r'tools\.(\w+)\(\s*(\{.*?\}|"(?:[^"\\]|\\.)*")\s*\)', re.S)
+PATCHED_FILE = re.compile(r"\*\*\* (?:Add|Update|Delete) File: (\S+)")
+FAILED = re.compile(r'^(Script failed|Process exited with code [1-9])|Exit code: [1-9]|"exit_code":\s*[1-9]', re.M)
+BARE_KEY = re.compile(r"[A-Za-z_$][\w$]*")
 
 
 def _at(value: Any) -> datetime | None:
@@ -40,6 +43,35 @@ def _json(text: Any) -> Any:
         return json.loads(text) if isinstance(text, str) else text
     except ValueError:
         return None
+
+
+def _script_object(text: str) -> Any:
+    """The argument of a code-mode call: JSON, or a JavaScript object literal whose keys are bare words and
+    whose strings may be single-quoted."""
+    if (found := _json(text)) is not None:
+        return found
+    out: list[str] = []
+    last = ""  # the last character that is not a space: a bare word is a key only after "{" or ","
+    i = 0
+    while i < len(text):
+        c = text[i]
+        if c in "\"'":
+            end = i + 1
+            while end < len(text) and text[end] != c:
+                end += 2 if text[end] == "\\" else 1
+            inner = text[i + 1 : end]
+            if c == "'":
+                inner = re.sub(r'(?<!\\)"', '\\"', inner.replace("\\'", "'"))
+            out.append(f'"{inner}"')
+            last, i = '"', end + 1
+        elif (word := BARE_KEY.match(text, i)) and last in ("{", ","):
+            out.append(f'"{word.group()}"' if text[word.end() :].lstrip().startswith(":") else word.group())
+            last, i = word.group()[-1], word.end()
+        else:
+            out.append(c)
+            last = c if not c.isspace() else last
+            i += 1
+    return _json("".join(out))
 
 
 def _output_text(output: Any) -> str:
@@ -62,7 +94,9 @@ def tool_of(payload: dict[str, Any]) -> tuple[str, str | None]:
         script = str(payload.get("input") or "")
         found = SCRIPT_CALL.search(script)
         if found:
-            args = _json(found.group(2))
+            args = _script_object(found.group(2))
+            if isinstance(args, str) and (patched := PATCHED_FILE.search(args)):  # apply_patch("*** Begin Patch…")
+                return found.group(1), patched.group(1)
             return found.group(1), describe_tool_input(args) if isinstance(args, dict) else truncate(found.group(2))
         return "exec", truncate(script) or None
     args = _json(payload.get("arguments")) if kind == "function_call" else payload.get("input")
@@ -117,6 +151,20 @@ class RolloutBuilder:
             return []
         return [item.model_copy(update={"status": status})]
 
+    def _item_completed(self, item: dict[str, Any], at: datetime | None) -> list[ConversationItem]:
+        """What the owner and the agent said, as Codex 0.164 and later write it."""
+        kind = item.get("type")
+        if kind == "UserMessage":
+            texts = [str(c.get("text") or "") for c in item.get("content") or [] if isinstance(c, dict)]
+            if text := "\n".join(t for t in texts if t.strip()).strip():
+                return [self._item(ConversationItemKind.PROMPT, at, text=text)]
+        elif kind in ("AgentMessage", "Plan"):
+            parts = item.get("content") if kind == "AgentMessage" else [{"text": item.get("text")}]
+            texts = [str(c.get("text") or "") for c in parts or [] if isinstance(c, dict)]
+            if text := "\n".join(t for t in texts if t.strip()).strip():
+                return [self._item(ConversationItemKind.REPLY, at, text=text)]
+        return []
+
     def _apply(self, kind: str, payload: dict[str, Any], at: datetime | None) -> list[ConversationItem]:
         sub = payload.get("type")
         if kind == "event_msg":
@@ -124,6 +172,8 @@ class RolloutBuilder:
                 return [self._item(ConversationItemKind.PROMPT, at, text=text)]
             if sub == "agent_message" and (text := str(payload.get("message") or "").strip()):
                 return [self._item(ConversationItemKind.REPLY, at, text=text)]
+            if sub == "item_completed" and isinstance(payload.get("item"), dict):
+                return self._item_completed(payload["item"], at)
             if sub == "exec_command_end" and payload.get("exit_code") not in (0, None):
                 return self._finish(payload.get("call_id"), ItemStatus.ERROR)
             if sub in TURN_ENDS:

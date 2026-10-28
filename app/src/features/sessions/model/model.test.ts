@@ -39,6 +39,11 @@ describe('facets', () => {
     // the process file's entrypoint, as the daemon passes it on
     expect(sourceOf(entry('a', { source: 'remote_control', origin: 'claude_code_sdk_cli' }).session)).toBe('SDK')
     expect(sourceOf(entry('a', { source: 'remote_control', origin: 'claude_code_claude_vscode' }).session)).toBe('IDE')
+    // the threads of Codex's shared app-server, by the client that started them
+    expect(sourceOf(entry('a', { source: 'codex_shared', origin: 'codex_cli' }).session)).toBe('CLI')
+    expect(sourceOf(entry('a', { source: 'codex_shared', origin: 'codex_desktop' }).session)).toBe('Desktop app')
+    expect(sourceOf(entry('a', { source: 'codex_shared', origin: 'codex_vscode' }).session)).toBe('IDE')
+    expect(sourceOf(entry('a', { source: 'codex' }).session)).toBe('Headless')
   })
 
   it('names the device: the daemon machine, else the kind of machine the folder is on', () => {

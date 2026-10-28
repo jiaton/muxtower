@@ -1214,7 +1214,7 @@ export interface components {
             placement?: components["schemas"]["Placement"] | null;
             /**
              * Remote Id
-             * @description this agent's Remote Control session, when it has one; listed once, under this id
+             * @description the controller session of this agent (Claude Code's Remote Control session, a Codex thread of the shared app-server), when it has one; listed once, under this id
              */
             remote_id?: string | null;
             /**
@@ -1272,7 +1272,7 @@ export interface components {
          * SessionSource
          * @enum {string}
          */
-        SessionSource: "launched" | "adopted" | "remote_control" | "codex";
+        SessionSource: "launched" | "adopted" | "remote_control" | "codex" | "codex_shared";
         /** SessionsFrame */
         SessionsFrame: {
             /** Sessions */

@@ -1240,7 +1240,7 @@
                 "type": "null"
               }
             ],
-            "description": "this agent's Remote Control session, when it has one; listed once, under this id",
+            "description": "the controller session of this agent (Claude Code's Remote Control session, a Codex thread of the shared app-server), when it has one; listed once, under this id",
             "title": "Remote Id"
           },
           "reply_summary": {
@@ -1386,7 +1386,8 @@
           "launched",
           "adopted",
           "remote_control",
-          "codex"
+          "codex",
+          "codex_shared"
         ],
         "title": "SessionSource",
         "type": "string"

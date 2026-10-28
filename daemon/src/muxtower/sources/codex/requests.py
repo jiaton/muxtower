@@ -1,6 +1,7 @@
 """The requests a Codex app-server waits on the owner for (approvals of a command, a file change or
 permissions; questions), as a pending action with choices, and the answer to send for a choice."""
 
+from collections.abc import Callable
 from typing import Any
 
 from muxtower.runtimes.models import AgentState, Option
@@ -22,8 +23,11 @@ NO = ("decline", "cancel")
 LEGACY = {"accept": "approved", "acceptForSession": "approved_for_session", "decline": "denied", "cancel": "abort"}
 
 
-def pending_action(requests: dict[str, Message]) -> PendingAction | None:
-    """What the newest request waits on, and the choices to answer it."""
+def pending_action(
+    requests: dict[str, Message], describe: Callable[[str], str | None] = lambda _: None
+) -> PendingAction | None:
+    """What the newest request waits on, and the choices to answer it. `describe` says what the item a request
+    is about does, for the requests that do not say so themselves (a file change)."""
     if not requests:
         return None
     request = list(requests.values())[-1]
@@ -47,7 +51,9 @@ def pending_action(requests: dict[str, Message]) -> PendingAction | None:
         decisions = ["accept", "decline"]
     if not any(d in NO for d in decisions):
         decisions.append("decline")
-    what = params.get("command") or params.get("reason") or params.get("grantRoot")
+    what = (
+        params.get("command") or describe(str(params.get("itemId"))) or params.get("reason") or params.get("grantRoot")
+    )
     return PendingAction(
         state=AgentState.NEEDS_PERMISSION,
         tool_name=APPROVALS[request.method],

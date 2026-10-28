@@ -115,3 +115,30 @@ def test_codex_dialogs_are_classified_and_approved_once() -> None:
     assert rt.classify(screens.CODEX_IDLE).state == AgentState.IDLE
     trust = rt.classify(screens.CODEX_TRUST)
     assert trust.state == AgentState.NEEDS_TRUST and rt.choose_option(trust.state, trust.options) == "1"
+
+
+def test_codex_plan_error_and_interrupt_screens() -> None:
+    rt = load_runtimes(None)["codex"]
+    plan = rt.classify(screens.CODEX_PLAN)
+    assert plan.state == AgentState.PLAN_REVIEW and [o.key for o in plan.options] == ["1", "2", "3"]
+    assert rt.choose_option(plan.state, plan.options) == "1"  # not "clear context and implement"
+    assert rt.classify(screens.CODEX_ERROR).state == AgentState.ERROR
+    assert rt.classify(screens.CODEX_INTERRUPTED).state == AgentState.IDLE  # interrupting is not failing
+    older = screens.CODEX_ERROR.replace(
+        "› Ask Codex", "\n".join(f"  later line {n}" for n in range(8)) + "\n› Ask Codex"
+    )
+    assert rt.classify(older).state == AgentState.IDLE  # a failure scrolled up does not hold the session
+    assert rt.classify(screens.CODEX_ERROR + "\n• Working (3s • esc to interrupt)").state == AgentState.BUSY
+    assert set(rt.config.auto_approve_states) == {AgentState.NEEDS_PERMISSION, AgentState.NEEDS_TRUST}
+
+
+def test_codex_permission_tool_and_rate_limit_dialogs() -> None:
+    rt = load_runtimes(None)["codex"]
+    permissions = rt.classify(screens.CODEX_PERMISSIONS)
+    assert permissions.state == AgentState.NEEDS_PERMISSION
+    assert rt.choose_option(permissions.state, permissions.options) == "1"  # for this turn, not the session
+    tool = rt.classify(screens.CODEX_APP_TOOL)
+    assert tool.state == AgentState.NEEDS_PERMISSION
+    assert rt.choose_option(tool.state, tool.options) == "1"  # run it once, not "remember"
+    limit = rt.classify(screens.CODEX_RATE_LIMIT)
+    assert limit.state == AgentState.NEEDS_ANSWER and rt.choose_option(limit.state, limit.options) is None

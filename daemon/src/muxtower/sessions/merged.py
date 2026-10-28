@@ -1,6 +1,6 @@
 """One entry for an agent reached two ways: a tmux pane here whose Claude Code also runs Remote Control."""
 
-from muxtower.sessions.models import Session
+from muxtower.sessions.models import PendingAction, Session
 
 
 def deeper(start: str, working: str) -> str:
@@ -11,10 +11,20 @@ def deeper(start: str, working: str) -> str:
     return start or working
 
 
+def with_detail(local: Session, remote: Session) -> PendingAction | None:
+    """What the pane waits on, with the tool and command the remote side heard asked for, when the pane's
+    own dialog has only its choices (no hooks)."""
+    pending, asked = local.pending, remote.pending
+    if pending is None or asked is None or not asked.options or pending.state != asked.state or pending.detail:
+        return pending
+    return pending.model_copy(update={"tool_name": pending.tool_name or asked.tool_name, "detail": asked.detail})
+
+
 def merged(local: Session, remote: Session) -> Session:
     """The tmux entry, with the remote side's name, conversation, summary and origin."""
     return local.model_copy(
         update={
+            "pending": with_detail(local, remote),
             "name": remote.name,
             "origin": remote.origin,
             "summary": remote.summary,

@@ -18,6 +18,7 @@ class SessionSource(StrEnum):
     ADOPTED = "adopted"  # an agent found running in some other tmux session
     REMOTE_CONTROL = "remote_control"  # a Claude Code Remote Control session, reached through Anthropic
     CODEX = "codex"  # a Codex thread muxtower runs headless, in its own Codex app-server
+    CODEX_SHARED = "codex_shared"  # a thread of the Codex app-server shared by this machine's Codex clients
 
 
 @dataclass
@@ -61,20 +62,22 @@ class ArchiveRepository(Protocol):
 
 
 class ClaudeProcessPort(Protocol):
-    def remote_id(self, pane_pid: int) -> str | None:
-        """The Remote Control session of the Claude Code process running in this pane, if any."""
+    def remote_id(self, pane_pid: int, screen: str = "") -> str | None:
+        """The controller session of the agent running in this pane (Claude Code's Remote Control, a Codex
+        thread of the shared app-server), if it has one."""
         ...
 
     def running(self) -> dict[str, ClaudeProcess]:
         """Claude Code processes on this machine with Remote Control on, by remote session id."""
         ...
 
-    def transcript(self, pane_pid: int) -> str | None:
-        """The transcript file of the Claude Code session running in this pane, if any."""
+    def transcript(self, pane_pid: int, screen: str = "") -> str | None:
+        """The transcript file of the agent session running in this pane, if any. `screen` is what the pane
+        shows, for an agent that has to be told from its neighbours by what was said in it."""
         ...
 
-    def name(self, pane_pid: int) -> str | None:
-        """The name the Claude Code session running in this pane goes by (/rename, or its own), if any."""
+    def name(self, pane_pid: int, screen: str = "") -> str | None:
+        """The name the agent session running in this pane goes by (/rename, or its own), if any."""
         ...
 
 

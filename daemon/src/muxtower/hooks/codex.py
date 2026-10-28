@@ -82,7 +82,7 @@ def hooks_config(command: str) -> dict[str, Any]:
 
 class CodexHooks:
     name = "codex"
-    asking = AskingTools()  # its questions are a dialog of their own, read off the screen
+    asking = AskingTools(questions=frozenset({"request_user_input"}))  # Plan mode's questions, with the options
 
     def launch_args(self, launch: HookLaunch) -> list[str]:
         target = launch.files / f"{launch.session_id}.codex.json"

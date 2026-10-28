@@ -58,6 +58,12 @@ class RuntimeConfig(BaseModel):
     hooks: str | None = None  # name of a hook integration, e.g. "claude-code"
     default_state: AgentState = AgentState.UNKNOWN
     auto_approve_states: list[AgentState] = Field(default_factory=list)
+    # Seconds between typed text and the Enter that sends it. A TUI that takes quickly typed characters
+    # for a paste (Codex) turns an Enter right behind them into a new line instead of sending.
+    enter_delay: float = Field(default=0.0, ge=0, le=2)
+    # A hook that says "working" is believed until the screen has shown no sign of work for this many seconds
+    # (0: always). For an agent whose hooks do not report every way a turn ends (Codex has no failure event).
+    busy_stale_seconds: float = Field(default=0.0, ge=0)
     rules: list[RuleConfig] = Field(default_factory=list)
     menu: MenuConfig = Field(default_factory=MenuConfig)
     approve: ApproveConfig = Field(default_factory=ApproveConfig)
@@ -124,12 +130,18 @@ class Runtime:
         column = len(cursor_line) - len(cursor_line.lstrip()) + len(cursor)
         column += len(cursor_line[column:]) - len(cursor_line[column:].lstrip())  # text start
 
+        numbered_menu = bool(_NUMBERED.match(cursor_line.lstrip()[len(cursor) :].strip()))
+
         def kind(line: str) -> str | None:
             """ "choice" (text starts exactly at `column`), "more" (a wrapped label, indented deeper)."""
             head, body = line[:column], line[column:]
             if not body.strip() or head.replace(cursor, "").strip():
                 return None
-            return "more" if body[:1].isspace() else "choice"
+            if body[:1].isspace():
+                return "more"
+            # Among numbered choices a line without a number is not one: Codex asks "Implement this plan?"
+            # on the line right above its choices, in the same column.
+            return "choice" if not numbered_menu or _NUMBERED.match(body.strip()) else None
 
         first = at
         while first > 0 and kind(lines[first - 1]) is not None:

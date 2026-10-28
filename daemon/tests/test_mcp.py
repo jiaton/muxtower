@@ -45,3 +45,29 @@ def test_mcp_lists_and_calls_tools(app: FastAPI, tmux: FakeTmux) -> None:
     assert missing["result"]["isError"]
     assert _rpc(client, auth, "tools/call", {"name": "nope", "arguments": {}})["error"]["code"] == -32602
     assert _rpc(client, auth, "nope/nope")["error"]["code"] == -32601
+
+
+def test_codex_sessions_are_told_apart_by_how_muxtower_reaches_them() -> None:
+    from datetime import UTC, datetime
+
+    from muxtower.mcp.describe import harness, reached
+    from muxtower.runtimes.models import AgentState
+    from muxtower.sessions.models import Capabilities, Session, StateSource
+    from muxtower.sessions.ports import SessionSource
+
+    caps = Capabilities(screen=False, conversation=True, keys=[], resize=False, terminate=False, rename=False)
+    now = datetime.now(UTC)
+
+    def codex(source: SessionSource, origin: str, **over: object) -> Session:
+        return Session(
+            id="t1", name="web", runtime="codex", cwd="/srv/web", machine="hub", source=source, origin=origin,
+            capabilities=caps, state=AgentState.IDLE, state_source=StateSource.REMOTE, matched_rule=None,
+            needs_attention=False, pending=None, last_message=None, auto_approve=False, can_auto_approve=False,
+            created_at=now, updated_at=now, **over,
+        )  # fmt: skip
+
+    shared = codex(SessionSource.CODEX_SHARED, "codex_vscode")
+    assert reached(shared, "hub") == "muxtower on hub: in Codex's shared app-server"
+    assert harness(shared) == "Codex (VS Code)"
+    pane = codex(SessionSource.ADOPTED, "codex_cli", remote_id="t1")
+    assert reached(pane, "hub") == "muxtower on hub: found in tmux, also in Codex's shared app-server"

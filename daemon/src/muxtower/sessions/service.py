@@ -76,8 +76,13 @@ class SessionService:
     def effective(self, record: SessionRecord) -> Effective:
         live = self.live_of(record.id)
         if live.effective is None:
-            live.effective = merge(live.hook, live.screen, time.monotonic())
+            live.effective = self._merge(record, live)
         return live.effective
+
+    def _merge(self, record: SessionRecord, live: LiveSession) -> Effective:
+        runtime = self.runtime_of(record)
+        stale = runtime.config.busy_stale_seconds if runtime else 0.0
+        return merge(live.hook, live.screen, time.monotonic(), stale)
 
     def view(self, record: SessionRecord) -> Session:
         live = self.live_of(record.id)
@@ -226,7 +231,7 @@ class SessionService:
         return self.refresh(record, live, before)
 
     def refresh(self, record: SessionRecord, live: LiveSession, before: AgentState) -> bool:
-        effective = merge(live.hook, live.screen, time.monotonic())
+        effective = self._merge(record, live)
         if effective != live.effective:
             live.updated_at = datetime.now(UTC)
         live.effective = effective

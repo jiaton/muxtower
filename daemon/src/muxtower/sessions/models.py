@@ -96,7 +96,9 @@ class Session(BaseModel):
     )
     role: SessionRole | None = None
     remote_id: str | None = Field(
-        default=None, description="this agent's Remote Control session, when it has one; listed once, under this id"
+        default=None,
+        description="the controller session of this agent (Claude Code's Remote Control session, a Codex thread "
+        "of the shared app-server), when it has one; listed once, under this id",
     )
     summary: TurnSummary | None = None
     reply_summary: str | None = Field(

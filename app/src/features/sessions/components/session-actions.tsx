@@ -180,8 +180,11 @@ function StopDialog({ daemonId, session, ...rest }: DialogProps) {
 /** What archiving does here: where the session runs decides what ends. */
 function archiveEffect(session: Session): string {
   const kept = 'Its conversation stays readable under Archived.'
-  if (session.tmux_pane && session.remote_id) return `This ends the agent, closes its tmux pane and archives it on Remote Control. ${kept}`
+  const codex = session.runtime === 'codex'
+  // a Codex pane that is also a thread of Codex's shared app-server keeps its thread: only the pane closes
+  if (session.tmux_pane && session.remote_id && !codex) return `This ends the agent, closes its tmux pane and archives it on Remote Control. ${kept}`
   if (session.tmux_pane) return `This ends the agent and closes its tmux pane. ${kept}`
+  if (codex) return `This archives the thread in Codex, which ends it. ${kept}`
   return `This archives it on Remote Control, which ends the agent. ${kept}`
 }
 

@@ -41,3 +41,13 @@ def test_screen_only_detection_without_hooks() -> None:
 def test_hook_idle_beats_default_screen_state() -> None:
     eff = merge(HookState(AgentState.IDLE, at=1), screen(AgentState.IDLE, 1, rule=None), now=2)
     assert eff.source == StateSource.HOOK
+
+
+def test_a_hook_that_says_busy_is_believed_until_the_screen_has_shown_nothing_at_work_for_a_while() -> None:
+    hook = HookState(AgentState.BUSY, at=10)
+    idle = screen(AgentState.IDLE, 12, rule=None)
+    assert merge(hook, idle, now=500).state == AgentState.BUSY  # the default: always believed
+    assert merge(hook, idle, now=20, busy_stale=20).state == AgentState.BUSY  # not for long enough yet
+    eff = merge(hook, idle, now=33, busy_stale=20)  # the turn failed: no Stop will ever come
+    assert eff.state == AgentState.IDLE and eff.source == StateSource.SCREEN
+    assert merge(hook, screen(AgentState.BUSY, 12), now=500, busy_stale=20).state == AgentState.BUSY  # visibly working
