@@ -78,3 +78,33 @@ def test_archiving_a_remote_session_keeps_the_conversation_it_had(tmp_path: Path
     # kept across a restart
     again = TestClient(_app(tmp_path, FakeTmux(), RemoteControlSource(port, {})))
     assert [s["id"] for s in again.get("/v1/sessions", headers=auth).json()] == ["cse_away"]
+
+
+def test_a_node_session_on_remote_control_is_archived_there_too() -> None:
+    """Its node has no Remote Control of its own: the hub archives that side, then the node its tmux."""
+    from types import SimpleNamespace
+    from typing import Any
+
+    from muxtower.sessions.archiving import Archiver
+    from muxtower.sessions.models import Conversation
+
+    done: list[tuple[str, str]] = []
+
+    class Source:
+        def __init__(self, name: str) -> None:
+            self.name = name
+
+        def archive(self, session_id: str) -> None:
+            done.append((self.name, session_id))
+
+    node, remote = Source("node"), Source("remote control")
+    on_mac = SimpleNamespace(id="mac~ab12", remote_id="cse_9", capabilities=SimpleNamespace(conversation=True))
+    sources = {"mac~ab12": node, "cse_9": remote}
+    directory: Any = SimpleNamespace(
+        require=lambda sid, _: on_mac, source_of=sources.get,
+        conversation=lambda sid, after, limit: Conversation(session_id=sid, items=[], latest_seq=0),
+    )  # fmt: skip
+    kept: list[Any] = []
+    store: Any = SimpleNamespace(keep=lambda *args: kept.append(args))
+    Archiver(directory, store).archive("mac~ab12")
+    assert done == [("remote control", "cse_9"), ("node", "mac~ab12")] and len(kept) == 1
