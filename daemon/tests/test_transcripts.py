@@ -127,7 +127,10 @@ def test_a_transcript_that_says_it_went_on_elsewhere_is_followed_there(tmp_path:
     )
     (tmp_path / "-Users-me-Documents").mkdir()
     (tmp_path / "-Users-me-Documents-quant").mkdir()
-    went_on = lambda to: json.dumps({"type": "continued-in", "continuedInSessionId": to, "sessionId": "x"}) + "\n"  # noqa: E731
+
+    def went_on(to: str) -> str:
+        return json.dumps({"type": "continued-in", "continuedInSessionId": to, "sessionId": "x"}) + "\n"
+
     (tmp_path / "-Users-me-Documents" / f"{first}.jsonl").write_text(line("user", "hi") + went_on(job))
     (tmp_path / "-Users-me-Documents" / f"{job}.jsonl").write_text(line("user", "on") + went_on(now))
     (tmp_path / "-Users-me-Documents-quant" / f"{now}.jsonl").write_text(line("user", "here now"))
