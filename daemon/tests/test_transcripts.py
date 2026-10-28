@@ -114,3 +114,24 @@ def test_the_transcript_its_hooks_name_wins_when_written_to_last(app: FastAPI, c
     app.state.monitor.tick()
     items = client.get(f"/v1/sessions/{session['id']}/conversation", headers=auth).json()["items"]
     assert items[-1]["text"] == "stuck here"
+
+
+def test_a_transcript_that_says_it_went_on_elsewhere_is_followed_there(tmp_path: Path) -> None:
+    """Claude Code moved the conversation (a job, another folder) and left the process file behind."""
+    from muxtower.sessions.claude_processes import continued
+
+    first, job, now = (
+        "376afc00-a76b-462b-a5b3-41179efb8e49",
+        "9df33ad1-0b2b-4dcf-9825-dbda6e3183af",
+        "93a0d3fc-1e27-4466-a8d8-96a0fce56a08",
+    )
+    (tmp_path / "-Users-me-Documents").mkdir()
+    (tmp_path / "-Users-me-Documents-quant").mkdir()
+    went_on = lambda to: json.dumps({"type": "continued-in", "continuedInSessionId": to, "sessionId": "x"}) + "\n"  # noqa: E731
+    (tmp_path / "-Users-me-Documents" / f"{first}.jsonl").write_text(line("user", "hi") + went_on(job))
+    (tmp_path / "-Users-me-Documents" / f"{job}.jsonl").write_text(line("user", "on") + went_on(now))
+    (tmp_path / "-Users-me-Documents-quant" / f"{now}.jsonl").write_text(line("user", "here now"))
+    assert continued(tmp_path / "-Users-me-Documents" / f"{first}.jsonl", tmp_path).endswith(f"-quant/{now}.jsonl")
+    plain = tmp_path / "-Users-me-Documents" / "plain.jsonl"
+    plain.write_text(line("user", "nothing moved"))
+    assert continued(plain, tmp_path) == str(plain)
