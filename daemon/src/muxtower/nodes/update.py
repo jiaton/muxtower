@@ -5,8 +5,8 @@ On every link the hub says its version (event `hub`), before it refuses a node w
 not speak. Such a node must update: it installs the hub's version from PyPI (pipx, or pip outside
 pipx) and execs itself, the same pid, so a service manager sees no exit. A node that is only older is
 told so (`muxtower`, the app's Daemons page) and with `hub.update = "always"` updates itself too;
-`"never"` only tells. A source checkout installs nothing, and a failed install is not tried again until
-the daemon restarts."""
+`"never"` only tells. A source checkout installs nothing, and a failed install (PyPI may serve a release
+minutes after it is published) is tried again RETRY_SECONDS later, while the hub still runs that version."""
 
 import importlib.metadata
 import json
@@ -16,6 +16,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from collections.abc import Callable
 from typing import Any, Literal
 
@@ -26,6 +27,7 @@ logger = logging.getLogger("muxtower.update")
 Policy = Literal["always", "incompatible", "never"]
 VERSION = re.compile(r"^(\d+(?:\.\d+)*)(?:\.?(a|b|rc|dev)(\d*))?$")
 INSTALL_SECONDS = 600
+RETRY_SECONDS = 600.0
 PIPX = ("~/.local/bin/pipx", "/opt/homebrew/bin/pipx", "/usr/local/bin/pipx")  # off a service's PATH
 
 
@@ -80,15 +82,16 @@ class Updater:
         self.source = from_source()
         self.run: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run
         self.restart = restart
-        self._tried: set[str] = set()
+        self.clock = time.monotonic
+        self._tried: dict[str, float] = {}  # version -> when its install was last tried
 
     @property
     def available(self) -> str | None:
         """The hub's version, when it is a later one than this."""
         return self.hub if newer(self.hub, self.version) else None
 
-    def heard(self, data: Any) -> str | None:
-        """The hub said its version: the one to install now, if this node always follows it."""
+    def heard(self, data: Any = None) -> str | None:
+        """The hub said its version (None: as before): the one to install now, if this node always follows it."""
         if isinstance(data, dict) and isinstance(data.get("version"), str):
             self.hub = data["version"]
         return self._target(self.policy == "always")
@@ -99,11 +102,14 @@ class Updater:
 
     def _target(self, allowed: bool) -> str | None:
         target = self.available
-        return target if allowed and target and not self.source and target not in self._tried else None
+        if not (allowed and target) or self.source:
+            return None
+        tried = self._tried.get(target)
+        return target if tried is None or self.clock() - tried >= RETRY_SECONDS else None
 
     def install(self, version: str) -> None:
         """Blocking: installs that version from PyPI and starts again on it; on failure, stays as it is."""
-        self._tried.add(version)
+        self._tried[version] = self.clock()
         logger.info("installing muxtower %s, the hub's version", version)
         try:
             done = self.run(

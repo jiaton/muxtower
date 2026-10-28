@@ -26,7 +26,7 @@ from muxtower.nodes.api import NodeApi
 from muxtower.nodes.models import HubStatus, NodeClaimResult
 from muxtower.nodes.session import LinkSession
 from muxtower.nodes.store import HubStore, Joined
-from muxtower.nodes.update import Updater
+from muxtower.nodes.update import RETRY_SECONDS, Updater
 from muxtower.sessions.monitor import Monitor
 
 logger = logging.getLogger("muxtower.hub")
@@ -50,6 +50,7 @@ class HubClient:
         self.bus = bus
         self.hello = hello
         self.updater = updater or Updater("never")
+        self._following: asyncio.Task[None] | None = None  # installing the hub's version, `_follow`
         self.connected = False
         self.error: str | None = None
         self._wake: asyncio.Event | None = None
@@ -171,5 +172,13 @@ class HubClient:
 
     def _told(self, kind: str, data: Any) -> None:
         """What the hub tells this node unasked: its version (`update.py`)."""
-        if kind == "hub" and (target := self.updater.heard(data)):
-            asyncio.create_task(asyncio.to_thread(self.updater.install, target))
+        following = self._following is not None and not self._following.done()
+        if kind == "hub" and (target := self.updater.heard(data)) and not following:
+            self._following = asyncio.create_task(self._follow(target))
+
+    async def _follow(self, target: str | None) -> None:
+        """Installs the hub's version (and restarts on it); after a failure, again later while it runs one."""
+        while target:
+            await asyncio.to_thread(self.updater.install, target)
+            await asyncio.sleep(RETRY_SECONDS)
+            target = self.updater.heard()
