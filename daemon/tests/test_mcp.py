@@ -29,6 +29,12 @@ def test_mcp_lists_and_calls_tools(app: FastAPI, tmux: FakeTmux) -> None:
     created = app.state.sessions.create(CreateSession(runtime="claude", cwd="/tmp"))  # noqa: S108
     listed = _rpc(client, auth, "tools/call", {"name": "list_sessions", "arguments": {}})["result"]
     assert created.id in listed["content"][0]["text"] and not listed["isError"]
+    assert client.post(f"/v1/sessions/{created.id}/hide", json={"hidden": True}, headers=auth).status_code == 204
+    hidden = _rpc(client, auth, "tools/call", {"name": "list_sessions", "arguments": {}})["result"]
+    assert created.id not in hidden["content"][0]["text"]  # hidden (or archived): only when asked for all
+    every = _rpc(client, auth, "tools/call", {"name": "list_sessions", "arguments": {"all": True}})["result"]
+    assert " hidden · " in every["content"][0]["text"]
+    assert client.post(f"/v1/sessions/{created.id}/hide", json={"hidden": False}, headers=auth).status_code == 204
     sent = _rpc(
         client, auth, "tools/call", {"name": "send_message", "arguments": {"session_id": created.id, "text": "hi"}}
     )

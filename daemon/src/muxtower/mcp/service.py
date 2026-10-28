@@ -9,17 +9,23 @@ from pydantic import BaseModel, Field
 
 from muxtower.concierge.service import ConciergeService
 from muxtower.errors import Invalid
+from muxtower.mcp.describe import line
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.models import CreateSession, Session
 from muxtower.sessions.service import SessionService
 from muxtower.terminal.models import SendInput
 
-REPLY_CHARS = 1500
+REPLY_CHARS = 20000  # a reply is relayed whole, within reason
+ITEM_CHARS = 1000
 SCREEN_LINES = 60
 
 
 class NoArgs(BaseModel):
     pass
+
+
+class ListArgs(BaseModel):
+    all: bool = Field(default=False, description="also archived and hidden sessions")
 
 
 class SessionArg(BaseModel):
@@ -56,12 +62,8 @@ class Tool:
         return {"name": self.name, "description": self.description, "inputSchema": self.args.model_json_schema()}
 
 
-def _line(s: Session, hub: str) -> str:
-    said = (s.summary.detail or s.summary.recent or "") if s.summary else ""
-    if not said and s.last_message and s.last_message.strip():
-        said = s.last_message.strip().splitlines()[0][:160]
-    needs = " · NEEDS THE OWNER" if s.needs_attention else ""
-    return f"{s.id} · {s.name} · @{s.machine or hub} · {s.state.value}{needs} · {said}"
+def _clip(text: str, chars: int) -> str:
+    return text if len(text) <= chars else f"{text[:chars]}… ({len(text) - chars} more characters)"
 
 
 class McpTools:
@@ -73,8 +75,10 @@ class McpTools:
         self.concierge = concierge
         self.hub = hub
         tools = [
-            Tool("list_sessions", "Every agent session the owner has, with its state and a one-line summary.",
-                 NoArgs, self.list_sessions),
+            Tool("list_sessions", "Every agent session the owner has, one per line: id · name · @device it runs "
+                 "on (or unknown device) · agent harness · what reaches it (muxtower on a device, through tmux or "
+                 "headless, or only the Claude account's Remote Control) · folder · state · one-line summary.",
+                 ListArgs, self.list_sessions),
             Tool("read_session", "A session's pending prompt (with option keys), latest reply and recent "
                  "conversation (or its terminal screen).", ReadArgs, self.read_session),
             Tool("send_message", "Send a message to a session, as the owner.", MessageArgs, self.send_message),
@@ -98,14 +102,17 @@ class McpTools:
             raise Invalid("that is the concierge itself")
         return session
 
-    def list_sessions(self, _: NoArgs) -> str:
-        sessions = [s for s in self.directory.list() if not (self.concierge and s.id == self.concierge.session_id)]
+    def list_sessions(self, args: ListArgs) -> str:
+        concierge = self.concierge.session_id if self.concierge else None
+        sessions = [
+            s for s in self.directory.list() if s.id != concierge and (args.all or not (s.archived_at or s.hidden))
+        ]  # fmt: skip
         sessions.sort(key=lambda s: (not s.needs_attention, -s.updated_at.timestamp()))
-        return "\n".join(_line(s, self.hub) for s in sessions) or "No sessions."
+        return "\n".join(line(s, self.hub) for s in sessions) or "No sessions."
 
     def read_session(self, args: ReadArgs) -> str:
         s = self._target(args.session_id)
-        out = [_line(s, self.hub)]
+        out = [line(s, self.hub)]
         if s.needs_attention and s.pending:
             options = ", ".join(f"{o.key}={o.label}" for o in s.pending.options) or "-"
             out.append(f"PENDING {s.pending.tool_name or s.state.value}: {s.pending.detail or ''} | options: {options}")
@@ -115,13 +122,14 @@ class McpTools:
             items = self.directory.conversation(s.id, 0, args.items).items
             out.append("Recent conversation:")
             out += [f"[{i.kind.value}{'/' + i.status.value if i.status else ''}] "
-                    f"{(i.tool_name + ' ') if i.tool_name else ''}{(i.text or '')[:400]}" for i in items]  # fmt: skip
+                    f"{(i.tool_name + ' ') if i.tool_name else ''}{_clip(i.text or '', ITEM_CHARS)}"
+                    for i in items]  # fmt: skip
         elif s.capabilities.screen:
             lines = self.directory.screen(s.id, 0).text.rstrip().splitlines()
             out.append("Screen:")
             out += lines[-SCREEN_LINES:]
         if s.last_message:
-            out.append(f"Latest reply: {s.last_message[:REPLY_CHARS]}")
+            out.append(f"Latest reply: {_clip(s.last_message, REPLY_CHARS)}")
         return "\n".join(out)
 
     def send_message(self, args: MessageArgs) -> str:
