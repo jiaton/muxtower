@@ -155,9 +155,10 @@ class Monitor:
             live.screen = ScreenState(classification, text, since, ansi)
             pid = pane.pid if pane else 0
             remote_id = self.processes.remote_id(pid, text) if self.processes and pid else None
-            transcript = newest(
-                live.hook_transcript, self.processes.transcript(pid, text) if self.processes and pid else None
-            )
+            named = self.processes.transcript(pid, text) if self.processes and pid else None
+            transcript = newest(live.hook_transcript, named)
+            if transcript != live.transcript and named and transcript != named:
+                logger.info("session %s: following %s, written to since %s", record.id, transcript, named)
             title = self.processes.name(pid, text) if self.processes and pid else None
             alt_screen, attached = bool(pane and pane.alternate), bool(pane and pane.attached)
             seen = (remote_id, transcript, title, alt_screen, attached)
