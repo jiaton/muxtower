@@ -14,7 +14,8 @@ from muxtower.config import Settings, load_settings
 
 
 class RedactTokenFilter(logging.Filter):
-    """Access log lines include the request path; strip `?access_token=` so tokens never reach a log."""
+    """Access log lines include the request path, and so do uvicorn's own lines for WebSockets
+    ("WebSocket /v1/stream?access_token=…" [accepted]): strip the token so it never reaches a log."""
 
     _pattern = re.compile(r"([?&]access_token=)[^&\s\"]+")
 
@@ -22,6 +23,11 @@ class RedactTokenFilter(logging.Filter):
         if isinstance(record.args, tuple):
             record.args = tuple(self._pattern.sub(r"\1[redacted]", a) if isinstance(a, str) else a for a in record.args)
         return True
+
+
+def redact_logs() -> None:
+    for name in ("uvicorn.access", "uvicorn.error"):  # requests; WebSockets
+        logging.getLogger(name).addFilter(RedactTokenFilter())
 
 
 def add_serve_parser(sub: "argparse._SubParsersAction[argparse.ArgumentParser]") -> None:
@@ -58,7 +64,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
-    logging.getLogger("uvicorn.access").addFilter(RedactTokenFilter())
+    redact_logs()
     logging.getLogger("httpx").setLevel(logging.WARNING)  # one line per Remote Control poll otherwise
     # Client addresses behind proxies are resolved by muxtower.net with its own trusted list.
     uvicorn.run(create_app(settings), host=settings.host, port=settings.port, proxy_headers=False)
