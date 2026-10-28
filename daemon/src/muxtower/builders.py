@@ -11,8 +11,9 @@ from muxtower.auth.repository import SqliteTokenRepository
 from muxtower.auth.service import TokenService
 from muxtower.config import Settings
 from muxtower.infra.db import Database
-from muxtower.sources.codex.adapter import CodexAppServer, default_socket
+from muxtower.sources.codex.adapter import CodexAppServer, SharedAppServer, default_socket, shared_socket
 from muxtower.sources.codex.service import CodexSource
+from muxtower.sources.codex.shared import SharedCodexSource
 from muxtower.sources.codex.store import FileThreadStore
 from muxtower.sources.remote_control.service import RemoteControlSource
 from muxtower.summaries.cli import ClaudeCodeSummarizer, CodexSummarizer
@@ -82,4 +83,17 @@ def build_codex(settings: Settings) -> CodexSource | None:
         return None
     home = settings.state_dir / "codex"
     server = CodexAppServer(cfg.binary, default_socket(settings.state_dir), home / "app-server.log")
-    return CodexSource(server, FileThreadStore(home / "threads.json"))
+    options = {
+        "sandbox": cfg.sandbox,
+        "approvalPolicy": cfg.approval_policy,
+        **({"model": cfg.model} if cfg.model else {}),
+    }
+    return CodexSource(server, FileThreadStore(home / "threads.json"), options)
+
+
+def build_codex_shared(settings: Settings) -> SharedCodexSource | None:
+    """The Codex threads of this machine's own Codex clients, when asked for and Codex is installed."""
+    cfg = settings.codex
+    if not cfg.shared or shutil.which(cfg.binary) is None:
+        return None
+    return SharedCodexSource(SharedAppServer(shared_socket()))

@@ -20,9 +20,9 @@ from muxtower.infra.bus import EventBus
 from muxtower.runtimes.models import AgentState
 from muxtower.sessions.models import Conversation, Session
 from muxtower.sources.codex.ports import AppServerPort, Message
-from muxtower.sources.codex.requests import QUESTIONS, answer, pending_action, refusal
+from muxtower.sources.codex.requests import QUESTIONS, answer, refusal
 from muxtower.sources.codex.store import FileThreadStore
-from muxtower.sources.codex.thread import KEYS, Applied, CodexThread, apply, to_session
+from muxtower.sources.codex.thread import KEYS, Applied, CodexThread, apply, to_session, waiting_flag
 
 logger = logging.getLogger("muxtower.codex")
 
@@ -32,10 +32,12 @@ RETRY_SECONDS = 15.0
 
 class CodexSource:
     runtime = "codex"  # the runtime it starts headless (`HeadlessStarter`)
+    shared = False  # its threads are muxtower's own (`SharedCodexSource`: those of Codex's own app-server)
 
-    def __init__(self, port: AppServerPort, store: FileThreadStore) -> None:
+    def __init__(self, port: AppServerPort, store: FileThreadStore, options: dict[str, Any] | None = None) -> None:
         self.port = port
         self.store = store
+        self.options = {"approvalPolicy": "on-request", "sandbox": "workspace-write", **(options or {})}  # thread/start
         self.threads: dict[str, CodexThread] = {}
         self._lock = threading.Lock()
         self._connected = False
@@ -54,11 +56,11 @@ class CodexSource:
 
     def views(self) -> list[Session]:
         with self._lock:
-            return [to_session(t) for t in self.threads.values()]
+            return [to_session(t, self.shared) for t in self.threads.values()]
 
     def get(self, session_id: str) -> Session:
         with self._lock:
-            return to_session(self._thread(session_id))
+            return to_session(self._thread(session_id), self.shared)
 
     def conversation(self, session_id: str, after: int, limit: int) -> Conversation:
         with self._lock:
@@ -112,6 +114,14 @@ class CodexSource:
         self._connected = True
         return True
 
+    def due(self) -> bool:
+        """Whether `refresh` has anything to do now (cheap: asked between every two messages)."""
+        return False
+
+    def refresh(self) -> bool:
+        """Blocking, between messages: look for news the app-server does not push. True when the list changed."""
+        return False
+
     async def run_loop(self, bus: EventBus) -> None:
         logger.info("Codex headless source starting")
         while True:
@@ -119,6 +129,8 @@ class CodexSource:
                 if not await asyncio.to_thread(self._connect):
                     await asyncio.sleep(RETRY_SECONDS)
                     continue
+                if self.due() and await asyncio.to_thread(self.refresh):
+                    bus.publish("sessions", None)
                 message = await asyncio.to_thread(self.port.next_message, WAIT_SECONDS)
                 if message is None:
                     continue
@@ -145,9 +157,7 @@ class CodexSource:
         """A new headless thread in `cwd`; its first message starts it working."""
         if not self._connected and not self._connect():
             raise Unavailable("the Codex app-server is not running")
-        started = self.port.request(
-            "thread/start", {"cwd": cwd, "approvalPolicy": "on-request", "sandbox": "workspace-write"}
-        )
+        started = self.port.request("thread/start", {"cwd": cwd, **self.options})
         raw = started.get("thread")
         if not isinstance(raw, dict):
             raise Unavailable("the Codex app-server started no thread")
@@ -157,15 +167,17 @@ class CodexSource:
         with self._lock:
             thread = self._adopt(raw, [])
             self.store.save(list(self.threads))
-            return to_session(thread)
+            return to_session(thread, self.shared)
 
     def _request(self, session_id: str, option: str | None) -> tuple[AgentState, str]:
         with self._lock:
             thread = self._thread(session_id)
             if not thread.requests:
+                if waiting_flag(thread) in (AgentState.NEEDS_PERMISSION, AgentState.NEEDS_ANSWER):
+                    raise Conflict("it asked before muxtower joined Codex: answer it where it runs")
                 raise Conflict("nothing is waiting for an answer")
             request_id, request = list(thread.requests.items())[-1]
-            pending = pending_action(thread.requests)
+            pending = thread.pending()
             picked = option if option is not None else (pending.recommended if pending else None)
             if picked is None and request.method in QUESTIONS:
                 raise Conflict("a question needs an option")

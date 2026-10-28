@@ -33,3 +33,16 @@ def test_each_agent_s_account_comes_from_its_own_login(tmp_path: Path) -> None:
 def test_claude_code_with_an_api_key_and_no_login(tmp_path: Path) -> None:
     assert Accounts(tmp_path, env={"ANTHROPIC_API_KEY": "sk-ant"}).claude() == API_KEY
     assert Accounts(tmp_path, env={}).claude() is None
+
+
+def test_a_login_kept_in_another_config_folder_is_read_from_there(tmp_path: Path) -> None:
+    (tmp_path / "claude2").mkdir()
+    (tmp_path / "claude2" / ".claude.json").write_text(
+        json.dumps({"oauthAccount": {"emailAddress": "two@claude.test"}})
+    )
+    (tmp_path / "codex2").mkdir()
+    signed_in = {"auth_mode": "chatgpt", "tokens": {"id_token": _id_token({"email": "two@openai.test"})}}
+    (tmp_path / "codex2" / "auth.json").write_text(json.dumps(signed_in))
+    env = {"CLAUDE_CONFIG_DIR": str(tmp_path / "claude2"), "CODEX_HOME": str(tmp_path / "codex2")}
+    accounts = Accounts(tmp_path, env=env)
+    assert (accounts.claude(), accounts.codex()) == ("two@claude.test", "two@openai.test")

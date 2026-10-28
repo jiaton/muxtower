@@ -6,6 +6,12 @@ name = "codex"
 binary = "codex"
 hooks = "codex"
 default_state = "idle"
+# Codex takes characters that arrive together for a paste, and an Enter right after them for a new line.
+enter_delay = 0.15
+# Codex's hooks have no event for a turn that fails (a model the account cannot use, a dropped stream),
+# so a "working" hook is not believed once the screen has shown nothing at work for this long.
+busy_stale_seconds = 20
+auto_approve_states = ["needs_permission", "needs_trust"]
 
 [[rules]]
 # Codex asks at startup to trust hooks it does not know yet; muxtower trusts its own, so this means a
@@ -30,6 +36,18 @@ state = "needs_permission"
 pattern = 'Would\s+you\s+like\s+to\s+make\s+the\s+following\s+edits\?'
 
 [[rules]]
+# Extra permissions for a turn or the session (a sandbox widening the agent asks for).
+name = "permissions-approval"
+state = "needs_permission"
+pattern = 'Would\s+you\s+like\s+to\s+grant\s+these\s+permissions\?'
+
+[[rules]]
+# A tool of an MCP server or an app, run only after the owner allows it.
+name = "tool-approval"
+state = "needs_permission"
+pattern = 'Approve\s+app\s+tool\s+call\?'
+
+[[rules]]
 name = "network-approval"
 state = "needs_permission"
 pattern = 'Do\s+you\s+want\s+to\s+approve\s+network\s+access'
@@ -40,9 +58,29 @@ state = "needs_answer"
 pattern = 'Question\s+\d+/\d+.*\n(?s:.*)enter\s+to\s+submit\s+answer'
 
 [[rules]]
+# Codex offers a cheaper model near the limit and waits for the answer.
+name = "rate-limit-model"
+state = "needs_answer"
+pattern = 'Approaching\s+rate\s+limits'
+
+[[rules]]
+# The end of a plan made in Plan mode: implement it, or go on planning.
+name = "plan-review"
+state = "plan_review"
+pattern = 'Implement\s+this\s+plan\?'
+
+[[rules]]
 name = "working"
 state = "busy"
 pattern = 'esc\s+to\s+interrupt'
+
+[[rules]]
+# Codex's red "■" lines: the turn failed (interrupting one is not a failure). Only while nothing but the
+# composer and the status line follow it (blank lines between: the viewport is not full), so a failure
+# long scrolled up does not hold a session in error.
+name = "error"
+state = "error"
+pattern = '(?m)^■ (?!Conversation interrupted)[^\n]*\n(?:[ \t]*\n)*(?:[^\n]*\n){0,5}[^\n]*\Z'
 
 [menu]
 cursor = "›"
@@ -52,8 +90,14 @@ default = ['^Yes\b']
 
 [approve.prefer]
 # Once: "don't ask again" writes a lasting rule for the command or files, which is the owner's call.
-needs_permission = ['^Yes,\s*proceed\b', '^Yes\b']
+needs_permission = [
+  '^Yes,\s*proceed\b',
+  '^Yes,\s*grant\s+these\s+permissions\s+for\s+this\s+turn\b',
+  '^(Run\s+the\s+tool|Allow\s+this\s+request)\s+and\s+continue\b',
+  '^Yes\b',
+]
 needs_trust = ['^Yes\b', '^Continue\s+without\s+trusting']
+plan_review = ['^Yes,\s*implement\s+this\s+plan', '^Yes\b']
 needs_answer = []
 
 [deny]

@@ -1,9 +1,11 @@
 """Which processes a process started (a tmux pane's shell and the agent it runs), and whether one is
-alive: from /proc on Linux, from `ps` where there is none (macOS)."""
+alive: from /proc on Linux, from `ps` and `lsof` where there is none (macOS)."""
 
 import os
+import shlex
 import subprocess
-from collections.abc import Iterator
+import time
+from collections.abc import Iterable, Iterator
 from pathlib import Path
 
 PS_TIMEOUT_SECONDS = 2
@@ -81,3 +83,102 @@ def family(pid: int, children: Children, depth: int) -> Iterator[int]:
     if depth:
         for child in children(pid):
             yield from family(child, children, depth - 1)
+
+
+def _tool(argv: list[str]) -> str:
+    """Output of a process-listing tool in the C locale; empty when it is missing or fails."""
+    try:
+        return subprocess.run(  # noqa: S603 - fixed argv
+            argv, capture_output=True, text=True, timeout=PS_TIMEOUT_SECONDS, check=False,
+            env={**os.environ, "LC_ALL": "C"},
+        ).stdout  # fmt: skip
+    except (OSError, subprocess.SubprocessError):
+        return ""
+
+
+def argv_of(pid: int, proc: Path = Path("/proc")) -> list[str] | None:
+    """A process's command line."""
+    if proc.is_dir():
+        try:
+            return (proc / str(pid) / "cmdline").read_bytes().decode(errors="replace").rstrip("\0").split("\0")
+        except OSError:
+            return None
+    line = _tool(["ps", "-o", "command=", "-p", str(pid)]).strip()
+    try:
+        return shlex.split(line) if line else None
+    except ValueError:
+        return line.split() or None
+
+
+def cwd_of(pid: int, proc: Path = Path("/proc")) -> str | None:
+    """The folder a process runs in."""
+    if proc.is_dir():
+        try:
+            return os.readlink(proc / str(pid) / "cwd")
+        except OSError:
+            return None
+    names = [
+        line[1:] for line in _tool(["lsof", "-a", "-d", "cwd", "-p", str(pid), "-Fn"]).splitlines() if line[:1] == "n"
+    ]
+    return names[0] if names else None
+
+
+def started_at(pid: int, proc: Path = Path("/proc")) -> float | None:
+    """When a process started (epoch seconds)."""
+    if proc.is_dir():
+        try:
+            ticks = int((proc / str(pid) / "stat").read_text().rsplit(")", 1)[1].split()[19])
+            boot = next(
+                int(line.split()[1]) for line in (proc / "stat").read_text().splitlines() if line.startswith("btime ")
+            )
+        except (OSError, IndexError, ValueError, StopIteration):
+            return None
+        return boot + ticks / os.sysconf("SC_CLK_TCK")
+    try:
+        return time.mktime(
+            time.strptime(_tool(["ps", "-o", "lstart=", "-p", str(pid)]).strip(), "%a %b %d %H:%M:%S %Y")
+        )
+    except ValueError:
+        return None
+
+
+def open_files(pids: Iterable[int], proc: Path = Path("/proc")) -> list[str]:
+    """The files the processes hold open (paths only)."""
+    pids = list(pids)
+    if not pids:
+        return []
+    if proc.is_dir():
+        found: list[str] = []
+        for pid in pids:
+            try:
+                fds = list((proc / str(pid) / "fd").iterdir())
+            except OSError:
+                continue
+            for fd in fds:
+                try:
+                    found.append(os.readlink(fd))
+                except OSError:
+                    continue
+        return found
+    out = _tool(["lsof", "-Fn", "-p", ",".join(map(str, pids))])
+    return [line[1:] for line in out.splitlines() if line[:1] == "n" and line[1:2] == "/"]
+
+
+def all_commands(proc: Path = Path("/proc")) -> dict[int, list[str]]:
+    """The command line of every process, in one pass (one `ps` where there is no /proc)."""
+    if proc.is_dir():
+        found = {
+            pid: argv
+            for pid in (int(e.name) for e in proc.iterdir() if e.name.isdigit())
+            if (argv := argv_of(pid, proc))
+        }
+        return found
+    found = {}
+    for line in _tool(["ps", "-Ao", "pid=,command="]).splitlines():
+        pid, _, command = line.strip().partition(" ")
+        if pid.isdigit() and command.strip():
+            try:
+                found[int(pid)] = shlex.split(command)
+            except ValueError:
+                found[int(pid)] = command.split()
+    return found

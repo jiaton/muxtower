@@ -39,13 +39,13 @@ class NodeProcesses:
     def __init__(self, nodes: Nodes) -> None:
         self.nodes = nodes
 
-    def remote_id(self, pane_pid: int) -> str | None:
+    def remote_id(self, pane_pid: int, screen: str = "") -> str | None:
         return None
 
-    def transcript(self, pane_pid: int) -> str | None:
+    def transcript(self, pane_pid: int, screen: str = "") -> str | None:
         return None
 
-    def name(self, pane_pid: int) -> str | None:
+    def name(self, pane_pid: int, screen: str = "") -> str | None:
         return None
 
     def running(self) -> dict[str, ClaudeProcess]:

@@ -142,9 +142,9 @@ class Monitor:
                     result.screens[record.id] = ansi
             live.screen = ScreenState(classification, text, since, ansi)
             pid = pane.pid if pane else 0
-            remote_id = self.processes.remote_id(pid) if self.processes and pid else None
-            transcript = self.processes.transcript(pid) if self.processes and pid else None
-            title = self.processes.name(pid) if self.processes and pid else None
+            remote_id = self.processes.remote_id(pid, text) if self.processes and pid else None
+            transcript = self.processes.transcript(pid, text) if self.processes and pid else None
+            title = self.processes.name(pid, text) if self.processes and pid else None
             alt_screen, attached = bool(pane and pane.alternate), bool(pane and pane.attached)
             seen = (remote_id, transcript, title, alt_screen, attached)
             if seen != (live.remote_id, live.transcript, live.title, live.alt_screen, live.attached):

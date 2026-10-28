@@ -68,6 +68,10 @@ def test_a_headless_codex_thread_is_started_driven_approved_and_archived(tmp_pat
     started = client.post("/v1/sessions", headers=auth, json=body).json()
     assert (started["id"], started["source"], started["name"]) == (THREAD, "codex", "Fix the build")
     assert ("thread/name/set", {"threadId": THREAD, "name": "Fix the build"}) in server.calls
+    assert server.calls[0] == (
+        "thread/start",
+        {"cwd": str(tmp_path), "approvalPolicy": "on-request", "sandbox": "workspace-write"},
+    )
 
     client.post(f"/v1/sessions/{THREAD}/input", headers=auth, json={"text": "run the tests"})
     assert server.calls[-1] == (
@@ -158,3 +162,17 @@ def test_an_approval_offers_what_codex_allows_without_lasting_rules() -> None:
     pending = pending_action({"3": request})
     assert pending is not None and [o.key for o in pending.options] == ["accept", "cancel"]
     assert refusal(request) == "cancel" and answer(request, None)[0] == {"decision": "cancel"}
+
+
+def test_a_headless_thread_starts_the_way_the_config_says(tmp_path: Path) -> None:
+    settings = load_settings(
+        config_file=tmp_path / "c.toml", env={}, overrides={"state_dir": tmp_path / "s", "codex.headless": True,
+            "codex.sandbox": "danger-full-access", "codex.approval_policy": "untrusted", "codex.model": "gpt-x"},
+    )  # fmt: skip
+    assert settings.codex.sandbox == "danger-full-access"
+    server = FakeAppServer()
+    options = {"sandbox": "danger-full-access", "approvalPolicy": "untrusted", "model": "gpt-x"}
+    source = CodexSource(server, FileThreadStore(tmp_path / "t.json"), options)
+    source.start(str(tmp_path), None)
+    assert server.calls[0] == ("thread/start", {"cwd": str(tmp_path), "approvalPolicy": "untrusted",
+                                                "sandbox": "danger-full-access", "model": "gpt-x"})  # fmt: skip

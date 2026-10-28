@@ -1,3 +1,5 @@
+import time
+
 from muxtower.errors import NotFound
 from muxtower.sessions.monitor import Monitor
 from muxtower.sessions.service import SessionService
@@ -29,6 +31,9 @@ class TerminalService:
         if body.text is not None:
             tmux.send_text(record.pane, body.text)
             if body.enter:
+                runtime = self.sessions.runtime_of(record)
+                if runtime and runtime.config.enter_delay:
+                    time.sleep(runtime.config.enter_delay)
                 tmux.send_key(record.pane, "Enter")
         elif body.key is not None:
             tmux.send_key(record.pane, body.key)

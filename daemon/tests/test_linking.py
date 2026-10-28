@@ -49,13 +49,13 @@ class FakeProcesses:
         self.transcripts = transcripts or {}
         self.names = names or {}
 
-    def name(self, pane_pid: int) -> str | None:
+    def name(self, pane_pid: int, screen: str = "") -> str | None:
         return self.names.get(pane_pid)
 
-    def remote_id(self, pane_pid: int) -> str | None:
+    def remote_id(self, pane_pid: int, screen: str = "") -> str | None:
         return self.links.get(pane_pid)
 
-    def transcript(self, pane_pid: int) -> str | None:
+    def transcript(self, pane_pid: int, screen: str = "") -> str | None:
         return self.transcripts.get(pane_pid)
 
     def running(self) -> dict[str, ClaudeProcess]:

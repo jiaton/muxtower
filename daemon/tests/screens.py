@@ -122,3 +122,76 @@ CODEX_TRUST = """\
   2. No, quit
   Press enter to continue
 """
+
+CODEX_PLAN = """\
+• Proposed Plan
+  # Add a directory README
+
+  ## Summary
+  Create README.md with a brief overview of this directory and its text files.
+
+  Worked for 1m 2s • 1:14 AM
+  Implement this plan?
+› 1. Yes, implement this plan          Switch to Default and start coding
+  2. Yes, clear context and implement  Start a fresh thread (current context: 2% used)
+  3. No, stay in Plan mode             Continue planning with the model
+  enter select · esc back
+"""
+
+# A turn that failed, as Codex 0.165 draws it: the viewport is not full, so blank lines come between the
+# red "■" line and the composer.
+CODEX_ERROR = (
+    "› say hi\n\n"
+    "■ The 'no-such-model-xyz' model is not supported when using Codex with a ChatGPT account.\n"
+    + "\n"
+    * 18
+    + "› Ask Codex to do anything\n\n"
+    "  no-such-model-xyz default · ~/projects/web · Say hi\n"
+    "  ? for shortcuts                                              ⚠ 2 warnings · f2 to view"
+)
+
+# The owner interrupted a turn: also a red "■" line, but not a failure.
+CODEX_INTERRUPTED = """\
+› Write an essay.
+• An essay begins here
+■ Conversation interrupted - use /feedback if something went wrong
+
+› Ask Codex to do anything
+
+  gpt-6.1-sol default · ~/projects/web
+"""
+
+# Dialogs known from the strings of Codex 0.165 (their titles and choices), drawn like the others.
+CODEX_PERMISSIONS = """\
+  Would you like to grant these permissions?
+
+  Reason: needs to write outside the workspace
+
+› 1. Yes, grant these permissions for this turn
+  2. Yes, grant for this turn with strict auto review
+  3. Yes, grant these permissions for this session
+  4. No, continue without it
+
+  Press enter to confirm or esc to cancel
+"""
+
+CODEX_APP_TOOL = """\
+  Approve app tool call?
+
+  Tool: search_issues
+
+› 1. Run the tool and continue
+  2. Run the tool and remember this choice for this session
+  3. Cancel this tool call
+
+  Press enter to confirm or esc to cancel
+"""
+
+CODEX_RATE_LIMIT = """\
+  Approaching rate limits
+  Switch to a model with lower credit usage?
+
+› 1. Switch to the smaller model
+  2. Keep current model
+  3. Keep current model (never show again)
+"""

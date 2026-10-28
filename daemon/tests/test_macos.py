@@ -72,3 +72,50 @@ def test_the_claude_login_is_read_from_and_refreshed_into_the_keychain(
     security.item = None
     with pytest.raises(credentials.CredentialsError, match="Keychain"):
         credentials.load_credentials()
+
+
+def test_a_plain_codex_is_found_without_proc_through_ps_and_lsof(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import sqlite3
+    import time
+
+    from muxtower.agents.codex.processes import CodexProcesses
+
+    thread = "01a17a59-dab8-7653-8913-a86ab262d3c2"
+    home = tmp_path / "codex"
+    day = home / "sessions" / "2026" / "10" / "28"
+    day.mkdir(parents=True)
+    rollout = day / f"rollout-2026-10-28T01-00-00-{thread}.jsonl"
+    rollout.write_text("")
+    started = time.mktime(time.strptime("Wed Oct 28 01:00:00 2026", "%a %b %d %H:%M:%S %Y"))
+    with sqlite3.connect(home / "state_5.sqlite") as db:
+        db.execute(
+            "CREATE TABLE threads (id TEXT PRIMARY KEY, rollout_path TEXT, created_at INTEGER, updated_at INTEGER,"
+            " originator TEXT, cwd TEXT, archived INTEGER, name TEXT, title TEXT, first_user_message TEXT)"
+        )
+        row = (thread, str(rollout), started + 20, started + 90, "codex-tui", "/Users/me/web", 0, "Fix it", "t", "go")
+        db.execute("INSERT INTO threads VALUES (?,?,?,?,?,?,?,?,?,?)", row)
+    asked: list[list[str]] = []
+
+    def tools(args: list[str], **_: Any) -> subprocess.CompletedProcess[str]:
+        asked.append(args)
+        out = ""
+        if args[:3] == ["ps", "-Ao", "pid=,ppid="]:
+            out = "  100     1\n  200   100\n"
+        elif args[:3] == ["ps", "-o", "command="]:
+            out = {"100": "-zsh", "200": "/opt/homebrew/bin/codex -s read-only"}[args[4]]
+        elif args[:3] == ["ps", "-o", "lstart="]:
+            out = "Wed Oct 28 01:00:00 2026"
+        elif args[:3] == ["ps", "-Ao", "pid=,command="]:
+            out = "  100 -zsh\n  200 /opt/homebrew/bin/codex -s read-only\n  300 codex app-server --listen unix://\n"
+        elif args[0] == "lsof" and "cwd" in args:
+            out = "p200\nfcwd\nn/Users/me/web\n"
+        elif args[0] == "lsof":
+            out = "p200\nf3\nn/dev/ttys001\n"  # a terminal, no rollout: the app-server holds it
+        return subprocess.CompletedProcess(args, 0, stdout=out)
+
+    monkeypatch.setattr(procfs.subprocess, "run", tools)
+    codex = CodexProcesses(home, proc=tmp_path / "no-proc")
+    assert codex.transcript(100) == str(rollout) and codex.name(100) == "Fix it"
+    assert codex.remote_id(100) == thread  # shared with the app-server: where it can be driven from

@@ -65,6 +65,13 @@ class ThreadItems:
             del self.items[seq]
         return item
 
+    def what_it_did(self, item_id: str) -> str | None:
+        """The one line that says what a tool item does, as far as it has been heard (an approval of a file
+        change names no file; the item it is about does)."""
+        seq = self._seqs.get(item_id)
+        item = self.items.get(seq) if seq is not None else None
+        return item.text if item and item.kind == ConversationItemKind.TOOL else None
+
     @property
     def last_reply(self) -> str | None:
         for seq in sorted(self.items, reverse=True):

@@ -25,6 +25,7 @@ from muxtower.auth.stream_cookie import StreamCookieSigner
 from muxtower.builders import (
     build_asr,
     build_codex,
+    build_codex_shared,
     build_remote_control,
     build_summaries,
     build_token_service,
@@ -73,6 +74,7 @@ from muxtower.sessions.service import SessionConfig, SessionService
 from muxtower.sessions.transcripts import Transcripts
 from muxtower.sessions.turns import TurnWatcher
 from muxtower.sources.codex.service import CodexSource
+from muxtower.sources.codex.shared import SharedCodexSource
 from muxtower.sources.remote_control.service import RemoteControlSource
 from muxtower.summaries.routes import router as summaries_router
 from muxtower.system.routes import router as system_router
@@ -95,6 +97,7 @@ def create_app(
     run_loops: bool = True,
     remote_control: RemoteControlSource | None = None,
     codex: CodexSource | None = None,
+    codex_shared: SharedCodexSource | None = None,
 ) -> FastAPI:
     db = Database(settings.db_path)
     tokens = build_token_service(settings, db)
@@ -108,9 +111,10 @@ def create_app(
     )
     remote_control = remote_control or build_remote_control(settings)
     codex = codex or build_codex(settings)
-    sources: list[SessionSourcePort] = [s for s in (remote_control, codex) if s is not None]
+    codex_shared = codex_shared or build_codex_shared(settings)
+    sources: list[SessionSourcePort] = [s for s in (remote_control, codex, codex_shared) if s is not None]
     # Links panes to their agent's session: Remote Control, transcript, name (one plugin per agent).
-    processes = AgentProcesses([ClaudeProcesses(), CodexProcesses()])
+    processes = AgentProcesses([ClaudeProcesses(), CodexProcesses(shared=codex_shared is not None)])
     monitor = Monitor(sessions, processes)
     approvals = ApprovalService(sessions)
     terminal = TerminalService(sessions, monitor)
@@ -173,6 +177,8 @@ def create_app(
                 loops["remote-control"] = remote_control.run_loop(bus, settings.remote_control.poll_seconds)
             if codex is not None:
                 loops["codex"] = codex.run_loop(bus)
+            if codex_shared is not None:
+                loops["codex-shared"] = codex_shared.run_loop(bus)
             loops["hub"] = hub.run_loop()
             for name, coro in loops.items():
                 task = asyncio.create_task(coro, name=name)
@@ -181,8 +187,9 @@ def create_app(
         yield
         for task in tasks:
             task.cancel()
-        if codex is not None:
-            codex.port.close()
+        for source in (codex, codex_shared):
+            if source is not None:
+                source.port.close()
 
     app = FastAPI(title="muxtower", version="1", lifespan=lifespan)  # the API's (/v1): a release leaves the contract be
     app.state.settings = settings

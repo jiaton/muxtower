@@ -2,7 +2,8 @@
 
 Hooks are precise but only say what happened; the screen says what is true now. A hook's attention
 state wins until the screen proves it is over: the agent is visibly busy again, or no dialog has been
-on screen for STALE_HOOK_SECONDS (e.g. the user answered at the keyboard and no later hook fired)."""
+on screen for STALE_HOOK_SECONDS (e.g. the user answered at the keyboard and no later hook fired). A hook's
+"busy" is believed until the screen has shown nothing at work for the runtime's `busy_stale_seconds`."""
 
 import json
 import time
@@ -73,7 +74,7 @@ class LiveSession:
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
-def merge(hook: HookState | None, screen: ScreenState | None, now: float) -> Effective:
+def merge(hook: HookState | None, screen: ScreenState | None, now: float, busy_stale: float = 0.0) -> Effective:
     screen_state = screen.classification.state if screen else AgentState.UNKNOWN
     options: list[Option] = screen.classification.options if screen else []
     rule = screen.classification.rule if screen else None
@@ -98,6 +99,14 @@ def merge(hook: HookState | None, screen: ScreenState | None, now: float) -> Eff
 
     if screen is not None and rule is not None:
         return Effective(screen_state, StateSource.SCREEN, rule, None)
+    if (
+        hook is not None
+        and hook.state == AgentState.BUSY
+        and busy_stale
+        and screen is not None
+        and now - max(hook.at, screen.since) > busy_stale
+    ):  # no Stop ever came (the turn failed, or the agent died), and the screen has long shown nothing at work
+        return Effective(screen_state, StateSource.SCREEN, None, None)
     if hook is not None and hook.state not in ATTENTION_STATES:
         return Effective(hook.state, StateSource.HOOK, None, None)
     return Effective(screen_state, StateSource.DEFAULT, None, None)

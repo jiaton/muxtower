@@ -113,9 +113,12 @@ The daemon also serves a glasses app at `/g2/` (`glasses/`, an Even Hub app): wh
 | agent | state from | approve from the phone |
 |---|---|---|
 | Claude Code | hooks (exact tool and command) + screen rules | yes |
-| Codex, OpenCode | none yet: terminal and input only | add screen rules |
+| Codex | hooks (exact tool and command, questions) + screen rules; also Codex's own app-server (see below) | yes |
+| OpenCode | none yet: terminal and input only | add screen rules |
 
-For Claude Code, `muxtower run claude` passes `--settings` with HTTP hooks pointing at the daemon; nothing is written to your own `settings.json`.
+For Claude Code, `muxtower run claude` passes `--settings` with HTTP hooks pointing at the daemon; nothing is written to your own `settings.json`. For Codex it passes the same hooks on the command line (`-c hooks=…`, trusted for that session only); nothing is written to `~/.codex`.
+
+**Codex without a terminal.** Codex keeps an app-server for the Codex clients on a machine (`codex` in a terminal, the desktop app, editors). With `codex.shared = true` muxtower joins it as one more client: every thread it has loaded is listed, with its conversation, its approvals and questions answered from the phone, and messages sent to it, as Remote Control does for Claude Code. A `codex` in tmux that runs there is listed once, as its tmux session. A request Codex made before muxtower looked is only flagged ("waiting where it runs"); muxtower never starts that app-server and never archives its threads. With `codex.headless = true` muxtower also runs an app-server of its own for threads started from the app's New session dialog (no tmux).
 
 Screen rules are plain TOML. Copy the shipped file to change it, for example after an agent update or with a custom theme:
 
@@ -148,6 +151,9 @@ Sessions that muxtower did not start (found in your own tmux) can be watched, an
 | `cors.extra_headers` | — | `[]` | extra request headers apps may send, e.g. a gate's own credential header |
 | `remote_control.enabled` | `MUXTOWER_REMOTE_CONTROL_ENABLED` | `false` | also list the Claude Code Remote Control sessions of the Claude account logged in here (private API; may break) |
 | `remote_control.environments` | — | `{}` | `environment_id` → machine name to show (the API has no names) |
+| `codex.shared` | — | `false` | also list, answer and message the threads of the Codex app-server this machine's Codex clients share |
+| `codex.headless` | — | `false` | run Codex threads in an app-server of muxtower's own, started from the New session dialog |
+| `codex.sandbox` / `.approval_policy` / `.model` | — | `workspace-write` / `on-request` / Codex's | how a headless thread runs (`danger-full-access` where Codex's sandbox cannot start, e.g. a container without user namespaces) |
 | `summaries.provider` | `MUXTOWER_SUMMARIES_PROVIDER` | `off` | `claude-code` (`claude -p`) or `codex` (`codex exec`), using that CLI's login on this machine, makes short versions of long replies |
 | `summaries.min_chars` / `summaries.eager` | — | `400` / `true` | replies longer than this get a summary; eager: as soon as a session needs you |
 | `asr.provider` | `MUXTOWER_ASR_PROVIDER` | `off` | `groq` or `openai`: speech to text for voice replies |

@@ -25,10 +25,12 @@ src/muxtower/
               marks.py: the owner's marks (unread, hidden, notify level); decorate.py: what the directory fills in; archive.py / archiving.py: archived sessions (ended, kept
               to read); placement.py: where the owner says a session runs; merged.py: a tmux pane and its Remote Control session as one entry; turns.py: finished turns
   agents/     agent plugins beyond the terminal: which session a pane runs, its transcript format
-              (processes.py asks each in turn; codex/ here, Claude Code's in sessions/ for now);
+              (processes.py asks each in turn; codex/ here, Claude Code's in sessions/ for now; a plugin may
+              use the pane's screen to tell agents of one folder apart);
               accounts.py: the account each agent here runs as
   sources/    other session sources, one folder each (remote_control: Anthropic's Remote Control API;
-              codex: Codex threads run headless in muxtower's own Codex app-server)
+              codex: Codex threads run headless in muxtower's own Codex app-server, and, as shared.py,
+              the threads of the app-server Codex's own clients share on this machine: Remote Control for Codex)
   nodes/      other daemons joined to this one (hub and nodes): as a hub, hub.py (who joined, their last
               report), source.py (their sessions as one more source), directory.py (what else goes to a
               node), processes.py (where the hub's Remote Control sessions run), link.py; as a node,

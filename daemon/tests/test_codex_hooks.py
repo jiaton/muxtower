@@ -92,6 +92,17 @@ def test_a_launched_codex_reports_through_its_hooks(app: FastAPI, client: TestCl
     assert session["state"] == "needs_permission" and session["state_source"] == "hook"
     assert session["pending"]["tool_name"] == "Bash" and session["pending"]["detail"] == "touch x"
 
+    ask = {"hook_event_name": "PreToolUse", "tool_name": "request_user_input", "session_id": "thread-1",
+           "tool_input": {"questions": [{"id": "focus", "question": "What should the README focus on?",
+                                         "options": [{"label": "Overview"}, {"label": "Guide"}]}]}}  # fmt: skip
+    assert client.post("/v1/hooks/codex", json=ask, headers=headers).status_code == 200
+    session = client.get(f"/v1/sessions/{session_id}", headers=auth).json()
+    assert session["state"] == "needs_answer"  # Plan mode's question, with its text (not only the dialog's options)
+    assert session["pending"]["detail"] == "What should the README focus on?"
+    answered = {"hook_event_name": "PostToolUse", "tool_name": "request_user_input", "session_id": "thread-1"}
+    client.post("/v1/hooks/codex", json=answered, headers=headers)
+    assert client.get(f"/v1/sessions/{session_id}", headers=auth).json()["state"] == "busy"
+
     assert client.post("/v1/hooks/nope", json=body, headers=headers).status_code == 404
     client.delete(f"/v1/sessions/{session_id}", headers=auth)
     assert not list(app.state.sessions.hook_files.glob(f"{session_id}.*"))  # its files go with it

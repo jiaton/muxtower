@@ -51,10 +51,21 @@ class RemoteControlSettings(BaseModel):
 
 class CodexSettings(BaseModel):
     """Codex beyond the terminal: `headless` runs Codex threads in muxtower's own Codex app-server (no
-    tmux), started from the app and answered from it, with the Codex login on this machine."""
+    tmux), started from the app and answered from it, with the Codex login on this machine; `shared` joins
+    the app-server Codex's own clients share."""
 
     headless: bool = False
+    # Also list, drive and approve the threads of the Codex app-server this machine's own Codex clients share
+    # (a `codex` in a terminal, the desktop app, an editor), as Remote Control does for Claude Code. muxtower
+    # only joins it while it runs; it never starts it.
+    shared: bool = False
     binary: str = "codex"
+    # How a headless thread runs. Codex's own sandbox needs user namespaces: on a machine (or container)
+    # that has none every command fails inside it and is then offered again "without the sandbox", so
+    # there "danger-full-access" with approvals on ("on-request") asks once instead of twice.
+    sandbox: Literal["read-only", "workspace-write", "danger-full-access"] = "workspace-write"
+    approval_policy: Literal["untrusted", "on-request", "never"] = "on-request"
+    model: str | None = None  # Codex's own default when unset
 
 
 class SummarySettings(BaseModel):

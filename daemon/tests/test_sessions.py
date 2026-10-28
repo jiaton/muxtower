@@ -57,7 +57,7 @@ def test_input_validation(app: FastAPI, client: TestClient, auth: dict[str, str]
 def test_auto_approve_needs_a_capable_runtime(app: FastAPI, client: TestClient, auth: dict[str, str],
                                               tmux: FakeTmux) -> None:  # fmt: skip
     tmux.add_pane("default", "a", "claude")
-    tmux.add_pane("default", "b", "codex")
+    tmux.add_pane("default", "b", "opencode")
     app.state.monitor.tick()
     by_name = {s["name"]: s for s in client.get("/v1/sessions", headers=auth).json()}
     assert client.patch(f"/v1/sessions/{by_name['a']['id']}", json={"auto_approve": True}, headers=auth).json()[
@@ -131,3 +131,14 @@ def test_last_activity_survives_a_restart(app: FastAPI) -> None:
     sessions.live.clear()  # as after a restart
     age = datetime.now(UTC) - sessions.get(created.id).updated_at
     assert 3590 < age.total_seconds() < 3700
+
+
+def test_codex_gets_a_pause_between_text_and_its_enter(app: FastAPI, client: TestClient, auth: dict[str, str],
+                                                       tmux: FakeTmux, monkeypatch) -> None:  # type: ignore[no-untyped-def]  # fmt: skip
+    pane = tmux.add_pane("default", "work", "codex")
+    app.state.monitor.tick()
+    sid = client.get("/v1/sessions", headers=auth).json()[0]["id"]
+    pauses: list[float] = []
+    monkeypatch.setattr("muxtower.terminal.service.time.sleep", pauses.append)
+    assert client.post(f"/v1/sessions/{sid}/input", json={"text": "hi", "enter": True}, headers=auth).status_code == 204
+    assert pane.sent == [("text", "hi"), ("key", "Enter")] and pauses == [0.15]

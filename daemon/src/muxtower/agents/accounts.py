@@ -60,8 +60,13 @@ class Accounts:
     def __init__(self, home: Path | None = None, env: Mapping[str, str] | None = None) -> None:
         home = home or Path.home()
         self.env = os.environ if env is None else env
-        self._claude = _Cached(home / ".claude.json", self._claude_account)
-        self._codex = _Cached(home / ".codex" / "auth.json", self._codex_account)
+        claude_dir, codex_dir = self.env.get("CLAUDE_CONFIG_DIR"), self.env.get("CODEX_HOME")
+        self._claude = _Cached(
+            Path(claude_dir) / ".claude.json" if claude_dir else home / ".claude.json", self._claude_account
+        )
+        self._codex = _Cached(
+            Path(codex_dir) / "auth.json" if codex_dir else home / ".codex" / "auth.json", self._codex_account
+        )
 
     @staticmethod
     def _claude_account(data: dict[str, Any]) -> str | None:
@@ -84,7 +89,7 @@ class Accounts:
         return self._codex.get()
 
     def __call__(self, session: Session) -> str | None:
-        if session.runtime == "codex" or session.source == SessionSource.CODEX:
+        if session.runtime == "codex" or session.source in (SessionSource.CODEX, SessionSource.CODEX_SHARED):
             return self.codex()
         if session.runtime.startswith("claude") or session.source == SessionSource.REMOTE_CONTROL:
             return self.claude()
