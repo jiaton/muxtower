@@ -18,9 +18,15 @@ describe('quoteOf', () => {
 })
 
 describe('withQuotes', () => {
-  it('puts the quotes first, as Markdown quotes, then what was typed', () => {
-    expect(withQuotes(['Pick a date\n\nany day', 'Or 11/4'], ' 11/9 works ')).toBe('> Pick a date\n>\n> any day\n\n> Or 11/4\n\n11/9 works')
+  it('puts the quotes first, as Markdown quotes each followed by its own reply, then what was typed', () => {
+    const quotes = [
+      { text: 'Pick a date\n\nany day', reply: ' 11/9-11/11 ' },
+      { text: 'Jill has not answered', reply: '' },
+    ]
+    expect(withQuotes(quotes, ' the rest as you said ')).toBe(
+      '> Pick a date\n>\n> any day\n\n11/9-11/11\n\n> Jill has not answered\n\nthe rest as you said',
+    )
     expect(withQuotes([], 'hi')).toBe('hi')
-    expect(withQuotes(['only this'], '')).toBe('> only this')
+    expect(withQuotes([{ text: 'only this', reply: '' }], '')).toBe('> only this')
   })
 })

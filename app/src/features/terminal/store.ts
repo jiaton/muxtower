@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
-import { quoteOf } from './quotes'
+import { quoteOf, type Quote } from './quotes'
 
 export const FONT_SIZES = [10, 11, 12, 13, 14, 16, 18] as const
 /** How many screens tall a fitted pane is: a full-screen program (Claude Code's fullscreen renderer)
@@ -45,10 +45,10 @@ interface Drafts {
    *  closing the app, a reload. */
   drafts: Record<string, string>
   setDraft: (key: string, text: string) => void
-  /** What each draft quotes (`quoteOf`), apart from its text, in the order added. */
-  quotes: Record<string, string[]>
+  /** What each draft quotes (`quoteOf`), with a reply to each, apart from its text, in the order added. */
+  quotes: Record<string, Quote[]>
   addQuote: (key: string, selected: string) => void
-  setQuotes: (key: string, quotes: string[]) => void
+  setQuotes: (key: string, quotes: Quote[]) => void
 }
 
 export const useDrafts = create<Drafts>()(
@@ -63,9 +63,9 @@ export const useDrafts = create<Drafts>()(
         }),
       quotes: {},
       addQuote: (key, selected) => {
-        const quote = quoteOf(selected)
+        const text = quoteOf(selected)
         const quotes = get().quotes[key] ?? []
-        if (quote && !quotes.includes(quote)) get().setQuotes(key, [...quotes, quote])
+        if (text && !quotes.some((q) => q.text === text)) get().setQuotes(key, [...quotes, { text, reply: '' }])
       },
       setQuotes: (key, list) =>
         set((s) => {
@@ -74,6 +74,21 @@ export const useDrafts = create<Drafts>()(
           return { quotes }
         }),
     }),
-    { name: 'muxtower.drafts', version: 1 },
+    {
+      name: 'muxtower.drafts',
+      version: 2,
+      // 1: quotes were their text alone (no reply of their own).
+      migrate: (old, version) => {
+        const state = (old ?? {}) as { drafts?: Record<string, string>; quotes?: Record<string, (string | Quote)[]> }
+        if (version >= 2) return state as Drafts
+        const quotes = Object.fromEntries(
+          Object.entries(state.quotes ?? {}).map(([key, list]) => [
+            key,
+            list.map((q) => (typeof q === 'string' ? { text: q, reply: '' } : q)),
+          ]),
+        )
+        return { ...state, quotes } as Drafts
+      },
+    },
   ),
 )

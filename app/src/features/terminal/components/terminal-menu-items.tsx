@@ -14,7 +14,15 @@ export function TerminalMenuItems({ sessionId, fit }: { sessionId: string; fit: 
         Fit width to this screen
       </DropdownMenuCheckboxItem>
       {fit ? (
-        <Stepper label="Height" less="Shorter screen" more="Taller screen" values={SCREEN_HEIGHTS} value={screens} onChange={setScreens} format={(n) => `${n}×`} />
+        <Stepper
+          label="Height"
+          less="Shorter screen"
+          more="Taller screen"
+          values={SCREEN_HEIGHTS}
+          value={screens}
+          onChange={setScreens}
+          format={(n) => `${n}×`}
+        />
       ) : null}
       <Stepper label="Text size" less="Smaller text" more="Larger text" values={FONT_SIZES} value={fontSize} onChange={setFontSize} />
     </>
