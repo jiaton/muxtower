@@ -16,6 +16,7 @@ import { SessionActionsMenu } from '@/features/sessions/components/session-actio
 import { SessionHeader } from '@/features/sessions/components/session-header'
 import { useSeenWhileOpen } from '@/features/sessions/hooks/use-seen-while-open'
 import { useSessionDrawer } from '@/features/sessions/store'
+import { useSendInput } from '@/features/terminal/api/use-terminal'
 import { InputBar } from '@/features/terminal/components/input-bar'
 import { TerminalMenuItems } from '@/features/terminal/components/terminal-menu-items'
 import { TerminalView } from '@/features/terminal/components/terminal-view'
@@ -72,6 +73,12 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
   const views = useRef<HTMLDivElement>(null)
   const addQuote = useDrafts((s) => s.addQuote)
   const writable = !session.archived_at && !session.offline
+  const send = useSendInput(daemonId, session.id)
+  // A reply the agent offered (its next step), sent like one typed: shown on its way, gone if it fails.
+  const reply = (text: string) => {
+    const tracked = outgoing.track?.(text)
+    send.mutate({ text, enter: true }, { onSuccess: tracked?.sent, onError: tracked?.failed })
+  }
 
   return (
     <Pane className="flex-1" aria-label={session.name}>
@@ -149,7 +156,12 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
           {hasConversation ? (
             <>
               {conversation.error ? <Banner tone="error">{conversation.error.message}</Banner> : null}
-              <ConversationView items={conversation.data ?? []} pending={outgoing.pending} onDismiss={outgoing.dismiss} />
+              <ConversationView
+                items={conversation.data ?? []}
+                pending={outgoing.pending}
+                onDismiss={outgoing.dismiss}
+                onReply={writable ? reply : undefined}
+              />
             </>
           ) : null}
         </Pager>

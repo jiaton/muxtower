@@ -11,7 +11,7 @@ from muxtower.concierge.service import ConciergeService
 from muxtower.errors import Invalid
 from muxtower.mcp.describe import line
 from muxtower.sessions.directory import SessionDirectory
-from muxtower.sessions.models import CreateSession, Session
+from muxtower.sessions.models import ConversationItemKind, CreateSession, ItemStatus, Session
 from muxtower.sessions.service import SessionService
 from muxtower.terminal.models import SendInput
 
@@ -79,8 +79,9 @@ class McpTools:
                  "on (or unknown device) · agent harness · what reaches it (muxtower on a device, through tmux or "
                  "headless, or only the Claude account's Remote Control) · folder · state · one-line summary.",
                  ListArgs, self.list_sessions),
-            Tool("read_session", "A session's pending prompt (with option keys), latest reply and recent "
-                 "conversation (or its terminal screen).", ReadArgs, self.read_session),
+            Tool("read_session", "A session's pending prompt (with option keys), the next step it offers (replies "
+                 "to pick, sent with send_message), latest reply and recent conversation (or its terminal screen).",
+                 ReadArgs, self.read_session),
             Tool("send_message", "Send a message to a session, as the owner.", MessageArgs, self.send_message),
             Tool("approve", "Answer a session's pending permission prompt or question with an option.",
                  ApproveArgs, self.approve),
@@ -120,6 +121,10 @@ class McpTools:
             out.append(f"Turn summary: {s.summary.needs or ''} {s.summary.recent or ''}".strip())
         if s.capabilities.conversation:
             items = self.directory.conversation(s.id, 0, args.items).items
+            step = next((i for i in reversed(items) if i.kind == ConversationItemKind.NEXT_STEP), None)
+            if step and step.status == ItemStatus.PENDING and step.actions:
+                replies = "; ".join(f"{a.label} = send_message {a.message!r}" for a in step.actions)
+                out.append(f"NEXT STEP it offers: {step.ask or ''} | replies: {replies}")
             out.append("Recent conversation:")
             out += [f"[{i.kind.value}{'/' + i.status.value if i.status else ''}] "
                     f"{(i.tool_name + ' ') if i.tool_name else ''}{_clip(i.text or '', ITEM_CHARS)}"

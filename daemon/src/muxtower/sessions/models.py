@@ -173,18 +173,24 @@ class ConversationItemKind(StrEnum):
     APPROVAL = "approval"  # a permission prompt and how it ended
     QUESTION = "question"  # a question to the owner and how it ended
     RESULT = "result"  # the end of a turn
+    NEXT_STEP = "next_step"  # the agent's closing recap, its question and replies to pick (Claude desktop)
 
 
 class ItemStatus(StrEnum):
     RUNNING = "running"  # tool
     DONE = "done"  # tool, result
     ERROR = "error"  # tool, result
-    PENDING = "pending"  # approval, question
+    PENDING = "pending"  # approval, question, next_step
     ALLOWED = "allowed"  # approval
     DENIED = "denied"  # approval
-    ANSWERED = "answered"  # question
+    ANSWERED = "answered"  # question; next_step: the owner wrote since
     DISMISSED = "dismissed"  # question
     CANCELLED = "cancelled"  # approval, question: withdrawn by the agent
+
+
+class NextStepAction(BaseModel):
+    label: str
+    message: str = Field(description="sent as the owner's message when picked")
 
 
 class ConversationItem(BaseModel):
@@ -200,6 +206,10 @@ class ConversationItem(BaseModel):
         default=None, description="a tool call's own one-line account of itself, when the agent gave one"
     )
     status: ItemStatus | None = None
+    ask: str | None = Field(default=None, description="next_step: the question its actions answer")
+    actions: list[NextStepAction] = Field(
+        default_factory=list, description="next_step: replies to pick, each sent as the owner's message"
+    )
 
 
 class Conversation(BaseModel):

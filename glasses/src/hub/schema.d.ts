@@ -748,6 +748,16 @@ export interface components {
          *     with the same `seq` when its status changes (a tool finishing, a prompt being answered).
          */
         ConversationItem: {
+            /**
+             * Actions
+             * @description next_step: replies to pick, each sent as the owner's message
+             */
+            actions?: components["schemas"]["NextStepAction"][];
+            /**
+             * Ask
+             * @description next_step: the question its actions answer
+             */
+            ask?: string | null;
             /** At */
             at?: string | null;
             /**
@@ -768,7 +778,7 @@ export interface components {
          * ConversationItemKind
          * @enum {string}
          */
-        ConversationItemKind: "prompt" | "reply" | "tool" | "approval" | "question" | "result";
+        ConversationItemKind: "prompt" | "reply" | "tool" | "approval" | "question" | "result" | "next_step";
         /** CreateSession */
         CreateSession: {
             /**
@@ -932,6 +942,16 @@ export interface components {
             features: components["schemas"]["Features"];
             /** Token Name */
             token_name: string;
+        };
+        /** NextStepAction */
+        NextStepAction: {
+            /** Label */
+            label: string;
+            /**
+             * Message
+             * @description sent as the owner's message when picked
+             */
+            message: string;
         };
         /** NodeClaim */
         NodeClaim: {

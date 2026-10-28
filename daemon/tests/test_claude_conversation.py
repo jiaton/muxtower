@@ -63,3 +63,19 @@ def test_question_answered() -> None:
     assert b.after(0, 10)[0].kind == K.QUESTION
     b.feed([answered(8, "q1", answers={"Which DB?": "SQLite"})])
     assert b.after(0, 10)[0].status == "answered"
+
+
+def test_the_desktop_app_s_next_step_box_offers_its_replies_until_the_owner_writes() -> None:
+    b = ConversationBuilder()
+    wrap_up = {"type": "tool_use", "id": "t9", "name": "mcp__ccd_turn__wrap_up", "input": {
+        "recap": "Read the take-home.", "ask": "Start on it?",
+        "actions": [{"label": "Start", "message": "Start on a branch."}, {"label": "Not now"}],
+    }}  # fmt: skip
+    b.feed([assistant(1, wrap_up), tool_result(2, "t9"), assistant(3, {"type": "text", "text": "Done reading."})])
+    step, reply = b.after(0, 10)
+    assert (step.kind, step.text, step.ask) == (K.NEXT_STEP, "Read the take-home.", "Start on it?")
+    assert step.status == "pending"
+    assert [(a.label, a.message) for a in step.actions] == [("Start", "Start on a branch."), ("Not now", "Not now")]
+    assert reply.kind == K.REPLY  # no tool item for the box itself
+    (answered_step, _) = b.feed([user(4, "Start on a branch.")])
+    assert (answered_step.seq, answered_step.status) == (step.seq, "answered")
