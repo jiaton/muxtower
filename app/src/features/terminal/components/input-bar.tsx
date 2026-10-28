@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/input'
 import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/lib/use-media-query'
+import type { Track } from '@/lib/use-outbox'
 import { useSendInput } from '../api/use-terminal'
 import { withQuotes, type Quote } from '../quotes'
 import { draftKey as keyOf, useDrafts, useTerminalPrefs } from '../store'
@@ -17,11 +18,23 @@ const TOUCH = '(pointer: coarse)' // a phone: its keyboard covers half the scree
 /** One row: the keys toggle, the message box (sent followed by Enter) and Send. The keys a phone
  *  keyboard lacks open above it, and stay open or closed as last left. What the message quotes (text
  *  selected and replied to) waits above the box, apart from what is typed, each with its own remove and
- *  reply (`QuoteCards`), and goes first in the message (`withQuotes`). What is typed and quoted is kept per session until it is
- *  sent (`useDrafts`). Enter sends with a keyboard; on a phone, return is a new line and Send sends, so
+ *  reply (`QuoteCards`), and goes first in the message (`withQuotes`). What is typed and quoted is kept
+ *  per session until it is sent (`useDrafts`). With `track` (a session whose conversation is shown), a
+ *  message leaves the box at once and waits at the end of the conversation (`useOutgoing`); if it
+ *  cannot be sent, it comes back into the box. Enter sends with a keyboard; on a phone, return is a new line and Send sends, so
  *  the keyboard can be put away and more quoted first. `keys`: the key names this session accepts; empty
  *  means all of them. */
-export function InputBar({ daemonId, sessionId, keys = [] }: { daemonId: string; sessionId: string; keys?: string[] }) {
+export function InputBar({
+  daemonId,
+  sessionId,
+  keys = [],
+  track,
+}: {
+  daemonId: string
+  sessionId: string
+  keys?: string[]
+  track?: Track
+}) {
   const send = useSendInput(daemonId, sessionId)
   const draftKey = keyOf(daemonId, sessionId)
   const text = useDrafts((s) => s.drafts[draftKey] ?? '')
@@ -44,14 +57,29 @@ export function InputBar({ daemonId, sessionId, keys = [] }: { daemonId: string;
   const submit = () => {
     if (!message) return
     const [sentText, sentQuotes] = [text, quotes]
-    // Typed on (or quoted more) while it was sending: keep what is newer.
+    const tracked = track?.(message)
+    if (tracked) {
+      // Shown in the conversation already, as on its way.
+      setText('')
+      setQuotes(draftKey, [])
+    }
     send.mutate(
       { text: message, enter: true },
       {
         onSuccess: () => {
+          if (tracked) return tracked.sent()
+          // Typed on (or quoted more) while it was sending: keep what is newer.
           const now = useDrafts.getState()
           if ((now.drafts[draftKey] ?? '') === sentText) setText('')
           if (now.quotes[draftKey] === sentQuotes) setQuotes(draftKey, [])
+        },
+        onError: () => {
+          if (!tracked) return // it never left the box
+          tracked.failed()
+          // Back in the box, ahead of anything typed since.
+          const now = useDrafts.getState()
+          setText([sentText, now.drafts[draftKey] ?? ''].filter(Boolean).join('\n'))
+          setQuotes(draftKey, [...sentQuotes, ...(now.quotes[draftKey] ?? [])])
         },
       },
     )

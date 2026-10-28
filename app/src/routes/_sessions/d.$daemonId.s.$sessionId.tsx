@@ -22,6 +22,7 @@ import { TerminalView } from '@/features/terminal/components/terminal-view'
 import { useSessionTerminal } from '@/features/terminal/hooks/use-session-terminal'
 import { draftKey, useDrafts, useTerminalPrefs } from '@/features/terminal/store'
 import type { Session } from '@/lib/api/types'
+import { useOutgoing } from '@/lib/use-outbox'
 
 export const Route = createFileRoute('/_sessions/d/$daemonId/s/$sessionId')({ component: SessionPage })
 
@@ -61,6 +62,8 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
   // pane keeps its fit, instead of being given back and fitted again).
   const terminal = useSessionTerminal(daemonId, session, screen)
   const conversation = useConversation(daemonId, session.id, hasConversation)
+  // What was sent and is not in the conversation yet, shown at its end.
+  const outgoing = useOutgoing(daemonId, session.id, hasConversation ? conversation.data : undefined)
   const setFit = useTerminalPrefs((s) => s.setFit)
   const setDrawer = useSessionDrawer((s) => s.setOpen)
   const openDrawer = useCallback(() => setDrawer(true), [setDrawer])
@@ -146,7 +149,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
           {hasConversation ? (
             <>
               {conversation.error ? <Banner tone="error">{conversation.error.message}</Banner> : null}
-              <ConversationView items={conversation.data ?? []} />
+              <ConversationView items={conversation.data ?? []} pending={outgoing.pending} onDismiss={outgoing.dismiss} />
             </>
           ) : null}
         </Pager>
@@ -157,7 +160,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
           {/* Select what the agent wrote, then Reply: it waits above the message box as a quote. */}
           <SelectionAction within={views} label="Reply" icon={Reply} onAction={(text) => addQuote(draftKey(daemonId, session.id), text)} />
           <footer className="shrink-0 border-t border-border bg-bg p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-3">
-            <InputBar daemonId={daemonId} sessionId={session.id} keys={session.capabilities.keys} />
+            <InputBar daemonId={daemonId} sessionId={session.id} keys={session.capabilities.keys} track={outgoing.track} />
           </footer>
         </>
       ) : null}

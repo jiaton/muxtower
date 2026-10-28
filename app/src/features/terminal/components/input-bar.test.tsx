@@ -1,9 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDrafts } from '../store'
 import { InputBar } from './input-bar'
 
-const mutate = vi.fn((_body: unknown, options?: { onSuccess?: () => void }) => options?.onSuccess?.())
+const mutate = vi.fn((_body: unknown, options?: { onSuccess?: () => void; onError?: () => void }) => options?.onSuccess?.())
 vi.mock('../api/use-terminal', () => ({ useSendInput: () => ({ mutate, isPending: false, isError: false }) }))
 
 /** A screen that is a phone's (a coarse pointer) or not. */
@@ -78,5 +78,26 @@ describe('InputBar', () => {
     expect(document.activeElement).not.toBe(box())
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     expect(mutate).toHaveBeenCalledTimes(1)
+  })
+
+  it('with a conversation, empties the box at once and puts the message back if it cannot be sent', () => {
+    device(false)
+    const tracked = { sent: vi.fn(), failed: vi.fn() }
+    const track = vi.fn(() => tracked)
+    let fail: (() => void) | undefined
+    mutate.mockImplementationOnce((_body, options) => {
+      fail = options?.onError
+    })
+    useDrafts.getState().addQuote('nas/s1', 'Pick a date')
+    render(<InputBar daemonId="nas" sessionId="s1" track={track} />)
+    fireEvent.change(box(), { target: { value: 'Friday' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    expect(track).toHaveBeenCalledWith('> Pick a date\n\nFriday')
+    expect(useDrafts.getState()).toMatchObject({ drafts: {}, quotes: {} }) // shown in the conversation instead
+    fireEvent.change(box(), { target: { value: 'and Saturday' } })
+    act(() => fail!())
+    expect(tracked.failed).toHaveBeenCalled()
+    expect(box()).toHaveValue('Friday\nand Saturday')
+    expect(useDrafts.getState().quotes['nas/s1']).toEqual([{ text: 'Pick a date', reply: '' }])
   })
 })
