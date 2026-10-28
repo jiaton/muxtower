@@ -56,7 +56,7 @@ def test_launch_type_capture_terminate(tmp_path: Path) -> None:
         client.post(f"/v1/sessions/{sid}/resize", json={"cols": 50, "rows": 10}, headers=auth)
         assert width() == "50"
         client.post(f"/v1/sessions/{sid}/resize/release", headers=auth)
-        assert width() == "120"  # back to the session's own size
+        assert width() == "50"  # no terminal attached to fit: the last size stays (see below)
         assert client.delete(f"/v1/sessions/{sid}", headers=auth).status_code == 204
         app.state.monitor.tick()
         assert client.get("/v1/sessions", headers=auth).json() == []
@@ -164,5 +164,28 @@ def test_a_pasted_message_arrives_whole(tmp_path: Path) -> None:
             assert time.monotonic() < deadline, "the paste never arrived"
             time.sleep(0.1)
         assert out.read_text().replace("\r", "\n") == text  # all ~4 KB, nothing dropped
+    finally:
+        subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)
+
+
+def test_giving_the_size_back_with_no_terminal_attached_keeps_it(tmp_path: Path) -> None:
+    """Not tmux's default 80x24: the agent would redraw narrow for whoever opens it next."""
+    from muxtower.infra.tmux import TmuxCli
+
+    socket = f"mxt-test-{uuid.uuid4().hex[:8]}"
+    tmux = TmuxCli()
+    pane = tmux.new_session(socket, "agent", str(tmp_path), ["sleep", "30"], {}, 80, 24)
+    try:
+        tmux.resize(pane, 220, 50)
+        tmux.release_size(pane)
+        size = subprocess.run(
+            ["tmux", "-L", socket, "display-message", "-p", "-t", pane.pane_id, "#{pane_width}x#{pane_height}"],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()  # fmt: skip
+        window_size = subprocess.run(
+            ["tmux", "-L", socket, "show-options", "-w", "-t", pane.pane_id, "window-size"],
+            capture_output=True, text=True, check=False,
+        ).stdout.strip()  # fmt: skip
+        assert size == "220x50" and window_size == ""  # kept, and no longer pinned
     finally:
         subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)

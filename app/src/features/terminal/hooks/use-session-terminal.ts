@@ -1,10 +1,13 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Session } from '@/lib/api/types'
 import { useDaemonClient } from '@/lib/daemons/use-daemon-client'
+import { daemonKey } from '@/lib/query'
 import { HISTORY_STEPS, usePaneSize, useScreen } from '../api/use-terminal'
 import { useTerminalPrefs } from '../store'
 
 const MAX_ROWS = 300 // the daemon's limit
+const SIZED_WAIT_MS = 1500 // a view that cannot be measured (hidden) reads the screen anyway
 
 /** Screen, history depth and pane sizing for the session page. */
 export function useSessionTerminal(daemonId: string, session: Session, enabled: boolean) {
@@ -17,10 +20,21 @@ export function useSessionTerminal(daemonId: string, session: Session, enabled: 
   const fit = enabled && (fitPref ?? (session.source === 'launched' || !session.terminal_attached))
   const [history, setHistory] = useState<number>(HISTORY_STEPS[0])
   const [waitingOn, setWaitingOn] = useState<string | undefined>(undefined)
-  const screen = useScreen(daemonId, session.id, history, enabled)
+  // Fitting, the screen is read once the pane has this view's size: read first, it shows the agent as
+  // last drawn for another size (tmux's narrow default, when nobody was watching).
+  const [sized, setSized] = useState(false)
+  const ready = !fit || sized
+  const screen = useScreen(daemonId, session.id, history, enabled && ready)
   const paneSize = usePaneSize(daemonId, session.id)
+  const queryClient = useQueryClient()
   const mutate = useRef(paneSize.mutate)
   mutate.current = paneSize.mutate
+
+  useEffect(() => {
+    if (!fit || sized) return
+    const timer = setTimeout(() => setSized(true), SIZED_WAIT_MS)
+    return () => clearTimeout(timer)
+  }, [fit, sized])
 
   const lineCount = screen.data ? screen.data.split('\n').length : 0
   const next = HISTORY_STEPS.find((step) => step > history)
@@ -35,8 +49,17 @@ export function useSessionTerminal(daemonId: string, session: Session, enabled: 
 
   // As wide as the view and `screens` views tall: the view scrolls through the rest.
   const onFit = useCallback(
-    (size: { cols: number; rows: number }) => mutate.current({ cols: size.cols, rows: Math.min(MAX_ROWS, size.rows * screens) }),
-    [screens],
+    (size: { cols: number; rows: number }) =>
+      mutate.current(
+        { cols: size.cols, rows: Math.min(MAX_ROWS, size.rows * screens) },
+        {
+          onSettled: () => {
+            void queryClient.invalidateQueries({ queryKey: daemonKey(daemonId, 'screen', session.id) })
+            setSized(true)
+          },
+        },
+      ),
+    [screens, queryClient, daemonId, session.id],
   )
 
   // While fitting, the pane is sized for this screen; give the size back when fitting stops, the page
@@ -58,7 +81,7 @@ export function useSessionTerminal(daemonId: string, session: Session, enabled: 
   }, [fit, client, session.id])
 
   return {
-    ansi: screen.data,
+    ansi: ready ? screen.data : undefined, // not a screen kept from another size meanwhile
     error: screen.error,
     fontSize,
     fit,
