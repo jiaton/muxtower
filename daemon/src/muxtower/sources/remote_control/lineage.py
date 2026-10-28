@@ -3,7 +3,9 @@
 - a fork (Claude Code's fork of a session): tagged `remote-control-fork-parent:session_<id>`;
 - a side chat (Claude desktop's "ask on the side"): it starts with a copy of another session's
   history, written in one go and under the same message ids, ending in a note that the owner forked it
-  to ask something on the side. Its parent is the listed session whose first message has that id.
+  to ask something on the side. Its parent is the listed session whose first message has that id, or,
+  when that one was compacted since (the copy starts after its summary), the newest older session with
+  the same title (a side chat keeps its parent's).
 
 Copies without the note count as forks of that parent."""
 
@@ -82,7 +84,11 @@ def _read(events_after: Callable[[str, int, int], list[RawEvent]], session_id: s
 
 def forks(sessions: "dict[str, RcSession]") -> dict[str, str]:
     """Each fork's or side chat's parent among the sessions listed."""
-    return parents({sid: (s.lineage, str(s.raw.get("created_at") or "")) for sid, s in sessions.items()})
+    listed = {
+        sid: (s.lineage, str(s.raw.get("created_at") or ""), str(s.raw.get("title") or ""))
+        for sid, s in sessions.items()
+    }
+    return parents(listed)
 
 
 def placed(rc: "RcSession", forks: dict[str, str]) -> Session:
@@ -94,22 +100,30 @@ def placed(rc: "RcSession", forks: dict[str, str]) -> Session:
     )
 
 
-def parents(lineages: dict[str, tuple[Lineage, str]]) -> dict[str, str]:
-    """Each fork's or side chat's parent among those given (session id → (lineage, created_at)): for a
-    copy, the oldest other session starting with the same message that is neither a side chat nor a
-    tagged fork. (A session can start with its history written at once without being a copy: Remote
-    Control turned on midway uploads it. Being the oldest, it is nobody's copy.)"""
+def parents(lineages: dict[str, tuple[Lineage, str, str]]) -> dict[str, str]:
+    """Each fork's or side chat's parent among those given (session id → (lineage, created_at, title)):
+    for a copy, the oldest other session starting with the same message that is neither a side chat nor
+    a tagged fork (a session whose history was uploaded at once, Remote Control turned on midway, is the
+    oldest, so nobody's copy); for a side chat whose parent was compacted since, the newest older such
+    session with its title."""
     originals: dict[str, tuple[str, str]] = {}
-    for session_id, (lineage, created) in lineages.items():
+    for session_id, (lineage, created, _) in lineages.items():
         if lineage.first and not lineage.side_chat and not lineage.parent:
             known = originals.get(lineage.first)
             if known is None or created < known[1]:
                 originals[lineage.first] = (session_id, created)
     found = {}
-    for session_id, (lineage, _) in lineages.items():
+    for session_id, (lineage, created, title) in lineages.items():
         original = originals.get(lineage.first or "")
         if lineage.parent:
             found[session_id] = lineage.parent
         elif lineage.copied and original and original[0] != session_id:
             found[session_id] = original[0]
+        elif lineage.side_chat and title:
+            older = [
+                (c, sid) for sid, (other, c, t) in lineages.items()
+                if t == title and c < created and not other.side_chat and not other.parent
+            ]  # fmt: skip
+            if older:
+                found[session_id] = max(older)[1]
     return found
