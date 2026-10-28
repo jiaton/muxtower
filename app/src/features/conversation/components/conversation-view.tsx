@@ -1,9 +1,10 @@
-import { ArrowDown, ChevronRight, CircleX, LoaderCircle } from 'lucide-react'
+import { ArrowDown, ChevronRight, CircleX, LoaderCircle, X } from 'lucide-react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Markdown } from '@/components/ui/markdown'
 import type { ConversationItem } from '@/lib/api/types'
 import { cn } from '@/lib/cn'
+import type { ShownOutgoing } from '@/lib/outbox'
 import { conversationRows, toolName, toolRunSummary } from '../model/rows'
 
 const BOTTOM_SLACK = 24
@@ -66,9 +67,38 @@ function ItemView({ item }: { item: ConversationItem }) {
   )
 }
 
-/** The conversation as readable text: prompts, replies, folded tool runs, prompts to answer. Follows new
- *  items while at the bottom; holds still while the reader is scrolled up. */
-export function ConversationView({ items }: { items: ConversationItem[] }) {
+/** A message sent that the conversation does not have yet: a prompt, faded until it does. One it has
+ *  not had for a minute says so, and can be put away (its text stays readable until then). */
+function OutgoingView({ message, onDismiss }: { message: ShownOutgoing; onDismiss?: (id: string) => void }) {
+  const unconfirmed = message.state === 'unconfirmed'
+  return (
+    <div className="flex flex-col items-end gap-1" data-outgoing={message.state}>
+      <p className="rounded-lg bg-accent px-3 py-2 whitespace-pre-wrap text-accent-fg opacity-50">{message.text}</p>
+      <p className="flex items-center gap-1 text-xs text-fg-muted">
+        {message.state === 'sending' ? <LoaderCircle className="size-3 animate-spin" aria-hidden /> : null}
+        {message.state === 'sending' ? 'Sending' : unconfirmed ? 'Sent, not in the conversation yet' : 'Sent'}
+        {unconfirmed && onDismiss ? (
+          <button type="button" aria-label="Dismiss" className="rounded-sm p-0.5 hover:text-fg" onClick={() => onDismiss(message.id)}>
+            <X className="size-3" aria-hidden />
+          </button>
+        ) : null}
+      </p>
+    </div>
+  )
+}
+
+/** The conversation as readable text: prompts, replies, folded tool runs, prompts to answer, then what
+ *  was sent and is not in it yet (`pending`). Follows new items while at the bottom; holds still while
+ *  the reader is scrolled up. */
+export function ConversationView({
+  items,
+  pending = [],
+  onDismiss,
+}: {
+  items: ConversationItem[]
+  pending?: ShownOutgoing[]
+  onDismiss?: (id: string) => void
+}) {
   const box = useRef<HTMLDivElement>(null)
   const atBottom = useRef(true)
   const [behind, setBehind] = useState(false)
@@ -79,7 +109,7 @@ export function ConversationView({ items }: { items: ConversationItem[] }) {
     if (!el) return
     if (atBottom.current) el.scrollTop = el.scrollHeight
     else setBehind(true)
-  }, [items])
+  }, [items, pending.length])
 
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-surface">
@@ -95,7 +125,7 @@ export function ConversationView({ items }: { items: ConversationItem[] }) {
           if (atBottom.current) setBehind(false)
         }}
       >
-        {shown.length === 0 ? <p className="text-fg-muted">No messages yet.</p> : null}
+        {shown.length === 0 && pending.length === 0 ? <p className="text-fg-muted">No messages yet.</p> : null}
         {shown.map((row) =>
           row.kind === 'tools' ? (
             <ToolRun key={`t${row.items[0].seq}`} tools={row.items} />
@@ -103,6 +133,9 @@ export function ConversationView({ items }: { items: ConversationItem[] }) {
             <ItemView key={row.item.seq} item={row.item} />
           ),
         )}
+        {pending.map((message) => (
+          <OutgoingView key={message.id} message={message} onDismiss={onDismiss} />
+        ))}
       </div>
       {behind ? (
         <Button
