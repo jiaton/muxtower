@@ -5,10 +5,14 @@ import { InputBar } from './input-bar'
 
 const mutate = vi.fn((_body: unknown, options?: { onSuccess?: () => void; onError?: () => void }) => options?.onSuccess?.())
 vi.mock('../api/use-terminal', () => ({ useSendInput: () => ({ mutate, isPending: false, isError: false }) }))
-// jsdom draws no pictures: one that fits is sent as it is anyway.
+// jsdom draws no pictures: one that fits is sent as it is anyway. `hold` keeps the next one in the works.
+let hold: Promise<void> | null = null
 vi.mock('../images', async (actual) => ({
   ...(await actual<typeof import('../images')>()),
-  shrink: async (file: Blob) => ({ blob: file, type: file.type }),
+  shrink: async (file: Blob) => {
+    await hold
+    return { blob: file, type: file.type }
+  },
 }))
 
 /** A screen that is a phone's (a coarse pointer) or not. */
@@ -114,7 +118,7 @@ describe('InputBar', () => {
     await act(async () => {
       fireEvent.paste(box(), { clipboardData: { files: [shot] } })
     })
-    expect(screen.getByRole('list', { name: 'Pictures' }).querySelectorAll('img')).toHaveLength(1)
+    await vi.waitFor(() => expect(screen.getByRole('list', { name: 'Pictures' }).querySelectorAll('img')).toHaveLength(1))
     fireEvent.change(box(), { target: { value: 'what broke?' } })
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Send' }))
@@ -130,5 +134,28 @@ describe('InputBar', () => {
     device(false)
     render(<InputBar daemonId="nas" sessionId="s1" />)
     expect(screen.queryByRole('button', { name: 'Add pictures' })).toBeNull()
+  })
+
+  it('shows a placeholder at once while a pasted picture is made small, and Send waits for it', async () => {
+    device(false)
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: () => undefined }))
+    let done = () => {}
+    hold = new Promise<void>((resolve) => (done = resolve))
+    render(<InputBar daemonId="nas" sessionId="s1" images />)
+    fireEvent.change(box(), { target: { value: 'look' } })
+    const photo = new File([new Uint8Array([255, 216, 255])], 'big.jpg', { type: 'image/jpeg' })
+    await act(async () => {
+      fireEvent.paste(box(), { clipboardData: { files: [photo] } })
+    })
+    expect(screen.getByRole('listitem', { name: 'Adding a picture' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+    await act(async () => {
+      done()
+      hold = null
+      await new Promise((r) => setTimeout(r, 50))
+    })
+    expect(screen.queryByRole('listitem', { name: 'Adding a picture' })).toBeNull()
+    expect(screen.getByRole('list', { name: 'Pictures' }).querySelectorAll('img')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled()
   })
 })
