@@ -31,7 +31,8 @@ src/muxtower/
               codex: Codex threads run headless in muxtower's own Codex app-server)
   nodes/      other daemons joined to this one (hub and nodes): as a hub, hub.py (who joined, their last
               report), source.py (their sessions as one more source), directory.py (what else goes to a
-              node), processes.py (where the hub's Remote Control sessions run), link.py; as a node,
+              node), processes.py (where the hub's Remote Control sessions run), link.py; release.py (both: the
+              hub hands out the wheel it runs, a node on another build installs it); as a node,
               client.py (join, reconnect), session.py (one open link), api.py (what the hub may do
               here), store.py; protocol.py: the frames between them; routes.py
   summaries/  short versions of long replies: a Summarizer port (claude/codex CLI adapters), SQLite cache, background loop
@@ -86,7 +87,7 @@ Split a file past 250 lines or once it mixes two domains.
 
 ## Auth & security
 
-- No user accounts (see `../docs/design.md` → Auth). Every route except `GET /v1/health`, `POST /v1/pair/claim`, `POST /v1/nodes/claim` and the static UI requires a valid device token; hook routes require that session's hook token; `/v1/nodes/link` requires a node token, which opens nothing else.
+- No user accounts (see `../docs/design.md` → Auth). Every route except `GET /v1/health`, `POST /v1/pair/claim`, `POST /v1/nodes/claim` and the static UI requires a valid device token; hook routes require that session's hook token; `/v1/nodes/link` and `GET /v1/nodes/release` require a node token, which opens nothing else.
 - CORS: `cors.allowed_origins` defaults to `*` (safe: bearer tokens only, `allow_credentials=False`); allowed request headers are `Authorization`, `Content-Type` and the opt-in `cors.extra_headers` (a gate's credential header). WebSocket accepts same-origin or listed `Origin`s (any by default).
 - Tokens accepted as `Authorization: Bearer`, WS subprotocol `bearer.<token>`, or `?access_token=` (never `?token=`, which gates count as a guess); the access log filter redacts it. Every 401 the daemon sends carries `X-Muxtower-Auth`, so clients can tell a revoked token from a gate in front.
 - Pairing claim is rate-limited and single-use; failed token checks are rate-limited per client IP.

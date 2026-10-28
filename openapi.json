@@ -2112,6 +2112,21 @@
         ]
       }
     },
+    "/v1/nodes/release": {
+      "get": {
+        "description": "A node's own token: the wheel this hub runs, for a node on another build to install\n(`nodes/release.py`).",
+        "operationId": "node_release_v1_nodes_release_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Node Release",
+        "tags": [
+          "nodes"
+        ]
+      }
+    },
     "/v1/nodes/{name}": {
       "delete": {
         "description": "Forgets a node: its link closes, its sessions leave the lists, and it can no longer link.",

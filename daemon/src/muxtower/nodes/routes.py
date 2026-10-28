@@ -1,15 +1,18 @@
 """Hub and node endpoints. As a hub: nodes join with a pairing code (`/nodes/claim`), link
-(`/nodes/link`), are listed and removed. As a node: this daemon joins a hub (`/hub`)."""
+(`/nodes/link`), fetch the hub's build (`/nodes/release`), are listed and removed. As a node: this
+daemon joins a hub (`/hub`)."""
 
 import asyncio
 import logging
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import FileResponse
 from pydantic import ValidationError
 
 from muxtower.auth.deps import WS_BEARER_PREFIX, WS_SUBPROTOCOL, CurrentDevice
 from muxtower.auth.routes import Audit
+from muxtower.errors import NotFound, Unauthorized
 from muxtower.nodes import protocol
 from muxtower.nodes.client import HubClient
 from muxtower.nodes.hub import Nodes
@@ -57,6 +60,19 @@ def remove_node(name: str, device: CurrentDevice, nodes: NodesDep, audit: Audit)
     audit.record(device.name, "node-removed", detail=name)
 
 
+@router.get("/nodes/release", response_class=FileResponse)
+def node_release(request: Request, nodes: NodesDep) -> FileResponse:
+    """A node's own token: the wheel this hub runs, for a node on another build to install
+    (`nodes/release.py`)."""
+    token = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    if nodes.authenticate(token) is None:
+        raise Unauthorized("a node token is required")
+    wheel = request.app.state.release.wheel()
+    if wheel is None:
+        raise NotFound("this hub was not installed from a wheel it still has")
+    return FileResponse(wheel, media_type="application/octet-stream", filename=wheel.name)
+
+
 @router.get("/hub")
 def hub_status(_: CurrentDevice, hub: HubDep) -> HubStatus:
     return hub.status()
@@ -98,6 +114,8 @@ async def node_link(ws: WebSocket) -> None:
         return
     link = NodeLink(name, ws.send_text, lambda code: ws.close(code=code))
     await nodes.attach(name, link, hello)
+    if offer := await asyncio.to_thread(ws.app.state.release.offer):
+        await link.event("release", offer)
     try:
         while not link.closed:
             frame = parse(await ws.receive_text())
