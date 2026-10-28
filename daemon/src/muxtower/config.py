@@ -116,6 +116,9 @@ class Settings(BaseModel):
     port: int = 8731
     # What pairing links and the bundled /config.json advertise. Required behind a reverse proxy.
     public_url: str | None = None
+    # Who push services may contact about this daemon's notifications (VAPID `sub`): a mailto: or https:
+    # address. Defaults to public_url; Apple refuses every push signed with a made-up one.
+    push_contact: str | None = Field(default=None, pattern=r"^(mailto:|https://)")
     state_dir: Path = DEFAULT_STATE_DIR
     config_dir: Path = DEFAULT_CONFIG_DIR
     serve_ui: bool = True
@@ -152,6 +155,7 @@ _ENV_KEYS: dict[str, tuple[str, ...]] = {
     "MUXTOWER_HOST": ("host",),
     "MUXTOWER_PORT": ("port",),
     "MUXTOWER_PUBLIC_URL": ("public_url",),
+    "MUXTOWER_PUSH_CONTACT": ("push_contact",),
     "MUXTOWER_STATE_DIR": ("state_dir",),
     "MUXTOWER_SERVE_UI": ("serve_ui",),
     "MUXTOWER_TMUX_SOCKET": ("tmux_socket",),

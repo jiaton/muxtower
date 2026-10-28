@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from muxtower.notify.ports import StoredSubscription
+from muxtower.notify.webpush_sender import subject
 from tests import screens
 from tests.fakes import FakeTmux
 
@@ -89,3 +90,9 @@ def test_a_revoked_device_gets_no_more_pushes(app: FastAPI, client: TestClient, 
     assert app.state.push.notify(app.state.monitor.tick().attention[0]) == 1
     assert [endpoint for endpoint, _ in sender.sent] == ["https://push.example/a"]
     assert [s.device for s in app.state.push.repo.list()] == ["phone"]
+
+
+def test_pushes_are_signed_with_a_contact_apple_accepts() -> None:
+    assert subject("mailto:me@example.com", "https://hub.example") == "mailto:me@example.com"
+    assert subject(None, "https://hub.example/") == "https://hub.example"  # this daemon's own address
+    assert subject(None, "http://192.168.1.5:8731") == subject(None, None) == "mailto:muxtower@localhost"

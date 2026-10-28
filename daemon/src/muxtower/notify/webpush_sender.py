@@ -11,10 +11,22 @@ from pywebpush import WebPushException, webpush
 from muxtower.notify.ports import StoredSubscription
 
 logger = logging.getLogger("muxtower.push")
+FALLBACK_SUBJECT = "mailto:muxtower@localhost"
+
+
+def subject(contact: str | None, public_url: str | None) -> str:
+    """The VAPID `sub`: the configured contact, else this daemon's public HTTPS address. Push services may
+    check it: Apple's refuses a placeholder (403 BadJwtToken), so iPhones get nothing without one."""
+    if contact:
+        return contact
+    if public_url and public_url.startswith("https://"):
+        return public_url.rstrip("/")
+    logger.warning("no push_contact or https public_url: pushes to iPhones and iPads will be refused")
+    return FALLBACK_SUBJECT
 
 
 class WebPushSender:
-    def __init__(self, state_dir: Path, subject: str = "mailto:muxtower@localhost") -> None:
+    def __init__(self, state_dir: Path, subject: str = FALLBACK_SUBJECT) -> None:
         self.key_path = state_dir / "vapid_private.pem"
         self.subject = subject
         self._ensure_key()
