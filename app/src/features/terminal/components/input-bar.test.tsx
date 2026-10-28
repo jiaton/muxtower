@@ -38,6 +38,26 @@ describe('InputBar', () => {
     expect(useDrafts.getState()).toMatchObject({ drafts: {}, quotes: {} }) // sent: both go
   })
 
+  it('opens a quote on a tap to reply to that part alone, and sends each reply under its quote', () => {
+    device(false)
+    useDrafts.getState().addQuote('nas/s1', 'Pick a date')
+    useDrafts.getState().addQuote('nas/s1', 'Jill has not answered')
+    render(<InputBar daemonId="nas" sessionId="s1" />)
+    fireEvent.click(screen.getByRole('button', { name: /Pick a date/ }))
+    const reply = screen.getByRole('textbox', { name: 'Reply to this quote' })
+    expect(document.activeElement).toBe(reply)
+    fireEvent.change(reply, { target: { value: '11/9-11/11' } })
+    fireEvent.click(screen.getByRole('button', { name: /Pick a date/ })) // closed: its reply shows under it
+    expect(screen.queryByRole('textbox', { name: 'Reply to this quote' })).toBeNull()
+    expect(screen.getByRole('button', { name: /Pick a date/ }).textContent).toContain('11/9-11/11')
+    fireEvent.change(box(), { target: { value: 'the rest as you said' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }))
+    expect(mutate.mock.calls[0]![0]).toEqual({
+      text: '> Pick a date\n\n11/9-11/11\n\n> Jill has not answered\n\nthe rest as you said',
+      enter: true,
+    })
+  })
+
   it('sends on Enter with a keyboard, but not on the Enter that picks an input method word', () => {
     device(false)
     render(<InputBar daemonId="nas" sessionId="s1" />)

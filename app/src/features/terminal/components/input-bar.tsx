@@ -1,22 +1,23 @@
-import { Plus, SendHorizontal, X } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { Plus, SendHorizontal } from 'lucide-react'
+import { useEffect, useRef, type KeyboardEvent } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/input'
 import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/lib/use-media-query'
 import { useSendInput } from '../api/use-terminal'
-import { withQuotes } from '../quotes'
+import { withQuotes, type Quote } from '../quotes'
 import { draftKey as keyOf, useDrafts, useTerminalPrefs } from '../store'
 import { KeyPad } from './key-pad'
+import { QuoteCards } from './quote-cards'
 
-const NO_QUOTES: string[] = []
+const NO_QUOTES: Quote[] = []
 const TOUCH = '(pointer: coarse)' // a phone: its keyboard covers half the screen, its return key is a new line
 
 /** One row: the keys toggle, the message box (sent followed by Enter) and Send. The keys a phone
  *  keyboard lacks open above it, and stay open or closed as last left. What the message quotes (text
- *  selected and replied to) waits above the box, apart from what is typed, each with its own remove, and
- *  goes first in the message (`withQuotes`). What is typed and quoted is kept per session until it is
+ *  selected and replied to) waits above the box, apart from what is typed, each with its own remove and
+ *  reply (`QuoteCards`), and goes first in the message (`withQuotes`). What is typed and quoted is kept per session until it is
  *  sent (`useDrafts`). Enter sends with a keyboard; on a phone, return is a new line and Send sends, so
  *  the keyboard can be put away and more quoted first. `keys`: the key names this session accepts; empty
  *  means all of them. */
@@ -56,37 +57,20 @@ export function InputBar({ daemonId, sessionId, keys = [] }: { daemonId: string;
     )
   }
 
+  const keyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // Not the Enter that picks an input method's word (Safari ends the composition first: 229).
+    const picking = e.nativeEvent.isComposing || e.keyCode === 229
+    if (e.key === 'Enter' && !e.shiftKey && !touch && !picking) {
+      e.preventDefault()
+      submit()
+    }
+  }
+
   return (
     <div className="flex flex-col gap-2">
       {send.isError ? <Banner tone="error">{send.error.message}</Banner> : null}
       {open ? <KeyPad keys={keys} onKey={(key) => send.mutate({ key })} /> : null}
-      {quotes.length ? (
-        <ul aria-label="Quoted" className="flex max-h-32 flex-col gap-1 overflow-y-auto">
-          {quotes.map((quote, i) => (
-            <li
-              key={quote}
-              className="flex items-start gap-1 rounded-md border-l-2 border-accent bg-surface-muted py-1 pl-2.5 text-xs text-fg-muted"
-            >
-              <span className="line-clamp-2 min-w-0 flex-1 py-0.5 whitespace-pre-line">{quote}</span>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Remove quote"
-                className="shrink-0"
-                onPointerDown={(e) => e.preventDefault()} // keep the phone keyboard as it is
-                onClick={() =>
-                  setQuotes(
-                    draftKey,
-                    quotes.filter((_, j) => j !== i),
-                  )
-                }
-              >
-                <X />
-              </Button>
-            </li>
-          ))}
-        </ul>
-      ) : null}
+      {quotes.length ? <QuoteCards quotes={quotes} onChange={(list) => setQuotes(draftKey, list)} onKeyDown={keyDown} /> : null}
       <form
         className="flex items-end gap-1.5"
         onSubmit={(e) => {
@@ -114,14 +98,7 @@ export function InputBar({ daemonId, sessionId, keys = [] }: { daemonId: string;
           placeholder="Message the agent"
           aria-label="Message the agent"
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            // Not the Enter that picks an input method's word (Safari ends the composition first: 229).
-            const picking = e.nativeEvent.isComposing || e.keyCode === 229
-            if (e.key === 'Enter' && !e.shiftKey && !touch && !picking) {
-              e.preventDefault()
-              submit()
-            }
-          }}
+          onKeyDown={keyDown}
           className="max-h-40 field-sizing-content"
         />
         <Button type="submit" size="icon" className="shrink-0" aria-label="Send" disabled={send.isPending || !message}>

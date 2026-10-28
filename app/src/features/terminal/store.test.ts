@@ -20,8 +20,22 @@ describe('useDrafts', () => {
     addQuote('d1/a', 'pick a date')
     addQuote('d1/a', '   ')
     addQuote('d1/a', 'or 11/4')
-    expect(useDrafts.getState().quotes).toEqual({ 'd1/a': ['pick a date', 'or 11/4'] })
+    expect(useDrafts.getState().quotes).toEqual({
+      'd1/a': [
+        { text: 'pick a date', reply: '' },
+        { text: 'or 11/4', reply: '' },
+      ],
+    })
     setQuotes('d1/a', [])
     expect(useDrafts.getState().quotes).toEqual({})
+  })
+
+  it('keeps the quotes saved before they had replies of their own', async () => {
+    localStorage.setItem(
+      'muxtower.drafts',
+      JSON.stringify({ version: 1, state: { drafts: { 'd1/a': 'hi' }, quotes: { 'd1/a': ['pick a date'] } } }),
+    )
+    await useDrafts.persist.rehydrate()
+    expect(useDrafts.getState()).toMatchObject({ drafts: { 'd1/a': 'hi' }, quotes: { 'd1/a': [{ text: 'pick a date', reply: '' }] } })
   })
 })

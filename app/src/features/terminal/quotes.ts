@@ -1,5 +1,6 @@
 /** Quoting what the agent wrote in a reply (select it, Reply), as in the Claude apps: quotes wait above
- *  the message box, apart from what is typed, and go first in the message, as Markdown quotes. */
+ *  the message box, apart from what is typed, each with a reply of its own if the owner writes one, and
+ *  go first in the message, as Markdown quotes, each followed by its reply. */
 
 const MAX_LINES = 12
 const MAX_CHARS = 1200
@@ -20,13 +21,24 @@ export function quoteOf(selected: string): string {
   return quote && (lines.length > MAX_LINES || quote.length < lines.join('\n').length) ? `${quote} …` : quote
 }
 
-/** The message to send: the quotes, each as a Markdown quote, then what was typed. */
-export function withQuotes(quotes: string[], text: string): string {
-  const quoted = quotes.map((q) =>
-    q
-      .split('\n')
-      .map((line) => (line ? `> ${line}` : '>'))
-      .join('\n'),
+/** A part of what the agent wrote, quoted, and what the owner replies to that part alone (may be empty). */
+export interface Quote {
+  text: string
+  reply: string
+}
+
+/** The message to send: each quote as a Markdown quote followed by its own reply, then what was typed. */
+export function withQuotes(quotes: Quote[], text: string): string {
+  const quoted = quotes.map(({ text: quote, reply }) =>
+    [
+      quote
+        .split('\n')
+        .map((line) => (line ? `> ${line}` : '>'))
+        .join('\n'),
+      reply.trim(),
+    ]
+      .filter(Boolean)
+      .join('\n\n'),
   )
   return [...quoted, text.trim()].filter(Boolean).join('\n\n')
 }
