@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from muxtower import __version__
 from muxtower.app import create_app
 from muxtower.nodes.protocol import PROTOCOL, Hello, agree
-from muxtower.nodes.update import Policy, newer
+from muxtower.nodes.update import RETRY_SECONDS, Policy, Updater, newer
 from tests.fakes import FakeTmux
 from tests.integration.test_node_link import Running, _free_port, _settings, _until, hub  # noqa: F401 - a fixture
 
@@ -104,3 +104,14 @@ def test_versions_compare_as_releases() -> None:
     assert newer("0.1.0", "0.1.0.dev0") and newer("0.10.0", "0.9.9") and newer("1.0.0rc1", "1.0.0b2")
     assert not newer("1.0", "1.0.0") and not newer("0.1.0", "0.2.0")
     assert not newer("main", "0.1.0") and not newer("0.1.0", None)
+
+
+def test_a_failed_install_is_tried_again_later() -> None:  # PyPI may serve a release minutes late
+    updater, now = Updater("always", version="0.1.0"), [0.0]
+    updater.source, updater.clock = False, lambda: now[0]
+    updater.run = lambda command, **_: subprocess.CompletedProcess(command, 1, "", "No matching distribution")
+    assert updater.heard({"version": "0.1.1"}) == "0.1.1"
+    updater.install("0.1.1")
+    assert updater.heard() is None
+    now[0] += RETRY_SECONDS
+    assert updater.heard() == "0.1.1"

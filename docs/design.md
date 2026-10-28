@@ -159,7 +159,7 @@ joined, if any; a node keeps its own API and UI.
   outside pipx) and execs itself, the same pid, so a service manager sees no exit
   (`nodes/update.py`). A node that is only older is told (`HubStatus.update`, `NodeInfo.update`), and
   follows every update with `hub.update = "always"`. Never downgrades; a source checkout installs
-  nothing; a failed install is not tried again until the daemon restarts.
+  nothing; a failed install (PyPI can serve a release minutes late) is tried again ten minutes later.
 - **Offline**: the node's last report is kept in SQLite, so while it sleeps or the hub restarts its
   sessions are still listed, marked `offline`, read only (no capabilities, no alert), until it is back.
 - **Accounts**: each daemon says which account its agents run as (`agents/accounts.py`, from the
