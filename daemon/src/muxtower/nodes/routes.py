@@ -90,15 +90,18 @@ async def node_link(ws: WebSocket) -> None:
         await ws.close(code=protocol.CLOSE_REVOKED, reason="unknown node")
         return
     # First, so a node this hub refuses below knows which version to install (`nodes/update.py`).
-    await ws.send_text(protocol.event("hub", {"version": __version__, "protocol": protocol.PROTOCOL}))
+    await ws.send_text(
+        protocol.event("hub", {"version": __version__, "protocol": protocol.PROTOCOL, "oldest": protocol.OLDEST})
+    )
     try:
         first = parse(await asyncio.wait_for(ws.receive_text(), HELLO_SECONDS)) or {}
         hello = protocol.Hello.model_validate(first.get("data") if first.get("event") == "hello" else {})
     except (TimeoutError, ValidationError, WebSocketDisconnect):
         await ws.close(code=protocol.CLOSE_INCOMPATIBLE, reason="expected hello")
         return
-    if hello.protocol != protocol.PROTOCOL:
-        await ws.close(code=protocol.CLOSE_INCOMPATIBLE, reason=f"protocol {protocol.PROTOCOL} only")
+    if protocol.agree(hello.protocol, hello.oldest) is None:
+        spoken = f"{protocol.OLDEST}..{protocol.PROTOCOL}"
+        await ws.close(code=protocol.CLOSE_INCOMPATIBLE, reason=f"protocol {spoken} only")
         return
     link = NodeLink(name, ws.send_text, lambda code: ws.close(code=code))
     await nodes.attach(name, link, hello)

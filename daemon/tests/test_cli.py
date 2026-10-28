@@ -1,3 +1,7 @@
+import pytest
+
+from muxtower import __version__
+from muxtower.cli.main import main
 from muxtower.cli.serve import RedactTokenFilter
 
 
@@ -34,3 +38,10 @@ def test_websocket_lines_are_redacted_too() -> None:
         for name in ("uvicorn.access", "uvicorn.error"):
             logging.getLogger(name).filters.clear()
     assert seen == ['1.2.3.4:5 - "WebSocket /v1/stream?access_token=[redacted]" [accepted]']
+
+
+def test_version_says_the_install_and_its_hub_link(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as done:
+        main(["--version"])
+    assert done.value.code == 0
+    assert capsys.readouterr().out.startswith(f"muxtower {__version__} (hub link protocol ")
