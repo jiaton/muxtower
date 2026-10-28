@@ -1,6 +1,7 @@
 from typing import Any, Protocol
 
 from muxtower.claude_conversation import RawEvent
+from muxtower.terminal.models import ImageInput
 
 __all__ = ["RawEvent", "RemoteControlPort"]  # RawEvent: what the adapter returns
 
@@ -32,6 +33,6 @@ class RemoteControlPort(Protocol):
         tool_input: dict[str, Any],
         tool_use_id: str | None,
     ) -> None: ...  # fmt: skip
-    def send_message(self, session_id: str, text: str) -> None: ...
+    def send_message(self, session_id: str, text: str, images: list[ImageInput]) -> None: ...
     def interrupt(self, session_id: str) -> None: ...
     def archive_session(self, session_id: str) -> None: ...

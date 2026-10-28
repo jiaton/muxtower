@@ -23,6 +23,7 @@ from muxtower.sources.codex.ports import AppServerPort, Message
 from muxtower.sources.codex.requests import QUESTIONS, answer, refusal
 from muxtower.sources.codex.store import FileThreadStore
 from muxtower.sources.codex.thread import KEYS, Applied, CodexThread, apply, to_session, waiting_flag
+from muxtower.terminal.models import ImageInput
 
 logger = logging.getLogger("muxtower.codex")
 
@@ -204,7 +205,7 @@ class CodexSource:
         state, _ = self._request(session_id, None if request[0].method in QUESTIONS else refusal(request[0]))
         return state
 
-    def send_text(self, session_id: str, text: str) -> None:
+    def send_text(self, session_id: str, text: str, images: list[ImageInput] | None = None) -> None:
         with self._lock:
             turn_id = self._thread(session_id).turn_id
         message = [{"type": "text", "text": text}]

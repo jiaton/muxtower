@@ -76,6 +76,7 @@ class Capabilities(BaseModel):
     place: bool = Field(
         default=False, description="where it runs can be set by the owner or detected from its log (/placement)"
     )
+    images: bool = Field(default=False, description="a message to it may carry images (SendInput.images)")
 
 
 class Session(BaseModel):

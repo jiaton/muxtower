@@ -24,6 +24,7 @@ from muxtower.sessions.models import Conversation, ConversationItem, Session
 from muxtower.sources.remote_control.folder import WorkingFolder
 from muxtower.sources.remote_control.ports import RawEvent, RemoteControlPort
 from muxtower.sources.remote_control.view import KEYS, RcSession, to_session
+from muxtower.terminal.models import ImageInput
 
 logger = logging.getLogger("muxtower.remote_control")
 
@@ -241,9 +242,9 @@ class RemoteControlSource:
             )  # fmt: skip
         return view.state
 
-    def send_text(self, session_id: str, text: str) -> None:
+    def send_text(self, session_id: str, text: str, images: list[ImageInput] | None = None) -> None:
         self.get(session_id)
-        self.port.send_message(session_id, text)
+        self.port.send_message(session_id, text, images or [])
 
     def mark_read(self, session_id: str) -> None:
         self.get(session_id)

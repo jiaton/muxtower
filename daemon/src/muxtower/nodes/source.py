@@ -19,7 +19,7 @@ from muxtower.nodes.hub import Node, Nodes
 from muxtower.runtimes.models import AgentState
 from muxtower.sessions.models import Capabilities, Conversation, CreateSession, Session, UpdateSession
 from muxtower.sessions.ports import SessionSource
-from muxtower.terminal.models import Resize, Screen, SendInput
+from muxtower.terminal.models import ImageInput, Resize, Screen, SendInput
 
 SEPARATOR = "~"
 CALL_SECONDS = 20.0
@@ -143,8 +143,8 @@ class NodeSource:
     def send_input(self, session_id: str, body: SendInput) -> None:
         self._call(session_id, "input", {"body": body.model_dump(mode="json")})
 
-    def send_text(self, session_id: str, text: str) -> None:
-        self.send_input(session_id, SendInput(text=text, enter=True))
+    def send_text(self, session_id: str, text: str, images: list[ImageInput] | None = None) -> None:
+        self.send_input(session_id, SendInput(text=text, enter=True, images=images or []))
 
     def send_key(self, session_id: str, key: str) -> None:
         self.send_input(session_id, SendInput(key=key))

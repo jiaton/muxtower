@@ -127,6 +127,7 @@ def to_session(rc: RcSession, environments: dict[str, str]) -> Session:
             rename=False,
             archive=True,
             place=True,
+            images=True,
         ),
         summary=summary,
         unread=bool(raw.get("unread")),

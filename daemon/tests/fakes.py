@@ -45,6 +45,9 @@ class FakeTmux:
     def send_text(self, pane: PaneRef, text: str) -> None:
         self.pane(pane).sent.append(("text", text))
 
+    def paste(self, pane: PaneRef, text: str) -> None:
+        self.pane(pane).sent.append(("paste", text))
+
     def send_key(self, pane: PaneRef, key: str) -> None:
         self.pane(pane).sent.append(("key", key))
 

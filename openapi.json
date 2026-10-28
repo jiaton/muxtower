@@ -94,6 +94,12 @@
             "title": "Conversation",
             "type": "boolean"
           },
+          "images": {
+            "default": false,
+            "description": "a message to it may carry images (SendInput.images)",
+            "title": "Images",
+            "type": "boolean"
+          },
           "keys": {
             "description": "tmux key names input accepts; empty = any",
             "items": {
@@ -609,6 +615,32 @@
           }
         },
         "title": "HubStatus",
+        "type": "object"
+      },
+      "ImageInput": {
+        "properties": {
+          "data": {
+            "description": "the image, base64",
+            "maxLength": 7000000,
+            "title": "Data",
+            "type": "string"
+          },
+          "media_type": {
+            "enum": [
+              "image/png",
+              "image/jpeg",
+              "image/gif",
+              "image/webp"
+            ],
+            "title": "Media Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "media_type",
+          "data"
+        ],
+        "title": "ImageInput",
         "type": "object"
       },
       "ItemStatus": {
@@ -1146,12 +1178,20 @@
         "type": "object"
       },
       "SendInput": {
-        "description": "Either literal `text` (optionally followed by Enter) or one tmux `key` name.",
+        "description": "Either literal `text` (optionally followed by Enter) or one tmux `key` name. A message (`text`) may\ncarry `images` where the session takes them (`capabilities.images`).",
         "properties": {
           "enter": {
             "default": false,
             "title": "Enter",
             "type": "boolean"
+          },
+          "images": {
+            "items": {
+              "$ref": "#/components/schemas/ImageInput"
+            },
+            "maxItems": 4,
+            "title": "Images",
+            "type": "array"
           },
           "key": {
             "anyOf": [

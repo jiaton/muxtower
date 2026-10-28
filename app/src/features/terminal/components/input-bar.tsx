@@ -1,4 +1,4 @@
-import { Plus, SendHorizontal } from 'lucide-react'
+import { ImagePlus, Plus, SendHorizontal } from 'lucide-react'
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -7,8 +7,11 @@ import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/lib/use-media-query'
 import type { Track } from '@/lib/use-outbox'
 import { useSendInput } from '../api/use-terminal'
+import { useAttachments } from '../hooks/use-attachments'
+import { base64, imagesIn } from '../images'
 import { withQuotes, type Quote } from '../quotes'
 import { draftKey as keyOf, useDrafts, useTerminalPrefs } from '../store'
+import { ImageCards } from './image-cards'
 import { KeyPad } from './key-pad'
 import { QuoteCards } from './quote-cards'
 
@@ -23,12 +26,14 @@ const TOUCH = '(pointer: coarse)' // a phone: its keyboard covers half the scree
  *  message leaves the box at once and waits at the end of the conversation (`useOutgoing`); if it
  *  cannot be sent, it comes back into the box. Enter sends with a keyboard; on a phone, return is a new line and Send sends, so
  *  the keyboard can be put away and more quoted first. `keys`: the key names this session accepts; empty
- *  means all of them. Other features add to it: `extra` beside Send (the microphone), and `cover`, shown
+ *  means all of them. `images`: the session takes pictures with a message (pasted, dropped or picked;
+ *  `useAttachments`), shown above the words. Other features add to it: `extra` beside Send (the microphone), and `cover`, shown
  *  instead of the row while it is there (speaking). */
 export function InputBar({
   daemonId,
   sessionId,
   keys = [],
+  images = false,
   track,
   extra,
   cover,
@@ -36,6 +41,7 @@ export function InputBar({
   daemonId: string
   sessionId: string
   keys?: string[]
+  images?: boolean
   track?: Track
   extra?: ReactNode
   cover?: ReactNode
@@ -58,8 +64,30 @@ export function InputBar({
   }, [quotes.length])
   const open = useTerminalPrefs((s) => s.keypad)
   const setOpen = useTerminalPrefs((s) => s.setKeypad)
+  const pictures = useAttachments()
+  const picker = useRef<HTMLInputElement>(null)
+
+  /** With pictures: they and the words leave the box together, and come back to it if not sent. */
+  const submitPictures = async () => {
+    const [sentText, sentQuotes, taken] = [text, quotes, pictures.take()]
+    setText('')
+    setQuotes(draftKey, [])
+    const back = () => {
+      const now = useDrafts.getState()
+      setText([sentText, now.drafts[draftKey] ?? ''].filter(Boolean).join('\n'))
+      setQuotes(draftKey, [...sentQuotes, ...(now.quotes[draftKey] ?? [])])
+      pictures.restore(taken)
+    }
+    try {
+      const encoded = await Promise.all(taken.map(async (a) => ({ media_type: a.type, data: await base64(a.blob) })))
+      send.mutate({ text: message, enter: true, images: encoded }, { onError: back })
+    } catch {
+      back()
+    }
+  }
 
   const submit = () => {
+    if (pictures.items.length) return void submitPictures()
     if (!message) return
     const [sentText, sentQuotes] = [text, quotes]
     const tracked = track?.(message)
@@ -102,6 +130,7 @@ export function InputBar({
   return (
     <div className="flex flex-col gap-2">
       {send.isError ? <Banner tone="error">{send.error.message}</Banner> : null}
+      {pictures.error ? <Banner tone="error">{pictures.error}</Banner> : null}
       {open ? <KeyPad keys={keys} onKey={(key) => send.mutate({ key })} /> : null}
       {cover ? <div className="flex items-end">{cover}</div> : null}
       <form
@@ -124,8 +153,18 @@ export function InputBar({
         >
           <Plus className={cn('transition-transform', open && 'rotate-45')} />
         </Button>
-        {/* One box: what the message quotes on top, then what is typed. */}
-        <div className="flex min-w-0 flex-1 flex-col rounded-md border border-border bg-surface focus-within:outline-2 focus-within:outline-focus">
+        {/* One box: the pictures and what the message quotes on top, then what is typed. */}
+        <div
+          className="flex min-w-0 flex-1 flex-col rounded-md border border-border bg-surface focus-within:outline-2 focus-within:outline-focus"
+          onDragOver={(e) => images && e.dataTransfer.types.includes('Files') && e.preventDefault()}
+          onDrop={(e) => {
+            const dropped = images ? imagesIn(e.dataTransfer.files) : []
+            if (!dropped.length) return
+            e.preventDefault()
+            void pictures.add(dropped)
+          }}
+        >
+          {pictures.items.length ? <ImageCards items={pictures.items} onRemove={pictures.remove} /> : null}
           {quotes.length ? <QuoteCards quotes={quotes} onChange={(list) => setQuotes(draftKey, list)} onKeyDown={keyDown} /> : null}
           <Textarea
             ref={box}
@@ -136,11 +175,49 @@ export function InputBar({
             aria-label="Message the agent"
             onChange={(e) => setText(e.target.value)}
             onKeyDown={keyDown}
+            onPaste={(e) => {
+              const pasted = images ? imagesIn(e.clipboardData.files) : []
+              if (!pasted.length) return
+              e.preventDefault() // a screenshot: attached, not its file name typed
+              void pictures.add(pasted)
+            }}
             className="max-h-40 field-sizing-content border-0 bg-transparent focus-visible:outline-none"
           />
         </div>
+        {images ? (
+          <>
+            <input
+              ref={picker}
+              type="file"
+              accept="image/*"
+              multiple
+              hidden
+              onChange={(e) => {
+                void pictures.add(imagesIn(e.target.files))
+                e.target.value = ''
+              }}
+            />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="shrink-0"
+              aria-label="Add pictures"
+              title="Add pictures (or paste or drop them in the box)"
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={() => picker.current?.click()}
+            >
+              <ImagePlus />
+            </Button>
+          </>
+        ) : null}
         {extra}
-        <Button type="submit" size="icon" className="shrink-0" aria-label="Send" disabled={send.isPending || !message}>
+        <Button
+          type="submit"
+          size="icon"
+          className="shrink-0"
+          aria-label="Send"
+          disabled={send.isPending || (!message && !pictures.items.length)}
+        >
           <SendHorizontal />
         </Button>
       </form>

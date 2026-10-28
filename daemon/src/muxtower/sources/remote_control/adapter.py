@@ -15,6 +15,7 @@ import httpx
 
 from muxtower.errors import Conflict, NotFound, Unavailable
 from muxtower.sources.remote_control.ports import RawEvent
+from muxtower.terminal.models import ImageInput
 from muxtower.vendor.claude_rc import (
     APIError,
     ControlRejected,
@@ -23,6 +24,7 @@ from muxtower.vendor.claude_rc import (
     Event,
     RemoteControlClient,
 )
+from muxtower.vendor.claude_rc.events import cli_user_message
 
 
 def _raw(event: Event) -> RawEvent:
@@ -111,9 +113,18 @@ class AnthropicRemoteControl:
                 session_id, request_id, dict(answers), tool_input=tool_input, tool_use_id=tool_use_id
             )
 
-    def send_message(self, session_id: str, text: str) -> None:
+    def send_message(self, session_id: str, text: str, images: list[ImageInput]) -> None:
         with self._call():
-            self.client.send_message(session_id, text)
+            if not images:
+                self.client.send_message(session_id, text)
+                return
+            # The images ahead of the words, as Claude Code itself sends a pasted image.
+            message = cli_user_message(text)
+            message["message"]["content"][:0] = [
+                {"type": "image", "source": {"type": "base64", "media_type": i.media_type, "data": i.data}}
+                for i in images
+            ]
+            self.client.send_events(session_id, [message])
 
     def interrupt(self, session_id: str) -> None:
         with self._call():

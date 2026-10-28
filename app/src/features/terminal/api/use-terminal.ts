@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { check, unwrap } from '@/lib/api/client'
 import { useStreamStatus, useStreamSubscription } from '@/lib/api/streams'
+import type { ImageInput } from '@/lib/api/types'
 import { useDaemonClient } from '@/lib/daemons/use-daemon-client'
 import { daemonKey } from '@/lib/query'
 
@@ -32,11 +33,11 @@ export function useScreen(daemonId: string, sessionId: string, history: number, 
 export function useSendInput(daemonId: string, sessionId: string) {
   const client = useDaemonClient(daemonId)
   return useMutation({
-    mutationFn: async (body: { text?: string; key?: string; enter?: boolean }) =>
+    mutationFn: async (body: { text?: string; key?: string; enter?: boolean; images?: ImageInput[] }) =>
       check(
         await client!.POST('/v1/sessions/{session_id}/input', {
           params: { path: { session_id: sessionId } },
-          body: { text: body.text ?? null, key: body.key ?? null, enter: body.enter ?? false },
+          body: { text: body.text ?? null, key: body.key ?? null, enter: body.enter ?? false, images: body.images ?? [] },
         }),
       ),
   })
