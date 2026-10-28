@@ -520,6 +520,18 @@
             "description": "why it is not connected, when it tried",
             "title": "Error"
           },
+          "hub_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the muxtower version the hub runs, as it said",
+            "title": "Hub Version"
+          },
           "name": {
             "anyOf": [
               {
@@ -531,6 +543,18 @@
             ],
             "description": "its name on the hub",
             "title": "Name"
+          },
+          "update": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the hub's version, when it is later than this one",
+            "title": "Update"
           },
           "url": {
             "anyOf": [
@@ -711,6 +735,18 @@
             "description": "sessions it lists",
             "title": "Sessions",
             "type": "integer"
+          },
+          "update": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "this daemon's version, when the node runs an older one",
+            "title": "Update"
           },
           "version": {
             "anyOf": [
@@ -1767,7 +1803,7 @@
   },
   "info": {
     "title": "muxtower",
-    "version": "0.1.0.dev0"
+    "version": "1"
   },
   "openapi": "3.1.0",
   "paths": {
@@ -2107,21 +2143,6 @@
           }
         },
         "summary": "Claim Node",
-        "tags": [
-          "nodes"
-        ]
-      }
-    },
-    "/v1/nodes/release": {
-      "get": {
-        "description": "A node's own token: the wheel this hub runs, for a node on another build to install\n(`nodes/release.py`).",
-        "operationId": "node_release_v1_nodes_release_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Node Release",
         "tags": [
           "nodes"
         ]

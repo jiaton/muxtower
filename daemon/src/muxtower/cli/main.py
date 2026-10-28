@@ -49,8 +49,12 @@ def cmd_status(_: argparse.Namespace, daemon: LocalDaemon) -> int:
     if hub.get("url"):
         state = "connected" if hub["connected"] else f"not connected ({hub.get('error') or 'linking'})"
         print(f"node {hub['name']} of {hub['url']}: {state}")
+        if hub.get("update"):
+            print(f"  the hub runs muxtower {hub['update']}: pipx install --force muxtower=={hub['update']}")
     for node in daemon.request("GET", "/v1/nodes"):
         print(f"node {node['name']}: {'online' if node['online'] else 'offline'}, {node['sessions']} sessions")
+        if node.get("update"):
+            print(f"  runs muxtower {node['version']}; this daemon runs {node['update']}")
     if not sessions:
         print("no sessions; start one with `muxtower run claude`")
     for s in sessions:

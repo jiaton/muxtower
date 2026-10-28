@@ -47,11 +47,11 @@ from muxtower.nodes.client import HubClient
 from muxtower.nodes.directory import HubDirectory
 from muxtower.nodes.hub import Nodes
 from muxtower.nodes.processes import NodeProcesses
-from muxtower.nodes.release import Release, installed
 from muxtower.nodes.repository import SqliteNodeRepository
 from muxtower.nodes.routes import router as nodes_router
 from muxtower.nodes.source import NodeSource
 from muxtower.nodes.store import HubStore
+from muxtower.nodes.update import Updater
 from muxtower.notify.repository import SqliteSubscriptionRepository
 from muxtower.notify.routes import router as push_router
 from muxtower.notify.service import PushService
@@ -131,16 +131,15 @@ def create_app(
     launcher = Launcher(directory, [codex] if codex else [], node_sessions)
     archiver = Archiver(directory, archive)
     placements = Placements(directory, marks)
-    # This daemon as a node of a hub, once it joined one (`muxtower pair --join`), on the hub's build.
-    release = Release(settings.state_dir, settings.hub.auto_update, installed())
+    # This daemon as a node of a hub, once it joined one (`muxtower pair --join`).
     hub = HubClient(
         HubStore(settings.state_dir / "hub.json"), settings.hub.headers,
         NodeApi(directory, launcher, archiver, placements, audit, processes), monitor, bus,
         lambda: node_protocol.Hello(
-            protocol=node_protocol.PROTOCOL, name=daemon_name, version=release.version, runtimes=launcher.runtimes(),
+            protocol=node_protocol.PROTOCOL, name=daemon_name, version=__version__, runtimes=launcher.runtimes(),
             platform=sys.platform,
         ),
-        release,
+        Updater(settings.hub.update),
     )  # fmt: skip
     concierge: ConciergeService | None = None
     if settings.concierge.enabled:
@@ -186,7 +185,7 @@ def create_app(
         if codex is not None:
             codex.port.close()
 
-    app = FastAPI(title="muxtower", version=__version__, lifespan=lifespan)
+    app = FastAPI(title="muxtower", version="1", lifespan=lifespan)  # the API's (/v1): a release leaves the contract be
     app.state.settings = settings
     app.state.daemon_name = daemon_name
     app.state.tokens = tokens
@@ -200,7 +199,6 @@ def create_app(
     app.state.launcher = launcher
     app.state.nodes = nodes
     app.state.hub = hub
-    app.state.release = release
     app.state.summaries = summaries
     app.state.concierge = concierge
     app.state.mcp = McpTools(directory, sessions, concierge, daemon_name)

@@ -24,9 +24,9 @@ from muxtower.infra.bus import EventBus
 from muxtower.nodes import protocol
 from muxtower.nodes.api import NodeApi
 from muxtower.nodes.models import HubStatus, NodeClaimResult
-from muxtower.nodes.release import Release
 from muxtower.nodes.session import LinkSession
 from muxtower.nodes.store import HubStore, Joined
+from muxtower.nodes.update import Updater
 from muxtower.sessions.monitor import Monitor
 
 logger = logging.getLogger("muxtower.hub")
@@ -41,7 +41,7 @@ def link_url(hub: str) -> str:
 class HubClient:
     def __init__(
         self, store: HubStore, headers: dict[str, str], api: NodeApi, monitor: Monitor, bus: EventBus,
-        hello: Callable[[], protocol.Hello], release: Release | None = None,
+        hello: Callable[[], protocol.Hello], updater: Updater | None = None,
     ) -> None:  # fmt: skip
         self.store = store
         self.headers = headers
@@ -49,7 +49,7 @@ class HubClient:
         self.monitor = monitor
         self.bus = bus
         self.hello = hello
-        self.release = release
+        self.updater = updater or Updater("never")
         self.connected = False
         self.error: str | None = None
         self._wake: asyncio.Event | None = None
@@ -62,7 +62,10 @@ class HubClient:
         joined = self.store.load()
         if joined is None:
             return HubStatus()
-        return HubStatus(url=joined.url, name=joined.name, connected=self.connected, error=self.error)
+        return HubStatus(
+            url=joined.url, name=joined.name, connected=self.connected, error=self.error,
+            hub_version=self.updater.hub, update=self.updater.available,
+        )  # fmt: skip
 
     def join(self, url: str, code: str) -> HubStatus:
         """Redeems a pairing code made on the hub for this node's own token, then links."""
@@ -130,7 +133,13 @@ class HubClient:
                     self.error = "the hub removed this node: join it again"
                     self.store.clear()
                     continue
-                self.error = f"link closed ({exc.rcvd.code if exc.rcvd else 'no close frame'})"
+                if exc.rcvd is not None and exc.rcvd.code == protocol.CLOSE_INCOMPATIBLE:
+                    if target := self.updater.refused():
+                        await asyncio.to_thread(self.updater.install, target)  # restarts when it worked
+                    self.error = self.updater.advice()
+                    logger.warning("the hub refused this node: %s", self.error)
+                else:
+                    self.error = f"link closed ({exc.rcvd.code if exc.rcvd else 'no close frame'})"
             except InvalidStatus as exc:
                 self.error = f"the hub answered {exc.response.status_code}"
             except (OSError, TimeoutError, WebSocketException) as exc:
@@ -156,15 +165,11 @@ class HubClient:
             self.connected, self.error = True, None
             logger.info("linked to the hub %s as %s", joined.url, joined.name)
             try:
-                await LinkSession(ws, self.api, self.monitor, self.bus, self.hello, self._told(joined)).run()
+                await LinkSession(ws, self.api, self.monitor, self.bus, self.hello, self._told).run()
             finally:
                 self._ws = None
 
-    def _told(self, joined: Joined) -> Callable[[str, Any], None]:
-        """What the hub tells this node unasked: the build it runs (`release.py`)."""
-
-        def told(kind: str, data: Any) -> None:
-            if kind == "release" and self.release is not None:
-                asyncio.create_task(asyncio.to_thread(self.release.take, data, joined, self.headers))
-
-        return told
+    def _told(self, kind: str, data: Any) -> None:
+        """What the hub tells this node unasked: its version (`update.py`)."""
+        if kind == "hub" and (target := self.updater.heard(data)):
+            asyncio.create_task(asyncio.to_thread(self.updater.install, target))

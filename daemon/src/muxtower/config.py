@@ -105,8 +105,9 @@ class HubSettings(BaseModel):
 
     # Headers sent with every request to the hub, for a gate in front of it, e.g. {"X-Gate-Token" = "…"}.
     headers: dict[str, str] = Field(default_factory=dict)
-    # Install the hub's build when it runs another one, and start again on it (`nodes/release.py`).
-    auto_update: bool = True
+    # Installing the hub's version from PyPI (`nodes/update.py`): "incompatible" when the hub no longer
+    # speaks this node's protocol, "always" whenever it runs a later one, "never" (only told).
+    update: Literal["always", "incompatible", "never"] = "incompatible"
 
 
 class Settings(BaseModel):

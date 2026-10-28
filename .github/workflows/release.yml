@@ -1,0 +1,37 @@
+name: release
+# A tag vX.Y.Z (the version in daemon/pyproject.toml) publishes that release to PyPI, through PyPI's
+# trusted publishing (no token stored here): the wheel carries the built web and glasses apps.
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  pypi:
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: |
+            app/package-lock.json
+            glasses/package-lock.json
+      - run: pipx install poetry
+      - name: The tag names the version being released
+        run: test "${GITHUB_REF_NAME#v}" = "$(cd daemon && poetry version -s)"
+      - run: cd daemon && poetry install
+      - run: cd app && npm ci
+      - run: cd glasses && npm ci
+      - run: make check
+      - run: make wheel
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: daemon/dist/
