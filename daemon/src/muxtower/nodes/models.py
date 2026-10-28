@@ -15,6 +15,7 @@ class NodeInfo(BaseModel):
     name: str
     online: bool
     version: str | None = None
+    update: str | None = Field(default=None, description="this daemon's version, when the node runs an older one")
     joined_at: datetime
     last_seen: datetime | None = Field(default=None, description="when it was last connected")
     sessions: int = Field(description="sessions it lists")
@@ -44,3 +45,5 @@ class HubStatus(BaseModel):
     name: str | None = Field(default=None, description="its name on the hub")
     connected: bool = False
     error: str | None = Field(default=None, description="why it is not connected, when it tried")
+    hub_version: str | None = Field(default=None, description="the muxtower version the hub runs, as it said")
+    update: str | None = Field(default=None, description="the hub's version, when it is later than this one")

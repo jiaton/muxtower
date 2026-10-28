@@ -150,14 +150,13 @@ joined, if any; a node keeps its own API and UI.
   for the one node of that kind (the hello says `sys.platform`), and a machine the owner typed that names
   a node ("Mac") is spelled as the node is. A node signed in to another account lists that account's
   sessions itself (`remote_control.enabled`; on macOS from the Keychain item Claude Code keeps).
-- **One build everywhere**: every build is 0.1.0.dev0, so a build is told by the sha256 of the wheel
-  it was installed from (the installer's `direct_url.json`). The hub keeps a copy of its own wheel and
-  names its build on every link (`release`); a node on another one fetches it with its node token
-  (`GET /v1/nodes/release`), checks the hash, installs it with pipx (or pip) and execs itself, the same
-  pid, so a service manager sees no exit (`nodes/release.py`). A failed install stays as it is and is
-  not tried again until the node restarts; a source checkout neither hands out nor takes a build; a
-  node turns it off with `hub.auto_update`. The hub already runs agents on its nodes, so trusting it
-  with the node's own code adds no new trust.
+- **Versions**: releases go to PyPI (a `vX.Y.Z` tag publishes one); daemons only tell each other their
+  versions. The hub says its own first on every link (`hub`), even to a node it is about to refuse
+  for speaking another `PROTOCOL`; such a node installs the hub's version from PyPI (pipx, or pip
+  outside pipx) and execs itself, the same pid, so a service manager sees no exit
+  (`nodes/update.py`). A node that is only older is told (`HubStatus.update`, `NodeInfo.update`), and
+  follows every update with `hub.update = "always"`. Never downgrades; a source checkout installs
+  nothing; a failed install is not tried again until the daemon restarts.
 - **Offline**: the node's last report is kept in SQLite, so while it sleeps or the hub restarts its
   sessions are still listed, marked `offline`, read only (no capabilities, no alert), until it is back.
 - **Accounts**: each daemon says which account its agents run as (`agents/accounts.py`, from the

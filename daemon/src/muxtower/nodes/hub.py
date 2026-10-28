@@ -20,12 +20,14 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from muxtower import __version__
 from muxtower.errors import Conflict, NotFound
 from muxtower.infra.bus import EventBus
 from muxtower.nodes.link import NodeLink
 from muxtower.nodes.models import NodeInfo
 from muxtower.nodes.protocol import CLOSE_REVOKED, Hello
 from muxtower.nodes.repository import NodeRecord, NodeRepository
+from muxtower.nodes.update import newer
 from muxtower.runtimes.models import RuntimeInfo
 from muxtower.sessions.models import ConversationItem, Session
 
@@ -117,6 +119,7 @@ class Nodes:
                     name=name,
                     online=node.online,
                     version=node.record.version,
+                    update=__version__ if newer(__version__, node.record.version) else None,
                     joined_at=node.record.joined_at,
                     last_seen=None if node.online else node.record.last_seen,
                     sessions=len(node.sessions),
@@ -197,10 +200,8 @@ class Nodes:
     def on_event(self, name: str, kind: str, data: Any) -> None:
         if kind == "sessions" and isinstance(data, list):
             self._sessions(name, data)
-        elif kind == "conversation" and isinstance(data, dict):
-            self._forward(name, data, "conversation")
-        elif kind == "screen" and isinstance(data, dict):
-            self._forward(name, data, "screen")
+        elif kind in ("conversation", "screen") and isinstance(data, dict):
+            self._forward(name, data, kind)
         elif kind == "running" and isinstance(data, list):
             self._running(name, data)
 

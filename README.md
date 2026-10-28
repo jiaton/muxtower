@@ -75,7 +75,7 @@ muxtower pair --join https://hub.example --code K7QM-3XPA
 
 While a node is asleep its sessions stay listed, marked offline. Each daemon reports which account its agents run as; when there is more than one (another Claude account, Claude Code with an API key), the app shows it and can filter and group by it. Remove a node in the app (Daemons). If a gate in front of the hub wants its own header, give it to the node in `[hub] headers`.
 
-A node installed from a wheel keeps to the hub's build: when the hub runs another one, the node downloads the hub's wheel, installs it with pipx (or pip) and starts again on it, so updating the hub updates every computer. Turn it off for a node with `hub.auto_update = false`.
+Update the hub first. A node that the hub can no longer talk to installs the hub's version from PyPI by itself (with pipx, or pip outside pipx) and starts again on it; a node that is only older is told so, in `muxtower` and on the app's Daemons page. Set `hub.update = "always"` on a node to have it follow every hub update, or `"never"` to only be told.
 
 Claude sessions started outside tmux (the desktop app, an IDE, `claude remote-control`) are listed by the hub's own Remote Control, as that computer's when their process runs on a node: the node says which run there, from Claude Code's own files, with no login of its own. A node signed in to another Claude account lists that account's sessions itself: turn `remote_control.enabled` on for it (on macOS it reads the Claude login from the Keychain, as Claude Code does).
 
@@ -156,7 +156,7 @@ Sessions that muxtower did not start (found in your own tmux) can be watched, an
 | `concierge.model` / `.name` / `.cwd` | — | `sonnet` / `Assistant` / `~` | its model, display name and working directory |
 | `concierge.remote_control` / `.args` | — | `true` / `[]` | also reachable from the Claude apps; extra `claude` arguments |
 | `hub.headers` | — | `{}` | as a node: headers sent with every request to the hub, for a gate in front of it |
-| `hub.auto_update` | — | `true` | as a node: install the hub's build when it runs another one, and restart on it |
+| `hub.update` | — | `incompatible` | as a node: install the hub's version from PyPI and restart on it when the hub no longer speaks this one's protocol (`incompatible`), whenever the hub runs a later one (`always`), or never |
 
 Run it as a service:
 

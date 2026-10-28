@@ -10,7 +10,7 @@ changes: idempotent, so a reconnect needs no catching up), `conversation` (new i
 has them), `screen` (frames of the screens the hub watches) and `running` (which Remote Control
 sessions have their Claude Code process there: `processes.py`); a peer ignores events it does not
 know. The hub asks the node to act on its sessions with requests named like the daemon's own API
-(`METHODS`), and tells it unasked which build it runs (`release`: `release.py`). Errors travel as
+(`METHODS`), and tells it first which version it runs (`hub`: `update.py`). Errors travel as
 HTTP statuses and come out on the other side as the same exception, so a 409 from a node is a 409
 from the hub.
 

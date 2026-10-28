@@ -32,6 +32,11 @@ export function NodesList({ daemonId, url }: { daemonId: string; url: string }) 
                 <span className="truncate text-xs text-fg-muted">
                   {n.online ? 'online' : `offline since ${when(n.last_seen)}`} · {n.sessions} session{n.sessions === 1 ? '' : 's'}
                 </span>
+                {n.update ? (
+                  <span className="text-xs text-state-permission">
+                    Runs {n.version}; update it to {n.update}: <code className="font-mono break-all">pipx install --force muxtower=={n.update}</code>
+                  </span>
+                ) : null}
               </span>
               {confirm === n.name ? (
                 <Button variant="danger" size="sm" disabled={remove.isPending} onClick={() => remove.mutate(n.name)}>

@@ -159,27 +159,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/nodes/release": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Node Release
-         * @description A node's own token: the wheel this hub runs, for a node on another build to install
-         *     (`nodes/release.py`).
-         */
-        get: operations["node_release_v1_nodes_release_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/nodes/{name}": {
         parameters: {
             query?: never;
@@ -899,10 +878,20 @@ export interface components {
              */
             error?: string | null;
             /**
+             * Hub Version
+             * @description the muxtower version the hub runs, as it said
+             */
+            hub_version?: string | null;
+            /**
              * Name
              * @description its name on the hub
              */
             name?: string | null;
+            /**
+             * Update
+             * @description the hub's version, when it is later than this one
+             */
+            update?: string | null;
             /**
              * Url
              * @description the hub it joined; null when it joined none
@@ -1001,6 +990,11 @@ export interface components {
              * @description sessions it lists
              */
             sessions: number;
+            /**
+             * Update
+             * @description this daemon's version, when the node runs an older one
+             */
+            update?: string | null;
             /** Version */
             version?: string | null;
         };
@@ -1701,24 +1695,6 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
-            };
-        };
-    };
-    node_release_v1_nodes_release_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
             };
         };
     };
