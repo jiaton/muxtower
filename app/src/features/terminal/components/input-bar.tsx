@@ -87,6 +87,7 @@ export function InputBar({
   }
 
   const submit = () => {
+    if (pictures.pending) return // a picture is still being made small: Send waits for it
     if (pictures.items.length) return void submitPictures()
     if (!message) return
     const [sentText, sentQuotes] = [text, quotes]
@@ -164,7 +165,9 @@ export function InputBar({
             void pictures.add(dropped)
           }}
         >
-          {pictures.items.length ? <ImageCards items={pictures.items} onRemove={pictures.remove} /> : null}
+          {pictures.items.length || pictures.pending ? (
+            <ImageCards items={pictures.items} pending={pictures.pending} onRemove={pictures.remove} />
+          ) : null}
           {quotes.length ? <QuoteCards quotes={quotes} onChange={(list) => setQuotes(draftKey, list)} onKeyDown={keyDown} /> : null}
           <Textarea
             ref={box}
@@ -216,7 +219,7 @@ export function InputBar({
           size="icon"
           className="shrink-0"
           aria-label="Send"
-          disabled={send.isPending || (!message && !pictures.items.length)}
+          disabled={send.isPending || pictures.pending > 0 || (!message && !pictures.items.length)}
         >
           <SendHorizontal />
         </Button>
