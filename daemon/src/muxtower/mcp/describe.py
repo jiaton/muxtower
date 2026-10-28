@@ -58,4 +58,6 @@ def line(s: Session, hub: str) -> str:
     flags = [f for f, on in (("archived", s.archived_at), ("hidden", s.hidden), ("offline", s.offline)) if on]
     state = " ".join([s.state.value, *flags]) + (" · NEEDS THE OWNER" if s.needs_attention else "")
     where = f"in {s.cwd}" if s.cwd else "folder unknown"
+    if s.fork_of:
+        where += f" · {'side chat' if s.side_chat else 'fork'} of {s.fork_of}"
     return f"{s.id} · {s.name} · @{device(s)} · {harness(s)} · via {reached(s, hub)} · {where} · {state} · {said}"

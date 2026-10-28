@@ -17,6 +17,7 @@ import { useSessionEntries } from '@/features/sessions/hooks/use-session-entries
 import { entryKey, folderName, isAssistant } from '@/features/sessions/model/facets'
 import { keptEntries, keptGroups } from '@/features/sessions/model/kept'
 import { facetsOf, filterEntries, groupEntries, queryTitle } from '@/features/sessions/model/query'
+import { foldSideChats } from '@/features/sessions/model/side-chats'
 import { parseListSearch, toQuery } from '@/features/sessions/model/search'
 import { useListMemory, useListPrefs, useSessionDrawer } from '@/features/sessions/store'
 import { cn } from '@/lib/cn'
@@ -58,7 +59,9 @@ function SessionsLayout() {
 
   if (!daemons.length) return <Onboarding unpairedName={unpaired[0]?.name} unpairedUrl={unpaired[0]?.url} />
 
-  const groups = [...groupEntries(visible, query.group), ...keptGroups(kept)]
+  // Side chats sit under the session they were asked beside, folded (one that needs you stays out).
+  const { shown, sideChats } = foldSideChats(visible)
+  const groups = [...groupEntries(shown, query.group), ...keptGroups(kept)]
   const count = visible.filter((e) => !isAssistant(e.session)).length
   const facets = facetsOf(entries)
   const { title, within } = queryTitle(query)
@@ -100,6 +103,7 @@ function SessionsLayout() {
           {groups.length ? (
             <SessionList
               groups={groups}
+              sideChats={sideChats}
               selectedKey={selectedKey}
               foldScope={query.group}
               unfolded={Boolean(query.q?.trim())}

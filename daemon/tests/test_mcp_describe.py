@@ -34,3 +34,9 @@ def test_a_session_nobody_places_is_on_an_unknown_device() -> None:
     assert "@unknown device (a Mac, by its folder) · " in line(by_folder, "nas")
     archived = session(id="cse_7", machine=None, source=RC, archived_at=datetime.now(UTC))
     assert "· idle archived ·" in line(archived, "nas")
+
+
+def test_a_side_chat_and_a_fork_say_where_they_came_from() -> None:
+    side = session(id="cse_8", machine="mac", source=RC, fork_of="cse_7", side_chat=True, cwd="/Users/me/x")
+    assert "· in /Users/me/x · side chat of cse_7 ·" in line(side, "nas")
+    assert "· fork of cse_7 ·" in line(session(id="cse_9", source=RC, fork_of="cse_7"), "nas")

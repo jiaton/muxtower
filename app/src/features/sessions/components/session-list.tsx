@@ -7,6 +7,7 @@ import { shortFolderNames, type SessionEntry } from '../model/facets'
 import type { Group, Section } from '../model/query'
 import { foldKey, useListPrefs } from '../store'
 import { SessionListRow } from './session-list-row'
+import { SideChats } from './side-chats'
 import type { RowContext } from './session-row'
 
 type Extra = (entry: SessionEntry) => ReactNode
@@ -16,19 +17,30 @@ function Rows({
   selectedKey,
   context,
   extra,
+  sideChats,
 }: {
   entries: SessionEntry[]
   selectedKey?: string
   context: RowContext
   extra?: Extra
+  sideChats?: Map<string, SessionEntry[]>
 }) {
-  return entries.map((entry) => (
-    <div key={entry.key} data-flip={entry.key} className="relative">
-      <SessionListRow entry={entry} selected={entry.key === selectedKey} context={context}>
-        {extra?.(entry)}
-      </SessionListRow>
-    </div>
-  ))
+  return entries.map((entry) => {
+    const held = sideChats?.get(entry.key)
+    const under = extra?.(entry)
+    return (
+      <div key={entry.key} data-flip={entry.key} className="relative">
+        <SessionListRow entry={entry} selected={entry.key === selectedKey} context={context}>
+          {under || held ? (
+            <>
+              {under}
+              {held ? <SideChats entries={held} selectedKey={selectedKey} /> : null}
+            </>
+          ) : null}
+        </SessionListRow>
+      </div>
+    )
+  })
 }
 
 /** What a header says beside its name: how many sessions, and, while folded, how many of them need you
@@ -121,7 +133,7 @@ const membership = (groups: Group[], folded: string[]) =>
  *  what is under it, remembered per `foldScope` (the grouping); while `unfolded` (a search) everything
  *  shows. Rows leave out what their group already says, and slide to their new place when they change
  *  groups (a session that finished, one kept at the end once opened). `extra` renders a slot under a row
- *  (quick actions). */
+ *  (quick actions); `sideChats` are the side chats each row holds (`foldSideChats`), folded under it. */
 export function SessionList({
   groups,
   selectedKey,
@@ -129,8 +141,10 @@ export function SessionList({
   extra,
   foldScope,
   unfolded = false,
+  sideChats,
 }: {
   groups: Group[]
+  sideChats?: Map<string, SessionEntry[]>
   selectedKey?: string
   context?: RowContext
   extra?: Extra
@@ -192,12 +206,14 @@ export function SessionList({
                       folded={sectionFolded}
                       onToggle={onToggle(sectionKey)}
                     />
-                    {sectionFolded ? null : <Rows entries={section.entries} selectedKey={selectedKey} context={rowContext} extra={extra} />}
+                    {sectionFolded ? null : (
+                      <Rows entries={section.entries} selectedKey={selectedKey} context={rowContext} extra={extra} sideChats={sideChats} />
+                    )}
                   </section>
                 )
               })
             ) : (
-              <Rows entries={group.entries} selectedKey={selectedKey} context={rowContext} extra={extra} />
+              <Rows entries={group.entries} selectedKey={selectedKey} context={rowContext} extra={extra} sideChats={sideChats} />
             )}
           </section>
         )

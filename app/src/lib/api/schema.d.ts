@@ -1240,6 +1240,11 @@ export interface components {
              */
             finished_at?: string | null;
             /**
+             * Fork Of
+             * @description the session it was forked from, as listed here (a side chat's too)
+             */
+            fork_of?: string | null;
+            /**
              * Hidden
              * @description the owner hid it: kept out of the lists and done notifications
              * @default false
@@ -1303,6 +1308,12 @@ export interface components {
             role?: components["schemas"]["SessionRole"] | null;
             /** Runtime */
             runtime: string;
+            /**
+             * Side Chat
+             * @description something asked on the side of `fork_of` (Claude desktop's side chat)
+             * @default false
+             */
+            side_chat: boolean;
             source: components["schemas"]["SessionSource"];
             state: components["schemas"]["AgentState"];
             state_source: components["schemas"]["StateSource"];

@@ -94,6 +94,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
   return (
     <Pane className="flex-1" aria-label={session.name}>
       <SessionHeader
+        daemonId={daemonId}
         session={session}
         actions={
           <>
