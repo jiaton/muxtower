@@ -70,6 +70,7 @@ class LiveSession:
     effective: Effective | None = None
     remote_id: str | None = None  # the same agent's Remote Control session (see claude_processes.py)
     transcript: str | None = None  # its Claude Code transcript file, when it has one
+    hook_transcript: str | None = None  # the transcript its hooks last named
     title: str | None = None  # the name its Claude Code goes by, when it has one
     alt_screen: bool = False  # draws full screen: tmux keeps no scrollback for it
     attached: bool = False  # a terminal is attached to its tmux session

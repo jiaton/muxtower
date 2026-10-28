@@ -223,6 +223,8 @@ class SessionService:
         if not secrets.compare_digest(record.hook_token_hash, _hash(hook_token)):
             raise Unauthorized("bad hook token")
         live = self.live_of(session_id)
+        if event.transcript_path:
+            live.hook_transcript = event.transcript_path
         before = self.effective(record).state
         hooks = harness(runtime.config.hooks) if (runtime := self.runtime_of(record)) else None
         live.hook = apply_event(live.hook, event, hooks.asking) if hooks else apply_event(live.hook, event)

@@ -87,3 +87,30 @@ def test_a_full_screen_session_offers_its_transcript(app: FastAPI, client: TestC
     assert client.get("/v1/sessions", headers=auth).json()[0]["terminal_attached"] is True
     conversation = client.get(f"/v1/sessions/{session['id']}/conversation", headers=auth).json()
     assert [i["text"] for i in conversation["items"]] == ["hello", "hi there"]
+
+
+def test_the_transcript_its_hooks_name_wins_when_written_to_last(app: FastAPI, client: TestClient,
+                                                                  auth: dict[str, str], tmux: FakeTmux,
+                                                                  tmp_path: Path) -> None:  # fmt: skip
+    """The process file can be left naming a transcript Claude Code no longer writes to."""
+    import dataclasses
+
+    left, now = tmp_path / "left.jsonl", tmp_path / "now.jsonl"
+    left.write_text(line("user", "old") + line("assistant", "stuck here"))
+    now.write_text(line("user", "old") + line("assistant", "and on"))
+    os.utime(left, (1_000, 1_000))
+    pane = tmux.add_pane("default", "work", "claude")
+    pane.info = dataclasses.replace(pane.info, pid=4242, alternate=True)
+    pane.screen = screens.IDLE
+    app.state.monitor.processes = FakeProcesses({}, {4242: str(left)})
+    app.state.monitor.tick()
+    (session,) = client.get("/v1/sessions", headers=auth).json()
+    app.state.sessions.live_of(session["id"]).hook_transcript = str(now)  # as a hook said
+    app.state.monitor.tick()
+    items = client.get(f"/v1/sessions/{session['id']}/conversation", headers=auth).json()["items"]
+    assert items[-1]["text"] == "and on"
+    os.utime(now, (1_000, 1_000))  # and when the process file names one written to since, that one
+    os.utime(left, None)
+    app.state.monitor.tick()
+    items = client.get(f"/v1/sessions/{session['id']}/conversation", headers=auth).json()["items"]
+    assert items[-1]["text"] == "stuck here"

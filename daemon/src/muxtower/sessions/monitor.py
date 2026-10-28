@@ -36,6 +36,18 @@ def display_name(pane: PaneInfo) -> str:
     return pane.session_name
 
 
+def newest(*paths: str | None) -> str | None:
+    """The transcript written to last, of those that exist: the one its hooks name (where Claude Code
+    writes now) and the one its process file names, which can be left behind."""
+    found = []
+    for path in filter(None, paths):
+        try:
+            found.append((os.path.getmtime(path), path))
+        except OSError:
+            continue
+    return max(found)[1] if found else None
+
+
 class Monitor:
     def __init__(self, service: SessionService, processes: ClaudeProcessPort | None = None) -> None:
         self.service = service
@@ -143,7 +155,9 @@ class Monitor:
             live.screen = ScreenState(classification, text, since, ansi)
             pid = pane.pid if pane else 0
             remote_id = self.processes.remote_id(pid, text) if self.processes and pid else None
-            transcript = self.processes.transcript(pid, text) if self.processes and pid else None
+            transcript = newest(
+                live.hook_transcript, self.processes.transcript(pid, text) if self.processes and pid else None
+            )
             title = self.processes.name(pid, text) if self.processes and pid else None
             alt_screen, attached = bool(pane and pane.alternate), bool(pane and pane.attached)
             seen = (remote_id, transcript, title, alt_screen, attached)
