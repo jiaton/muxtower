@@ -137,6 +137,7 @@ Sessions that muxtower did not start (found in your own tmux) can be watched, an
 | `name` | `MUXTOWER_NAME` | hostname | how the daemon appears in the app |
 | `host` / `port` | `MUXTOWER_HOST` / `MUXTOWER_PORT` | `127.0.0.1` / `8731` | listen address |
 | `public_url` | `MUXTOWER_PUBLIC_URL` | — | the HTTPS address devices use |
+| `push_contact` | `MUXTOWER_PUSH_CONTACT` | `public_url` | who push services may contact about this daemon's notifications (`mailto:` or `https://`); iPhones get no notifications without one or an HTTPS `public_url` |
 | `cors.allowed_origins` | `MUXTOWER_CORS_ALLOWED_ORIGINS` | `["*"]` | restrict which app origins may call the API |
 | `adopt_sockets` | `MUXTOWER_ADOPT_SOCKETS` | `["default"]` | other tmux servers to scan for agents |
 | `tmux_socket` | `MUXTOWER_TMUX_SOCKET` | `muxtower` | tmux server for sessions muxtower starts |

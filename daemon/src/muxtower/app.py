@@ -55,7 +55,7 @@ from muxtower.nodes.update import Updater
 from muxtower.notify.repository import SqliteSubscriptionRepository
 from muxtower.notify.routes import router as push_router
 from muxtower.notify.service import PushService
-from muxtower.notify.webpush_sender import WebPushSender
+from muxtower.notify.webpush_sender import WebPushSender, subject
 from muxtower.origins import OriginPolicy
 from muxtower.runtimes.spec import load_runtimes
 from muxtower.sessions.archive import SessionArchive
@@ -146,9 +146,8 @@ def create_app(
         store = FileConciergeStore(settings.state_dir / "concierge.json", settings.state_dir / "concierge")
         mcp_url = f"{settings.local_url}/v1/mcp"
         concierge = ConciergeService(settings.concierge, sessions, directory, tokens, store, mcp_url)
-    push = PushService(
-        SqliteSubscriptionRepository(db), WebPushSender(settings.state_dir), directory, daemon_name, tokens.exists
-    )
+    sender = WebPushSender(settings.state_dir, subject(settings.push_contact, settings.public_url))
+    push = PushService(SqliteSubscriptionRepository(db), sender, directory, daemon_name, tokens.exists)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:

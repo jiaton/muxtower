@@ -60,19 +60,26 @@ self.addEventListener('push', (event) => {
   )
 })
 
+/** The app's own windows (not the glasses page or anything else on this origin), the one in front first. */
+async function appWindows(): Promise<WindowClient[]> {
+  const base = new URL(appBase(), self.location.origin).href
+  const rank = (c: WindowClient) => (c.focused ? 2 : c.visibilityState === 'visible' ? 1 : 0)
+  const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+  return windows.filter((c) => c.url.startsWith(base) && !c.url.startsWith(`${base}g2/`)).sort((a, b) => rank(b) - rank(a))
+}
+
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const url = (event.notification.data as { url: string }).url
   event.waitUntil(
     (async () => {
-      const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-      // The app open already goes there itself (`useNotificationClicks`): this registration (a
-      // daemon's, for its push subscription) does not control the app's pages, so it cannot navigate
-      // them, and a navigation would reload the app anyway.
-      for (const client of windows) {
-        if ('focus' in client) {
-          client.postMessage({ type: 'navigate', url })
-          await client.focus().catch(() => undefined)
+      // Brought to the front first, while the tap still allows it, then told where to go: the app goes
+      // there itself (`useNotificationClicks`). This registration (a daemon's, for its push subscription)
+      // does not control the app's pages, so it cannot navigate them, and a navigation would reload the app.
+      for (const client of await appWindows()) {
+        const focused = await client.focus().catch(() => null)
+        if (focused) {
+          focused.postMessage({ type: 'navigate', url })
           return
         }
       }
