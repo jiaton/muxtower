@@ -10,6 +10,7 @@ from muxtower.runtimes.models import ATTENTION_STATES, AgentState, Option
 from muxtower.sessions.models import Capabilities, PendingAction, Session, StateSource, TurnSummary
 from muxtower.sessions.ports import SessionSource
 from muxtower.sources.remote_control.folder import WorkingFolder
+from muxtower.sources.remote_control.lineage import Lineage
 
 KEYS = ["Escape"]  # interrupt; anything else would need a terminal
 
@@ -22,6 +23,7 @@ class RcSession:
     detail: dict[str, Any] = field(default_factory=dict)  # GET /sessions/{id} (post_turn_summary…)
     fingerprint: tuple[Any, ...] = ()
     view: Session | None = None
+    lineage: Lineage = field(default_factory=Lineage)  # read once, when first seen
 
     @property
     def waiting(self) -> bool:

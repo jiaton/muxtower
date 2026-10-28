@@ -49,6 +49,7 @@ export function SessionRow({
   const { daemon, session } = entry
   const folder = folderOf(session)
   const where = [
+    session.fork_of ? (session.side_chat ? 'Side chat' : 'Fork') : null,
     context.showDaemon ? daemon.name : null,
     context.hideDevice ? null : (deviceOf(session) ?? NO_ENVIRONMENT),
     context.hideFolder || !folder ? null : folderName(folder),
@@ -74,7 +75,11 @@ export function SessionRow({
               {session.name}
             </span>
             {quieter ? (
-              <quieter.icon className="size-3.5 shrink-0 self-center text-fg-muted" role="img" aria-label={`Notifications: ${quieter.label}`} />
+              <quieter.icon
+                className="size-3.5 shrink-0 self-center text-fg-muted"
+                role="img"
+                aria-label={`Notifications: ${quieter.label}`}
+              />
             ) : null}
             <time
               className={cn('shrink-0 text-xs tabular-nums', session.unread ? 'font-medium text-accent' : 'text-fg-muted')}

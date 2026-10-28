@@ -1286,6 +1286,18 @@
             "description": "when it last finished a turn",
             "title": "Finished At"
           },
+          "fork_of": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the session it was forked from, as listed here (a side chat's too)",
+            "title": "Fork Of"
+          },
           "hidden": {
             "default": false,
             "description": "the owner hid it: kept out of the lists and done notifications",
@@ -1437,6 +1449,12 @@
           "runtime": {
             "title": "Runtime",
             "type": "string"
+          },
+          "side_chat": {
+            "default": false,
+            "description": "something asked on the side of `fork_of` (Claude desktop's side chat)",
+            "title": "Side Chat",
+            "type": "boolean"
           },
           "source": {
             "$ref": "#/components/schemas/SessionSource"

@@ -15,12 +15,12 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any
 
-from muxtower.approval.answers import check_answers
 from muxtower.claude_conversation import PendingRequest
-from muxtower.errors import Conflict, Invalid, NotFound, Unavailable
+from muxtower.errors import Conflict, NotFound, Unavailable
 from muxtower.infra.bus import EventBus
 from muxtower.runtimes.models import AgentState
 from muxtower.sessions.models import Conversation, ConversationItem, Session
+from muxtower.sources.remote_control import lineage, prompts
 from muxtower.sources.remote_control.folder import WorkingFolder
 from muxtower.sources.remote_control.ports import RawEvent, RemoteControlPort
 from muxtower.sources.remote_control.view import KEYS, RcSession, to_session
@@ -33,7 +33,6 @@ EVENTS_PER_PAGE = 200
 MAX_EVENT_PAGES = 5
 MAX_DETECT_PAGES = 50  # of a whole log read for its folder, on the owner's request
 MAX_SESSION_PAGES = 4
-DENY_MESSAGE = "Denied from muxtower."
 FINGERPRINT = ("last_event_at", "worker_status", "status_bucket", "unread", "title")
 
 
@@ -60,7 +59,8 @@ class RemoteControlSource:
 
     def views(self) -> list[Session]:
         with self._lock:
-            return [s.view for s in self.sessions.values() if s.view is not None]
+            forks = lineage.forks(self.sessions)
+            return [lineage.placed(s, forks) for s in self.sessions.values() if s.view is not None]
 
     def _session(self, session_id: str) -> RcSession:
         found = self.sessions.get(session_id)
@@ -70,9 +70,7 @@ class RemoteControlSource:
 
     def get(self, session_id: str) -> Session:
         with self._lock:
-            view = self._session(session_id).view
-        assert view is not None
-        return view
+            return lineage.placed(self._session(session_id), lineage.forks(self.sessions))
 
     def conversation(self, session_id: str, after: int, limit: int) -> Conversation:
         with self._lock:
@@ -139,13 +137,17 @@ class RemoteControlSource:
                 if known is not None and known.fingerprint == fingerprint:
                     continue
                 seq = known.builder.latest_event_seq if known is not None else None
+            lineage_ = None
             if seq is None:
                 events = self.port.recent_events(session_id, FIRST_LOAD_EVENTS)
+                lineage_ = lineage.read(self.port.events_after, session_id, raw)
             else:
                 events = self._events_after(session_id, seq)
             detail = self.port.get_session(session_id)
             with self._lock:
                 rc = self.sessions.setdefault(session_id, RcSession(raw=raw))
+                if lineage_ is not None:
+                    rc.lineage = lineage_
                 before = rc.view
                 rc.raw, rc.fingerprint = raw, fingerprint
                 if items := self._apply(rc, events, detail):
@@ -202,45 +204,11 @@ class RemoteControlSource:
         self, session_id: str, option: str | None, answers: list[list[str]] | None = None
     ) -> tuple[AgentState, str]:
         request, view = self._answerable(session_id)
-        if request.is_question and answers is not None:
-            questions = view.pending.questions if view.pending else []
-            picked = check_answers(questions, answers)
-            said = {q.question: ", ".join(p) for q, p in zip(questions, picked, strict=True)}  # Claude Code's joining
-            self.port.answer_question(
-                session_id, request.request_id, said, tool_input=request.tool_input, tool_use_id=request.tool_use_id
-            )
-            return view.state, "answers"
-        if request.is_question:
-            options = {o.key: o.label for o in (view.pending.options if view.pending else [])}
-            if option not in options:
-                raise Invalid("pick one of the offered answers")
-            question = str(request.question.get("question") or "")
-            self.port.answer_question(
-                session_id, request.request_id, {question: options[option]},
-                tool_input=request.tool_input, tool_use_id=request.tool_use_id,
-            )  # fmt: skip
-            return view.state, option
-        if option not in (None, "allow", "deny"):
-            raise Invalid("option must be allow or deny")
-        allow = option != "deny"
-        self.port.respond_permission(
-            session_id, request.request_id, allow=allow, tool_input=request.tool_input,
-            tool_use_id=request.tool_use_id, message=None if allow else DENY_MESSAGE,
-        )  # fmt: skip
-        return view.state, "allow" if allow else "deny"
+        return prompts.approve(self.port, session_id, request, view, option, answers)
 
     def deny(self, session_id: str) -> AgentState:
         request, view = self._answerable(session_id)
-        if request.is_question:
-            self.port.answer_question(
-                session_id, request.request_id, {}, tool_input=request.tool_input, tool_use_id=request.tool_use_id
-            )
-        else:
-            self.port.respond_permission(
-                session_id, request.request_id, allow=False, tool_input=request.tool_input,
-                tool_use_id=request.tool_use_id, message=DENY_MESSAGE,
-            )  # fmt: skip
-        return view.state
+        return prompts.deny(self.port, session_id, request, view)
 
     def send_text(self, session_id: str, text: str, images: list[ImageInput] | None = None) -> None:
         self.get(session_id)

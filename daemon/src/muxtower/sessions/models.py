@@ -124,6 +124,12 @@ class Session(BaseModel):
     node: str | None = Field(
         default=None, description="the node (another daemon joined to this one) it is reached through"
     )
+    fork_of: str | None = Field(
+        default=None, description="the session it was forked from, as listed here (a side chat's too)"
+    )
+    side_chat: bool = Field(
+        default=False, description="something asked on the side of `fork_of` (Claude desktop's side chat)"
+    )
     on_host: bool = Field(default=False, description="its agent runs on the daemon that lists it")
     offline: bool = Field(
         default=False, description="its node is not connected: the last known view, read only until it is back"

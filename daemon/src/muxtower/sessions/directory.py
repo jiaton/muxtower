@@ -92,6 +92,9 @@ class SessionDirectory:
         merged_into = {s.remote_id for s in locals_ if s.remote_id} | {v.remote_id for _, v in remotes if v.remote_id}
         kept = [v for source, v in remotes if v.id not in merged_into and self.source_of(v.id) is source]
         archived = self.archive_store.views() if self.archive_store else []
+        # A fork names its parent's Remote Control id; a parent in tmux here is listed under its own.
+        listed_as = {s.remote_id: s.id for s in locals_ if s.remote_id}
+        kept = [v.model_copy(update={"fork_of": listed_as[v.fork_of]}) if v.fork_of in listed_as else v for v in kept]
         return [self._decorate(s) for s in locals_ + kept] + archived
 
     def get(self, session_id: str) -> Session:
