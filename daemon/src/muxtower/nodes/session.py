@@ -26,13 +26,15 @@ class LinkSession:
     """One open link: what this node tells the hub, and the hub's requests."""
 
     def __init__(
-        self, ws: ClientConnection, api: NodeApi, monitor: Monitor, bus: EventBus, hello: Callable[[], protocol.Hello]
-    ) -> None:
+        self, ws: ClientConnection, api: NodeApi, monitor: Monitor, bus: EventBus, hello: Callable[[], protocol.Hello],
+        told: Callable[[str, Any], None] = lambda kind, data: None,
+    ) -> None:  # fmt: skip
         self.ws = ws
         self.api = api
         self.monitor = monitor
         self.bus = bus
         self.hello = hello
+        self.told = told  # the hub's events
         self.queue: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
         self.dirty = asyncio.Event()
         self.screens: dict[str, list[int]] = {}
@@ -97,6 +99,8 @@ class LinkSession:
             frame = parse(raw if isinstance(raw, str) else raw.decode())
             if frame is not None and isinstance(frame.get("method"), str) and "id" in frame:
                 asyncio.create_task(self.answer(frame))
+            elif frame is not None and isinstance(frame.get("event"), str):
+                self.told(frame["event"], frame.get("data"))
 
     async def answer(self, frame: dict[str, Any]) -> None:
         method, params = frame["method"], frame.get("params") or {}

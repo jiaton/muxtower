@@ -12,6 +12,7 @@ import asyncio
 import logging
 import random
 from collections.abc import Callable
+from typing import Any
 
 import httpx
 from websockets.asyncio.client import ClientConnection, connect
@@ -23,6 +24,7 @@ from muxtower.infra.bus import EventBus
 from muxtower.nodes import protocol
 from muxtower.nodes.api import NodeApi
 from muxtower.nodes.models import HubStatus, NodeClaimResult
+from muxtower.nodes.release import Release
 from muxtower.nodes.session import LinkSession
 from muxtower.nodes.store import HubStore, Joined
 from muxtower.sessions.monitor import Monitor
@@ -39,7 +41,7 @@ def link_url(hub: str) -> str:
 class HubClient:
     def __init__(
         self, store: HubStore, headers: dict[str, str], api: NodeApi, monitor: Monitor, bus: EventBus,
-        hello: Callable[[], protocol.Hello],
+        hello: Callable[[], protocol.Hello], release: Release | None = None,
     ) -> None:  # fmt: skip
         self.store = store
         self.headers = headers
@@ -47,6 +49,7 @@ class HubClient:
         self.monitor = monitor
         self.bus = bus
         self.hello = hello
+        self.release = release
         self.connected = False
         self.error: str | None = None
         self._wake: asyncio.Event | None = None
@@ -153,6 +156,15 @@ class HubClient:
             self.connected, self.error = True, None
             logger.info("linked to the hub %s as %s", joined.url, joined.name)
             try:
-                await LinkSession(ws, self.api, self.monitor, self.bus, self.hello).run()
+                await LinkSession(ws, self.api, self.monitor, self.bus, self.hello, self._told(joined)).run()
             finally:
                 self._ws = None
+
+    def _told(self, joined: Joined) -> Callable[[str, Any], None]:
+        """What the hub tells this node unasked: the build it runs (`release.py`)."""
+
+        def told(kind: str, data: Any) -> None:
+            if kind == "release" and self.release is not None:
+                asyncio.create_task(asyncio.to_thread(self.release.take, data, joined, self.headers))
+
+        return told

@@ -47,6 +47,7 @@ from muxtower.nodes.client import HubClient
 from muxtower.nodes.directory import HubDirectory
 from muxtower.nodes.hub import Nodes
 from muxtower.nodes.processes import NodeProcesses
+from muxtower.nodes.release import Release, installed
 from muxtower.nodes.repository import SqliteNodeRepository
 from muxtower.nodes.routes import router as nodes_router
 from muxtower.nodes.source import NodeSource
@@ -130,14 +131,16 @@ def create_app(
     launcher = Launcher(directory, [codex] if codex else [], node_sessions)
     archiver = Archiver(directory, archive)
     placements = Placements(directory, marks)
-    # This daemon as a node of a hub, once it joined one (`muxtower pair --join`).
+    # This daemon as a node of a hub, once it joined one (`muxtower pair --join`), on the hub's build.
+    release = Release(settings.state_dir, settings.hub.auto_update, installed())
     hub = HubClient(
         HubStore(settings.state_dir / "hub.json"), settings.hub.headers,
         NodeApi(directory, launcher, archiver, placements, audit, processes), monitor, bus,
         lambda: node_protocol.Hello(
-            protocol=node_protocol.PROTOCOL, name=daemon_name, version=__version__, runtimes=launcher.runtimes(),
+            protocol=node_protocol.PROTOCOL, name=daemon_name, version=release.version, runtimes=launcher.runtimes(),
             platform=sys.platform,
         ),
+        release,
     )  # fmt: skip
     concierge: ConciergeService | None = None
     if settings.concierge.enabled:
@@ -197,6 +200,7 @@ def create_app(
     app.state.launcher = launcher
     app.state.nodes = nodes
     app.state.hub = hub
+    app.state.release = release
     app.state.summaries = summaries
     app.state.concierge = concierge
     app.state.mcp = McpTools(directory, sessions, concierge, daemon_name)
@@ -220,16 +224,9 @@ def create_app(
             max_age=600,
         )
 
-    for error, status in (
-        (NotFound, 404),
-        (Invalid, 400),
-        (Conflict, 409),
-        (Forbidden, 403),
-        (Unauthorized, 401),
-        (TooManyRequests, 429),
-        (TmuxError, 502),
-        (Unavailable, 502),
-    ):
+    errors = ((NotFound, 404), (Invalid, 400), (Conflict, 409), (Forbidden, 403), (Unauthorized, 401),
+              (TooManyRequests, 429), (TmuxError, 502), (Unavailable, 502))  # fmt: skip
+    for error, status in errors:
 
         def handler(_: Request, exc: Exception, status: int = status) -> JSONResponse:
             headers = DAEMON_AUTH_HEADER if status == 401 else None

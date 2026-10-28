@@ -105,6 +105,8 @@ class HubSettings(BaseModel):
 
     # Headers sent with every request to the hub, for a gate in front of it, e.g. {"X-Gate-Token" = "…"}.
     headers: dict[str, str] = Field(default_factory=dict)
+    # Install the hub's build when it runs another one, and start again on it (`nodes/release.py`).
+    auto_update: bool = True
 
 
 class Settings(BaseModel):

@@ -45,6 +45,13 @@ class NodeLink:
         except Exception as exc:  # noqa: BLE001 - logged; the caller has moved on
             logger.info("%s on %s failed: %s", method, self.name, exc)
 
+    async def event(self, name: str, data: Any) -> None:
+        """Tells the node something it does not answer (the hub's build): failures are only logged."""
+        try:
+            await self._send(protocol.event(name, data))
+        except Exception as exc:  # noqa: BLE001 - it may be gone already
+            logger.info("telling %s %s failed: %s", self.name, name, exc)
+
     def answered(self, frame: dict[str, Any]) -> None:
         answer = self._pending.get(frame.get("id", -1))
         if answer is None or answer.done():
