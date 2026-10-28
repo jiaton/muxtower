@@ -9,7 +9,7 @@ import logging
 from collections.abc import Callable
 from typing import Literal
 
-from muxtower.approval.models import ApprovalResult
+from muxtower.approval.models import Answers, ApprovalResult
 from muxtower.approval.service import ApprovalService
 from muxtower.errors import Conflict, NotFound, Unavailable
 from muxtower.sessions.archive import SessionArchive
@@ -219,11 +219,11 @@ class SessionDirectory:
         elif body.key is not None:
             source.send_key(session_id, body.key)
 
-    def approve(self, session_id: str, option: str | None) -> ApprovalResult:
+    def approve(self, session_id: str, option: str | None, answers: Answers | None = None) -> ApprovalResult:
         source = self.source_of(session_id)
         if source is None:
-            return self.approvals.approve(session_id, option)
-        state, picked = source.approve(session_id, option)
+            return self.approvals.approve(session_id, option, answers=answers)
+        state, picked = source.approve(session_id, option, answers)
         return ApprovalResult(session_id=session_id, state=state, option=picked)
 
     def deny(self, session_id: str) -> ApprovalResult:

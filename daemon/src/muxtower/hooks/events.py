@@ -10,7 +10,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
-from muxtower.agent_text import describe_tool_input, truncate
+from muxtower.agent_text import describe_tool_input, questions_of, truncate
 from muxtower.runtimes.models import AgentState
 from muxtower.sessions.live import HookState
 
@@ -50,19 +50,28 @@ def apply_event(previous: HookState | None, event: HookEvent, asking: AskingTool
 
     if name == "SessionEnd":
         return None
+    # Asking the owner is a tool call too: in a permission mode that asks first, its PermissionRequest
+    # follows the PreToolUse, and is still the question (or the plan), not a permission.
+    if name in ("PreToolUse", "PermissionRequest") and event.tool_name in asking.questions:
+        asked = state(AgentState.NEEDS_ANSWER, event.tool_name, describe_tool_input(event.tool_input))
+        asked.questions = questions_of(event.tool_input)
+        return asked
+    if name == "PermissionRequest" and event.tool_name in asking.plans:
+        return state(AgentState.PLAN_REVIEW, event.tool_name, describe_tool_input(event.tool_input))
     if name == "PermissionRequest":
         return state(AgentState.NEEDS_PERMISSION, event.tool_name, describe_tool_input(event.tool_input))
-    if name == "PreToolUse" and event.tool_name in asking.questions:
-        return state(AgentState.NEEDS_ANSWER, event.tool_name, describe_tool_input(event.tool_input))
     if name == "PreToolUse" and event.tool_name in asking.plans:
         return state(AgentState.PLAN_REVIEW, event.tool_name, describe_tool_input(event.tool_input))
     if name == "Notification":
         kind = event.notification_type
+        asking_already = (AgentState.NEEDS_PERMISSION, AgentState.NEEDS_ANSWER, AgentState.PLAN_REVIEW)
         if kind == "permission_prompt":
-            if previous is not None and previous.state == AgentState.NEEDS_PERMISSION:
-                return previous  # keep the tool details from PermissionRequest
+            if previous is not None and previous.state in asking_already:
+                return previous  # keep what the tool call said (a question's questions, too)
             return state(AgentState.NEEDS_PERMISSION, detail=event.message)
         if kind in ("elicitation_dialog", "agent_needs_input"):
+            if previous is not None and previous.state == AgentState.NEEDS_ANSWER:
+                return previous
             return state(AgentState.NEEDS_ANSWER, detail=event.message)
         if kind == "idle_prompt":
             return state(AgentState.IDLE)

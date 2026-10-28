@@ -5,7 +5,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from muxtower.runtimes.models import AgentState, Option
+from muxtower.runtimes.models import AgentState, Option, PendingQuestion
 from muxtower.sessions.ports import SessionSource
 
 
@@ -32,6 +32,10 @@ class PendingAction(BaseModel):
     detail: str | None = None
     options: list[Option] = Field(default_factory=list)
     recommended: str | None = Field(default=None, description="option key approve picks when none is given")
+    questions: list[PendingQuestion] = Field(
+        default_factory=list,
+        description="a multiple-choice prompt's questions, when known: answer them all at once with `answers`",
+    )
 
 
 class Placement(BaseModel):

@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from muxtower.agent_text import questions_of
 from muxtower.claude_conversation import ConversationBuilder
 from muxtower.runtimes.models import ATTENTION_STATES, AgentState, Option
 from muxtower.sessions.models import Capabilities, PendingAction, Session, StateSource, TurnSummary
@@ -74,6 +75,7 @@ def pending_action(rc: RcSession) -> PendingAction | None:
             tool_name=request.tool_name,
             detail=str(request.question.get("question") or "") or None,
             options=[Option(key=str(i), label=label) for i, label in enumerate(labels, 1)],
+            questions=questions_of(request.tool_input),
         )
     state = AgentState.PLAN_REVIEW if request.tool_name == "ExitPlanMode" else AgentState.NEEDS_PERMISSION
     item = rc.builder.items.get(request.item_seq)

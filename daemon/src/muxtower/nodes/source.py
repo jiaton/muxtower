@@ -130,8 +130,11 @@ class NodeSource:
         result = self._call(session_id, "screen", {"history": history})
         return Screen.model_validate(result).model_copy(update={"session_id": session_id})
 
-    def approve(self, session_id: str, option: str | None) -> tuple[AgentState, str]:
-        result = ApprovalResult.model_validate(self._call(session_id, "approve", {"option": option}))
+    def approve(
+        self, session_id: str, option: str | None, answers: list[list[str]] | None = None
+    ) -> tuple[AgentState, str]:
+        params = {"option": option} if answers is None else {"option": option, "answers": answers}
+        result = ApprovalResult.model_validate(self._call(session_id, "approve", params))
         return result.state, result.option or ""
 
     def deny(self, session_id: str) -> AgentState:

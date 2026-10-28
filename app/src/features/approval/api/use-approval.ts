@@ -18,12 +18,27 @@ export function useApprove(daemonId: string, sessionId: string) {
   })
 }
 
+/** Answers every question of a multiple-choice prompt at once: the labels picked for each, in order. */
+export function useAnswer(daemonId: string, sessionId: string) {
+  const client = useDaemonClient(daemonId)
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (answers: string[][]) =>
+      unwrap(
+        await client!.POST('/v1/sessions/{session_id}/approve', {
+          params: { path: { session_id: sessionId } },
+          body: { option: null, answers },
+        }),
+      ),
+    onSettled: () => queryClient.invalidateQueries({ queryKey: daemonKey(daemonId, 'sessions') }),
+  })
+}
+
 export function useDeny(daemonId: string, sessionId: string) {
   const client = useDaemonClient(daemonId)
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async () =>
-      unwrap(await client!.POST('/v1/sessions/{session_id}/deny', { params: { path: { session_id: sessionId } } })),
+    mutationFn: async () => unwrap(await client!.POST('/v1/sessions/{session_id}/deny', { params: { path: { session_id: sessionId } } })),
     onSettled: () => queryClient.invalidateQueries({ queryKey: daemonKey(daemonId, 'sessions') }),
   })
 }

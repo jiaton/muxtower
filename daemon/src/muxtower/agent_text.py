@@ -3,6 +3,8 @@
 import json
 from typing import Any
 
+from muxtower.runtimes.models import PendingQuestion, QuestionOption
+
 DETAIL_LIMIT = 4000
 
 
@@ -29,3 +31,20 @@ def describe_tool_input(tool_input: Any) -> str | None:
         texts = [q.get("question", "") for q in questions if isinstance(q, dict)]
         return truncate("\n".join(t for t in texts if t)) or None
     return truncate(json.dumps(tool_input, ensure_ascii=False, indent=1)) if tool_input else None
+
+
+def questions_of(tool_input: Any) -> list[PendingQuestion]:
+    """The questions of a multiple-choice prompt (AskUserQuestion's input), each with its options."""
+    raw = tool_input.get("questions") if isinstance(tool_input, dict) else None
+    found = []
+    for q in raw if isinstance(raw, list) else []:
+        options = [
+            QuestionOption(label=str(o["label"]), description=str(o["description"]) if o.get("description") else None)
+            for o in q.get("options") or [] if isinstance(o, dict) and o.get("label")
+        ] if isinstance(q, dict) else []  # fmt: skip
+        if options and q.get("question"):
+            found.append(PendingQuestion(
+                question=str(q["question"]), header=str(q["header"]) if q.get("header") else None,
+                multi_select=bool(q.get("multiSelect")), options=options,
+            ))  # fmt: skip
+    return found

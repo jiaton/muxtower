@@ -15,6 +15,7 @@ import threading
 from dataclasses import dataclass, field
 from typing import Any
 
+from muxtower.approval.answers import check_answers
 from muxtower.claude_conversation import PendingRequest
 from muxtower.errors import Conflict, Invalid, NotFound, Unavailable
 from muxtower.infra.bus import EventBus
@@ -196,8 +197,18 @@ class RemoteControlSource:
                 raise Conflict("nothing to answer: the session is not waiting on a prompt")
             return request, rc.view
 
-    def approve(self, session_id: str, option: str | None) -> tuple[AgentState, str]:
+    def approve(
+        self, session_id: str, option: str | None, answers: list[list[str]] | None = None
+    ) -> tuple[AgentState, str]:
         request, view = self._answerable(session_id)
+        if request.is_question and answers is not None:
+            questions = view.pending.questions if view.pending else []
+            picked = check_answers(questions, answers)
+            said = {q.question: ", ".join(p) for q, p in zip(questions, picked, strict=True)}  # Claude Code's joining
+            self.port.answer_question(
+                session_id, request.request_id, said, tool_input=request.tool_input, tool_use_id=request.tool_use_id
+            )
+            return view.state, "answers"
         if request.is_question:
             options = {o.key: o.label for o in (view.pending.options if view.pending else [])}
             if option not in options:

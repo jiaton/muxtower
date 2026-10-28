@@ -195,7 +195,7 @@ def release_size(session_id: str, _: CurrentDevice, directory: Directory) -> Non
 def approve(
     session_id: str, body: Approve, device: CurrentDevice, directory: Directory, audit: Audit
 ) -> ApprovalResult:
-    result = directory.approve(session_id, body.option)
+    result = directory.approve(session_id, body.option, body.answers)
     audit.record(device.name, "approve", session_id, f"state={result.state} option={result.option}")
     return result
 

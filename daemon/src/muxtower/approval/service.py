@@ -3,6 +3,7 @@
 import logging
 import time
 
+from muxtower.approval.answers import TerminalAnswers, check_answers
 from muxtower.approval.models import ApprovalResult
 from muxtower.errors import Conflict, Invalid
 from muxtower.runtimes.models import APPROVABLE_STATES, AgentState
@@ -57,9 +58,21 @@ class ApprovalService:
             elif step.key is not None:
                 self.sessions.tmux.send_key(record.pane, step.key)
 
-    def approve(self, session_id: str, option: str | None, strict: bool = False) -> ApprovalResult:
+    def approve(
+        self, session_id: str, option: str | None, strict: bool = False, answers: list[list[str]] | None = None
+    ) -> ApprovalResult:
         record = self.sessions.record(session_id)
         runtime, state, screen = self._check(record, strict)
+        if answers is not None:
+            hook = self.sessions.live_of(record.id).hook
+            questions = hook.questions if hook else []
+            picked = check_answers(questions, answers)
+
+            def read() -> str:
+                return self.sessions.tmux.capture(record.pane) or ""
+
+            TerminalAnswers(runtime, read, lambda steps: self._send(record, steps)).run(questions, picked)
+            return ApprovalResult(session_id=session_id, state=state, option="answers")
         menu = screen.classification.menu or runtime.parse_menu(screen.text)
         if menu is None or not menu.options:
             raise Conflict("cannot read the choices on screen; answer from the terminal view")

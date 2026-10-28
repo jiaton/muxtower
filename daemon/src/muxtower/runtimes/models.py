@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class AgentState(StrEnum):
@@ -31,6 +31,21 @@ class Option(BaseModel):
 
     key: str
     label: str
+
+
+class QuestionOption(BaseModel):
+    label: str
+    description: str | None = None
+
+
+class PendingQuestion(BaseModel):
+    """One question of an agent's multiple-choice prompt (Claude Code's AskUserQuestion), all of whose
+    questions are answered together (`Approve.answers`)."""
+
+    question: str
+    header: str | None = None
+    multi_select: bool = Field(default=False, description="any number of its options may be picked")
+    options: list[QuestionOption]
 
 
 class RuntimeInfo(BaseModel):

@@ -42,6 +42,9 @@ class MessageArgs(SessionArg):
 
 class ApproveArgs(SessionArg):
     option: str | None = Field(default=None, description="option key from read_session; default: the usual yes")
+    answers: list[list[str]] | None = Field(
+        default=None, description="for a QUESTIONS prompt: the option labels picked for each question, in order"
+    )
 
 
 class StartArgs(BaseModel):
@@ -117,6 +120,11 @@ class McpTools:
         if s.needs_attention and s.pending:
             options = ", ".join(f"{o.key}={o.label}" for o in s.pending.options) or "-"
             out.append(f"PENDING {s.pending.tool_name or s.state.value}: {s.pending.detail or ''} | options: {options}")
+            for n, q in enumerate(s.pending.questions, 1):
+                kind = "pick any" if q.multi_select else "pick one"
+                out.append(f"QUESTION {n} ({kind}): {q.question} | {', '.join(o.label for o in q.options)}")
+            if len(s.pending.questions) > 1 or any(q.multi_select for q in s.pending.questions):
+                out.append("Answer every question at once: approve with answers=[[labels of 1], [labels of 2], …]")
         if s.summary and (s.summary.needs or s.summary.recent):
             out.append(f"Turn summary: {s.summary.needs or ''} {s.summary.recent or ''}".strip())
         if s.capabilities.conversation:
@@ -144,7 +152,7 @@ class McpTools:
 
     def approve(self, args: ApproveArgs) -> str:
         s = self._target(args.session_id)
-        result = self.directory.approve(s.id, args.option)
+        result = self.directory.approve(s.id, args.option, args.answers)
         return f"{s.name}: answered {result.option or 'the default'}."
 
     def deny(self, args: SessionArg) -> str:
