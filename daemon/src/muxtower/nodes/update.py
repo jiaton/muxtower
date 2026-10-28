@@ -69,9 +69,9 @@ def installer(requirement: str) -> list[str]:
     if os.path.basename(os.path.dirname(sys.prefix)) == "venvs":  # pipx keeps each app in <home>/venvs/<app>
         candidates = [p for p in map(os.path.expanduser, PIPX) if os.access(p, os.X_OK)]
         found = shutil.which("pipx") or next(iter(candidates), None)
-        if found:
-            return [found, "install", "--force", requirement]
-    return [sys.executable, "-m", "pip", "install", requirement]
+        if found:  # pip's cache of the index can lag a release by minutes
+            return [found, "install", "--force", requirement, "--pip-args=--no-cache-dir"]
+    return [sys.executable, "-m", "pip", "install", "--no-cache-dir", requirement]
 
 
 class Updater:
