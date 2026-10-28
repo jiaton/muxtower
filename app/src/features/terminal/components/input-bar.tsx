@@ -70,7 +70,6 @@ export function InputBar({ daemonId, sessionId, keys = [] }: { daemonId: string;
     <div className="flex flex-col gap-2">
       {send.isError ? <Banner tone="error">{send.error.message}</Banner> : null}
       {open ? <KeyPad keys={keys} onKey={(key) => send.mutate({ key })} /> : null}
-      {quotes.length ? <QuoteCards quotes={quotes} onChange={(list) => setQuotes(draftKey, list)} onKeyDown={keyDown} /> : null}
       <form
         className="flex items-end gap-1.5"
         onSubmit={(e) => {
@@ -90,17 +89,21 @@ export function InputBar({ daemonId, sessionId, keys = [] }: { daemonId: string;
         >
           <Plus className={cn('transition-transform', open && 'rotate-45')} />
         </Button>
-        <Textarea
-          ref={box}
-          rows={1}
-          enterKeyHint={touch ? 'enter' : 'send'}
-          value={text}
-          placeholder="Message the agent"
-          aria-label="Message the agent"
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={keyDown}
-          className="max-h-40 field-sizing-content"
-        />
+        {/* One box: what the message quotes on top, then what is typed. */}
+        <div className="flex min-w-0 flex-1 flex-col rounded-md border border-border bg-surface focus-within:outline-2 focus-within:outline-focus">
+          {quotes.length ? <QuoteCards quotes={quotes} onChange={(list) => setQuotes(draftKey, list)} onKeyDown={keyDown} /> : null}
+          <Textarea
+            ref={box}
+            rows={1}
+            enterKeyHint={touch ? 'enter' : 'send'}
+            value={text}
+            placeholder={quotes.length ? 'Add a message' : 'Message the agent'}
+            aria-label="Message the agent"
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={keyDown}
+            className="max-h-40 field-sizing-content border-0 bg-transparent focus-visible:outline-none"
+          />
+        </div>
         <Button type="submit" size="icon" className="shrink-0" aria-label="Send" disabled={send.isPending || !message}>
           <SendHorizontal />
         </Button>
