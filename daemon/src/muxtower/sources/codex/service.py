@@ -15,7 +15,7 @@ import logging
 import threading
 from typing import Any
 
-from muxtower.errors import Conflict, NotFound, Unavailable
+from muxtower.errors import Conflict, Invalid, NotFound, Unavailable
 from muxtower.infra.bus import EventBus
 from muxtower.runtimes.models import AgentState
 from muxtower.sessions.models import Conversation, Session
@@ -189,7 +189,11 @@ class CodexSource:
             thread.items.resolve(request_id, status)
         return (pending.state if pending else AgentState.IDLE), picked or refusal(request)
 
-    def approve(self, session_id: str, option: str | None) -> tuple[AgentState, str]:
+    def approve(
+        self, session_id: str, option: str | None, answers: list[list[str]] | None = None
+    ) -> tuple[AgentState, str]:
+        if answers is not None:
+            raise Invalid("pick an option: a Codex question is answered one at a time")
         return self._request(session_id, option)
 
     def deny(self, session_id: str) -> AgentState:

@@ -2,14 +2,17 @@ import { Check, X } from 'lucide-react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import type { PendingAction } from '@/lib/api/types'
-import { useApprove, useDeny } from '../api/use-approval'
+import { useAnswer, useApprove, useDeny } from '../api/use-approval'
+import { QuestionForm, needsForm } from './question-form'
 
-/** What the agent is waiting for, with one button per choice on screen and Deny (Esc). */
+/** What the agent is waiting for, with one button per choice on screen (or, for several questions or
+ *  one taking several answers, a form answering them all) and Deny (Esc). */
 export function PendingActionCard({ daemonId, sessionId, pending }: { daemonId: string; sessionId: string; pending: PendingAction }) {
   const approve = useApprove(daemonId, sessionId)
+  const answer = useAnswer(daemonId, sessionId)
   const deny = useDeny(daemonId, sessionId)
-  const busy = approve.isPending || deny.isPending
-  const error = approve.error ?? deny.error
+  const busy = approve.isPending || answer.isPending || deny.isPending
+  const error = approve.error ?? answer.error ?? deny.error
   const options = pending.options ?? []
 
   return (
@@ -24,7 +27,9 @@ export function PendingActionCard({ daemonId, sessionId, pending }: { daemonId: 
           ) : null}
         </div>
       ) : null}
-      {options.length ? (
+      {needsForm(pending.questions) ? (
+        <QuestionForm questions={pending.questions!} busy={busy} onSubmit={(answers) => answer.mutate(answers)} />
+      ) : options.length ? (
         <div className="flex flex-col gap-2">
           {options.map((option) => (
             <Button

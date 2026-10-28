@@ -10,7 +10,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from muxtower.runtimes.models import APPROVABLE_STATES, ATTENTION_STATES, AgentState, Option
+from muxtower.runtimes.models import APPROVABLE_STATES, ATTENTION_STATES, AgentState, Option, PendingQuestion
 from muxtower.runtimes.spec import Classification
 from muxtower.sessions.models import PendingAction, StateSource
 
@@ -24,12 +24,13 @@ class HookState:
     tool_name: str | None = None
     detail: str | None = None
     last_message: str | None = None
+    questions: list[PendingQuestion] = field(default_factory=list)  # a multiple-choice prompt's
 
     def dump(self) -> str:
         """JSON for storage; the monotonic time is stored as an age so it survives a restart."""
         age = time.monotonic() - self.at
         data = {"state": self.state.value, "age": age, "tool_name": self.tool_name, "detail": self.detail,
-                "last_message": self.last_message}  # fmt: skip
+                "last_message": self.last_message, "questions": [q.model_dump() for q in self.questions]}  # fmt: skip
         return json.dumps(data, ensure_ascii=False)
 
     @classmethod
@@ -41,6 +42,7 @@ class HookState:
             tool_name=data.get("tool_name"),
             detail=data.get("detail"),
             last_message=data.get("last_message"),
+            questions=[PendingQuestion.model_validate(q) for q in data.get("questions") or []],
         )
 
 
@@ -90,6 +92,7 @@ def merge(hook: HookState | None, screen: ScreenState | None, now: float, busy_s
                 tool_name=hook.tool_name,
                 detail=hook.detail,
                 options=options if screen_state in APPROVABLE_STATES else [],
+                questions=hook.questions,
             )
             return Effective(hook.state, StateSource.HOOK, rule, pending)
 

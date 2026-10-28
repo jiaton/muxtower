@@ -60,7 +60,7 @@ class NodeApi:
             case "input":
                 d.send_input(sid, SendInput.model_validate(params.get("body")))
             case "approve":
-                return _json(d.approve(sid, params.get("option")))
+                return _json(d.approve(sid, params.get("option"), params.get("answers")))
             case "deny":
                 return _json(d.deny(sid))
             case "resize":

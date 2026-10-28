@@ -46,6 +46,24 @@
       },
       "Approve": {
         "properties": {
+          "answers": {
+            "anyOf": [
+              {
+                "items": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "for a prompt with `questions`: the labels picked for each question, in order",
+            "title": "Answers"
+          },
           "option": {
             "anyOf": [
               {
@@ -879,6 +897,14 @@
             "title": "Options",
             "type": "array"
           },
+          "questions": {
+            "description": "a multiple-choice prompt's questions, when known: answer them all at once with `answers`",
+            "items": {
+              "$ref": "#/components/schemas/PendingQuestion"
+            },
+            "title": "Questions",
+            "type": "array"
+          },
           "recommended": {
             "anyOf": [
               {
@@ -912,6 +938,45 @@
         "title": "PendingAction",
         "type": "object"
       },
+      "PendingQuestion": {
+        "description": "One question of an agent's multiple-choice prompt (Claude Code's AskUserQuestion), all of whose\nquestions are answered together (`Approve.answers`).",
+        "properties": {
+          "header": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Header"
+          },
+          "multi_select": {
+            "default": false,
+            "description": "any number of its options may be picked",
+            "title": "Multi Select",
+            "type": "boolean"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/QuestionOption"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "question": {
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "options"
+        ],
+        "title": "PendingQuestion",
+        "type": "object"
+      },
       "Placement": {
         "description": "Where the owner says a session runs, over what its source reports; empty fields are not placed.",
         "properties": {
@@ -943,6 +1008,30 @@
           }
         },
         "title": "Placement",
+        "type": "object"
+      },
+      "QuestionOption": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "title": "QuestionOption",
         "type": "object"
       },
       "Resize": {

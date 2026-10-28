@@ -655,6 +655,11 @@ export interface components {
         /** Approve */
         Approve: {
             /**
+             * Answers
+             * @description for a prompt with `questions`: the labels picked for each question, in order
+             */
+            answers?: string[][] | null;
+            /**
              * Option
              * @description option key to pick; default per runtime rules
              */
@@ -1057,6 +1062,11 @@ export interface components {
             /** Options */
             options?: components["schemas"]["Option"][];
             /**
+             * Questions
+             * @description a multiple-choice prompt's questions, when known: answer them all at once with `answers`
+             */
+            questions?: components["schemas"]["PendingQuestion"][];
+            /**
              * Recommended
              * @description option key approve picks when none is given
              */
@@ -1064,6 +1074,25 @@ export interface components {
             state: components["schemas"]["AgentState"];
             /** Tool Name */
             tool_name?: string | null;
+        };
+        /**
+         * PendingQuestion
+         * @description One question of an agent's multiple-choice prompt (Claude Code's AskUserQuestion), all of whose
+         *     questions are answered together (`Approve.answers`).
+         */
+        PendingQuestion: {
+            /** Header */
+            header?: string | null;
+            /**
+             * Multi Select
+             * @description any number of its options may be picked
+             * @default false
+             */
+            multi_select: boolean;
+            /** Options */
+            options: components["schemas"]["QuestionOption"][];
+            /** Question */
+            question: string;
         };
         /**
          * Placement
@@ -1080,6 +1109,13 @@ export interface components {
              * @description a machine, as the lists name it
              */
             machine?: string | null;
+        };
+        /** QuestionOption */
+        QuestionOption: {
+            /** Description */
+            description?: string | null;
+            /** Label */
+            label: string;
         };
         /** Resize */
         Resize: {

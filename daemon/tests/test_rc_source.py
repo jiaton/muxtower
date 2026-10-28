@@ -65,6 +65,24 @@ def test_question_is_answered_with_the_chosen_label() -> None:
     assert port.calls[-1] == ("answer", "cse_1", "q1", {"Which DB?": "Postgres"})
 
 
+def test_several_questions_are_answered_at_once() -> None:
+    port, src = make()
+    q = {"questions": [
+        {"question": "Which fruits?", "multiSelect": True, "options": [{"label": "Apple"}, {"label": "Cherry"}]},
+        {"question": "Which size?", "options": [{"label": "Small"}, {"label": "Large"}]},
+    ]}  # fmt: skip
+    port.sessions = [session("cse_1", worker_status="requires_action")]
+    port.events["cse_1"] = [permission(3, "q1", "AskUserQuestion", q)]
+    src.tick()
+    asked = src.views()[0].pending
+    assert asked and [(x.question, x.multi_select) for x in asked.questions] == [
+        ("Which fruits?", True),
+        ("Which size?", False),
+    ]
+    src.approve("cse_1", None, [["Apple", "Cherry"], ["Large"]])
+    assert port.calls[-1] == ("answer", "cse_1", "q1", {"Which fruits?": "Apple, Cherry", "Which size?": "Large"})
+
+
 def test_messages_keys_and_nothing_to_answer() -> None:
     port, src = make()
     port.sessions = [session("cse_1")]

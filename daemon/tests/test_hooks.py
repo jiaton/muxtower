@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 from muxtower.hooks.claude_code import ClaudeCodeHooks
 from muxtower.hooks.events import HookEvent, apply_event
 from muxtower.runtimes.models import AgentState
+from muxtower.sessions.live import HookState
 from tests.fakes import FakeTmux
 
 
@@ -34,6 +35,22 @@ def test_question_and_plan_from_pre_tool_use() -> None:
     q = apply_event(None, ev(hook_event_name="PreToolUse", tool_name="AskUserQuestion",
                              tool_input={"questions": [{"question": "Which DB?"}]}), asking)  # fmt: skip
     assert q and q.state == AgentState.NEEDS_ANSWER and q.detail == "Which DB?"
+    asked = {"question": "Which DB?", "multiSelect": True, "options": [{"label": "SQLite"}, {"label": "Postgres"}]}
+    full = apply_event(None, ev(hook_event_name="PreToolUse", tool_name="AskUserQuestion",
+                                tool_input={"questions": [asked]}), asking)  # fmt: skip
+    assert (
+        full
+        and [o.label for o in full.questions[0].options] == ["SQLite", "Postgres"]
+        and full.questions[0].multi_select
+    )
+    assert HookState.load(full.dump()).questions == full.questions  # kept over a restart
+    # Asking first (default permission mode): still the question, not a permission.
+    asking_first = apply_event(full, ev(hook_event_name="PermissionRequest", tool_name="AskUserQuestion",
+                                        tool_input={"questions": [asked]}), asking)  # fmt: skip
+    assert asking_first and asking_first.state == AgentState.NEEDS_ANSWER and asking_first.questions == full.questions
+    told = apply_event(asking_first, ev(hook_event_name="Notification", notification_type="permission_prompt",
+                                         message="Claude needs your permission"), asking)  # fmt: skip
+    assert told is asking_first  # the notification that follows says nothing new
     p = apply_event(
         None, ev(hook_event_name="PreToolUse", tool_name="ExitPlanMode", tool_input={"plan": "1. x"}), asking
     )
