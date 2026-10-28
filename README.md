@@ -156,7 +156,7 @@ Sessions that muxtower did not start (found in your own tmux) can be watched, an
 | `codex.sandbox` / `.approval_policy` / `.model` | — | `workspace-write` / `on-request` / Codex's | how a headless thread runs (`danger-full-access` where Codex's sandbox cannot start, e.g. a container without user namespaces) |
 | `summaries.provider` | `MUXTOWER_SUMMARIES_PROVIDER` | `off` | `claude-code` (`claude -p`) or `codex` (`codex exec`), using that CLI's login on this machine, makes short versions of long replies |
 | `summaries.min_chars` / `summaries.eager` | — | `400` / `true` | replies longer than this get a summary; eager: as soon as a session needs you |
-| `asr.provider` | `MUXTOWER_ASR_PROVIDER` | `off` | `groq` or `openai`: speech to text for voice replies |
+| `asr.provider` | `MUXTOWER_ASR_PROVIDER` | `off` | `groq` or `openai`: speech to text for voice replies (the glasses, and the app's microphone button) |
 | `asr.api_key_file` / `asr.api_key` | `MUXTOWER_ASR_API_KEY` | — | the provider's key (keep it in a 0600 file) |
 | `asr.language` / `asr.prompt` | — | detect / — | pin the language, e.g. `zh`; extra words for the recognizer (session names and common terms are always given) |
 | `concierge.enabled` | `MUXTOWER_CONCIERGE_ENABLED` | `false` | keep an assistant session running that you talk to instead of each session (see below) |
