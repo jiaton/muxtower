@@ -1,12 +1,13 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { History, MessagesSquare, SquareTerminal, Unplug } from 'lucide-react'
-import { useCallback, useState } from 'react'
+import { History, MessagesSquare, Reply, SquareTerminal, Unplug } from 'lucide-react'
+import { useCallback, useRef, useState } from 'react'
 import { QueryState } from '@/components/query-state'
 import { Banner } from '@/components/ui/banner'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Pane } from '@/components/ui/pane'
 import { Pager } from '@/components/ui/pager'
 import { Segmented } from '@/components/ui/segmented'
+import { SelectionAction } from '@/components/ui/selection-action'
 import { PendingActionCard } from '@/features/approval/components/pending-action-card'
 import { useConversation } from '@/features/conversation/api/use-conversation'
 import { ConversationView } from '@/features/conversation/components/conversation-view'
@@ -19,7 +20,7 @@ import { InputBar } from '@/features/terminal/components/input-bar'
 import { TerminalMenuItems } from '@/features/terminal/components/terminal-menu-items'
 import { TerminalView } from '@/features/terminal/components/terminal-view'
 import { useSessionTerminal } from '@/features/terminal/hooks/use-session-terminal'
-import { useTerminalPrefs } from '@/features/terminal/store'
+import { draftKey, useDrafts, useTerminalPrefs } from '@/features/terminal/store'
 import type { Session } from '@/lib/api/types'
 
 export const Route = createFileRoute('/_sessions/d/$daemonId/s/$sessionId')({ component: SessionPage })
@@ -65,6 +66,9 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
   const openDrawer = useCallback(() => setDrawer(true), [setDrawer])
   const both = screen && hasConversation
   useSeenWhileOpen(daemonId, session)
+  const views = useRef<HTMLDivElement>(null)
+  const addQuote = useDrafts((s) => s.addQuote)
+  const writable = !session.archived_at && !session.offline
 
   return (
     <Pane className="flex-1" aria-label={session.name}>
@@ -106,51 +110,57 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
         </div>
       ) : null}
 
-      <Pager
-        className={session.offline ? 'hidden' : 'flex-1'}
-        label="Session views"
-        index={both && view === 'conversation' ? 1 : 0}
-        onIndexChange={(page) => both && setView(page === 1 ? 'conversation' : 'terminal')}
-        onPastStart={openDrawer}
-      >
-        {screen ? (
-          <>
-          {terminal.error ? <Banner tone="error">{terminal.error.message}</Banner> : null}
-          {session.alt_screen && hasConversation ? (
-            // A full-screen agent (Claude Code's fullscreen TUI) leaves tmux no scrollback to scroll.
-            <button
-              type="button"
-              onClick={() => setView('conversation')}
-              className="flex shrink-0 items-center gap-2 border-b border-border bg-surface-muted px-3 py-1.5 text-left text-xs text-fg-muted hover:text-fg sm:px-4"
-            >
-              <History className="size-3.5 shrink-0" aria-hidden />
-              <span className="min-w-0 flex-1 truncate">Full-screen app: earlier output is in the conversation</span>
-              <span className="shrink-0 font-medium text-accent">Show</span>
-            </button>
+      <div ref={views} className="contents">
+        <Pager
+          className={session.offline ? 'hidden' : 'flex-1'}
+          label="Session views"
+          index={both && view === 'conversation' ? 1 : 0}
+          onIndexChange={(page) => both && setView(page === 1 ? 'conversation' : 'terminal')}
+          onPastStart={openDrawer}
+        >
+          {screen ? (
+            <>
+              {terminal.error ? <Banner tone="error">{terminal.error.message}</Banner> : null}
+              {session.alt_screen && hasConversation ? (
+                // A full-screen agent (Claude Code's fullscreen TUI) leaves tmux no scrollback to scroll.
+                <button
+                  type="button"
+                  onClick={() => setView('conversation')}
+                  className="flex shrink-0 items-center gap-2 border-b border-border bg-surface-muted px-3 py-1.5 text-left text-xs text-fg-muted hover:text-fg sm:px-4"
+                >
+                  <History className="size-3.5 shrink-0" aria-hidden />
+                  <span className="min-w-0 flex-1 truncate">Full-screen app: earlier output is in the conversation</span>
+                  <span className="shrink-0 font-medium text-accent">Show</span>
+                </button>
+              ) : null}
+              <TerminalView
+                ansi={terminal.ansi}
+                fontSize={terminal.fontSize}
+                onNeedMore={terminal.loadMore}
+                loadingMore={terminal.loadingMore}
+                onFit={terminal.fit ? terminal.onFit : undefined}
+                onFitRequest={() => setFit(session.id, true)}
+              />
+            </>
           ) : null}
-          <TerminalView
-            ansi={terminal.ansi}
-            fontSize={terminal.fontSize}
-            onNeedMore={terminal.loadMore}
-            loadingMore={terminal.loadingMore}
-            onFit={terminal.fit ? terminal.onFit : undefined}
-            onFitRequest={() => setFit(session.id, true)}
-          />
-          </>
-        ) : null}
-        {hasConversation ? (
-          <>
-            {conversation.error ? <Banner tone="error">{conversation.error.message}</Banner> : null}
-            <ConversationView items={conversation.data ?? []} />
-          </>
-        ) : null}
-      </Pager>
+          {hasConversation ? (
+            <>
+              {conversation.error ? <Banner tone="error">{conversation.error.message}</Banner> : null}
+              <ConversationView items={conversation.data ?? []} />
+            </>
+          ) : null}
+        </Pager>
+      </div>
 
-      {session.archived_at || session.offline ? null : (
-        <footer className="shrink-0 border-t border-border bg-bg p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-3">
-          <InputBar daemonId={daemonId} sessionId={session.id} keys={session.capabilities.keys} />
-        </footer>
-      )}
+      {writable ? (
+        <>
+          {/* Select what the agent wrote, then Reply: it waits above the message box as a quote. */}
+          <SelectionAction within={views} label="Reply" icon={Reply} onAction={(text) => addQuote(draftKey(daemonId, session.id), text)} />
+          <footer className="shrink-0 border-t border-border bg-bg p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-3">
+            <InputBar daemonId={daemonId} sessionId={session.id} keys={session.capabilities.keys} />
+          </footer>
+        </>
+      ) : null}
     </Pane>
   )
 }
