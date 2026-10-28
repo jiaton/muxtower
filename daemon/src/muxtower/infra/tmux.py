@@ -143,8 +143,14 @@ class TmuxCli:
     def release_size(self, pane: PaneRef) -> None:
         """Undo resize(): `resize-window -x/-y` pins the window to a manual size, which would keep a
         laptop that attaches later at the phone's width. Fit the attached clients again, then unset it:
-        in that order, since resize-window itself sets window-size to manual."""
-        self._run(pane.socket, "resize-window", "-A", "-t", pane.pane_id, check=False)
+        in that order, since resize-window itself sets window-size to manual. With no client attached
+        there is nothing to fit: tmux would fall back to its default 80x24 and the agent redraw that
+        narrow for the next viewer. The last size stays, and the first client to attach gets its own."""
+        attached = self._run(
+            pane.socket, "display-message", "-p", "-t", pane.pane_id, "#{session_attached}", check=False
+        ).stdout.strip()
+        if attached not in ("", "0"):
+            self._run(pane.socket, "resize-window", "-A", "-t", pane.pane_id, check=False)
         self._run(pane.socket, "set-option", "-w", "-u", "-t", pane.pane_id, "window-size", check=False)
 
     def kill_session(self, socket: str, name: str) -> None:
