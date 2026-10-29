@@ -46,3 +46,13 @@ it('marks exactly the scope the list shows', () => {
   expect(isCurrentScope({}, { view: 'all' })).toBe(true)
   expect(isCurrentScope({ view: 'needs' }, { view: 'needs' })).toBe(true)
 })
+
+it('keeps an agent scope in the URL, apart from the others', () => {
+  expect(parseListSearch({ agent: 'Codex' }).agent).toBe('Codex')
+  expect(toQuery({ agent: 'Codex' }, 'status').agent).toBe('Codex')
+  const search = scopeSearch({ device: 'hub', q: 'api' }, { agent: 'Codex' })
+  expect(search).toMatchObject({ agent: 'Codex', device: undefined, q: 'api' })
+  expect(isCurrentScope(search, { agent: 'Codex' })).toBe(true)
+  expect(isCurrentScope(search, { view: 'all' })).toBe(false)
+  expect(isCurrentScope({ agent: 'Codex', device: 'hub' }, { agent: 'Codex' })).toBe(false)
+})

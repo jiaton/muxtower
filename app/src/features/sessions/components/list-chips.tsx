@@ -3,14 +3,16 @@ import { Monitor } from 'lucide-react'
 import { useLayoutEffect, useRef, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import type { Facets } from '../model/counts'
+import { AgentMark } from './agent-mark'
 import { ASIDE_VIEWS, VIEWS, type SessionQuery, type View } from '../model/query'
 import { scopeSearch, type ListSearch, type Scope } from '../model/search'
 
 const VIEW_CHIP: Partial<Record<View, string>> = { all: 'All', needs: 'Needs you', unread: 'Unread', working: 'Working' }
 
 /** One row of what to show, one at a time (where the sidebar is not shown): everything, what needs you,
- *  what finished unread, what works, then each device, with counts. It scrolls sideways when it does
- *  not fit, with the current one in view. A folder, a source or an account is chosen from the filter menu. */
+ *  what finished unread, what works, then each device, then each agent when there is more than one, with
+ *  counts. It scrolls sideways when it does not fit, with the current one in view. A folder, a source or
+ *  an account is chosen from the filter menu. */
 export function ListChips({
   query,
   search,
@@ -23,11 +25,12 @@ export function ListChips({
   className?: string
 }) {
   const row = useRef<HTMLDivElement>(null)
-  const scoped = Boolean(query.device || query.folder || query.source || query.account)
-  const deviceOnly = Boolean(query.device && !query.source && !query.account)
+  const scoped = Boolean(query.device || query.folder || query.agent || query.source || query.account)
+  const deviceOnly = Boolean(query.device && !query.agent && !query.source && !query.account)
+  const agentOnly = Boolean(query.agent && !query.device && !query.source && !query.account)
   const views = VIEWS.filter((view) => !ASIDE_VIEWS.includes(view))
   const devices = facets.devices.length > 1 ? facets.devices : []
-  const current = `${query.view}\u0000${query.device ?? ''}\u0000${query.folder ?? ''}`
+  const current = `${query.view}\u0000${query.device ?? ''}\u0000${query.folder ?? ''}\u0000${query.agent ?? ''}`
 
   useLayoutEffect(() => {
     const el = row.current
@@ -57,6 +60,13 @@ export function ListChips({
           <Chip key={d.label} search={search} scope={{ device: d.label }} current={deviceOnly && query.device === d.label} count={d.count}>
             <Monitor className="size-3.5 shrink-0" aria-hidden />
             <span className="max-w-32 truncate">{d.label}</span>
+          </Chip>
+        ))}
+        {facets.agents.length ? <span aria-hidden className="my-1.5 w-px shrink-0 bg-border" /> : null}
+        {facets.agents.map((a) => (
+          <Chip key={a.label} search={search} scope={{ agent: a.label }} current={agentOnly && query.agent === a.label} count={a.count}>
+            <AgentMark decorative agent={a.label} />
+            <span className="max-w-32 truncate">{a.label}</span>
           </Chip>
         ))}
       </div>

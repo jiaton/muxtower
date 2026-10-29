@@ -89,3 +89,19 @@ export const useSessionViews = create<SessionViews>()(
     { name: 'muxtower.views', version: 1 },
   ),
 )
+
+interface NewSessionPrefs {
+  /** The agent (runtime name) a new session was last started with: what the dialog offers first. */
+  runtime: string
+  setRuntime: (runtime: string) => void
+}
+
+export const useNewSessionPrefs = create<NewSessionPrefs>()(
+  persist(
+    (set) => ({
+      runtime: 'claude-code',
+      setRuntime: (runtime) => set({ runtime }),
+    }),
+    { name: 'muxtower.new-session', version: 1 },
+  ),
+)
