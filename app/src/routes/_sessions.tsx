@@ -15,7 +15,7 @@ import { SessionList } from '@/features/sessions/components/session-list'
 import { useOpenedHere } from '@/features/sessions/hooks/use-opened-here'
 import { useScrollMemory } from '@/features/sessions/hooks/use-scroll-memory'
 import { useSessionEntries } from '@/features/sessions/hooks/use-session-entries'
-import { entryKey, folderName, isAssistant } from '@/features/sessions/model/facets'
+import { agentsDiffer, entryKey, folderName, isAssistant } from '@/features/sessions/model/facets'
 import { keptEntries, keptGroups } from '@/features/sessions/model/kept'
 import { facetsOf } from '@/features/sessions/model/counts'
 import { filterEntries, groupEntries, queryTitle } from '@/features/sessions/model/query'
@@ -83,7 +83,12 @@ function SessionsLayout() {
           subtitle={within ? `${within} · ${counted}` : counted}
           actions={
             <>
-              <ListMenu query={query} unread={visible.filter((e) => e.session.unread)} accounts={facets.accounts.length > 0} />
+              <ListMenu
+                query={query}
+                unread={visible.filter((e) => e.session.unread)}
+                agents={facets.agents.length > 0}
+                accounts={facets.accounts.length > 0}
+              />
               <FilterMenu query={query} search={search} facets={facets} className="lg:hidden" />
               <div className="lg:hidden">
                 <NewSessionDialog
@@ -116,6 +121,7 @@ function SessionsLayout() {
                 hideSource: Boolean(query.source),
                 showDaemon: daemons.length > 1,
                 showAccount: facets.accounts.length > 0 && !query.account,
+                showAgent: agentsDiffer([...visible, ...kept].map((e) => e.session)),
               }}
               extra={({ daemon, session }) =>
                 session.needs_attention && session.pending ? (

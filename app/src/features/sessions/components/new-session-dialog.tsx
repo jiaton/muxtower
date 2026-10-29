@@ -13,6 +13,9 @@ import { useNodes } from '@/lib/daemons/use-nodes'
 import { useCreateSession, useRuntimes } from '../api/use-session-mutations'
 import { useSessionEntries } from '../hooks/use-session-entries'
 import { folderSuggestions } from '../model/counts'
+import { agentName } from '../model/facets'
+import { useNewSessionPrefs } from '../store'
+import { AgentMark } from './agent-mark'
 
 /** Starts a session on a daemon's machine, or on one of its nodes (another computer joined to it).
  *  `trigger`: the element that opens it (a button), defaulting to a labelled one. */
@@ -28,7 +31,12 @@ export function NewSessionDialog({ trigger }: { trigger?: ReactNode }) {
   const runtimes = node ? { data: node.runtimes } : here
   const create = useCreateSession(current?.id ?? '')
   const navigate = useNavigate()
-  const [runtime, setRuntime] = useState('claude-code')
+  const lastRuntime = useNewSessionPrefs((s) => s.runtime)
+  const rememberRuntime = useNewSessionPrefs((s) => s.setRuntime)
+  const [picked, setRuntime] = useState<string | null>(null)
+  // the agent picked here, else the one started last, as long as this computer has it
+  const available = (runtimes.data ?? []).filter((r) => r.available).map((r) => r.name)
+  const runtime = picked ?? (available.includes(lastRuntime) || !available.length ? lastRuntime : available[0])
   const [cwd, setCwd] = useState('')
   const [name, setName] = useState('')
   const [headless, setHeadless] = useState(false)
@@ -66,6 +74,7 @@ export function NewSessionDialog({ trigger }: { trigger?: ReactNode }) {
               { runtime, cwd, name: name.trim() || null, headless: asHeadless, node: node?.name ?? null },
               {
                 onSuccess: (session) => {
+                  rememberRuntime(runtime)
                   setOpen(false)
                   void navigate({ to: '/d/$daemonId/s/$sessionId', params: { daemonId: current!.id, sessionId: session.id }, search: true })
                 },
@@ -117,10 +126,11 @@ export function NewSessionDialog({ trigger }: { trigger?: ReactNode }) {
                   type="button"
                   disabled={!r.available}
                   title={r.available ? undefined : `${r.binary} is not installed on this daemon`}
-                  className={cn(chip(r.name === runtime), 'disabled:opacity-40')}
+                  className={cn(chip(r.name === runtime), 'inline-flex items-center gap-1.5 disabled:opacity-40')}
                   onClick={() => setRuntime(r.name)}
                 >
-                  {r.name}
+                  <AgentMark decorative agent={agentName(r.name)} />
+                  {agentName(r.name)}
                 </button>
               ))}
             </div>

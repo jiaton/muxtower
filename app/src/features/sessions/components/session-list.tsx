@@ -6,6 +6,7 @@ import { useFlip } from '@/lib/use-flip'
 import { shortFolderNames, type SessionEntry } from '../model/facets'
 import type { Group, Section } from '../model/query'
 import { foldKey, useListPrefs } from '../store'
+import { AgentMark } from './agent-mark'
 import { SessionListRow } from './session-list-row'
 import { SideChats } from './side-chats'
 import type { RowContext } from './session-row'
@@ -170,6 +171,7 @@ export function SessionList({
           hideFolder: context.hideFolder || group.implies.folder,
           hideSource: context.hideSource || group.implies.source,
           showAccount: context.showAccount && !group.implies.account,
+          showAgent: context.showAgent && !group.implies.agent,
         }
         const names = group.sections ? shortFolderNames(group.sections.filter((s) => !s.depth).map((s) => s.label)) : null
         const closed = new Set<string>() // folded sections, and every one inside them
@@ -183,7 +185,7 @@ export function SessionList({
                 onToggle={onToggle(groupKey)}
                 className="gap-2 border-b border-border bg-bg px-3 py-1.5 text-xs font-medium tracking-wide text-fg-muted uppercase hover:text-fg sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0"
               >
-                {group.sections ? <Monitor aria-hidden /> : null}
+                {group.sections ? <Monitor aria-hidden /> : group.implies.agent ? <AgentMark decorative agent={group.label} /> : null}
                 <span className="truncate">{group.label}</span>
                 <HeaderCount entries={group.entries} folded={groupFolded} className="normal-case" />
               </FoldButton>

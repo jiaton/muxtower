@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import type { Session } from '@/lib/api/types'
 import type { Daemon } from '@/lib/daemons/types'
-import { NO_ENVIRONMENT, deviceOf, folderOf, shortFolderNames, sourceOf, statusOf, type SessionEntry } from './facets'
+import {
+  NO_ENVIRONMENT,
+  agentOf,
+  agentsDiffer,
+  deviceOf,
+  folderOf,
+  shortFolderNames,
+  sourceOf,
+  statusOf,
+  type SessionEntry,
+} from './facets'
 import { facetsOf, folderSuggestions } from './counts'
 import { filterEntries, groupEntries } from './query'
 
@@ -183,6 +193,44 @@ describe('accounts', () => {
       ['me@work.test', 2, true],
       ['me@home.test', 1, true],
     ])
+  })
+})
+
+describe('agents', () => {
+  const claude = entry('c')
+  const codex = entry('x', { runtime: 'codex', source: 'launched' })
+  const shared = entry('s', { runtime: 'codex', source: 'codex_shared', origin: 'codex_cli' })
+  const own = entry('o', { runtime: 'aider' })
+
+  it('are named as people call them; a runtime of the owner goes by its own name', () => {
+    expect([claude, codex, own].map((e) => agentOf(e.session))).toEqual(['Claude Code', 'Codex', 'aider'])
+  })
+
+  it('are a facet, a filter and a grouping only when the sessions are more than one agent', () => {
+    expect(facetsOf([claude, entry('c2')]).agents).toEqual([])
+    expect(agentsDiffer([claude.session, entry('c2').session])).toBe(false)
+    expect(agentsDiffer([claude.session, codex.session])).toBe(true)
+    // known agents in their order whatever the counts, then the owner's own
+    const facets = facetsOf([own, codex, shared, claude])
+    expect(facets.agents.map((a) => [a.label, a.count])).toEqual([
+      ['Claude Code', 1],
+      ['Codex', 2],
+      ['aider', 1],
+    ])
+    const ids = (q: Parameters<typeof filterEntries>[1]) => filterEntries([claude, codex, shared], q).map((e) => e.session.id)
+    expect(ids({ view: 'all', group: 'status', agent: 'Codex' })).toEqual(['x', 's'])
+    expect(ids({ view: 'all', group: 'status', q: 'codex' })).toEqual(['x', 's'])
+    const groups = groupEntries([codex, claude, shared], 'agent')
+    expect(groups.map((g) => [g.label, g.entries.length, g.implies.agent])).toEqual([
+      ['Claude Code', 1, true],
+      ['Codex', 2, true],
+    ])
+  })
+
+  it('tell apart sources that are named alike: a CLI is Claude Code\'s or Codex\'s', () => {
+    const rc = entry('r', { source: 'remote_control', origin: 'claude_code_cli' })
+    expect(sourceOf(rc.session)).toBe(sourceOf(shared.session))
+    expect(agentOf(rc.session)).not.toBe(agentOf(shared.session))
   })
 })
 

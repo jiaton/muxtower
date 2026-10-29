@@ -2,7 +2,8 @@ import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { ago } from '@/lib/time'
-import { NO_ENVIRONMENT, deviceOf, folderName, folderOf, isAssistant, sourceOf, type SessionEntry } from '../model/facets'
+import { NO_ENVIRONMENT, agentOf, deviceOf, folderName, folderOf, isAssistant, sourceOf, type SessionEntry } from '../model/facets'
+import { AgentMark } from './agent-mark'
 import { NOTIFY_LEVELS } from './notify-items'
 import { StatusIcon } from './status-icon'
 
@@ -15,6 +16,8 @@ export interface RowContext {
   showDaemon?: boolean
   /** Sessions run as more than one account: say which this one runs as. */
   showAccount?: boolean
+  /** The list holds more than one agent (Claude Code, Codex…): mark which this one is. */
+  showAgent?: boolean
 }
 
 /** One line of Markdown as plain text: no emphasis marks, code ticks or heading hashes. */
@@ -33,8 +36,8 @@ function lineOf({ session }: SessionEntry): { text: string; asking: boolean } | 
   return said ? { text: plain(said), asking: false } : null
 }
 
-/** One session in a list: state, name, when, where (device · folder · source), and one line of what it
- *  says or asks. `children` is a slot under it (e.g. quick approval buttons). */
+/** One session in a list: state, name, when, which agent (when the list holds several), where (device ·
+ *  folder · source), and one line of what it says or asks. `children` is a slot under it (e.g. quick approval buttons). */
 export function SessionRow({
   entry,
   selected,
@@ -89,9 +92,12 @@ export function SessionRow({
               {ago(session.updated_at)}
             </time>
           </div>
-          <p className="truncate text-xs text-fg-muted">
-            {session.offline ? <span className="font-medium text-fg">Offline · </span> : null}
-            {where.join(' · ')}
+          <p className="flex items-center gap-1 text-xs text-fg-muted">
+            {context.showAgent ? <AgentMark agent={agentOf(session)} className="text-fg" /> : null}
+            <span className="min-w-0 truncate">
+              {session.offline ? <span className="font-medium text-fg">Offline · </span> : null}
+              {where.join(' · ')}
+            </span>
           </p>
           {line ? <p className={cn('mt-0.5 line-clamp-1 text-sm', line.asking ? 'text-fg' : 'text-fg-muted')}>{line.text}</p> : null}
         </div>

@@ -1,7 +1,8 @@
 /**
  * What the session list shows: a view (what needs you, what works, everything), optionally narrowed to
- * one device (and one of its folders), one source or one account, and a search; grouped by status, by
- * device and folder, by source or by account (offered only when there is more than one). Lives in the URL, so back, reload and links keep it.
+ * one device (and one of its folders), one agent, one source or one account, and a search; grouped by
+ * status, by device and folder, by agent or by account (each offered only when there is more than one),
+ * or by source. Lives in the URL, so back, reload and links keep it.
  */
 import { nestFolders } from './folders'
 import {
@@ -11,6 +12,8 @@ import {
   UNKNOWN_ACCOUNT,
   UNKNOWN_FOLDER,
   accountOf,
+  agentOf,
+  compareAgents,
   deviceOf,
   folderOf,
   isAssistant,
@@ -23,7 +26,7 @@ import {
 
 /** What the list shows; hidden and archived sessions are only in their own view, and counted nowhere else. */
 export const VIEWS = ['all', 'needs', 'unread', 'working', 'hidden', 'archived'] as const
-export const GROUPINGS = ['status', 'device', 'source', 'account', 'none'] as const
+export const GROUPINGS = ['status', 'device', 'agent', 'source', 'account', 'none'] as const
 export type View = (typeof VIEWS)[number]
 export type GroupBy = (typeof GROUPINGS)[number]
 
@@ -34,6 +37,8 @@ export interface SessionQuery {
   device?: string
   /** A folder (as `folderOf` shows it), or UNKNOWN_FOLDER; usually together with its device. */
   folder?: string
+  /** An agent label (`agentOf`). */
+  agent?: string
   /** A source label (`sourceOf`). */
   source?: string
   /** An account label (`accountOf`). */
@@ -58,6 +63,7 @@ export const placeIn = (view: View): Place => (view === 'hidden' || view === 'ar
 export const GROUP_LABEL: Record<GroupBy, string> = {
   status: 'Status',
   device: 'Device and folder',
+  agent: 'Agent',
   source: 'Source',
   account: 'Account',
   none: 'None',
@@ -65,6 +71,7 @@ export const GROUP_LABEL: Record<GroupBy, string> = {
 
 export const deviceLabel = (entry: SessionEntry) => deviceOf(entry.session) ?? NO_ENVIRONMENT
 export const folderLabel = (entry: SessionEntry) => folderOf(entry.session) ?? UNKNOWN_FOLDER
+export const agentLabel = (entry: SessionEntry) => agentOf(entry.session)
 export const sourceLabel = (entry: SessionEntry) => sourceOf(entry.session)
 export const accountLabel = (entry: SessionEntry) => accountOf(entry.session)
 
@@ -74,6 +81,7 @@ function matchesText(entry: SessionEntry, q: string): boolean {
     session.name,
     folderLabel(entry),
     deviceLabel(entry),
+    agentLabel(entry),
     sourceLabel(entry),
     session.account,
     session.summary?.detail,
@@ -90,6 +98,7 @@ export function filterEntries(entries: SessionEntry[], query: SessionQuery): Ses
     if (placeIn(query.view) === 'listed' && query.view !== 'all' && status !== query.view) return false
     if (query.device && deviceLabel(entry) !== query.device) return false
     if (query.folder && folderLabel(entry) !== query.folder) return false
+    if (query.agent && agentLabel(entry) !== query.agent) return false
     if (query.source && sourceLabel(entry) !== query.source) return false
     if (query.account && accountLabel(entry) !== query.account) return false
     return !q || matchesText(entry, q)
@@ -109,6 +118,7 @@ export function compareEntries(a: SessionEntry, b: SessionEntry): number {
 export interface Implied {
   device?: boolean
   folder?: boolean
+  agent?: boolean
   source?: boolean
   account?: boolean
 }
@@ -200,6 +210,12 @@ export function groupEntries(entries: SessionEntry[], by: GroupBy): Group[] {
     ]
   }
 
+  if (by === 'agent') {
+    const byAgent = bucket(rest, agentLabel)
+    const keys = [...byAgent.keys()].sort(compareAgents)
+    return [...groups, ...keys.map((key) => ({ key, label: key, entries: byAgent.get(key)!, implies: { agent: true } }))]
+  }
+
   if (by === 'account') {
     const byAccount = bucket(rest, accountLabel)
     const keys = bySize(byAccount, UNKNOWN_ACCOUNT)
@@ -216,7 +232,7 @@ export function groupEntries(entries: SessionEntry[], by: GroupBy): Group[] {
 /** A title for what the list shows, and where that is when the title is a folder. */
 export function queryTitle(query: SessionQuery): { title: string; within?: string } {
   if (query.folder) return { title: query.folder, within: query.device }
-  return { title: query.device ?? query.source ?? query.account ?? VIEW_LABEL[query.view] }
+  return { title: query.device ?? query.agent ?? query.source ?? query.account ?? VIEW_LABEL[query.view] }
 }
 
 /** Whether a "show all" toggle is worth having for a list of `count` showing `shown`. */

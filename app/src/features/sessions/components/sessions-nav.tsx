@@ -10,6 +10,7 @@ import { toggleable, VIEW_LABEL, VIEWS, type View } from '../model/query'
 import { isCurrentScope, parseListSearch, scopeSearch, type ListSearch, type Scope } from '../model/search'
 import { useSessionEntries } from '../hooks/use-session-entries'
 import { useListPrefs } from '../store'
+import { AgentMark } from './agent-mark'
 import { sourceIcon } from './source-icon'
 
 /** A sidebar entry for a scope of the list. It is current by the list's search params, also while one
@@ -108,8 +109,8 @@ function DeviceTree({ device, search }: { device: DeviceFacet; search: ListSearc
   )
 }
 
-/** The sidebar: views, each device with its folders, sources, and accounts when there is more than one,
- *  each with its count. The router
+/** The sidebar: views, each device with its folders, agents when there is more than one, sources, and
+ *  accounts when there is more than one, each with its count. The router
  *  marks the entry whose search params the list shows (data-status=active), also while one of its
  *  sessions is open. */
 export function SessionsNav() {
@@ -136,6 +137,17 @@ export function SessionsNav() {
           <DeviceTree key={d.label} device={d} search={search} />
         ))}
       </NavSection>
+      {facets.agents.length ? (
+        <NavSection title="Agents">
+          {facets.agents.map((a) => (
+            <ScopeLink key={a.label} search={search} scope={{ agent: a.label }} className={navItemClass}>
+              <AgentMark decorative agent={a.label} className="size-4" />
+              <span className="truncate">{a.label}</span>
+              <NavCount count={a.needs || a.count} alert={a.needs > 0} />
+            </ScopeLink>
+          ))}
+        </NavSection>
+      ) : null}
       <NavSection title="Sources">
         {facets.sources.map((s) => {
           const Icon = sourceIcon(s.label)

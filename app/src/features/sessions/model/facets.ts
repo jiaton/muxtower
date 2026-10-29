@@ -1,6 +1,6 @@
 /**
  * The ways a session is classified: what it needs (status), where it runs (device), what it works on
- * (folder), how it was started (source) and which account it runs as. Pure functions over the API's Session, so every list,
+ * (folder), which agent it is, how it was started (source) and which account it runs as. Pure functions over the API's Session, so every list,
  * filter and count agrees.
  */
 import type { Session } from '@/lib/api/types'
@@ -110,6 +110,26 @@ export function sourceOf(session: Session): string {
   const match = origin ? ORIGINS.find(([pattern]) => pattern.test(origin)) : undefined
   return match?.[1] ?? origin ?? 'Remote Control'
 }
+
+// --- agent --------------------------------------------------------------------------------------
+
+/** The agents muxtower ships runtimes for, by runtime name, in the order they are listed. A runtime the
+ *  owner defined goes by its own name, after these. */
+export const AGENTS: Record<string, string> = { 'claude-code': 'Claude Code', codex: 'Codex', opencode: 'opencode' }
+const AGENT_ORDER = Object.values(AGENTS)
+
+/** The agent a runtime runs, as people call it. */
+export const agentName = (runtime: string) => AGENTS[runtime] ?? runtime
+
+/** Which agent the session is (Claude Code, Codex…): what it can do and how it asks follows from it. */
+export const agentOf = (session: Session): string => agentName(session.runtime)
+
+/** Known agents in their order, then the rest by name. */
+export const compareAgents = (a: string, b: string) =>
+  (AGENT_ORDER.indexOf(a) + 1 || 99) - (AGENT_ORDER.indexOf(b) + 1 || 99) || a.localeCompare(b)
+
+/** Whether agents are worth showing on every row: only when the sessions are not all the same agent. */
+export const agentsDiffer = (sessions: Session[]) => new Set(sessions.map((s) => s.runtime)).size > 1
 
 // --- account ------------------------------------------------------------------------------------
 

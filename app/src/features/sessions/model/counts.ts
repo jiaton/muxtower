@@ -1,17 +1,19 @@
-/** Counts for the navigation (per view, device and folder, source, account) and the folders a new
+/** Counts for the navigation (per view, device and folder, agent, source, account) and the folders a new
  *  session is offered, over the same labels as the list's query. */
 import {
   NO_ENVIRONMENT,
   UNKNOWN_ACCOUNT,
   UNKNOWN_FOLDER,
   accountsDiffer,
+  agentsDiffer,
+  compareAgents,
   folderOf,
   isAssistant,
   placeOf,
   statusOf,
   type SessionEntry,
 } from './facets'
-import { SOURCE_ORDER, accountLabel, deviceLabel, folderLabel, orderBy, sourceLabel, type View } from './query'
+import { SOURCE_ORDER, accountLabel, agentLabel, deviceLabel, folderLabel, orderBy, sourceLabel, type View } from './query'
 
 export interface Facet {
   label: string
@@ -28,6 +30,8 @@ export interface Facets {
   views: Record<View, number>
   /** Each device with its folders: where things run, then what they work on. */
   devices: DeviceFacet[]
+  /** Empty when every session is the same agent. */
+  agents: Facet[]
   sources: Facet[]
   /** Empty when every session runs as the same account (or none says). */
   accounts: Facet[]
@@ -47,7 +51,7 @@ function facet(entries: SessionEntry[], labelOf: (e: SessionEntry) => string, la
   )
 }
 
-/** Counts for the navigation: per view, per device and its folders, per source. The assistant is not
+/** Counts for the navigation: per view, per device and its folders, per agent, per source. The assistant is not
  *  counted, nor are hidden or archived sessions anywhere but in their own view. */
 export function facetsOf(entries: SessionEntry[]): Facets {
   const counted = entries.filter((e) => !isAssistant(e.session) && placeOf(e.session) === 'listed')
@@ -69,6 +73,9 @@ export function facetsOf(entries: SessionEntry[]): Facets {
       // Like the list: a lone "Unknown folder" is no second level.
       return { ...device, folders: folders.length === 1 && folders[0].label === UNKNOWN_FOLDER ? [] : folders }
     }),
+    agents: agentsDiffer(counted.map((e) => e.session))
+      ? facet(counted, agentLabel, '').sort((a, b) => compareAgents(a.label, b.label))
+      : [],
     sources: facet(counted, sourceLabel, '').sort((a, b) => orderBy(SOURCE_ORDER)(a.label, b.label)),
     accounts: accountsDiffer(counted.map((e) => e.session)) ? facet(counted, accountLabel, UNKNOWN_ACCOUNT) : [],
   }

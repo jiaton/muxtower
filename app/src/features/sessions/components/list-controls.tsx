@@ -20,6 +20,7 @@ import { useMarkRead } from '../api/use-session-marks'
 import { folderName, shortFolderNames, type SessionEntry } from '../model/facets'
 import { scopeOf, scopeSearch, type ListSearch, type Scope } from '../model/search'
 import { useListPrefs } from '../store'
+import { AgentMark } from './agent-mark'
 import { sourceIcon } from './source-icon'
 
 const SEARCH_DEBOUNCE_MS = 200
@@ -54,7 +55,18 @@ export function SearchField({ search }: { search: ListSearch }) {
 
 /** The list's view menu: how rows are grouped (remembered as the default), and marking what it shows
  *  read. */
-export function ListMenu({ query, unread, accounts }: { query: SessionQuery; unread: SessionEntry[]; accounts: boolean }) {
+export function ListMenu({
+  query,
+  unread,
+  agents,
+  accounts,
+}: {
+  query: SessionQuery
+  unread: SessionEntry[]
+  /** There is more than one agent, or account, to group by. */
+  agents: boolean
+  accounts: boolean
+}) {
   const navigate = useNavigate()
   const setGroup = useListPrefs((s) => s.setGroup)
   const markRead = useMarkRead()
@@ -75,7 +87,7 @@ export function ListMenu({ query, unread, accounts }: { query: SessionQuery; unr
             void navigate({ to: '.', search: (prev: ListSearch) => ({ ...prev, group }) })
           }}
         >
-          {GROUPINGS.filter((group) => group !== 'account' || accounts).map((group) => (
+          {GROUPINGS.filter((group) => (group !== 'account' || accounts) && (group !== 'agent' || agents)).map((group) => (
             <DropdownMenuRadioItem key={group} value={group}>
               {GROUP_LABEL[group]}
             </DropdownMenuRadioItem>
@@ -95,14 +107,15 @@ export function ListMenu({ query, unread, accounts }: { query: SessionQuery; unr
 
 const SEP = '\u0000'
 const encodeScope = (scope: Scope | null) =>
-  scope ? [scope.device ?? '', scope.folder ?? '', scope.source ?? '', scope.account ?? ''].join(SEP) : ''
+  scope ? [scope.device, scope.folder, scope.agent, scope.source, scope.account].map((part) => part ?? '').join(SEP) : ''
 function decodeScope(value: string): Scope {
   if (!value) return { view: 'all' }
-  const [device, folder, source, account] = value.split(SEP)
-  return { device: device || undefined, folder: folder || undefined, source: source || undefined, account: account || undefined }
+  const [device, folder, agent, source, account] = value.split(SEP).map((part) => part || undefined)
+  return { device, folder, agent, source, account }
 }
 
-/** One device (or one of its folders), one source or one account (where the sidebar is not shown). */
+/** One device (or one of its folders), one agent, one source or one account (where the sidebar is not
+ *  shown). */
 export function FilterMenu({
   query,
   search,
@@ -123,7 +136,7 @@ export function FilterMenu({
         <Button
           variant="ghost"
           size="icon-sm"
-          aria-label="Filter by device, folder, source or account"
+          aria-label="Filter by device, folder, agent, source or account"
           title="Filter"
           className={cn(scope && 'text-accent', className)}
         >
@@ -162,6 +175,19 @@ export function FilterMenu({
               </Fragment>
             )
           })}
+          {facets.agents.length ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Agents</DropdownMenuLabel>
+              {facets.agents.map((a) => (
+                <DropdownMenuRadioItem key={a.label} value={encodeScope({ agent: a.label })}>
+                  <AgentMark decorative agent={a.label} className="size-4 text-fg-muted" />
+                  <span className="min-w-0 flex-1 truncate">{a.label}</span>
+                  {count(a.count)}
+                </DropdownMenuRadioItem>
+              ))}
+            </>
+          ) : null}
           <DropdownMenuSeparator />
           <DropdownMenuLabel>Sources</DropdownMenuLabel>
           {facets.sources.map((src) => {
@@ -210,12 +236,14 @@ export function FilterMenu({
   )
 }
 
-/** What the list is narrowed to (device › folder, a source, or an account), with a way out; not a
- *  device alone, which the title and the device's own chip say. */
+/** What the list is narrowed to (device › folder, an agent, a source, or an account), with a way out;
+ *  not a device alone, which the title and the device's own chip say. */
 export function ScopeChip({ query, search }: { query: SessionQuery; search: ListSearch }) {
   const scope = scopeOf(query)
-  if (!scope || (scope.device && !scope.folder && !scope.source && !scope.account)) return null
-  const label = [scope.device, scope.folder ? folderName(scope.folder) : null, scope.source, scope.account].filter(Boolean).join(' › ')
+  if (!scope || (scope.device && !scope.folder && !scope.agent && !scope.source && !scope.account)) return null
+  const label = [scope.device, scope.folder ? folderName(scope.folder) : null, scope.agent, scope.source, scope.account]
+    .filter(Boolean)
+    .join(' › ')
   return (
     <Link
       to="/"
