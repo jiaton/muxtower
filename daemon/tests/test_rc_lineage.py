@@ -94,3 +94,25 @@ def test_a_side_chat_of_a_compacted_session_finds_it_by_its_title() -> None:
     }
     views = {v.id: (v.fork_of, v.side_chat) for v in source(port).views()}
     assert views["cse_side"] == ("cse_main", True)  # the newest older one with its title
+
+
+def test_a_long_copy_written_in_batches_is_still_one_copy() -> None:
+    """The app writes a long copy a hundred events at a time, each batch a moment after the last."""
+    port = FakeRemoteControl()
+    port.sessions = [
+        session("cse_main", title="Report", created_at="2026-10-29T20:21:09Z"),
+        session("cse_side", title="Report", created_at="2026-10-29T22:54:02Z"),
+    ]
+    first, second = "2026-10-29T22:54:03.087600Z", "2026-10-29T22:54:03.554612Z"
+    port.events = {
+        "cse_main": history(),
+        "cse_side": [
+            *history(first),
+            say(4, second, "assistant", "a2"),
+            say(5, second, "user", "u3"),
+            say(6, "2026-10-29T22:54:03.904324Z", "user", "n1", SIDE_NOTE),
+            say(7, "2026-10-29T22:54:09Z", "assistant", "s1"),
+        ],
+    }
+    views = {v.id: (v.fork_of, v.side_chat) for v in source(port).views()}
+    assert views["cse_side"] == ("cse_main", True)

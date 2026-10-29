@@ -2,7 +2,8 @@
 
 - a fork (Claude Code's fork of a session): tagged `remote-control-fork-parent:session_<id>`;
 - a side chat (Claude desktop's "ask on the side"): it starts with a copy of another session's
-  history, written in one go and under the same message ids, ending in a note that the owner forked it
+  history, written in one go (a long one in batches of a hundred, a moment apart) and under the same
+  message ids, ending in a note that the owner forked it
   to ask something on the side. Its parent is the listed session whose first message has that id, or,
   when that one was compacted since (the copy starts after its summary), the newest older session with
   the same title (a side chat keeps its parent's).
@@ -12,6 +13,7 @@ Copies without the note count as forks of that parent."""
 import logging
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
 
 from muxtower.errors import Unavailable
@@ -27,6 +29,7 @@ FORK_PARENT_TAG = "remote-control-fork-parent:"
 SIDE_NOTE = "to ask something on the side"
 PAGE = 200
 MAX_PAGES = 10  # a copy as long as 2000 events is read to its end; longer, the note is not looked for
+COPY_GAP = 2.0  # seconds: a copy's batches follow each other closer than this (seen: under half a second)
 
 
 @dataclass(frozen=True)
@@ -51,9 +54,17 @@ def _texts(event: RawEvent) -> list[str]:
     return [b.get("text", "") for b in content or [] if isinstance(b, dict) and b.get("type") == "text"]
 
 
+def _at(event: RawEvent) -> datetime | None:
+    try:
+        return datetime.fromisoformat(event.created_at) if event.created_at else None
+    except ValueError:
+        return None
+
+
 def read(events_after: Callable[[str, int, int], list[RawEvent]], session_id: str, raw: dict[str, Any]) -> Lineage:
-    """Blocking (HTTP). A copy is told by its start: messages written at the very same instant. When the
-    log cannot be read, a fork or side chat shows as a session of its own meanwhile."""
+    """Blocking (HTTP). A copy is told by its start: messages written at the very same instant. It ends at
+    the first pause; the note, if any, comes right after it. When the log cannot be read, a fork or side
+    chat shows as a session of its own meanwhile."""
     listed = raw.get("tags")
     parent = tagged_parent(listed if isinstance(listed, list) else [])
     try:
@@ -69,13 +80,16 @@ def _read(events_after: Callable[[str, int, int], list[RawEvent]], session_id: s
     first = str(talk[0].payload.get("uuid") or "") or None if talk else None
     copied = len(talk) > 1 and talk[0].created_at is not None and talk[1].created_at == talk[0].created_at
     if copied:
-        burst = talk[0].created_at
+        last, past = _at(talk[0]), False
         for _ in range(MAX_PAGES):
             for event in events:  # the note comes right after the copy
                 if event.payload.get("type") == "user" and any(SIDE_NOTE in t for t in _texts(event)):
                     return Lineage(first, True, True, parent)
-                if event.created_at != burst and event.payload.get("type") == "assistant":
+                at = _at(event)
+                past = past or bool(at and last and (at - last).total_seconds() > COPY_GAP)
+                if past and event.payload.get("type") == "assistant":
                     return Lineage(first, True, False, parent)
+                last = at or last
             if len(events) < PAGE:
                 break
             events = events_after(session_id, max(e.seq for e in events), PAGE)
