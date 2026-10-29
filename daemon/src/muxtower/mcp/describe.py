@@ -55,7 +55,8 @@ def line(s: Session, hub: str) -> str:
     said = (s.summary.detail or s.summary.recent or "") if s.summary else ""
     if not said and s.last_message and s.last_message.strip():
         said = s.last_message.strip().splitlines()[0][:160]
-    flags = [f for f, on in (("archived", s.archived_at), ("hidden", s.hidden), ("offline", s.offline)) if on]
+    marks = (("archived", s.archived_at), ("hidden", s.hidden), ("pinned", s.pinned), ("offline", s.offline))
+    flags = [f for f, on in marks if on]
     state = " ".join([s.state.value, *flags]) + (" · NEEDS THE OWNER" if s.needs_attention else "")
     where = f"in {s.cwd}" if s.cwd else "folder unknown"
     if s.fork_of:

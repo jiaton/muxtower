@@ -1009,6 +1009,17 @@
         "title": "PendingQuestion",
         "type": "object"
       },
+      "PinSession": {
+        "properties": {
+          "pinned": {
+            "default": true,
+            "title": "Pinned",
+            "type": "boolean"
+          }
+        },
+        "title": "PinSession",
+        "type": "object"
+      },
       "Placement": {
         "description": "Where the owner says a session runs, over what its source reports; empty fields are not placed.",
         "properties": {
@@ -1400,6 +1411,12 @@
                 "type": "null"
               }
             ]
+          },
+          "pinned": {
+            "default": false,
+            "description": "the owner pinned it: listed above the others",
+            "title": "Pinned",
+            "type": "boolean"
           },
           "placement": {
             "anyOf": [
@@ -3081,6 +3098,52 @@
           }
         },
         "summary": "Set Notify",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/pin": {
+      "post": {
+        "description": "Pin it above the others in the lists (`{\"pinned\": false}` unpins it); the same on every device.",
+        "operationId": "pin_session_v1_sessions__session_id__pin_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PinSession"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pin Session",
         "tags": [
           "sessions"
         ]

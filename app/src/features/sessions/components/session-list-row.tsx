@@ -9,8 +9,9 @@ import { SessionActionItems } from './session-actions-menu'
 import { NotifyItems } from './notify-items'
 import { SessionRow, type RowContext } from './session-row'
 
-/** A row of the session list with its actions: swipe right on a touch screen, or the "⋯" that shows on
- *  hover with a mouse (which also sets its notifications; on a phone, the session's own menu does). */
+/** A row of the session list with its actions: swipe right on a touch screen (renaming and moving are
+ *  in the session's own menu), or the "⋯" that shows on hover with a mouse (which also sets its
+ *  notifications; on a phone, the session's own menu does). */
 export function SessionListRow({
   entry,
   selected,
@@ -27,9 +28,11 @@ export function SessionListRow({
     <SessionActions daemonId={daemon.id} session={session}>
       {(actions) => (
         <SwipeActions
-          actions={actions.map((a) => (
-            <SwipeAction key={a.id} icon={a.icon} label={a.label} tone={a.tone} onClick={a.run} />
-          ))}
+          actions={actions
+            .filter((a) => !a.menuOnly)
+            .map((a) => (
+              <SwipeAction key={a.id} icon={a.icon} label={a.label} tone={a.tone} onClick={a.run} />
+            ))}
         >
           <div className="group relative">
             <SessionRow entry={entry} selected={selected} context={context}>

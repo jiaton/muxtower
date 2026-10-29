@@ -12,7 +12,7 @@ import { usePairedDaemons } from '@/lib/daemons/store'
 import { useNodes } from '@/lib/daemons/use-nodes'
 import { useCreateSession, useRuntimes } from '../api/use-session-mutations'
 import { useSessionEntries } from '../hooks/use-session-entries'
-import { folderSuggestions } from '../model/query'
+import { folderSuggestions } from '../model/counts'
 
 /** Starts a session on a daemon's machine, or on one of its nodes (another computer joined to it).
  *  `trigger`: the element that opens it (a button), defaulting to a labelled one. */

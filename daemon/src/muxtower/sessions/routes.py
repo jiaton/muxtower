@@ -16,6 +16,7 @@ from muxtower.sessions.models import (
     DetectedFolder,
     HideSession,
     MarkRead,
+    PinSession,
     Placement,
     Session,
     SessionNotify,
@@ -116,6 +117,13 @@ def mark_read(session_id: str, body: MarkRead, request: Request, _: CurrentDevic
 def hide_session(session_id: str, body: HideSession, request: Request, _: CurrentDevice, directory: Directory) -> None:
     """Hide it from the lists (`{"hidden": false}` shows it again); the same on every device."""
     directory.hide(session_id, body.hidden)
+    request.app.state.bus.publish("sessions", None)
+
+
+@router.post("/sessions/{session_id}/pin", status_code=204)
+def pin_session(session_id: str, body: PinSession, request: Request, _: CurrentDevice, directory: Directory) -> None:
+    """Pin it above the others in the lists (`{"pinned": false}` unpins it); the same on every device."""
+    directory.pin(session_id, body.pinned)
     request.app.state.bus.publish("sessions", None)
 
 

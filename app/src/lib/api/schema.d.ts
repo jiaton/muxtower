@@ -464,6 +464,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_id}/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pin Session
+         * @description Pin it above the others in the lists (`{"pinned": false}` unpins it); the same on every device.
+         */
+        post: operations["pin_session_v1_sessions__session_id__pin_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_id}/placement": {
         parameters: {
             query?: never;
@@ -1113,6 +1133,14 @@ export interface components {
             /** Question */
             question: string;
         };
+        /** PinSession */
+        PinSession: {
+            /**
+             * Pinned
+             * @default true
+             */
+            pinned: boolean;
+        };
         /**
          * Placement
          * @description Where the owner says a session runs, over what its source reports; empty fields are not placed.
@@ -1293,6 +1321,12 @@ export interface components {
              */
             origin?: string | null;
             pending: components["schemas"]["PendingAction"] | null;
+            /**
+             * Pinned
+             * @description the owner pinned it: listed above the others
+             * @default false
+             */
+            pinned: boolean;
             /** @description where the owner placed it; `machine` and `cwd` already follow it */
             placement?: components["schemas"]["Placement"] | null;
             /**
@@ -2337,6 +2371,39 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Session"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pin_session_v1_sessions__session_id__pin_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PinSession"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

@@ -1,6 +1,6 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { History, MessagesSquare, Reply, SquareTerminal, Unplug } from 'lucide-react'
-import { useCallback, useRef, useState } from 'react'
+import { useRef } from 'react'
 import { QueryState } from '@/components/query-state'
 import { Banner } from '@/components/ui/banner'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -16,7 +16,7 @@ import { useSession } from '@/features/sessions/api/use-sessions'
 import { SessionActionsMenu } from '@/features/sessions/components/session-actions-menu'
 import { SessionHeader } from '@/features/sessions/components/session-header'
 import { useSeenWhileOpen } from '@/features/sessions/hooks/use-seen-while-open'
-import { useSessionDrawer } from '@/features/sessions/store'
+import { useSessionDrawer, useSessionViews, type SessionView as View } from '@/features/sessions/store'
 import { useSendInput } from '@/features/terminal/api/use-terminal'
 import { InputBar } from '@/features/terminal/components/input-bar'
 import { TerminalMenuItems } from '@/features/terminal/components/terminal-menu-items'
@@ -26,6 +26,7 @@ import { draftKey, useDrafts, useTerminalPrefs } from '@/features/terminal/store
 import { MicButton } from '@/features/voice/components/mic-button'
 import { VoiceBar } from '@/features/voice/components/voice-bar'
 import { useDictation } from '@/features/voice/hooks/use-dictation'
+import { entryKey } from '@/features/sessions/model/facets'
 import type { Session } from '@/lib/api/types'
 import { useOutgoing } from '@/lib/use-outbox'
 
@@ -54,15 +55,18 @@ function SessionPage() {
   )
 }
 
-type View = 'terminal' | 'conversation'
-
 /** Header; what the agent is waiting for, if anything; the terminal or the conversation (a session with
- *  both offers a switch, and a swipe between them); the input bar. Swiping right past the first view opens
- *  the list (a drawer on phones). An archived session is its conversation only; one whose node is offline
- *  says so, read only. */
+ *  both offers a switch, and a swipe between them, and opens on the one it was left on); the input bar.
+ *  Swiping right past the first view pulls the list open (a drawer on phones). An archived session is its
+ *  conversation only; one whose node is offline says so, read only. */
 function SessionView({ daemonId, session }: { daemonId: string; session: Session }) {
   const { screen, conversation: hasConversation } = session.capabilities
-  const [view, setView] = useState<View>(screen ? 'terminal' : 'conversation')
+  const key = entryKey(daemonId, session.id)
+  const chosen = useSessionViews((s) => s.views[key] ?? s.last)
+  const choose = useSessionViews((s) => s.setView)
+  const setView = (to: View) => choose(key, to)
+  // The one chosen, where the session has it (a conversation can turn up after it opened).
+  const view: View = !screen || (chosen === 'conversation' && hasConversation) ? 'conversation' : 'terminal'
   // Both stay live while the session is open, so a swipe between them shows each as it is now (and the
   // pane keeps its fit, instead of being given back and fitted again).
   const terminal = useSessionTerminal(daemonId, session, screen)
@@ -70,8 +74,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
   // What was sent and is not in the conversation yet, shown at its end.
   const outgoing = useOutgoing(daemonId, session.id, hasConversation ? conversation.data : undefined)
   const setFit = useTerminalPrefs((s) => s.setFit)
-  const setDrawer = useSessionDrawer((s) => s.setOpen)
-  const openDrawer = useCallback(() => setDrawer(true), [setDrawer])
+  const pullDrawer = useSessionDrawer((s) => s.pull)
   const both = screen && hasConversation
   useSeenWhileOpen(daemonId, session)
   const views = useRef<HTMLDivElement>(null)
@@ -138,7 +141,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
           label="Session views"
           index={both && view === 'conversation' ? 1 : 0}
           onIndexChange={(page) => both && setView(page === 1 ? 'conversation' : 'terminal')}
-          onPastStart={openDrawer}
+          pastStart={pullDrawer ?? undefined}
         >
           {screen ? (
             <>

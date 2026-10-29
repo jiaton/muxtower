@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 def decorate(session: Session, directory: SessionDirectory) -> Session:
     """The machine, folder and origin of everything that runs on this daemon, the account it runs as,
-    the owner's marks (unread, hidden, where they placed it, which pushes it sends), the reply summary,
+    the owner's marks (unread, hidden, pinned, where they placed it, which pushes it sends), the reply summary,
     the concierge role. A node's session keeps where its node says it runs and as whom."""
     d = directory
     update: dict[str, object] = {}
@@ -23,6 +23,7 @@ def decorate(session: Session, directory: SessionDirectory) -> Session:
         update["unread"] = d.marks.unread(session.id, session.unread, session.updated_at)
         update["finished_at"] = marks.finished_at
         update["hidden"] = marks.hidden
+        update["pinned"] = marks.pinned
         update["notify"] = NotifyLevel(marks.notify)
     if session.node is None:
         if session.source != SessionSource.REMOTE_CONTROL:

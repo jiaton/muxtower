@@ -4,7 +4,7 @@ import type { NotifyLevel, Session } from '@/lib/api/types'
 import { useDaemonsStore } from '@/lib/daemons/store'
 import { daemonKey } from '@/lib/query'
 
-/** The owner's marks on a session (read, hidden, which pushes it sends) live on its daemon, so every device agrees. These
+/** The owner's marks on a session (read, hidden, pinned, which pushes it sends) live on its daemon, so every device agrees. These
  *  mutations take any daemon (one call can mark a whole list) and show the change in the cached list at
  *  once; other devices hear it through the daemon's stream. */
 
@@ -60,6 +60,24 @@ export function useHideSession() {
         check(await client.POST('/v1/sessions/{session_id}/hide', { params: { path: { session_id: sessionId } }, body: { hidden } }))
     },
     onMutate: ({ daemonId, sessionId, hidden }) => patch(daemonId, sessionId, { hidden }),
+  })
+}
+
+export interface PinSession {
+  daemonId: string
+  sessionId: string
+  pinned: boolean
+}
+
+export function usePinSession() {
+  const patch = usePatch()
+  return useMutation({
+    mutationFn: async ({ daemonId, sessionId, pinned }: PinSession) => {
+      const client = clientOf(daemonId)
+      if (client)
+        check(await client.POST('/v1/sessions/{session_id}/pin', { params: { path: { session_id: sessionId } }, body: { pinned } }))
+    },
+    onMutate: ({ daemonId, sessionId, pinned }) => patch(daemonId, sessionId, { pinned }),
   })
 }
 

@@ -1,30 +1,35 @@
 import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
 import { cn } from '@/lib/cn'
-import { axisOf, holdScroll, LAND_EASE, landing, landMs, Speed } from './gesture'
+import { axisOf, holdScroll, LAND_EASE, landing, landMs, sideways, Speed, type Pull } from './gesture'
 
 /**
  * A navigation drawer (Material's modal drawer): while `drawer`, `children` sit in a panel that slides in
  * from the left over the page when `open`, over a scrim that closes it (as do Escape and following a link
- * inside, and a swipe left that follows the finger). Otherwise `children` lay out where they are, as if there were no drawer. Either way they stay
- * mounted, so what they hold (a scroll position, folded groups) is there when the drawer opens.
+ * inside, and a swipe left that follows the finger). Shut, it can be pulled open with the finger by a swipe
+ * that something else hands on (`onPull` gives the drawer's `Pull`: e.g. a pager's, past its first page).
+ * Otherwise `children` lay out where they are, as if there were no drawer. Either way they stay mounted,
+ * so what they hold (a scroll position, folded groups) is there when the drawer opens.
  */
 export function Drawer({
   drawer,
   open,
   onOpenChange,
   label,
+  onPull,
   children,
 }: {
   drawer: boolean
   open: boolean
   onOpenChange: (open: boolean) => void
   label: string
+  onPull?: (pull: Pull | null) => void
   children: ReactNode
 }) {
   const shown = drawer && open
   const panel = useRef<HTMLDivElement>(null)
   const scrim = useRef<HTMLDivElement>(null)
   useSwipeClose(panel, scrim, shown, () => onOpenChange(false))
+  usePullOpen(panel, scrim, drawer && !open, () => onOpenChange(true), onPull)
 
   useEffect(() => {
     if (!shown) return
@@ -66,6 +71,50 @@ export function Drawer({
   )
 }
 
+/** While `active` (the drawer shut), the `Pull` that opens it with the finger, handed to `onPull` (null
+ *  otherwise): the drawer and scrim follow it and, let go, it opens or goes back by how far and how fast. */
+function usePullOpen(
+  panel: RefObject<HTMLDivElement | null>,
+  scrim: RefObject<HTMLDivElement | null>,
+  active: boolean,
+  open: () => void,
+  onPull?: (pull: Pull | null) => void,
+) {
+  const opening = useRef(open)
+  opening.current = open
+  useEffect(() => {
+    const el = panel.current
+    const behind = scrim.current
+    if (!active || !el || !behind || !onPull) return
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const place = (at: number, ms: number) => {
+      const width = Math.max(1, el.offsetWidth)
+      // `translate`, which its classes shut it with (a transform would add to that).
+      el.style.transition = ms ? `translate ${ms}ms ${LAND_EASE}` : 'none'
+      behind.style.transition = ms ? `opacity ${ms}ms ${LAND_EASE}` : 'none'
+      el.style.translate = `${at - width}px`
+      behind.style.opacity = String(at / width)
+    }
+    onPull({
+      move: (px) => {
+        clearTimeout(timer)
+        place(Math.min(px, el.offsetWidth), 0)
+      },
+      end: (px, speed) => {
+        const width = el.offsetWidth
+        const at = Math.min(px, width)
+        const opened = landing(at, speed, at) > width / 2
+        const ms = landMs(opened ? width - at : at, speed)
+        place(opened ? width : 0, ms)
+        // Then to where its classes put it (open, or shut), once it is there.
+        timer = setTimeout(() => (el.style.transition = behind.style.transition = el.style.translate = behind.style.opacity = ''), ms + 50)
+        if (opened) opening.current()
+      },
+    })
+    return () => onPull(null)
+  }, [panel, scrim, active, onPull])
+}
+
 /** While `active`, a swipe left on the drawer or its scrim drags the drawer with the finger, and let go,
  *  closes it or puts it back by how far and how fast it went. A swipe right, or one on a list row that is
  *  showing its actions (`data-swipe-open`), is left to what is under it. */
@@ -97,8 +146,8 @@ function useSwipeClose(
       if (!g.axis) {
         g.axis = axisOf(dx, t.clientY - g.y)
         if (!g.axis) return
-        if (g.axis === 'y' || dx > 0) {
-          g = null // a scroll, or a swipe right (a row's): not the drawer's
+        if (g.axis === 'y' || dx > 0 || sideways(e.target, el, dx)) {
+          g = null // a scroll, a swipe right (a row's), or one along a row that scrolls: not the drawer's
           return
         }
       }

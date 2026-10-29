@@ -8,7 +8,8 @@ import { Pane, PaneBody, PaneHeader } from '@/components/ui/pane'
 import { QuickApproval } from '@/features/approval/components/quick-approval'
 import { PairCodeForm } from '@/features/pairing/components/pair-code-form'
 import { DaemonAlerts } from '@/features/sessions/components/daemon-alerts'
-import { FilterMenu, ListMenu, ScopeChip, SearchField, ViewTabs } from '@/features/sessions/components/list-controls'
+import { ListChips } from '@/features/sessions/components/list-chips'
+import { FilterMenu, ListMenu, ScopeChip, SearchField } from '@/features/sessions/components/list-controls'
 import { NewSessionDialog } from '@/features/sessions/components/new-session-dialog'
 import { SessionList } from '@/features/sessions/components/session-list'
 import { useOpenedHere } from '@/features/sessions/hooks/use-opened-here'
@@ -16,7 +17,8 @@ import { useScrollMemory } from '@/features/sessions/hooks/use-scroll-memory'
 import { useSessionEntries } from '@/features/sessions/hooks/use-session-entries'
 import { entryKey, folderName, isAssistant } from '@/features/sessions/model/facets'
 import { keptEntries, keptGroups } from '@/features/sessions/model/kept'
-import { facetsOf, filterEntries, groupEntries, queryTitle } from '@/features/sessions/model/query'
+import { facetsOf } from '@/features/sessions/model/counts'
+import { filterEntries, groupEntries, queryTitle } from '@/features/sessions/model/query'
 import { foldSideChats } from '@/features/sessions/model/side-chats'
 import { parseListSearch, toQuery } from '@/features/sessions/model/search'
 import { useListMemory, useListPrefs, useSessionDrawer } from '@/features/sessions/store'
@@ -46,6 +48,7 @@ function SessionsLayout() {
   const asDrawer = Boolean(open) && !split
   const drawerOpen = useSessionDrawer((s) => s.open)
   const setDrawer = useSessionDrawer((s) => s.setOpen)
+  const setPull = useSessionDrawer((s) => s.setPull)
   useEffect(() => {
     if (!asDrawer) setDrawer(false) // back on the list, or side by side: no drawer left open for later
   }, [asDrawer, setDrawer])
@@ -69,7 +72,7 @@ function SessionsLayout() {
 
   return (
     <div className="flex min-w-0 flex-1">
-      <Drawer drawer={asDrawer} open={drawerOpen} onOpenChange={setDrawer} label="Sessions">
+      <Drawer drawer={asDrawer} open={drawerOpen} onOpenChange={setDrawer} onPull={setPull} label="Sessions">
         <Pane className="flex w-full border-r border-border md:w-80 md:shrink-0 xl:w-96" aria-label="Sessions">
         <PaneHeader
           title={
@@ -95,7 +98,7 @@ function SessionsLayout() {
           }
         >
           <SearchField search={search} />
-          <ViewTabs query={query} search={search} facets={facets} className="lg:hidden" />
+          <ListChips query={query} search={search} facets={facets} className="lg:hidden" />
           <ScopeChip query={query} search={search} />
         </PaneHeader>
         <PaneBody ref={listRef}>

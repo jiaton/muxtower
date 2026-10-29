@@ -69,3 +69,20 @@ export function holdScroll(el: HTMLElement, active: () => boolean): () => void {
   el.addEventListener('touchmove', move, { passive: false })
   return () => el.removeEventListener('touchmove', move)
 }
+
+/** A swipe handed on, as it goes, to what it pulls into view (a drawer pulled open by a swipe past a
+ *  pager's first page): how far the finger has come, then where it let go and how fast. */
+export interface Pull {
+  move: (px: number) => void
+  end: (px: number, speed: number) => void
+}
+
+/** Whether the touch began on something that scrolls sideways itself and can still go the way of `dx`
+ *  (a finger moving right scrolls toward the start), up to `root`. */
+export function sideways(target: EventTarget | null, root: HTMLElement, dx: number): boolean {
+  for (let el = target instanceof Element ? target : null; el && el !== root; el = el.parentElement) {
+    if (el.scrollWidth <= el.clientWidth + 1 || !/auto|scroll/.test(getComputedStyle(el).overflowX)) continue
+    if (dx > 0 ? el.scrollLeft > 0 : el.scrollLeft + el.clientWidth < el.scrollWidth - 1) return true
+  }
+  return false
+}
