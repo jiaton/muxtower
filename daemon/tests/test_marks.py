@@ -89,3 +89,16 @@ def test_hidden_sessions_are_marked_and_hidden_everywhere(app: FastAPI, client: 
     assert app.state.push.notify_done(listed["id"]) == 0
     client.post(f"/v1/sessions/{listed['id']}/hide", json={"hidden": False}, headers=auth)
     assert client.get("/v1/sessions", headers=auth).json()[0]["hidden"] is False
+
+
+def test_pinned_sessions_are_marked_everywhere(app: FastAPI, client: TestClient, auth: dict[str, str],
+                                               tmux: FakeTmux) -> None:  # fmt: skip
+    tmux.add_pane("default", "work", "claude").screen = screens.IDLE
+    app.state.monitor.tick()
+    (listed,) = client.get("/v1/sessions", headers=auth).json()
+    assert listed["pinned"] is False
+    assert client.post(f"/v1/sessions/{listed['id']}/pin", json={}, headers=auth).status_code == 204
+    assert client.get("/v1/sessions", headers=auth).json()[0]["pinned"] is True
+    assert app.state.directory.marks.repo.load()[listed["id"]].pinned is True  # kept through a restart
+    client.post(f"/v1/sessions/{listed['id']}/pin", json={"pinned": False}, headers=auth)
+    assert client.get("/v1/sessions", headers=auth).json()[0]["pinned"] is False

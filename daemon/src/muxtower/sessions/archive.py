@@ -37,6 +37,7 @@ def _view(record: ArchiveRecord) -> Session:
             "terminal_attached": False,
             "unread": False,
             "hidden": False,
+            "pinned": False,
             "state": AgentState.IDLE,
             "state_source": StateSource.DEFAULT,
             "matched_rule": None,

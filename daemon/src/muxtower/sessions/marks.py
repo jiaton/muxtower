@@ -9,6 +9,8 @@ clears all three.
 
 Hidden: kept out of the lists and their counts (shown on their own), and out of "done" notifications.
 
+Pinned: listed above the others.
+
 Notify: which push notifications it sends (`NotifyLevel`), e.g. none from a session that checks on
 something every few minutes.
 
@@ -35,6 +37,7 @@ class Marks:
     machine: str | None = None
     folder: str | None = None
     notify: str = "all"
+    pinned: bool = False
 
 
 class MarksRepository(Protocol):
@@ -58,7 +61,7 @@ class SqliteMarksRepository:
         def record(r: sqlite3.Row) -> Marks:
             return Marks(
                 _time(r["finished_at"]), _time(r["seen_at"]), bool(r["marked_unread"]), bool(r["hidden"]),
-                r["machine"], r["folder"], r["notify"],
+                r["machine"], r["folder"], r["notify"], bool(r["pinned"]),
             )  # fmt: skip
 
         with self.db.connect() as conn:
@@ -68,11 +71,12 @@ class SqliteMarksRepository:
         with self.db.connect() as conn:
             conn.execute(
                 """INSERT INTO session_marks
-                       (session_id, finished_at, seen_at, marked_unread, hidden, machine, folder, notify)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                       (session_id, finished_at, seen_at, marked_unread, hidden, machine, folder, notify, pinned)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(session_id) DO UPDATE SET finished_at = excluded.finished_at,
                        seen_at = excluded.seen_at, marked_unread = excluded.marked_unread, hidden = excluded.hidden,
-                       machine = excluded.machine, folder = excluded.folder, notify = excluded.notify""",
+                       machine = excluded.machine, folder = excluded.folder, notify = excluded.notify,
+                       pinned = excluded.pinned""",
                 (
                     session_id,
                     _text(record.finished_at),
@@ -82,6 +86,7 @@ class SqliteMarksRepository:
                     record.machine,
                     record.folder,
                     record.notify,
+                    int(record.pinned),
                 ),  # fmt: skip
             )
 
@@ -113,6 +118,9 @@ class SessionMarks:
 
     def hide(self, session_id: str, hidden: bool) -> None:
         self._change(session_id, hidden=hidden)
+
+    def pin(self, session_id: str, pinned: bool) -> None:
+        self._change(session_id, pinned=pinned)
 
     def set_notify(self, session_id: str, level: str) -> None:
         self._change(session_id, notify=level)

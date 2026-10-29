@@ -9,7 +9,7 @@ import { useDetectPlacement, usePlaceSession } from '../api/use-placement'
 import { useSessionEntries } from '../hooks/use-session-entries'
 import { NO_ENVIRONMENT, deviceOf, folderOf } from '../model/facets'
 import { foldersAround } from '../model/folders'
-import { facetsOf } from '../model/query'
+import { facetsOf } from '../model/counts'
 
 const count = (n: number) => `${n} session${n === 1 ? '' : 's'}`
 

@@ -114,6 +114,7 @@ class Session(BaseModel):
     )
     finished_at: datetime | None = Field(default=None, description="when it last finished a turn")
     hidden: bool = Field(default=False, description="the owner hid it: kept out of the lists and done notifications")
+    pinned: bool = Field(default=False, description="the owner pinned it: listed above the others")
     notify: NotifyLevel = Field(default=NotifyLevel.ALL, description="which push notifications it sends")
     placement: Placement | None = Field(
         default=None, description="where the owner placed it; `machine` and `cwd` already follow it"
@@ -162,6 +163,10 @@ class CreateSession(BaseModel):
 
 class HideSession(BaseModel):
     hidden: bool = True
+
+
+class PinSession(BaseModel):
+    pinned: bool = True
 
 
 class SessionNotify(BaseModel):

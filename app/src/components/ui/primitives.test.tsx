@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { Dialog, DialogContent } from './dialog'
 import { Drawer } from './drawer'
-import { axisOf, landing, landMs, Speed } from './gesture'
+import { axisOf, landing, landMs, Speed, type Pull } from './gesture'
 import { Pager } from './pager'
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './dropdown-menu'
 import { Markdown } from './markdown'
@@ -261,11 +261,33 @@ describe('Drawer', () => {
   })
 })
 
-describe('Pager', () => {
-  it('shows one page of several, and a swipe right on the first one goes past it', () => {
-    const onPastStart = vi.fn()
+describe('Drawer pulled open', () => {
+  it('follows the finger while shut, then opens or goes back by where it let go', () => {
+    const onOpenChange = vi.fn()
+    const handed: { pull: Pull | null } = { pull: null }
     render(
-      <Pager index={0} onPastStart={onPastStart} label="Views">
+      <Drawer drawer open={false} onOpenChange={onOpenChange} onPull={(pull) => (handed.pull = pull)} label="Sessions">
+        <p>List</p>
+      </Drawer>,
+    )
+    const panel = screen.getByText('List').parentElement!
+    Object.defineProperty(panel, 'offsetWidth', { value: 320 })
+    const pull = handed.pull!
+    pull.move(100)
+    expect(panel.style.translate).toBe('-220px')
+    pull.end(100, 0) // not halfway, and slow: back
+    expect(onOpenChange).not.toHaveBeenCalled()
+    pull.move(60)
+    pull.end(60, 1) // a flick: open
+    expect(onOpenChange).toHaveBeenCalledWith(true)
+  })
+})
+
+describe('Pager', () => {
+  it('shows one page of several, and a swipe right on the first one pulls in what is before it, with the finger', () => {
+    const pull = { move: vi.fn(), end: vi.fn() }
+    render(
+      <Pager index={0} pastStart={pull} label="Views">
         <p>Terminal</p>
         <p>Conversation</p>
       </Pager>,
@@ -275,10 +297,16 @@ describe('Pager', () => {
     fireEvent.touchStart(pager, { touches: [{ clientX: 10, clientY: 100 }] })
     fireEvent.touchMove(pager, { touches: [{ clientX: 14, clientY: 140 }] }) // mostly down: a scroll
     fireEvent.touchMove(pager, { touches: [{ clientX: 60, clientY: 140 }] })
-    expect(onPastStart).not.toHaveBeenCalled()
+    expect(pull.move).not.toHaveBeenCalled()
     fireEvent.touchStart(pager, { touches: [{ clientX: 10, clientY: 100 }] })
-    fireEvent.touchMove(pager, { touches: [{ clientX: 60, clientY: 104 }] })
-    expect(onPastStart).toHaveBeenCalledTimes(1)
+    fireEvent.touchMove(pager, { touches: [{ clientX: 22, clientY: 102 }] }) // told a swipe: it starts here
+    fireEvent.touchMove(pager, { touches: [{ clientX: 80, clientY: 104 }] })
+    fireEvent.touchMove(pager, { touches: [{ clientX: 140, clientY: 104 }] })
+    expect(pull.move.mock.calls.map(([px]) => px)).toEqual([0, 58, 118]) // not opened before it lets go
+    expect(pull.end).not.toHaveBeenCalled()
+    expect(pager.firstElementChild).toHaveStyle({ transform: 'translateX(calc(0% + 0px))' }) // the pages stay
+    fireEvent.touchEnd(pager, { changedTouches: [{ clientX: 140, clientY: 104 }] })
+    expect(pull.end).toHaveBeenCalledWith(118, expect.any(Number))
   })
 
   it('keeps a tilted swipe a swipe however it drifts, and lands on the next page as soon as it lets go', () => {

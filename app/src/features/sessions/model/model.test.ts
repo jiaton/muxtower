@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { Session } from '@/lib/api/types'
 import type { Daemon } from '@/lib/daemons/types'
 import { NO_ENVIRONMENT, deviceOf, folderOf, shortFolderNames, sourceOf, statusOf, type SessionEntry } from './facets'
-import { facetsOf, filterEntries, folderSuggestions, groupEntries } from './query'
+import { facetsOf, folderSuggestions } from './counts'
+import { filterEntries, groupEntries } from './query'
 
 const daemon = { id: 'd1', name: 'hub', url: 'http://hub.test', token: 't' } as Daemon
 
@@ -89,6 +90,25 @@ describe('query', () => {
     expect(groups[1].implies).toEqual({ device: true, folder: true })
   })
 
+  it('lists what the owner pinned above the rest, under the assistant, whatever the grouping', () => {
+    const withPins = [
+      ...entries,
+      entry('kept', { pinned: true, updated_at: '2026-10-25T07:00:00Z' }),
+      entry('kept-waiting', { pinned: true, needs_attention: true }),
+    ]
+    for (const by of ['status', 'device', 'none'] as const) {
+      const groups = groupEntries(withPins, by)
+      expect(groups.slice(0, 2).map((g) => g.label)).toEqual(['Assistant', 'Pinned'])
+      expect(groups[1].entries.map((e) => e.session.id)).toEqual(['kept-waiting', 'kept'])
+      expect(
+        groups
+          .slice(2)
+          .flatMap((g) => g.entries)
+          .some((e) => e.session.pinned),
+      ).toBe(false)
+    }
+  })
+
   it('puts finished turns nobody has looked at between what needs you and what works', () => {
     const withNews = [...entries, entry('finished', { unread: true, updated_at: '2026-10-25T09:45:00Z' })]
     expect(statusOf(withNews.at(-1)!.session)).toBe('unread')
@@ -110,11 +130,7 @@ describe('query', () => {
   })
 
   it('keeps archived sessions in their own view, apart from hidden ones', () => {
-    const withAside = [
-      ...entries,
-      entry('done', { archived_at: '2026-10-25T11:00:00Z' }),
-      entry('tucked', { hidden: true }),
-    ]
+    const withAside = [...entries, entry('done', { archived_at: '2026-10-25T11:00:00Z' }), entry('tucked', { hidden: true })]
     const ids = (view: 'all' | 'hidden' | 'archived') => filterEntries(withAside, { view, group: 'status' }).map((e) => e.session.id)
     expect(ids('all')).not.toContain('done')
     expect(ids('hidden')).toEqual(['tucked'])

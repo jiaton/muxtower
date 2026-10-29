@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Archive, Eye, EyeOff, FolderInput, Mail, MailOpen, Pencil, Power, Trash2, type LucideIcon } from 'lucide-react'
+import { Archive, Eye, EyeOff, FolderInput, Mail, MailOpen, Pencil, Pin, PinOff, Power, Trash2, type LucideIcon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -7,19 +7,21 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import type { Session } from '@/lib/api/types'
 import { useArchiveSession, useTerminateSession, useUpdateSession } from '../api/use-session-mutations'
-import { useHideSession, useMarkRead } from '../api/use-session-marks'
+import { useHideSession, useMarkRead, usePinSession } from '../api/use-session-marks'
 import { PlaceDialog } from './place-dialog'
 
 export interface SessionAction {
-  id: 'read' | 'rename' | 'place' | 'hide' | 'archive' | 'stop' | 'delete'
+  id: 'read' | 'pin' | 'rename' | 'place' | 'hide' | 'archive' | 'stop' | 'delete'
   label: string
   icon: LucideIcon
   tone?: 'accent' | 'neutral' | 'danger'
   run: () => void
+  /** Only in menus: a list row's swipe tray has room for the rest. */
+  menuOnly?: boolean
 }
 
 /** What the owner can do to a session from anywhere it is shown (a list row's swipe tray or menu, the
- *  session's own menu): mark read or unread, rename, move (say where it runs), hide or show, archive, stop;
+ *  session's own menu): mark read or unread, pin or unpin, rename, move (say where it runs), hide or show, archive, stop;
  *  rename, move, archive and stop only where its capabilities allow. An archived session can only be deleted from the archive. Renders
  *  `children(actions)` plus the dialogs they open (archive, stop and delete ask first). `open`: the session
  *  is the page being shown, so marking it unread, hiding or deleting it goes back to the list first (an
@@ -38,6 +40,7 @@ export function SessionActions({
   const navigate = useNavigate()
   const markRead = useMarkRead()
   const hide = useHideSession()
+  const pin = usePinSession()
   const [dialog, setDialog] = useState<'rename' | 'place' | 'archive' | 'stop' | 'delete' | null>(null)
   const ids = { daemonId, sessionId: session.id }
   const leaving = (then: () => void) => (open ? () => void navigate({ to: '/', search: true }).then(then) : then)
@@ -51,15 +54,21 @@ export function SessionActions({
       session.unread
         ? { id: 'read', label: 'Read', icon: MailOpen, tone: 'accent', run: () => markRead.mutate({ ...ids, read: true }) }
         : { id: 'read', label: 'Unread', icon: Mail, tone: 'accent', run: leaving(() => markRead.mutate({ ...ids, read: false })) },
+      session.pinned
+        ? { id: 'pin', label: 'Unpin', icon: PinOff, tone: 'neutral', run: () => pin.mutate({ ...ids, pinned: false }) }
+        : { id: 'pin', label: 'Pin', icon: Pin, tone: 'neutral', run: () => pin.mutate({ ...ids, pinned: true }) },
     ]
-    if (session.capabilities.rename) live.push({ id: 'rename', label: 'Rename', icon: Pencil, tone: 'neutral', run: () => setDialog('rename') })
-    if (session.capabilities.place) live.push({ id: 'place', label: 'Move', icon: FolderInput, tone: 'neutral', run: () => setDialog('place') })
+    if (session.capabilities.rename)
+      live.push({ id: 'rename', label: 'Rename', icon: Pencil, tone: 'neutral', run: () => setDialog('rename'), menuOnly: true })
+    if (session.capabilities.place)
+      live.push({ id: 'place', label: 'Move', icon: FolderInput, tone: 'neutral', run: () => setDialog('place'), menuOnly: true })
     live.push(
       session.hidden
         ? { id: 'hide', label: 'Show', icon: Eye, tone: 'neutral', run: () => hide.mutate({ ...ids, hidden: false }) }
         : { id: 'hide', label: 'Hide', icon: EyeOff, tone: 'neutral', run: leaving(() => hide.mutate({ ...ids, hidden: true })) },
     )
-    if (session.capabilities.archive) live.push({ id: 'archive', label: 'Archive', icon: Archive, tone: 'neutral', run: () => setDialog('archive') })
+    if (session.capabilities.archive)
+      live.push({ id: 'archive', label: 'Archive', icon: Archive, tone: 'neutral', run: () => setDialog('archive') })
     if (session.capabilities.terminate) live.push({ id: 'stop', label: 'Stop', icon: Power, tone: 'danger', run: () => setDialog('stop') })
     return live
   }
@@ -182,7 +191,8 @@ function archiveEffect(session: Session): string {
   const kept = 'Its conversation stays readable under Archived.'
   const codex = session.runtime === 'codex'
   // a Codex pane that is also a thread of Codex's shared app-server keeps its thread: only the pane closes
-  if (session.tmux_pane && session.remote_id && !codex) return `This ends the agent, closes its tmux pane and archives it on Remote Control. ${kept}`
+  if (session.tmux_pane && session.remote_id && !codex)
+    return `This ends the agent, closes its tmux pane and archives it on Remote Control. ${kept}`
   if (session.tmux_pane) return `This ends the agent and closes its tmux pane. ${kept}`
   if (codex) return `This archives the thread in Codex, which ends it. ${kept}`
   return `This archives it on Remote Control, which ends the agent. ${kept}`

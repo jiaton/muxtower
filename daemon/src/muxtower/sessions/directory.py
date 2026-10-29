@@ -156,6 +156,12 @@ class SessionDirectory:
         if self.marks is not None:
             self.marks.hide(session.id, hidden)
 
+    def pin(self, session_id: str, pinned: bool) -> None:
+        """Above the others in the lists (or back among them), for every source."""
+        session = self.get(session_id)
+        if self.marks is not None:
+            self.marks.pin(session.id, pinned)
+
     def set_notify(self, session_id: str, level: NotifyLevel) -> Session:
         """Which push notifications it sends, for every source."""
         session = self.get(session_id)

@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import type { Pull } from '@/components/ui/gesture'
 import type { GroupBy } from './model/query'
 import type { ListSearch } from './model/search'
 
@@ -49,7 +50,42 @@ interface SessionDrawer {
   /** The list is open over the session being shown (phones). */
   open: boolean
   setOpen: (open: boolean) => void
+  /** While it is shut: what pulls it open with the finger (a swipe right on the session). */
+  pull: Pull | null
+  setPull: (pull: Pull | null) => void
 }
 
 /** Where the list is a drawer (a phone showing a session): whether it is open. Not persisted. */
-export const useSessionDrawer = create<SessionDrawer>()((set) => ({ open: false, setOpen: (open) => set({ open }) }))
+export const useSessionDrawer = create<SessionDrawer>()((set) => ({
+  open: false,
+  setOpen: (open) => set({ open }),
+  pull: null,
+  setPull: (pull) => set({ pull }),
+}))
+
+export type SessionView = 'terminal' | 'conversation'
+const VIEWS_KEPT = 300
+
+interface SessionViews {
+  /** Per session (`entryKey`): the view the owner last chose, terminal or conversation. */
+  views: Record<string, SessionView>
+  /** The one chosen last anywhere: where a session not opened before starts. */
+  last?: SessionView
+  setView: (key: string, view: SessionView) => void
+}
+
+/** Which view of a session it opens on: the one the owner left it on. */
+export const useSessionViews = create<SessionViews>()(
+  persist(
+    (set) => ({
+      views: {},
+      setView: (key, view) =>
+        set((s) => {
+          const { [key]: _, ...rest } = s.views // to the end: the oldest go first
+          const kept = Object.entries(rest).slice(-(VIEWS_KEPT - 1))
+          return { views: { ...Object.fromEntries(kept), [key]: view }, last: view }
+        }),
+    }),
+    { name: 'muxtower.views', version: 1 },
+  ),
+)

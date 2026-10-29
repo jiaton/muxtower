@@ -13,9 +13,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { Segmented } from '@/components/ui/segmented'
 import { cn } from '@/lib/cn'
-import { ASIDE_VIEWS, GROUPINGS, GROUP_LABEL, VIEWS, VIEW_LABEL, type Facets, type GroupBy, type SessionQuery } from '../model/query'
+import type { Facets } from '../model/counts'
+import { GROUPINGS, GROUP_LABEL, type GroupBy, type SessionQuery } from '../model/query'
 import { useMarkRead } from '../api/use-session-marks'
 import { folderName, shortFolderNames, type SessionEntry } from '../model/facets'
 import { scopeOf, scopeSearch, type ListSearch, type Scope } from '../model/search'
@@ -49,51 +49,6 @@ export function SearchField({ search }: { search: ListSearch }) {
         className="h-9 pl-8"
       />
     </div>
-  )
-}
-
-/** All / Needs you / Working, with counts (where the sidebar is not shown). */
-export function ViewTabs({
-  query,
-  search,
-  facets,
-  className,
-}: {
-  query: SessionQuery
-  search: ListSearch
-  facets: Facets
-  className?: string
-}) {
-  const navigate = useNavigate()
-  return (
-    <Segmented
-      className={className}
-      aria-label="Show"
-      value={scopeOf(query) || ASIDE_VIEWS.includes(query.view) ? ('none' as never) : query.view}
-      onChange={(view) => void navigate({ to: '/', search: scopeSearch(search, { view }) })}
-      options={VIEWS.filter((view) => !ASIDE_VIEWS.includes(view)).map((view) => ({
-        value: view,
-        label: (
-          <>
-            {view === 'all' ? 'All' : VIEW_LABEL[view]}
-            <span
-              className={cn(
-                'tabular-nums',
-                !facets.views[view]
-                  ? 'text-fg-muted'
-                  : view === 'needs'
-                    ? 'text-state-permission'
-                    : view === 'unread'
-                      ? 'text-accent'
-                      : 'text-fg-muted',
-              )}
-            >
-              {facets.views[view]}
-            </span>
-          </>
-        ),
-      }))}
-    />
   )
 }
 
@@ -255,10 +210,11 @@ export function FilterMenu({
   )
 }
 
-/** What the list is narrowed to (device › folder, a source, or an account), with a way out. */
+/** What the list is narrowed to (device › folder, a source, or an account), with a way out; not a
+ *  device alone, which the title and the device's own chip say. */
 export function ScopeChip({ query, search }: { query: SessionQuery; search: ListSearch }) {
   const scope = scopeOf(query)
-  if (!scope) return null
+  if (!scope || (scope.device && !scope.folder && !scope.source && !scope.account)) return null
   const label = [scope.device, scope.folder ? folderName(scope.folder) : null, scope.source, scope.account].filter(Boolean).join(' › ')
   return (
     <Link

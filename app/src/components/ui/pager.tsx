@@ -1,32 +1,40 @@
 import { Children, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
-import { axisOf, holdScroll, LAND_EASE, landing, landMs, Speed } from './gesture'
+import { axisOf, holdScroll, LAND_EASE, landing, landMs, sideways, Speed, type Pull } from './gesture'
 
-const EDGE_PX = 40 // how far a finger moves right, past the first page, to count as a swipe out
 const RESIST = 0.3 // past the last page a swipe moves the pages this much per pixel
 const WHEEL_PX = 60 // a trackpad's sideways scroll this far turns the page
 
-type Gesture = { x: number; y: number; from: number; at: number; axis?: 'x' | 'y'; speed: Speed }
+type Gesture = {
+  x: number
+  y: number
+  from: number
+  at: number
+  axis?: 'x' | 'y'
+  speed: Speed
+  /** Pulling what is past the first page: from this far across, and how far it came since. */
+  pull?: { from: number; at: number }
+}
 
 /**
  * Pages side by side, one page wide each, swiped between: the pages follow a sideways finger and, let go,
  * land on the page its distance and speed point to, at once: that page is the one shown (and takes
  * taps) as it slides in, as fast as the finger went. `index` is the page shown: changing it slides there,
  * and a swipe that lands on another page reports it (`onIndexChange`). A swipe to the right on the first
- * page has nowhere to go: `onPastStart` (e.g. open a drawer). A page that scrolls sideways itself (wide
- * output) takes the swipe while it can still scroll that way.
+ * page pulls in what is before it (`pastStart`, e.g. a drawer), with the finger, the pages staying put.
+ * A page that scrolls sideways itself (wide output) takes the swipe while it can still scroll that way.
  */
 export function Pager({
   index,
   onIndexChange,
-  onPastStart,
+  pastStart,
   label,
   className,
   children,
 }: {
   index: number
   onIndexChange?: (index: number) => void
-  onPastStart?: () => void
+  pastStart?: Pull
   label?: string
   className?: string
   children: ReactNode
@@ -39,9 +47,9 @@ export function Pager({
   state.current = { shown, count: pages.length }
   // Callbacks by ref: a page that renders often (live output) must not restart the listeners mid-swipe.
   const changed = useRef(onIndexChange)
-  const pastStart = useRef(onPastStart)
+  const pull = useRef(pastStart)
   changed.current = onIndexChange
-  pastStart.current = onPastStart
+  pull.current = pastStart
 
   useEffect(() => setShown(index), [index])
 
@@ -99,12 +107,13 @@ export function Pager({
       }
       if (g.axis !== 'x') return
       const { shown: page, count } = state.current
-      if (page === 0 && pastStart.current && g.from + dx > 0) {
-        if (dx > EDGE_PX) {
-          gesture.current = null
-          place.current(0, landMs(g.at))
-          pastStart.current()
+      if (page === 0 && pull.current && (g.pull || g.from + dx > 0)) {
+        if (!g.pull) {
+          g.pull = { from: dx, at: 0 } // the drawer starts from where the finger is now
+          place.current(0, 0)
         }
+        g.pull.at = Math.max(0, dx - g.pull.from)
+        pull.current.move(g.pull.at)
         return
       }
       const raw = g.from + dx
@@ -121,6 +130,7 @@ export function Pager({
       const t = e.changedTouches[0]
       if (t) g.speed.add(t.clientX)
       const speed = g.speed.get()
+      if (g.pull) return pull.current?.end(g.pull.at, speed)
       const to = landing(g.at, speed, g.at - g.from)
       const pages = Math.min(1, Math.round(Math.abs(to) / Math.max(1, el.clientWidth)))
       turn.current(state.current.shown - Math.sign(to) * pages, g.at, speed)
@@ -180,14 +190,4 @@ function offset(track: HTMLElement | null, width: number, shown: number): number
   const transform = track ? getComputedStyle(track).transform : ''
   if (!transform || transform === 'none' || typeof DOMMatrix === 'undefined') return 0
   return new DOMMatrix(transform).m41 + shown * width
-}
-
-/** Whether the touch began on something that scrolls sideways itself and can still go the way of `dx`
- *  (a finger moving right scrolls toward the start). */
-function sideways(target: EventTarget | null, root: HTMLElement, dx: number): boolean {
-  for (let el = target instanceof Element ? target : null; el && el !== root; el = el.parentElement) {
-    if (el.scrollWidth <= el.clientWidth + 1 || !/auto|scroll/.test(getComputedStyle(el).overflowX)) continue
-    if (dx > 0 ? el.scrollLeft > 0 : el.scrollLeft + el.clientWidth < el.scrollWidth - 1) return true
-  }
-  return false
 }
