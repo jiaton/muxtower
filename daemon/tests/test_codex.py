@@ -1,8 +1,13 @@
 import json
 import os
 import sqlite3
+from contextlib import closing
 from pathlib import Path
+from typing import Any
 
+import pytest
+
+from muxtower.agents.codex import processes
 from muxtower.agents.codex.processes import CodexProcesses
 from muxtower.agents.codex.rollout import RolloutBuilder
 from muxtower.agents.processes import AgentProcesses
@@ -235,3 +240,26 @@ def test_a_code_mode_argument_is_read_whatever_its_quotes_and_size() -> None:
     }
     big = "{" + ",".join(f"key{n}:'value {n}'" for n in range(20000)) + "}"
     assert len(_script_object(big)) == 20000  # in one pass: this ran quadratically once
+
+
+def test_the_state_database_is_closed_after_each_look(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # `with` on a connection does not close it: left open, every look kept the database and its WAL open
+    home = tmp_path / "codex"
+    home.mkdir()
+    with closing(sqlite3.connect(home / "state_5.sqlite")) as db:
+        db.execute("CREATE TABLE threads (id TEXT PRIMARY KEY)")
+    opened: list[sqlite3.Connection] = []
+    real = sqlite3.connect
+
+    def spy(*args: Any, **kwargs: Any) -> sqlite3.Connection:
+        opened.append(real(*args, **kwargs))
+        return opened[-1]
+
+    monkeypatch.setattr(processes.sqlite3, "connect", spy)
+    codex = CodexProcesses(home, proc=tmp_path / "proc")
+    for _ in range(3):
+        assert codex._query("SELECT id FROM threads", ()) == []
+    assert len(opened) == 3
+    for db in opened:
+        with pytest.raises(sqlite3.ProgrammingError):  # closed
+            db.execute("SELECT 1")
