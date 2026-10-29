@@ -19,6 +19,7 @@ import os
 import re
 import sqlite3
 import time
+from contextlib import closing
 from pathlib import Path
 
 from muxtower.infra.procfs import Children, all_commands, argv_of, cwd_of, family, open_files, started_at
@@ -67,7 +68,9 @@ class CodexProcesses:
 
     def _query(self, sql: str, args: tuple[object, ...]) -> list[tuple[object, ...]]:
         try:
-            with sqlite3.connect(f"file:{self.home / STATE_DB}?mode=ro", uri=True, timeout=1) as db:
+            # closed here: `with` on a connection only ends its transaction, and each one left to the garbage
+            # collector keeps the database and its WAL open (macOS gives a process 256 files)
+            with closing(sqlite3.connect(f"file:{self.home / STATE_DB}?mode=ro", uri=True, timeout=1)) as db:
                 return db.execute(sql, args).fetchall()
         except sqlite3.Error:
             return []
