@@ -39,9 +39,7 @@ const appBase = () => {
 self.addEventListener('push', (event) => {
   const data = event.data?.json() as PushPayload | undefined
   if (!data) return
-  const url = data.session_id
-    ? `${appBase()}d/${encodeURIComponent(data.client_ref)}/s/${encodeURIComponent(data.session_id)}`
-    : appBase()
+  const url = data.session_id ? `${appBase()}d/${encodeURIComponent(data.client_ref)}/s/${encodeURIComponent(data.session_id)}` : appBase()
   event.waitUntil(
     // One notification per session: a newer one replaces it (a finished turn replaces a handled
     // approval) and alerts again. Something waiting for you stays on screen until dismissed or settled

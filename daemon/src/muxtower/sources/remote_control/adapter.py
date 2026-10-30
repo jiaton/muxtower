@@ -55,17 +55,27 @@ def _translated() -> Iterator[None]:
 
 class AnthropicRemoteControl:
     def __init__(self, credentials_path: Path | None = None, config_path: Path | None = None) -> None:
-        # Refreshing rotates the shared, single-use refresh token in ~/.claude; the client writes the new
-        # one back so the Claude Code CLI on this machine keeps working (and re-reads if the CLI won).
-        self.client = RemoteControlClient(
-            credentials_path=str(credentials_path) if credentials_path else None,
-            config_path=str(config_path) if config_path else None,
-            auto_refresh=True,
-            persist_refresh=True,
-        )
+        self._paths = (credentials_path, config_path)
+        self._client: RemoteControlClient | None = None
         # One call at a time: the poll and requests share the client, and its token refresh (a
         # single-use refresh token) is not safe to run twice at once.
         self._lock = threading.Lock()
+
+    @property
+    def client(self) -> RemoteControlClient:
+        """Made on first use, always inside `_call`: on a machine not logged in yet that call fails as an
+        expired login (and the next one tries again) instead of the daemon failing to start."""
+        if self._client is None:
+            credentials_path, config_path = self._paths
+            # Refreshing rotates the shared, single-use refresh token in ~/.claude; the client writes the
+            # new one back so the Claude Code CLI on this machine keeps working (and re-reads if it won).
+            self._client = RemoteControlClient(
+                credentials_path=str(credentials_path) if credentials_path else None,
+                config_path=str(config_path) if config_path else None,
+                auto_refresh=True,
+                persist_refresh=True,
+            )
+        return self._client
 
     @contextmanager
     def _call(self) -> Iterator[None]:

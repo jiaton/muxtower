@@ -682,6 +682,31 @@
         "title": "JoinHub",
         "type": "object"
       },
+      "LoginStart": {
+        "properties": {
+          "session": {
+            "$ref": "#/components/schemas/Session"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the page to sign in at, read off the session's screen; none if it showed none in time (the session then says why)",
+            "title": "Url"
+          }
+        },
+        "required": [
+          "session",
+          "url"
+        ],
+        "title": "LoginStart",
+        "type": "object"
+      },
       "MarkRead": {
         "properties": {
           "read": {
@@ -2112,6 +2137,28 @@
         "summary": "Transcribe",
         "tags": [
           "voice"
+        ]
+      }
+    },
+    "/v1/claude-login": {
+      "post": {
+        "description": "Starts `claude auth login` on this daemon's machine (`sessions/login.py`): open `url`, sign in, and\ntype the code the page gives into the session it returns.",
+        "operationId": "claude_login_v1_claude_login_post",
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LoginStart"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Claude Login",
+        "tags": [
+          "sessions"
         ]
       }
     },

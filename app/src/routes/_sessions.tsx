@@ -8,6 +8,7 @@ import { Pane, PaneBody, PaneHeader } from '@/components/ui/pane'
 import { QuickApproval } from '@/features/approval/components/quick-approval'
 import { PairCodeForm } from '@/features/pairing/components/pair-code-form'
 import { DaemonAlerts } from '@/features/sessions/components/daemon-alerts'
+import { ExpiredLogins } from '@/features/daemons/components/expired-logins'
 import { ListChips } from '@/features/sessions/components/list-chips'
 import { FilterMenu, ListMenu, ScopeChip, SearchField } from '@/features/sessions/components/list-controls'
 import { NewSessionDialog } from '@/features/sessions/components/new-session-dialog'
@@ -108,6 +109,7 @@ function SessionsLayout() {
         </PaneHeader>
         <PaneBody ref={listRef}>
           <DaemonAlerts daemons={daemons} />
+          <ExpiredLogins />
           {groups.length ? (
             <SessionList
               groups={groups}

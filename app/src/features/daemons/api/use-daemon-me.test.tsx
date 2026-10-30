@@ -38,9 +38,7 @@ it('does not call an unpaired daemon at all', () => {
 
 it('names the daemons whose Claude login expired', async () => {
   server.use(
-    http.get(`${DAEMON_URL}/v1/me`, () =>
-      HttpResponse.json({ token_name: 'phone', daemon_name: 'box', claude_login_expired: true }),
-    ),
+    http.get(`${DAEMON_URL}/v1/me`, () => HttpResponse.json({ token_name: 'phone', daemon_name: 'box', claude_login_expired: true })),
   )
   const { id } = addDaemon('good')
   const { result } = renderHook(() => useExpiredLogins(), { wrapper: wrapper() })

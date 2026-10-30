@@ -10,6 +10,7 @@ from muxtower.runtimes.models import RuntimeInfo
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.launcher import Launcher
+from muxtower.sessions.login import LoginStart, start_claude_login
 from muxtower.sessions.models import (
     Conversation,
     CreateSession,
@@ -80,6 +81,15 @@ async def create_session(body: CreateSession, device: CurrentDevice, launcher: L
     headless = " headless" if body.headless else ""
     audit.record(device.name, "create", session.id, f"runtime={session.runtime} cwd={session.cwd}{headless}")
     return session
+
+
+@router.post("/claude-login", status_code=201)
+async def claude_login(request: Request, device: CurrentDevice, audit: Audit) -> LoginStart:
+    """Starts `claude auth login` on this daemon's machine (`sessions/login.py`): open `url`, sign in, and
+    type the code the page gives into the session it returns."""
+    started = await asyncio.to_thread(start_claude_login, request.app.state.sessions)
+    audit.record(device.name, "claude-login", started.session.id)
+    return started
 
 
 @router.get("/sessions/{session_id}")

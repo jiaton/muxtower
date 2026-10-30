@@ -5,6 +5,7 @@ import os
 import secrets
 import time
 import uuid
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -147,21 +148,25 @@ class SessionService:
         cwd = os.path.abspath(os.path.expanduser(request.cwd))
         if not os.path.isdir(cwd):
             raise Invalid(f"not a directory: {cwd}")
+        return self.launch(runtime, cwd, request.args, request.name, hooks=True)
 
+    def launch(self, runtime: Runtime, cwd: str, args: Sequence[str], name: str | None, hooks: bool) -> Session:
+        """Starts the runtime's binary with `args` in a tmux session of its own; with its hooks, if it has
+        them, reporting to this daemon."""
         session_id = uuid.uuid4().hex[:12]
         hook_token = secrets.token_urlsafe(24)
         argv = [runtime.config.binary]
-        if hooks := harness(runtime.config.hooks):
-            url = f"{self.config.local_url}/v1/hooks/{hooks.name}"
-            argv += hooks.launch_args(HookLaunch(session_id, hook_token, url, self.hook_files))
-        argv += request.args
+        if hooks and (harnessed := harness(runtime.config.hooks)):
+            url = f"{self.config.local_url}/v1/hooks/{harnessed.name}"
+            argv += harnessed.launch_args(HookLaunch(session_id, hook_token, url, self.hook_files))
+        argv += args
 
         tmux_session = f"mxt-{session_id[:8]}"
         env = {"MUXTOWER_SESSION_ID": session_id, "MUXTOWER_HOOK_TOKEN": hook_token}
         pane = self.tmux.new_session(self.config.socket, tmux_session, cwd, argv, env, DEFAULT_COLS, DEFAULT_ROWS)
         record = SessionRecord(
             id=session_id,
-            name=request.name or os.path.basename(cwd.rstrip("/")) or cwd,
+            name=name or os.path.basename(cwd.rstrip("/")) or cwd,
             runtime=runtime.name,
             cwd=cwd,
             source=SessionSource.LAUNCHED,
@@ -170,7 +175,7 @@ class SessionService:
             hook_token_hash=_hash(hook_token),
             auto_approve=False,
             created_at=datetime.now(UTC),
-            named=bool(request.name),
+            named=bool(name),
         )
         self.repo.upsert(record)
         return self.view(record)

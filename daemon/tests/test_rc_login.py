@@ -70,3 +70,27 @@ def test_every_device_is_told_whatever_it_mutes() -> None:
     assert service.notify_login_expired() == 1
     sent = json.loads(sender.sent[-1][1])
     assert sent["kind"] == "login" and sent["session_id"] is None and "nas" in sent["body"]
+
+
+def test_logging_in_again_starts_claude_auth_login_and_reads_its_link(client: TestClient, auth: dict[str, str],
+                                                                     tmux: FakeTmux) -> None:  # fmt: skip
+    link = "https://claude.com/cai/oauth/authorize?code=true&client_id=x&state=y"
+    new_session = tmux.new_session
+
+    def shows_link(*args: Any) -> Any:
+        pane = new_session(*args)
+        tmux.panes[
+            (pane.socket, pane.pane_id)
+        ].screen = (
+            f"Opening browser to sign in…\nIf the browser didn't open, visit: {link}\nPaste code here if prompted >"
+        )
+        return pane
+
+    tmux.new_session = shows_link  # type: ignore[method-assign]
+    started = client.post("/v1/claude-login", headers=auth)
+    assert started.status_code == 201
+    body = started.json()
+    assert body["url"] == link
+    assert body["session"]["name"] == "Claude login" and body["session"]["cwd"] == str(Path.home())
+    (pane,) = tmux.panes.values()
+    assert pane.argv == ["claude", "auth", "login"]  # not an agent: none of its hooks
