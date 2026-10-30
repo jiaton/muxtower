@@ -3,9 +3,10 @@
 from datetime import datetime
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 from muxtower.runtimes.models import AgentState, Option, PendingQuestion
+from muxtower.sessions.images import shown_images
 from muxtower.sessions.ports import SessionSource
 
 
@@ -226,6 +227,17 @@ class ConversationItem(BaseModel):
     actions: list[NextStepAction] = Field(
         default_factory=list, description="next_step: replies to pick, each sent as the owner's message"
     )
+    images: list[str] = Field(
+        default_factory=list,
+        description="paths of the images it shows (a file looked at or sent, a path in a message), for "
+        "GET /v1/sessions/{id}/image",
+    )
+
+    @model_validator(mode="after")
+    def _images(self) -> "ConversationItem":
+        if not self.images:
+            self.images = shown_images(self.kind, self.tool_name, self.text)
+        return self
 
 
 class Conversation(BaseModel):

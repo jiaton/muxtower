@@ -9,6 +9,7 @@ from muxtower.errors import Conflict
 from muxtower.nodes.processes import NodeProcesses
 from muxtower.nodes.source import NodeSource
 from muxtower.sessions.directory import SessionDirectory
+from muxtower.sessions.images import ImageFile
 from muxtower.sessions.models import Conversation, Session, UpdateSession
 from muxtower.terminal.models import Resize, Screen, SendInput
 
@@ -42,6 +43,12 @@ class HubDirectory(SessionDirectory):
             self.require(session_id, "conversation")
             return self.nodes.conversation(session_id, after, limit)
         return super().conversation(session_id, after, limit)
+
+    def image(self, session_id: str, path: str) -> ImageFile:
+        if self._on_node(session_id):  # read where it runs
+            self.require(session_id, "conversation")
+            return self.nodes.image(session_id, path)
+        return super().image(session_id, path)
 
     def screen(self, session_id: str, history: int) -> Screen:
         if self._on_node(session_id):

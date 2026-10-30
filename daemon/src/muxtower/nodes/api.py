@@ -1,6 +1,7 @@
 """What a hub may do on this daemon (its node), by the method names of the link (`protocol.METHODS`):
 the same as a device does through the API, on this daemon's own sessions. Blocking; run from a thread."""
 
+import base64
 from typing import Any
 
 from pydantic import BaseModel
@@ -55,6 +56,9 @@ class NodeApi:
         match method:
             case "conversation":
                 return _json(d.conversation(sid, int(params.get("after", 0)), int(params.get("limit", 100))))
+            case "image":
+                image = d.image(sid, str(params.get("path", "")))
+                return {"media_type": image.media_type, "data": base64.b64encode(image.data).decode()}
             case "screen":
                 return _json(d.screen(sid, int(params.get("history", 200))))
             case "input":

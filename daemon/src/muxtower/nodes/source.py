@@ -10,6 +10,7 @@ Every call is blocking, from a request thread: it is handed to the link on the e
 for. A node that is offline answers nothing; its sessions are listed from its last report, read only."""
 
 import asyncio
+import base64
 from collections.abc import Callable
 from typing import Any
 
@@ -17,6 +18,7 @@ from muxtower.approval.models import ApprovalResult
 from muxtower.errors import Conflict, NotFound
 from muxtower.nodes.hub import Node, Nodes
 from muxtower.runtimes.models import AgentState
+from muxtower.sessions.images import ImageFile
 from muxtower.sessions.models import Capabilities, Conversation, CreateSession, Session, UpdateSession
 from muxtower.sessions.ports import SessionSource
 from muxtower.terminal.models import ImageInput, Resize, Screen, SendInput
@@ -125,6 +127,10 @@ class NodeSource:
     def conversation(self, session_id: str, after: int, limit: int) -> Conversation:
         result = self._call(session_id, "conversation", {"after": after, "limit": limit})
         return Conversation.model_validate(result).model_copy(update={"session_id": session_id})
+
+    def image(self, session_id: str, path: str) -> ImageFile:
+        result = self._call(session_id, "image", {"path": path})
+        return ImageFile(str(result["media_type"]), base64.b64decode(result["data"]))
 
     def screen(self, session_id: str, history: int) -> Screen:
         result = self._call(session_id, "screen", {"history": history})

@@ -290,6 +290,14 @@
             "description": "a tool call's own one-line account of itself, when the agent gave one",
             "title": "Description"
           },
+          "images": {
+            "description": "paths of the images it shows (a file looked at or sent, a path in a message), for GET /v1/sessions/{id}/image",
+            "items": {
+              "type": "string"
+            },
+            "title": "Images",
+            "type": "array"
+          },
           "kind": {
             "$ref": "#/components/schemas/ConversationItemKind"
           },
@@ -3053,6 +3061,54 @@
           }
         },
         "summary": "Hide Session",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/image": {
+      "get": {
+        "description": "An image the session's conversation shows (`ConversationItem.images`), from the machine it runs on.\nNo other file: 404 for a path the conversation does not show, 409 when the session runs elsewhere.",
+        "operationId": "get_image_v1_sessions__session_id__image_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "title": "Path",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "image/*": {}
+            },
+            "description": "the image file"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Image",
         "tags": [
           "sessions"
         ]

@@ -1,7 +1,7 @@
 import asyncio
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 
 from muxtower.approval.models import ApprovalResult, Approve
 from muxtower.auth.deps import CurrentDevice
@@ -184,6 +184,19 @@ async def archive_session(
     await asyncio.to_thread(archiver.archive, session_id)
     audit.record(device.name, "archive", session_id)
     request.app.state.bus.publish("sessions", None)
+
+
+@router.get(
+    "/sessions/{session_id}/image",
+    response_class=Response,
+    responses={200: {"content": {"image/*": {}}, "description": "the image file"}},
+)
+def get_image(session_id: str, path: str, _: CurrentDevice, directory: Directory) -> Response:
+    """An image the session's conversation shows (`ConversationItem.images`), from the machine it runs on.
+    No other file: 404 for a path the conversation does not show, 409 when the session runs elsewhere."""
+    image = directory.image(session_id, path)
+    headers = {"Cache-Control": "private, max-age=86400", "X-Content-Type-Options": "nosniff"}
+    return Response(image.data, media_type=image.media_type, headers=headers)
 
 
 @router.get("/sessions/{session_id}/screen")
