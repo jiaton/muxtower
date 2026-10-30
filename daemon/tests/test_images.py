@@ -53,7 +53,7 @@ def test_remote_control_gets_the_images_inside_the_message() -> None:
             sent.append((session_id, events))
 
     adapter = AnthropicRemoteControl.__new__(AnthropicRemoteControl)
-    adapter.client, adapter._lock = Client(), threading.Lock()
+    adapter._client, adapter._lock = Client(), threading.Lock()  # type: ignore[assignment]
     adapter.send_message("cse_1", "what is this?", [ImageInput.model_validate(IMAGE)])
     ((sid, (event,)),) = sent
     content = event["message"]["content"]

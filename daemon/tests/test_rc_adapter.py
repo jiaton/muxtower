@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import httpx
 import pytest
 
@@ -22,3 +24,11 @@ def test_client_failures_become_domain_errors(raised: Exception, expected: type[
     with pytest.raises(expected) as caught, _translated():
         raise raised
     assert "request text" not in str(caught.value)  # response bodies stay out of messages
+
+
+def test_a_machine_not_logged_in_fails_its_calls_not_the_daemon(tmp_path: Path) -> None:
+    from muxtower.sources.remote_control.adapter import AnthropicRemoteControl
+
+    port = AnthropicRemoteControl(tmp_path / "no-credentials.json", tmp_path / "no-config.json")  # starts
+    with pytest.raises(LoginExpired):
+        port.list_sessions(None)

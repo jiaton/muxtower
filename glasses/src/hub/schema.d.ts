@@ -25,6 +25,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/claude-login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Claude Login
+         * @description Starts `claude auth login` on this daemon's machine (`sessions/login.py`): open `url`, sign in, and
+         *     type the code the page gives into the session it returns.
+         */
+        post: operations["claude_login_v1_claude_login_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/devices": {
         parameters: {
             query?: never;
@@ -970,6 +991,15 @@ export interface components {
              */
             url: string;
         };
+        /** LoginStart */
+        LoginStart: {
+            session: components["schemas"]["Session"];
+            /**
+             * Url
+             * @description the page to sign in at, read off the session's screen; none if it showed none in time (the session then says why)
+             */
+            url: string | null;
+        };
         /** MarkRead */
         MarkRead: {
             /**
@@ -1610,6 +1640,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    claude_login_v1_claude_login_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginStart"];
                 };
             };
         };
