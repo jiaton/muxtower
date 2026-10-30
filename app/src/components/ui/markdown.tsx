@@ -3,8 +3,9 @@ import ReactMarkdown, { type Components } from 'react-markdown'
 import remarkCjkFriendly from 'remark-cjk-friendly'
 import remarkGfm from 'remark-gfm'
 import { cn } from '@/lib/cn'
+import { CodeBlock } from './code-block'
 
-type Tag = 'h3' | 'h4' | 'h5' | 'p' | 'ul' | 'ol' | 'li' | 'blockquote' | 'pre' | 'th' | 'td'
+type Tag = 'h3' | 'h4' | 'h5' | 'p' | 'ul' | 'ol' | 'li' | 'blockquote' | 'th' | 'td'
 
 /** An element with our classes; react-markdown's `node` prop stays off the DOM. */
 const styled = (Tag: Tag, className: string) =>
@@ -24,9 +25,11 @@ const components: Components = {
   ol: styled('ol', 'list-decimal space-y-0.5 pl-5'),
   li: styled('li', 'pl-0.5 [&>input]:mr-1.5'),
   blockquote: styled('blockquote', 'border-l-2 border-border pl-3 text-fg-muted'),
-  pre: styled(
-    'pre',
-    'overflow-x-auto rounded-md bg-surface-muted p-2.5 font-mono text-xs leading-snug [&_code]:bg-transparent [&_code]:p-0',
+  pre: (props) => (
+    <CodeBlock
+      {...props}
+      className="overflow-x-auto rounded-md bg-surface-muted p-2.5 font-mono text-xs leading-snug [&_code]:bg-transparent [&_code]:p-0"
+    />
   ),
   th: styled('th', 'border border-border bg-surface-muted px-2 py-1 text-left font-medium'),
   td: styled('td', 'border border-border px-2 py-1 align-top'),
@@ -47,7 +50,8 @@ const components: Components = {
 }
 
 /** Agents' replies are Markdown (GitHub flavour: tables, task lists, strikethrough). Raw HTML in them
- *  is shown as text, never rendered. Wide tables and code scroll on their own, never the page. */
+ *  is shown as text, never rendered. Wide tables and code scroll on their own, never the page; code blocks
+ *  have a Copy button. */
 export function Markdown({ children, className }: { children: string; className?: ComponentProps<'div'>['className'] }) {
   return (
     <div className={cn('flex min-w-0 flex-col gap-2 break-words', className)}>
