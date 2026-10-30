@@ -1,12 +1,14 @@
-import { useEffect, useRef, useState, type ComponentType, type RefObject } from 'react'
+import { Check, Copy } from 'lucide-react'
+import { useEffect, useRef, useState, type ComponentType, type PointerEvent, type RefObject } from 'react'
 import { Button } from './button'
 
-const SETTLE_MS = 200 // a selection still being dragged out is not ready to act on
-const EDGE_PX = 64 // how near the screen's sides and bottom the button may come
+const SETTLE_MS = 120 // a selection still being dragged out is not ready to act on
+const EDGE_PX = 96 // how near the screen's sides and bottom the buttons may come
+const COPIED_MS = 900 // how long "Copied" shows before the buttons go
 
-/** A button by text selected inside `within` (e.g. Reply), once the selection rests: under it, since a
- *  phone draws its own menu (copy, look up) above it. It acts on the text as it was selected, and the
- *  selection goes. */
+/** Copy, and a button of its own (e.g. Reply), by text selected inside `within` once the selection rests:
+ *  under it, since a phone draws its own menu (copy among many, look up) above it. They act on the text
+ *  as it was selected, and the selection goes. */
 export function SelectionAction({
   within,
   label,
@@ -19,6 +21,7 @@ export function SelectionAction({
   onAction: (text: string) => void
 }) {
   const [at, setAt] = useState<{ x: number; y: number; text: string } | null>(null)
+  const [copied, setCopied] = useState(false)
   const acting = useRef(false) // the button pressed: what the press does to the selection does not count
 
   useEffect(() => {
@@ -59,18 +62,42 @@ export function SelectionAction({
     }
   }, [within])
 
+  useEffect(() => {
+    if (!copied) return
+    const timer = setTimeout(() => {
+      document.getSelection()?.removeAllRanges()
+      setAt(null)
+      setCopied(false)
+    }, COPIED_MS)
+    return () => clearTimeout(timer)
+  }, [copied])
+
   if (!at) return null
   const left = Math.min(Math.max(at.x, EDGE_PX), window.innerWidth - EDGE_PX)
   const top = Math.min(at.y + 10, window.innerHeight - EDGE_PX)
+  const press = (e: PointerEvent) => {
+    acting.current = true
+    e.preventDefault() // keep the selection (and the keyboard) as they are until it acts
+  }
   return (
-    <div className="fixed z-50 -translate-x-1/2" style={{ left, top }}>
+    <div className="fixed z-50 flex -translate-x-1/2 gap-2" style={{ left, top }}>
+      <Button
+        size="sm"
+        variant="secondary"
+        className="shadow-card"
+        onPointerDown={press}
+        onClick={() => {
+          copyText(at.text)
+          setCopied(true)
+        }}
+      >
+        {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
+        {copied ? 'Copied' : 'Copy'}
+      </Button>
       <Button
         size="sm"
         className="shadow-card"
-        onPointerDown={(e) => {
-          acting.current = true
-          e.preventDefault() // keep the selection (and the keyboard) as they are until it acts
-        }}
+        onPointerDown={press}
         onClick={() => {
           onAction(at.text)
           document.getSelection()?.removeAllRanges()
@@ -82,4 +109,12 @@ export function SelectionAction({
       </Button>
     </div>
   )
+}
+
+/** The clipboard where the page may write it; else the old way, which copies what is selected (the
+ *  buttons keep the selection). */
+function copyText(text: string) {
+  const fallback = () => void document.execCommand?.('copy')
+  if (navigator.clipboard?.writeText) navigator.clipboard.writeText(text).catch(fallback)
+  else fallback()
 }
