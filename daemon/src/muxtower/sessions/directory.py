@@ -5,18 +5,19 @@ session's capabilities and hands the action to the local services or to the owni
 gets a 409 instead of keys sent to the wrong place.
 """
 
-import logging
 from collections.abc import Callable
 from typing import Literal
 
 from muxtower.approval.models import Answers, ApprovalResult
 from muxtower.approval.service import ApprovalService
-from muxtower.errors import Conflict, NotFound, Unavailable
+from muxtower.errors import Conflict, NotFound
 from muxtower.sessions.archive import SessionArchive
 from muxtower.sessions.decorate import decorate
+from muxtower.sessions.images import ImageFile, read_shown
 from muxtower.sessions.marks import SessionMarks
 from muxtower.sessions.merged import merged
-from muxtower.sessions.models import Conversation, NotifyLevel, Session, UpdateSession
+from muxtower.sessions.models import Conversation, Session, UpdateSession
+from muxtower.sessions.owner_marks import OwnerMarks
 from muxtower.sessions.ports import ClaudeProcessPort, SessionSourcePort
 from muxtower.sessions.service import SessionService
 from muxtower.sessions.transcripts import Transcripts
@@ -24,16 +25,16 @@ from muxtower.summaries.service import SummaryService
 from muxtower.terminal.models import Resize, Screen, SendInput
 from muxtower.terminal.service import TerminalService
 
-logger = logging.getLogger("muxtower.sessions")
-
 Capability = Literal["screen", "conversation", "resize", "terminate", "rename", "archive", "place"]
 WHAT = {
     "screen": "a terminal screen", "conversation": "a structured conversation", "resize": "resizing",
     "terminate": "stopping", "rename": "renaming", "archive": "archiving", "place": "placing",
 }  # fmt: skip
 
+IMAGE_ITEMS = 2000  # how far back in a conversation its images can be read
 
-class SessionDirectory:
+
+class SessionDirectory(OwnerMarks):
     def __init__(
         self,
         local: SessionService,
@@ -136,6 +137,10 @@ class SessionDirectory:
             return source.conversation(remote_id, after, limit).model_copy(update={"session_id": session_id})
         raise Conflict("this session has no conversation to read")
 
+    def image(self, session_id: str, path: str) -> ImageFile:
+        """An image its conversation shows, read here if the session runs here (`sessions/images.py`)."""
+        return read_shown(path, self.conversation(session_id, 0, IMAGE_ITEMS).items, self.get(session_id).on_host)
+
     def transcript_paths(self) -> dict[str, str]:
         """Local sessions and the transcript their conversation is read from."""
         return {s.id: path for s in self.local.list() if (path := self.local.transcript_of(s.id))}
@@ -152,42 +157,6 @@ class SessionDirectory:
             self.terminal.monitor.remove_viewer(session_id, history)
 
     # --- actions ------------------------------------------------------------------------------
-
-    def hide(self, session_id: str, hidden: bool) -> None:
-        """Out of the lists (or back in), for every source."""
-        session = self.get(session_id)
-        if self.marks is not None:
-            self.marks.hide(session.id, hidden)
-
-    def pin(self, session_id: str, pinned: bool) -> None:
-        """Above the others in the lists (or back among them), for every source."""
-        session = self.get(session_id)
-        if self.marks is not None:
-            self.marks.pin(session.id, pinned)
-
-    def set_notify(self, session_id: str, level: NotifyLevel) -> Session:
-        """Which push notifications it sends, for every source."""
-        session = self.get(session_id)
-        if self.marks is not None:
-            self.marks.set_notify(session.id, level.value)
-        return self.get(session_id)
-
-    def mark_read(self, session_id: str, read: bool) -> None:
-        """Read: the owner looked at it, here and (best effort) in the Claude apps. Unread: to come back to."""
-        session = self.get(session_id)
-        if self.marks is None:
-            return
-        if not read:
-            self.marks.mark_unread(session.id)
-            return
-        self.marks.seen(session.id)
-        remote_id = session.remote_id or session.id
-        source = self.source_of(remote_id)
-        if source is not None and source.get(remote_id).unread:  # clients repeat this; ask only when needed
-            try:
-                source.mark_read(remote_id)
-            except Unavailable as exc:
-                logger.warning("could not mark %s read on its source: %s", remote_id, exc)
 
     def update(self, session_id: str, patch: UpdateSession) -> Session:
         if self.source_of(session_id) is not None:  # no source offers either today

@@ -447,6 +447,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_id}/image": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Image
+         * @description An image the session's conversation shows (`ConversationItem.images`), from the machine it runs on.
+         *     No other file: 404 for a path the conversation does not show, 409 when the session runs elsewhere.
+         */
+        get: operations["get_image_v1_sessions__session_id__image_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_id}/input": {
         parameters: {
             query?: never;
@@ -817,6 +838,11 @@ export interface components {
              * @description a tool call's own one-line account of itself, when the agent gave one
              */
             description?: string | null;
+            /**
+             * Images
+             * @description paths of the images it shows (a file looked at or sent, a path in a message), for GET /v1/sessions/{id}/image
+             */
+            images?: string[];
             kind: components["schemas"]["ConversationItemKind"];
             /** Seq */
             seq: number;
@@ -2359,6 +2385,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_image_v1_sessions__session_id__image_get: {
+        parameters: {
+            query: {
+                path: string;
+            };
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the image file */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/*": unknown;
+                };
             };
             /** @description Validation Error */
             422: {

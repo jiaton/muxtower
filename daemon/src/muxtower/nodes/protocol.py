@@ -36,7 +36,7 @@ CLOSE_INCOMPATIBLE = 4400
 # What the hub may ask of a node.
 METHODS = frozenset({
     "conversation", "screen", "watch_screen", "unwatch_screen", "input", "approve", "deny", "resize",
-    "release_size", "update", "terminate", "archive", "mark_read", "detect_folder", "create",
+    "release_size", "update", "terminate", "archive", "mark_read", "detect_folder", "create", "image",
 })  # fmt: skip
 
 ERRORS: dict[int, type[Exception]] = {
