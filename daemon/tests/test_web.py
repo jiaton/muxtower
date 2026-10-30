@@ -38,3 +38,8 @@ def test_only_hashed_assets_are_cached(client: TestClient) -> None:
     assert "immutable" in client.get("/g2/assets/main.js").headers["cache-control"]
     assert client.get("/sw.js").headers["cache-control"] == "no-cache"
     assert client.get("/sessions/x").headers["cache-control"] == "no-cache"
+
+
+def test_another_versions_asset_is_not_found(client: TestClient) -> None:
+    assert client.get("/assets/index-old.js").status_code == 404
+    assert client.get("/g2/assets/old.js").status_code == 404

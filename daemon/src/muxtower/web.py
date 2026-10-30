@@ -34,6 +34,10 @@ def mount_ui(app: FastAPI, public_url: str | None, daemon_name: str) -> None:
         candidate = (WEB_DIR / path).resolve()
         if path and candidate.is_file() and candidate.is_relative_to(WEB_DIR.resolve()):
             return FileResponse(candidate, headers=IMMUTABLE if "assets" in Path(path).parts[:2] else NO_CACHE)
+        if "assets" in Path(path).parts[:2]:
+            # Another version's file, asked for by a page left open across an update: the page given
+            # instead would fail as a script without saying why, and the app could not tell to reload.
+            return Response(status_code=404, headers=NO_CACHE)
         sub = path.split("/", 1)[0]
         if sub in SUB_APPS and (WEB_DIR / sub / "index.html").is_file():
             if path == sub:  # its assets are relative to the folder
