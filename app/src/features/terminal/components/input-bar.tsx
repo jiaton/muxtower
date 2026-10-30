@@ -62,6 +62,16 @@ export function InputBar({
     if (quotes.length > quoted.current && !touch) box.current?.focus()
     quoted.current = quotes.length
   }, [quotes.length])
+  const filled = useDrafts((s) => s.filled[draftKey] ?? 0)
+  const seenFill = useRef(filled)
+  useEffect(() => {
+    // Filled in from outside (a code block as a command): there to read and send, from its end.
+    if (filled === seenFill.current) return
+    seenFill.current = filled
+    const el = box.current
+    el?.focus()
+    el?.setSelectionRange(el.value.length, el.value.length)
+  }, [filled])
   const open = useTerminalPrefs((s) => s.keypad)
   const setOpen = useTerminalPrefs((s) => s.setKeypad)
   const pictures = useAttachments()

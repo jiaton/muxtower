@@ -26,13 +26,23 @@ function device(phone: boolean) {
 
 beforeEach(() => {
   mutate.mockClear()
-  useDrafts.setState({ drafts: {}, quotes: {} })
+  useDrafts.setState({ drafts: {}, quotes: {}, filled: {} })
 })
 afterEach(() => vi.unstubAllGlobals())
 
 const box = () => screen.getByRole('textbox', { name: 'Message the agent' })
 
 describe('InputBar', () => {
+  it('takes focus with the cursor at the end when a message is filled in from outside', () => {
+    device(true)
+    render(<InputBar daemonId="nas" sessionId="s1" />)
+    expect(box()).not.toHaveFocus()
+    act(() => useDrafts.getState().fill('nas/s1', '!ls -la\npwd'))
+    expect(box()).toHaveFocus()
+    expect(box()).toHaveValue('!ls -la\npwd')
+    expect((box() as HTMLTextAreaElement).selectionStart).toBe('!ls -la\npwd'.length)
+  })
+
   it('keeps quotes above the box, apart from what is typed, and sends them first', () => {
     device(false)
     useDrafts.getState().addQuote('nas/s1', 'Pick a date')
