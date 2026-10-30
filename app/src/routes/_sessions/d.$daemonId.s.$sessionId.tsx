@@ -193,6 +193,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
                   pending={outgoing.pending}
                   onDismiss={outgoing.dismiss}
                   onReply={writable ? reply : undefined}
+                  source={{ daemonId, sessionId: session.id }}
                 />
               </>
             ) : null}

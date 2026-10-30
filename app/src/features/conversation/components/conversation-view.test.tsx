@@ -1,6 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { http, HttpResponse } from 'msw'
 import { expect, it, vi } from 'vitest'
 import type { ShownOutgoing } from '@/lib/outbox'
+import { addDaemon, wrapper } from '@/test/render'
+import { DAEMON_URL, server } from '@/test/server'
 import { ConversationView } from './conversation-view'
 
 const outgoing = (id: string, text: string, state: ShownOutgoing['state']): ShownOutgoing => ({
@@ -37,4 +40,25 @@ it("offers the agent's next step as buttons that send its replies, until somethi
   expect(reply).toHaveBeenCalledWith('Start on a branch.')
   rerender(<ConversationView items={items} onReply={reply} pending={[outgoing('a', 'Start on a branch.', 'sending')]} />)
   expect(screen.queryByRole('region', { name: 'Next step' })).toBeNull()
+})
+
+it('shows the images items show under them, a tool run’s even while it is folded', async () => {
+  URL.createObjectURL = vi.fn(() => 'blob:shot')
+  URL.revokeObjectURL = vi.fn()
+  const daemon = addDaemon()
+  server.use(
+    http.get(
+      `${DAEMON_URL}/v1/sessions/s1/image`,
+      () => new HttpResponse(new Uint8Array([137, 80, 78, 71]), { headers: { 'content-type': 'image/png' } }),
+    ),
+  )
+  const items = [
+    { seq: 1, kind: 'tool' as const, tool_name: 'SendUserFile', text: '{"files": ["/srv/a.png"]}', images: ['/srv/a.png'] },
+    { seq: 2, kind: 'reply' as const, text: 'Before and after: /srv/b.png', images: ['/srv/b.png'] },
+  ] // prettier-ignore
+  render(<ConversationView items={items} source={{ daemonId: daemon.id, sessionId: 's1' }} />, { wrapper: wrapper() })
+  expect(await screen.findByRole('img', { name: 'a.png' })).toBeTruthy()
+  expect(await screen.findByRole('img', { name: 'b.png' })).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: /a\.png/ }))
+  expect(await screen.findByRole('dialog', { name: 'a.png' })).toBeTruthy()
 })
