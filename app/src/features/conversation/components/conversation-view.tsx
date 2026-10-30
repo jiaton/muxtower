@@ -6,13 +6,25 @@ import type { ConversationItem } from '@/lib/api/types'
 import { cn } from '@/lib/cn'
 import type { ShownOutgoing } from '@/lib/outbox'
 import { conversationRows, toolName, toolRunSummary } from '../model/rows'
+import { ConversationImages } from './conversation-images'
 import { NextStepCard } from './next-step-card'
 
 const BOTTOM_SLACK = 24
 
+/** Where the conversation is read from, for the images its items show. */
+export interface ConversationSource {
+  daemonId: string
+  sessionId: string
+}
+
+function Images({ source, items }: { source?: ConversationSource; items: ConversationItem[] }) {
+  const paths = [...new Set(items.flatMap((item) => item.images ?? []))]
+  return source ? <ConversationImages daemonId={source.daemonId} sessionId={source.sessionId} paths={paths} /> : null
+}
+
 /** A run of tool calls as one line ("Ran 4 commands (2 failed)", or a single call's own description)
  *  that opens to the calls themselves, so the prose stays readable. */
-function ToolRun({ tools }: { tools: ConversationItem[] }) {
+function ToolRun({ tools, source }: { tools: ConversationItem[]; source?: ConversationSource }) {
   const [open, setOpen] = useState(false)
   const summary = toolRunSummary(tools)
   return (
@@ -49,14 +61,28 @@ function ToolRun({ tools }: { tools: ConversationItem[] }) {
           ))}
         </ul>
       ) : null}
+      <div className="mt-2 empty:hidden">
+        <Images source={source} items={tools} />
+      </div>
     </div>
   )
 }
 
-function ItemView({ item }: { item: ConversationItem }) {
+function ItemView({ item, source }: { item: ConversationItem; source?: ConversationSource }) {
   if (item.kind === 'prompt')
-    return <p className="self-end rounded-lg bg-accent px-3 py-2 whitespace-pre-wrap text-accent-fg">{item.text}</p>
-  if (item.kind === 'reply') return <Markdown>{item.text ?? ''}</Markdown>
+    return (
+      <div className="flex flex-col items-end gap-2">
+        <p className="rounded-lg bg-accent px-3 py-2 whitespace-pre-wrap text-accent-fg">{item.text}</p>
+        <Images source={source} items={[item]} />
+      </div>
+    )
+  if (item.kind === 'reply')
+    return (
+      <div className="flex flex-col gap-2">
+        <Markdown>{item.text ?? ''}</Markdown>
+        <Images source={source} items={[item]} />
+      </div>
+    )
   const label = item.kind === 'question' ? 'Question' : (item.tool_name ?? 'Approval')
   return (
     <div className="rounded-md border border-state-permission px-3 py-2 text-sm">
@@ -90,17 +116,20 @@ function OutgoingView({ message, onDismiss }: { message: ShownOutgoing; onDismis
 
 /** The conversation as readable text: prompts, replies, folded tool runs, prompts to answer, then what
  *  was sent and is not in it yet (`pending`), or else the next step the agent offers (`onReply` sends a
- *  pick). Follows new items while at the bottom; holds still while the reader is scrolled up. */
+ *  pick). The images items show come from `source`, under them. Follows new items while at the bottom;
+ *  holds still while the reader is scrolled up. */
 export function ConversationView({
   items,
   pending = [],
   onDismiss,
   onReply,
+  source,
 }: {
   items: ConversationItem[]
   pending?: ShownOutgoing[]
   onDismiss?: (id: string) => void
   onReply?: (text: string) => void
+  source?: ConversationSource
 }) {
   const box = useRef<HTMLDivElement>(null)
   const atBottom = useRef(true)
@@ -131,13 +160,13 @@ export function ConversationView({
         {shown.length === 0 && pending.length === 0 ? <p className="text-fg-muted">No messages yet.</p> : null}
         {shown.map((row) =>
           row.kind === 'tools' ? (
-            <ToolRun key={`t${row.items[0].seq}`} tools={row.items} />
+            <ToolRun key={`t${row.items[0].seq}`} tools={row.items} source={source} />
           ) : row.kind === 'next' ? (
             pending.length ? null : (
               <NextStepCard key={`n${row.item.seq}`} item={row.item} onReply={onReply} />
             )
           ) : (
-            <ItemView key={row.item.seq} item={row.item} />
+            <ItemView key={row.item.seq} item={row.item} source={source} />
           ),
         )}
         {pending.map((message) => (
