@@ -86,9 +86,12 @@ class SessionDirectory:
         """Every session once: one reported by two sources (a Remote Control session a node reports
         too) is listed from the one that owns it (`source_of`), and one merged into another entry (a
         tmux pane that also runs Remote Control, here or on a node) under that entry."""
+        listed = [(source, v) for source in self.sources for v in source.views()]
+        if self.archive_store:
+            self.archive_store.revive(v for _, v in listed)
         ended = self.archive_store.ended() if self.archive_store else set()
         locals_ = [s for s in self._locals() if s.id not in ended]
-        remotes = [(source, v) for source in self.sources for v in source.views() if v.id not in ended]
+        remotes = [(source, v) for source, v in listed if v.id not in ended]
         merged_into = {s.remote_id for s in locals_ if s.remote_id} | {v.remote_id for _, v in remotes if v.remote_id}
         kept = [v for source, v in remotes if v.id not in merged_into and self.source_of(v.id) is source]
         archived = self.archive_store.views() if self.archive_store else []

@@ -80,6 +80,30 @@ def test_archiving_a_remote_session_keeps_the_conversation_it_had(tmp_path: Path
     assert [s["id"] for s in again.get("/v1/sessions", headers=auth).json()] == ["cse_away"]
 
 
+def test_an_archived_session_used_again_elsewhere_is_listed_again(tmp_path: Path) -> None:
+    """Archived on Remote Control, Claude Desktop keeps it; written to there, it is active again."""
+    port = FakeRemoteControl()
+    port.sessions = [session("cse_main", title="Main", last_event_at="2026-10-18T10:00:00Z")]
+    source = RemoteControlSource(port, {})
+    source.tick()
+    app = _app(tmp_path, FakeTmux(), source)
+    client = TestClient(app)
+    _, token = app.state.tokens.create("phone")
+    auth = {"Authorization": f"Bearer {token}"}
+    assert client.post("/v1/sessions/cse_main/archive", headers=auth).status_code == 204
+
+    source.tick()  # still listed as it was (Remote Control is slow to drop it): stays archived
+    (archived,) = client.get("/v1/sessions", headers=auth).json()
+    assert archived["archived_at"]
+
+    port.sessions = [session("cse_main", title="Main", last_event_at="2999-01-01T00:00:00Z")]
+    source.tick()
+    (live,) = client.get("/v1/sessions", headers=auth).json()
+    assert live["id"] == "cse_main" and not live["archived_at"]
+    again = TestClient(_app(tmp_path, FakeTmux(), RemoteControlSource(port, {})))  # out of the archive for good
+    assert not any(s["archived_at"] for s in again.get("/v1/sessions", headers=auth).json())
+
+
 def test_a_node_session_on_remote_control_is_archived_there_too() -> None:
     """Its node has no Remote Control of its own: the hub archives that side, then the node its tmux."""
     from types import SimpleNamespace

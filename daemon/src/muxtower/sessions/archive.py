@@ -1,16 +1,21 @@
 """Archived sessions: ended by the owner, kept to read.
 
-Archiving ends the agent (its tmux pane closes; a Remote Control session is archived there too, which
-ends it) and keeps its last view and where its conversation can be read: the Claude Code transcript
-when there is one (the file stays after the process ends), else the conversation as it was then. An
-archived session is listed under Archived only, read-only; deleting it there forgets it (a transcript
-file is left alone).
+Archiving ends the agent (its tmux pane closes; a Remote Control session is archived there too) and
+keeps its last view and where its conversation can be read: the Claude Code transcript when there is
+one (the file stays after the process ends), else the conversation as it was then. An archived session
+is listed under Archived only, read-only; deleting it there forgets it (a transcript file is left alone).
+
+Archived on Remote Control is only filed away: the app it runs in (Claude Desktop) keeps it, and written
+to there it is active again. One listed again with something newer than its archiving is taken back out
+of the archive (`revive`), so it is listed where it runs instead of missing.
 
 Kept in memory, written through to SQLite.
 """
 
 import json
+import logging
 import threading
+from collections.abc import Iterable
 from datetime import UTC, datetime
 
 from muxtower.errors import Conflict
@@ -18,6 +23,8 @@ from muxtower.runtimes.models import AgentState
 from muxtower.sessions.models import Capabilities, Conversation, ConversationItem, Session, StateSource
 from muxtower.sessions.ports import ArchiveRecord, ArchiveRepository
 from muxtower.sessions.transcripts import Transcripts
+
+logger = logging.getLogger("muxtower.archive")
 
 READ_ONLY = Capabilities(screen=False, conversation=False, keys=[], resize=False, terminate=True, rename=False)
 
@@ -61,6 +68,19 @@ class SessionArchive:
         source still lists them (until its next poll)."""
         with self._lock:
             return {i for r in self._records.values() for i in (r.session_id, r.remote_id) if i}
+
+    def revive(self, listed: Iterable[Session]) -> None:
+        """Out of the archive: each archived session a source lists again, used since it was archived."""
+        with self._lock:
+            by_id = {i: r for r in self._records.values() for i in (r.session_id, r.remote_id) if i}
+            used = {
+                record.session_id
+                for session in listed
+                if (record := by_id.get(session.id)) and session.updated_at and session.updated_at > record.archived_at
+            }
+        for session_id in used:
+            logger.info("session %s was used again since it was archived: listed again", session_id)
+            self.delete(session_id)
 
     def views(self) -> list[Session]:
         with self._lock:
