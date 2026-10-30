@@ -27,6 +27,9 @@ class RuleConfig(BaseModel):
     name: str
     state: AgentState
     pattern: str
+    # Search only the screen's last lines (blank ones below the last text not counted); 0: all of it. For a
+    # sign that sits at the bottom, so the same words in the conversation above it do not count.
+    last_lines: int = Field(default=0, ge=0)
 
 
 class MenuConfig(BaseModel):
@@ -105,8 +108,9 @@ class Runtime:
         return self.config.name
 
     def classify(self, screen: str) -> Classification:
+        lines = screen.rstrip().splitlines()
         for rule, pattern in self.rules:
-            if pattern.search(screen):
+            if pattern.search("\n".join(lines[-rule.last_lines :]) if rule.last_lines else screen):
                 menu = self.parse_menu(screen) if rule.state != AgentState.BUSY else None
                 return Classification(rule.state, rule.name, menu)
         return Classification(self.config.default_state, None)
