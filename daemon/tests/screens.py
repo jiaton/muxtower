@@ -195,3 +195,29 @@ CODEX_RATE_LIMIT = """\
   2. Keep current model
   3. Keep current model (never show again)
 """
+
+# Claude Code at work in a narrow pane: the status bar's hint is cut short, the spinner line says it.
+WORKING_NARROW = """\
+⏺ Reading the rules.
+
+✢ Misting… (22s · ↓ 1.9k tokens · thought for 7s)
+  ⎿  Tip: Press Shift+Enter to send a multi-line message
+──────────────────────────────────────────────────
+❯ 
+──────────────────────────────────────────────────
+  ⏵⏵ auto mode on (shift+tab to cycle) · esc to inter…
+"""
+
+# A finished turn whose answer quotes the status bar's hint (and a spinner line) in its text.
+DONE_QUOTING = """\
+⏺ The rule matched "esc to interrupt" anywhere on the screen, like this line:
+  ✢ Misting… (22s · ↓ 1.9k tokens)
+
+✻ Worked for 1m 48s · done 3:30 PM · 1 shell still running
+──────────────────────────────────────────────────
+❯ 
+──────────────────────────────────────────────────
+  ⏵⏵ auto mode on · 1 shell · ↓ to manage
+
+
+"""

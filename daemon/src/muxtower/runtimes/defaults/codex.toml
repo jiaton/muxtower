@@ -70,9 +70,12 @@ state = "plan_review"
 pattern = 'Implement\s+this\s+plan\?'
 
 [[rules]]
+# "• Working (12s • esc to interrupt)" above the composer. Only near the bottom: the conversation may
+# quote it.
 name = "working"
 state = "busy"
 pattern = 'esc\s+to\s+interrupt'
+last_lines = 40
 
 [[rules]]
 # Codex's red "■" lines: the turn failed (interrupting one is not a failure). Only while nothing but the

@@ -19,6 +19,16 @@ def test_default_rules_classify_known_screens() -> None:
     assert idle.state == AgentState.IDLE and idle.rule is None
 
 
+def test_working_is_read_at_the_bottom_not_in_the_conversation() -> None:
+    rt = claude()
+    assert rt.classify(screens.WORKING_NARROW).state == AgentState.BUSY  # the hint cut short
+    assert rt.classify(screens.WORKING_NARROW.replace("✢ Misting…", "✻ Worked")).state == AgentState.BUSY
+    assert rt.classify(screens.DONE_QUOTING).state == AgentState.IDLE
+    codex = load_runtimes(None)["codex"]
+    quoted = "Codex says esc to interrupt while it works.\n" + "\n".join(f"line {n}" for n in range(45))
+    assert codex.classify(quoted + "\n" + screens.CODEX_IDLE).state == AgentState.IDLE
+
+
 def test_options_are_parsed_and_broader_approval_preferred() -> None:
     rt = claude()
     result = rt.classify(screens.PERMISSION)

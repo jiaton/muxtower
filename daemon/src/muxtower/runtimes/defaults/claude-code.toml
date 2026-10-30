@@ -53,9 +53,21 @@ state = "error"
 pattern = 'API\s+Error:'
 
 [[rules]]
+# The spinner line above the prompt: "✢ Misting… (22s · ↓ 1.9k tokens)". Once the turn is over it says
+# "✻ Worked for 1m 48s", without the "…". At the start of the line (answers are indented) and near the
+# bottom: the conversation may quote such a line.
 name = "working"
 state = "busy"
-pattern = 'esc\s+to\s+interrupt'
+pattern = '(?m)^[·✢✳✶✻✽*]\s+[^\n]*?…\s+\(\d'
+last_lines = 40
+
+[[rules]]
+# The hint in the status bar under the prompt, cut short ("esc to inter…") in a narrow pane. Only the
+# status bar: an answer that mentions it must not keep the session working.
+name = "working-hint"
+state = "busy"
+pattern = 'esc\s+to\s+inter(?:rupt|…)'
+last_lines = 3
 
 [menu]
 # The glyph that marks the highlighted choice. Change it if your theme draws something else.
