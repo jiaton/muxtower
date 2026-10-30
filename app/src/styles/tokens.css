@@ -3,6 +3,27 @@
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
+/* Shipped with the app: a browser without a monospace font of its own draws `monospace` in a
+   proportional one, and the terminal's columns stop lining up. An installed copy wins. */
+@font-face {
+  font-family: 'JetBrains Mono';
+  src:
+    local('JetBrains Mono Regular'),
+    local('JetBrainsMono-Regular'),
+    url('../assets/fonts/JetBrainsMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src:
+    local('JetBrains Mono Bold'),
+    local('JetBrainsMono-Bold'),
+    url('../assets/fonts/JetBrainsMono-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+
 @theme static {
   --color-*: initial;
 
