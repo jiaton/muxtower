@@ -2,7 +2,16 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { useDrafts } from './store'
 
 describe('useDrafts', () => {
-  beforeEach(() => useDrafts.setState({ drafts: {}, quotes: {} }))
+  beforeEach(() => useDrafts.setState({ drafts: {}, quotes: {}, filled: {} }))
+
+  it('fills a whole message in place of the draft and its quotes, and counts it without saving that', () => {
+    const { addQuote, setDraft, fill } = useDrafts.getState()
+    addQuote('d1/a', 'pick a date')
+    setDraft('d1/a', 'half a thought')
+    fill('d1/a', '!npm test')
+    expect(useDrafts.getState()).toMatchObject({ drafts: { 'd1/a': '!npm test' }, quotes: {}, filled: { 'd1/a': 1 } })
+    expect(JSON.parse(localStorage.getItem('muxtower.drafts')!).state).not.toHaveProperty('filled')
+  })
 
   it('keeps a draft per session, saved on this device, and forgets an emptied one', () => {
     const { setDraft } = useDrafts.getState()

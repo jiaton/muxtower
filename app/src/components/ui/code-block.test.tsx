@@ -1,5 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { SquareTerminal } from 'lucide-react'
+import { CodeActionContext } from './code-block'
 import { Markdown } from './markdown'
 
 const REPLY = 'Run this:\n\n```sh\nnpm run build\nnpm test\n```\n\nand `inline` code.'
@@ -10,6 +12,17 @@ afterEach(() => {
 })
 
 describe('code blocks', () => {
+  it('offer the action of the place they are shown in, beside Copy', () => {
+    const onAction = vi.fn()
+    render(
+      <CodeActionContext.Provider value={{ label: 'Put in the message box', icon: SquareTerminal, onAction }}>
+        <Markdown>{REPLY}</Markdown>
+      </CodeActionContext.Provider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Put in the message box' }))
+    expect(onAction).toHaveBeenCalledWith('npm run build\nnpm test')
+  })
+
   it('copy their text, and only blocks get a button', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })

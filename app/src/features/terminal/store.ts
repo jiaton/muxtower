@@ -49,6 +49,11 @@ interface Drafts {
   quotes: Record<string, Quote[]>
   addQuote: (key: string, selected: string) => void
   setQuotes: (key: string, quotes: Quote[]) => void
+  /** Puts a whole message in the box in place of the draft and its quotes (a code block as a `!`
+   *  command, which runs only when it is the message alone), for the owner to read and send. */
+  fill: (key: string, text: string) => void
+  /** Per session, how many times it was filled (not kept): the box takes focus, cursor at the end. */
+  filled: Record<string, number>
 }
 
 export const useDrafts = create<Drafts>()(
@@ -73,10 +78,17 @@ export const useDrafts = create<Drafts>()(
           if (!list.length) delete quotes[key]
           return { quotes }
         }),
+      fill: (key, text) => {
+        get().setQuotes(key, [])
+        get().setDraft(key, text)
+        set((s) => ({ filled: { ...s.filled, [key]: (s.filled[key] ?? 0) + 1 } }))
+      },
+      filled: {},
     }),
     {
       name: 'muxtower.drafts',
       version: 2,
+      partialize: ({ drafts, quotes }) => ({ drafts, quotes }),
       // 1: quotes were their text alone (no reply of their own).
       migrate: (old, version) => {
         const state = (old ?? {}) as { drafts?: Record<string, string>; quotes?: Record<string, (string | Quote)[]> }
