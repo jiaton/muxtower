@@ -201,6 +201,7 @@ def create_app(
     app.state.sessions = sessions
     app.state.monitor = monitor
     app.state.directory = directory
+    app.state.remote_control = remote_control
     app.state.placements = placements
     app.state.archiver = archiver
     app.state.launcher = launcher

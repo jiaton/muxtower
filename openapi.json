@@ -696,6 +696,12 @@
       },
       "Me": {
         "properties": {
+          "claude_login_expired": {
+            "default": false,
+            "description": "the Claude login this daemon reads Remote Control sessions with is missing or expired: those sessions (Claude Desktop's, the Claude app's) do not update until it is logged in again",
+            "title": "Claude Login Expired",
+            "type": "boolean"
+          },
           "daemon_name": {
             "title": "Daemon Name",
             "type": "string"

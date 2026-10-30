@@ -9,7 +9,7 @@ from typing import Any, Literal
 from muxtower.infra.bus import EventBus
 from muxtower.notify.models import PushPayload, Subscribe, Subscription
 from muxtower.notify.ports import PushSender, StoredSubscription, SubscriptionRepository
-from muxtower.notify.text import attention_text, done_text
+from muxtower.notify.text import attention_text, done_text, login_expired_text
 from muxtower.runtimes.models import AgentState
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.models import NotifyLevel, Session, SessionRole, TurnSummary
@@ -81,6 +81,32 @@ class PushService:
         needs_only = view.notify == NotifyLevel.NEEDS
         return self._send(view, "done", title, body, lambda sub: sub.done or needs_only)
 
+    def notify_login_expired(self) -> int:
+        """The Claude login this daemon reads Remote Control with stopped working: to every device, once
+        (`RemoteControlSource` says so when it breaks, not on every poll)."""
+        title, body = login_expired_text(self.daemon_name)
+        sent = 0
+        for sub in self._paired():
+            payload = PushPayload(
+                client_ref=sub.client_ref, daemon_name=self.daemon_name, kind="login", title=title, body=body
+            )
+            if self.sender.send(sub, payload.model_dump_json()):
+                sent += 1
+            else:
+                self.repo.delete(sub.id)
+        return sent
+
+    def _paired(self) -> list[StoredSubscription]:
+        """Subscriptions of devices still paired; the others' are dropped."""
+        paired = []
+        for sub in self.repo.list():
+            if sub.device is None or not self.paired(sub.device):
+                logger.info("dropping the push subscription of %s: no longer paired", sub.device)
+                self.repo.delete(sub.id)
+            else:
+                paired.append(sub)
+        return paired
+
     def _settled(self, sending: str) -> list[str]:
         """Sessions notified about that the owner has seen (read) or answered since. A push cannot be sent
         just to take a notification away (iOS revokes a subscription whose pushes show nothing; Chrome
@@ -101,11 +127,7 @@ class PushService:
     ) -> int:  # fmt: skip
         sent = 0
         settled = self._settled(view.id)
-        for sub in self.repo.list():
-            if sub.device is None or not self.paired(sub.device):
-                logger.info("dropping the push subscription of %s: no longer paired", sub.device)
-                self.repo.delete(sub.id)
-                continue
+        for sub in self._paired():
             if not wants(sub) or view.id in sub.muted:
                 continue
             payload = PushPayload(
@@ -150,10 +172,17 @@ class PushService:
         queue: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
         bus.subscribe("attention:*", queue)
         bus.subscribe("done:*", queue)
+        bus.subscribe("claude-login:*", queue)
         waiting: set[asyncio.Task[None]] = set()  # finished turns waiting for their summary
         while True:
             topic, _ = await queue.get()
             kind, session_id = topic.split(":", 1)
+            if kind == "claude-login":
+                try:
+                    await asyncio.to_thread(self.notify_login_expired)
+                except Exception:
+                    logger.exception("push dispatch failed")
+                continue
             if kind == "done":
                 task = asyncio.create_task(self._finished(session_id))
                 waiting.add(task)

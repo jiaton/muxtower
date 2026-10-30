@@ -58,3 +58,10 @@ def done_text(session: Session) -> tuple[str, str]:
         return session.name, _with_place(f"Done, waiting for you: {one_line(summary.needs)}", session)
     said = (summary and (summary.detail or summary.recent)) or session.reply_summary or session.last_message
     return session.name, _with_place(f"Done: {one_line(said)}" if said else "Finished its turn", session)
+
+
+def login_expired_text(daemon_name: str) -> tuple[str, str]:
+    return "Claude login expired", (
+        f"{daemon_name}: sessions from Claude Desktop and the Claude app stop updating here "
+        "until you log in again there (claude /login)."
+    )

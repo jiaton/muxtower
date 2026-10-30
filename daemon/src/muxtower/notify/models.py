@@ -34,10 +34,12 @@ class Subscription(BaseModel):
 class PushPayload(BaseModel):
     client_ref: str
     daemon_name: str
-    session_id: str
-    session_name: str
-    state: AgentState
-    kind: Literal["attention", "done"] = Field(description="needs the owner, or finished a turn")
+    session_id: str | None = Field(default=None, description="none for news of the daemon itself")
+    session_name: str | None = None
+    state: AgentState | None = None
+    kind: Literal["attention", "done", "login"] = Field(
+        description="a session needs the owner, or finished a turn; the daemon's Claude login expired"
+    )
     title: str
     body: str
     settled: list[str] = Field(

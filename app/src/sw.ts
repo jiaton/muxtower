@@ -16,9 +16,9 @@ cleanupOutdatedCaches()
 
 interface PushPayload {
   client_ref: string
-  session_id: string
-  session_name: string
-  kind?: 'attention' | 'done'
+  session_id?: string | null // none for news of the daemon itself (its Claude login expired)
+  session_name?: string | null
+  kind?: 'attention' | 'done' | 'login'
   title: string
   body: string
   settled?: string[] // sessions notified about before, seen or answered since
@@ -39,7 +39,9 @@ const appBase = () => {
 self.addEventListener('push', (event) => {
   const data = event.data?.json() as PushPayload | undefined
   if (!data) return
-  const url = `${appBase()}d/${encodeURIComponent(data.client_ref)}/s/${encodeURIComponent(data.session_id)}`
+  const url = data.session_id
+    ? `${appBase()}d/${encodeURIComponent(data.client_ref)}/s/${encodeURIComponent(data.session_id)}`
+    : appBase()
   event.waitUntil(
     // One notification per session: a newer one replaces it (a finished turn replaces a handled
     // approval) and alerts again. Something waiting for you stays on screen until dismissed or settled
@@ -48,7 +50,7 @@ self.addEventListener('push', (event) => {
       closeSettled(data.client_ref, data.settled ?? []),
       self.registration.showNotification(data.title, {
         body: data.body,
-        tag: `${data.client_ref}:${data.session_id}`,
+        tag: `${data.client_ref}:${data.session_id ?? data.kind}`,
         renotify: true,
         requireInteraction: data.kind !== 'done',
         timestamp: Date.now(),

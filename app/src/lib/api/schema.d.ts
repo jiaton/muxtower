@@ -981,6 +981,12 @@ export interface components {
         };
         /** Me */
         Me: {
+            /**
+             * Claude Login Expired
+             * @description the Claude login this daemon reads Remote Control sessions with is missing or expired: those sessions (Claude Desktop's, the Claude app's) do not update until it is logged in again
+             * @default false
+             */
+            claude_login_expired: boolean;
             /** Daemon Name */
             daemon_name: string;
             features: components["schemas"]["Features"];

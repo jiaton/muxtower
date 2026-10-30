@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from muxtower.claude_conversation import PendingRequest
-from muxtower.errors import Conflict, NotFound, Unavailable
+from muxtower.errors import Conflict, LoginExpired, NotFound, Unavailable
 from muxtower.infra.bus import EventBus
 from muxtower.runtimes.models import AgentState
 from muxtower.sessions.models import Conversation, ConversationItem, Session
@@ -50,6 +50,7 @@ class RemoteControlSource:
         self.sessions: dict[str, RcSession] = {}
         self._lock = threading.Lock()
         self._unsent: dict[str, list[ConversationItem]] = {}  # items read outside a poll, for the next tick
+        self.login_expired = False  # the last poll was refused for the login: nothing here updates
 
     # --- reading ------------------------------------------------------------------------------
 
@@ -175,11 +176,19 @@ class RemoteControlSource:
                 result = await asyncio.wait_for(asyncio.to_thread(self.tick), timeout=60)
             except TimeoutError:
                 logger.warning("Remote Control poll timed out")
+            except LoginExpired as exc:
+                if not self.login_expired:  # once, not every poll until someone logs in again
+                    self.login_expired = True
+                    logger.warning("Remote Control poll failed: %s; its sessions stop updating until then", exc)
+                    bus.publish("claude-login:expired", None)
             except Unavailable as exc:
                 logger.warning("Remote Control poll failed: %s", exc)
             except Exception:
                 logger.exception("Remote Control poll failed")
             else:
+                if self.login_expired:
+                    self.login_expired = False
+                    logger.info("Remote Control works again: the Claude login was renewed")
                 if result.changed:
                     bus.publish("sessions", None)
                 for session_id, items in result.conversation.items():
