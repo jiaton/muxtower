@@ -1,7 +1,7 @@
 import httpx
 import pytest
 
-from muxtower.errors import Conflict, NotFound, Unavailable
+from muxtower.errors import Conflict, LoginExpired, NotFound, Unavailable
 from muxtower.sources.remote_control.adapter import _translated
 from muxtower.vendor.claude_rc import APIError, ControlRejected, ControlTimeout, CredentialsError
 
@@ -13,7 +13,8 @@ from muxtower.vendor.claude_rc import APIError, ControlRejected, ControlTimeout,
         (ControlTimeout("r1", "slow"), Unavailable),
         (APIError(404, "{}"), NotFound),
         (APIError(500, '{"echo": "request text"}'), Unavailable),
-        (CredentialsError("expired"), Unavailable),
+        (CredentialsError("expired"), LoginExpired),
+        (APIError(401, "{}"), LoginExpired),  # refused after the client tried to renew its token
         (httpx.ConnectError("down"), Unavailable),
     ],
 )

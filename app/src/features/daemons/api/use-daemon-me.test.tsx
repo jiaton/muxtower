@@ -4,7 +4,7 @@ import { expect, it } from 'vitest'
 import { ApiError } from '@/lib/api/client'
 import { addDaemon, wrapper } from '@/test/render'
 import { DAEMON_URL, server } from '@/test/server'
-import { useDaemonMe } from './use-daemon-me'
+import { useDaemonMe, useExpiredLogins } from './use-daemon-me'
 
 it('sends the bearer token and returns the token name', async () => {
   server.use(
@@ -34,4 +34,15 @@ it('does not call an unpaired daemon at all', () => {
   const { id } = addDaemon(null)
   const { result } = renderHook(() => useDaemonMe(id), { wrapper: wrapper() })
   expect(result.current.fetchStatus).toBe('idle')
+})
+
+it('names the daemons whose Claude login expired', async () => {
+  server.use(
+    http.get(`${DAEMON_URL}/v1/me`, () =>
+      HttpResponse.json({ token_name: 'phone', daemon_name: 'box', claude_login_expired: true }),
+    ),
+  )
+  const { id } = addDaemon('good')
+  const { result } = renderHook(() => useExpiredLogins(), { wrapper: wrapper() })
+  await waitFor(() => expect(result.current.map((d) => d.id)).toEqual([id]))
 })

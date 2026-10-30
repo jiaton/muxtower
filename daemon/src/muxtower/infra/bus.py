@@ -1,5 +1,6 @@
 """In-process pub/sub. Topics: "sessions" (list changed), "screen:<id>" (a watched screen changed),
-"attention:<id>" (a session entered an attention state), "done:<id>" (a session finished a turn)."""
+"attention:<id>" (a session entered an attention state), "done:<id>" (a session finished a turn),
+"claude-login:expired" (Remote Control stopped working for the login)."""
 
 import asyncio
 from collections import defaultdict

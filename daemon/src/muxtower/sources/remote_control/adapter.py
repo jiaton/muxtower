@@ -1,7 +1,7 @@
 """The only code that talks to Anthropic's Remote Control endpoints (through the vendored client).
 
 Its failures leave as domain errors: a refused control request is a Conflict, an unknown session
-NotFound, anything else (network, HTTP status, an expired login) Unavailable. Messages carry no
+NotFound, an expired login LoginExpired, anything else (network, HTTP status) Unavailable. Messages carry no
 response bodies, which can echo request content.
 """
 
@@ -13,7 +13,7 @@ from typing import Any
 
 import httpx
 
-from muxtower.errors import Conflict, NotFound, Unavailable
+from muxtower.errors import Conflict, LoginExpired, NotFound, Unavailable
 from muxtower.sources.remote_control.ports import RawEvent
 from muxtower.terminal.models import ImageInput
 from muxtower.vendor.claude_rc import (
@@ -44,9 +44,11 @@ def _translated() -> Iterator[None]:
     except APIError as exc:
         if exc.status == 404:
             raise NotFound("Remote Control does not know this session") from exc
+        if exc.status == 401:  # still refused after the client renewed its token, or could not
+            raise LoginExpired("the Claude login on the daemon's machine is missing or expired") from exc
         raise Unavailable(f"Remote Control answered HTTP {exc.status}") from exc
     except CredentialsError as exc:
-        raise Unavailable("the Claude login on the daemon's machine is missing or expired") from exc
+        raise LoginExpired("the Claude login on the daemon's machine is missing or expired") from exc
     except httpx.HTTPError as exc:
         raise Unavailable(f"cannot reach Remote Control ({type(exc).__name__})") from exc
 

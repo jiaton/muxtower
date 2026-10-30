@@ -21,6 +21,11 @@ class Me(BaseModel):
     token_name: str
     daemon_name: str
     features: Features
+    claude_login_expired: bool = Field(
+        default=False,
+        description="the Claude login this daemon reads Remote Control sessions with is missing or expired: "
+        "those sessions (Claude Desktop's, the Claude app's) do not update until it is logged in again",
+    )
 
 
 @router.get("/health")
@@ -33,4 +38,5 @@ def me(request: Request, device: CurrentDevice) -> Me:
     """Lets a client check that its token works and learn the daemon's display name."""
     state = request.app.state
     features = Features(summaries=state.summaries.available, asr=state.asr.available)
-    return Me(token_name=device.name, daemon_name=state.daemon_name, features=features)
+    expired = bool(state.remote_control and state.remote_control.login_expired)
+    return Me(token_name=device.name, daemon_name=state.daemon_name, features=features, claude_login_expired=expired)
