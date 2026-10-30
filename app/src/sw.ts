@@ -7,8 +7,8 @@ import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching'
 
 declare const self: ServiceWorkerGlobalScope
 
-// A new version takes over at once, and the open app reloads into it (registerType: 'autoUpdate').
-// Without this it waits until every tab of the app is closed, which on a phone can be never.
+// A new version takes over at once, and the open app reloads into it (`reloadOnUpdate`). Without this
+// it waits until every tab of the app is closed, which on a phone can be never.
 void self.skipWaiting()
 clientsClaim()
 precacheAndRoute(self.__WB_MANIFEST)

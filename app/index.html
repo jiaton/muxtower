@@ -10,6 +10,44 @@
     <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>muxtower</title>
+    <script>
+      // A page older than the server's files (one restored after a long time in the background, across
+      // an update) asks for scripts that are gone and stays blank. Reload into the current version; if
+      // that is still broken, once more without the service worker's cached copies. Twice a minute at most.
+      ;(function () {
+        var KEY = 'mxt-recover', reloading = false
+        function recover() {
+          if (reloading) return // one page's several failures are one try
+          reloading = true
+          var tries = []
+          try {
+            tries = JSON.parse(sessionStorage.getItem(KEY) || '[]').filter(function (t) {
+              return Date.now() - t < 60000
+            })
+            if (tries.length >= 2) return
+            sessionStorage.setItem(KEY, JSON.stringify(tries.concat(Date.now())))
+          } catch (e) {
+            return // nowhere to count the tries: better blank than reloading forever
+          }
+          var cleared =
+            tries.length && window.caches
+              ? caches.keys().then(function (keys) {
+                  return Promise.all(keys.map(function (k) { return caches.delete(k) }))
+                })
+              : Promise.resolve()
+          cleared.catch(function () {}).then(function () { location.reload() })
+        }
+        addEventListener('error', function (e) {
+          var t = e.target
+          if (t && (t.tagName === 'SCRIPT' || (t.tagName === 'LINK' && /stylesheet|modulepreload/.test(t.rel)))) recover()
+        }, true)
+        // A page's code, fetched when it is first opened (vite's lazy chunks).
+        addEventListener('vite:preloadError', function (e) {
+          e.preventDefault()
+          recover()
+        })
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>
