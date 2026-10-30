@@ -42,6 +42,22 @@ describe('SelectionAction', () => {
     expect(screen.queryByRole('button', { name: 'Reply' })).toBeNull()
   })
 
+  it('copies the selected text, says so, then goes', async () => {
+    vi.useFakeTimers()
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    const onAction = vi.fn()
+    render(<Area onAction={onAction} />)
+    select('Pick a date for round two')
+    fireEvent.click(screen.getByRole('button', { name: 'Copy' }))
+    expect(writeText).toHaveBeenCalledWith('Pick a date for round two')
+    expect(onAction).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Copied' })).toBeTruthy()
+    act(() => void vi.advanceTimersByTime(1000))
+    expect(screen.queryByRole('button', { name: 'Copied' })).toBeNull()
+    expect(document.getSelection()!.toString()).toBe('')
+  })
+
   it('waits for a mouse dragging out a selection to let go', () => {
     vi.useFakeTimers()
     render(<Area onAction={() => {}} />)
