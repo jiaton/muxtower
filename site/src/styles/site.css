@@ -1,0 +1,19 @@
+/* The app's tokens are the site's too: one palette, one type scale (app/src/styles/tokens.css). This
+   file only adds what the site alone needs; colors never get defined here. */
+@import '../../../app/src/styles/tokens.css';
+
+@source '../';
+
+@theme static {
+  /* The rounded corners of the phone the demo runs in. */
+  --radius-device: 2.75rem;
+  --radius-screen: 2rem;
+  --shadow-device: 0 24px 60px -20px oklch(0 0 0 / 0.45), 0 0 0 1px oklch(0 0 0 / 0.08);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+  }
+}

@@ -7,6 +7,7 @@ muxtower: approve and drive coding agents running in tmux on a remote machine (a
 - `daemon/` — Python package `muxtower` (one command, `muxtower`; `muxtower serve` runs the daemon). Rules: `daemon/AGENTS.md`.
 - `app/` — `muxtower-app`, Vite + React PWA. Rules: `app/AGENTS.md`.
 - `glasses/` — `muxtower-g2`, the Even Realities G2 glasses app (Even Hub). Rules: `glasses/AGENTS.md`.
+- `site/` — `muxtower-site`, the project's website (one prerendered page, the app's demo build in a phone frame). Rules: `site/AGENTS.md`.
 - `openapi.json` — the API contract, generated from the daemon, consumed by the app. Never edit by hand.
 
 ## Commands (from the repo root)
