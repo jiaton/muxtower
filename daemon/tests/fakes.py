@@ -18,6 +18,7 @@ class FakeTmux:
     def __init__(self) -> None:
         self.panes: dict[tuple[str, str], FakePane] = {}
         self._next = 0
+        self.missing: set[str] = set()  # binaries not installed
 
     def add_pane(self, socket: str, session: str, command: str, cwd: str = "/tmp") -> FakePane:  # noqa: S108
         self._next += 1
@@ -34,6 +35,9 @@ class FakeTmux:
         pane = self.add_pane(socket, name, argv[0], cwd)
         pane.argv, pane.env = argv, env
         return PaneRef(socket, pane.info.pane_id)
+
+    def finds(self, socket: str, binary: str) -> bool:
+        return binary not in self.missing
 
     def list_panes(self, socket: str) -> list[PaneInfo]:
         return [p.info for (s, _), p in self.panes.items() if s == socket]
