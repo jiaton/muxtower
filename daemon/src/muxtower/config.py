@@ -192,13 +192,19 @@ def _set_nested(data: dict[str, Any], keys: tuple[str, ...], value: Any) -> None
     data[keys[-1]] = value
 
 
+def config_path(env: dict[str, str] | None = None) -> Path:
+    """The config file: $MUXTOWER_CONFIG, else config.toml in the config directory."""
+    env = dict(os.environ) if env is None else env
+    return Path(env.get("MUXTOWER_CONFIG") or DEFAULT_CONFIG_DIR / "config.toml")
+
+
 def load_settings(
     config_file: Path | None = None,
     env: dict[str, str] | None = None,
     overrides: dict[str, Any] | None = None,
 ) -> Settings:
     env = dict(os.environ) if env is None else env
-    config_file = config_file or Path(env.get("MUXTOWER_CONFIG") or DEFAULT_CONFIG_DIR / "config.toml")
+    config_file = config_file or config_path(env)
 
     data: dict[str, Any] = {}
     if config_file.exists():

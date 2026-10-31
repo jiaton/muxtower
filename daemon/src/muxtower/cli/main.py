@@ -4,6 +4,7 @@ muxtower                 status: daemon, sessions
 muxtower run AGENT ...   start an agent in a managed tmux session (starts the daemon if needed)
 muxtower attach [NAME]   open a session in this terminal
 muxtower pair            add a device with a one-time code (--join HUB: join a hub as a node)
+muxtower expose tailscale HTTPS on your tailnet (tailscale serve), set as public_url
 muxtower serve           run the daemon in the foreground (for systemd, Docker)
 muxtower --version       this install's version, and the hub links it speaks
 """
@@ -15,6 +16,7 @@ import sys
 
 from muxtower import __version__
 from muxtower.cli.client import DaemonError, LocalDaemon
+from muxtower.cli.expose import add_expose_parser
 from muxtower.cli.pair import cmd_pair
 from muxtower.cli.serve import add_serve_parser
 from muxtower.config import load_settings
@@ -122,6 +124,8 @@ def main(argv: list[str] | None = None) -> None:
     pair.add_argument("--code", help="with --join: a pairing code made on the hub (`muxtower pair` there)")
     pair.add_argument("--leave", action="store_true", help="stop reporting to the hub this daemon joined")
     pair.set_defaults(func=cmd_pair)
+
+    add_expose_parser(sub)
 
     add_serve_parser(sub)
 
