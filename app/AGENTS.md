@@ -11,6 +11,7 @@
 - Regenerate API types: `npm run gen:api` (reads `../openapi.json`)
 - Route tree: `npm run routes` (also run by build/typecheck; `src/routeTree.gen.ts` is committed)
 - Build: `npm run build` → `dist/` (`MUXTOWER_BASE=/sub/path/` for sub-path hosting; `MUXTOWER_APP_CONFIG` writes `dist/config.json`)
+- Demo: `npm run dev:demo` / `npm run build:demo` → `dist-demo/` (the project site embeds it at `/demo/`; build with `MUXTOWER_BASE=/demo/`)
 - Deploy: `wrangler.jsonc` (Cloudflare Workers static assets), `.github/workflows/pages.yml` (GitHub Pages)
 
 ## Stack
@@ -33,6 +34,7 @@
    - `daemons.tsx`, `pair.tsx`.
 4. `src/lib/` — shared by every feature: `daemons/` (the persisted daemon list + `useDaemonClient`, and `useNodes`: the computers joined to a daemon, which the sessions and daemons features both use), `api/` (client factory, generated `schema.d.ts` + `types.ts` aliases, `stream.ts`/`streams.ts`), `runtime-config.ts`, `query.ts`, `agent-state.ts`.
 5. `src/sw.ts` — the service worker (own tsconfig: `tsconfig.sw.json`).
+6. `src/demo/` — the demo build (`--mode demo`, entry `demo/main.ts` instead of `main.tsx`; no service worker; routes by the URL hash, since a static site serves it as one page). It changes no app code: it answers the app's requests and its `/v1/stream` socket for a made-up daemon address in the page (`server.ts`, `socket.ts`), from a `World` of scripted sessions (`scenes/`: each a session, its screen and conversation, and the steps it plays when approved, denied or messaged). Nothing goes out; every visit starts fresh. Fixtures keep the daemon's real shapes (typed from the schema); a new API field the app needs must be added to `scenes/session.ts`.
 
 Split before 250 lines or once a file mixes two domains.
 
