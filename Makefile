@@ -1,4 +1,4 @@
-.PHONY: contract contract-check check wheel
+.PHONY: contract contract-check check wheel site
 
 contract:
 	cd daemon && poetry run python -c "from muxtower.cli.serve import print_openapi; print_openapi()" > ../openapi.json
@@ -12,6 +12,7 @@ check:
 	cd daemon && poetry run ruff check . && poetry run ruff format --check . && poetry run mypy src && poetry run pytest -q
 	cd app && npm run lint && npm run typecheck && npm test
 	cd glasses && npm run lint && npm run typecheck && npm test
+	cd site && npm run lint && npm run typecheck
 	$(MAKE) contract-check
 
 wheel:
@@ -20,3 +21,8 @@ wheel:
 	rm -rf daemon/src/muxtower/web && cp -r app/dist daemon/src/muxtower/web
 	cp -r glasses/dist daemon/src/muxtower/web/g2
 	cd daemon && poetry build
+
+# The website, with the app's demo build inside: site/dist (site/AGENTS.md).
+site:
+	cd app && npm ci
+	cd site && npm ci && npm run build

@@ -19,8 +19,10 @@ jobs:
           cache-dependency-path: |
             app/package-lock.json
             glasses/package-lock.json
+            site/package-lock.json
       - run: pipx install poetry
       - run: cd daemon && poetry install
       - run: cd app && npm ci
       - run: cd glasses && npm ci
+      - run: cd site && npm ci
       - run: make check
