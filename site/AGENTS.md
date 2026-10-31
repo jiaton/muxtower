@@ -8,7 +8,7 @@
 - Dev server: `npm run dev` (the demo frame needs a build: see below)
 - Lint/typecheck: `npm run lint && npm run typecheck` (lint includes `scripts/check-tokens.mjs`)
 - Build: `npm run build` = the app's demo build (`npm run build:demo` in `../app`, base `/demo/`) + `npm run build:site`: client build, SSR build of `src/entry-server.tsx`, `scripts/prerender.mjs` (the page's HTML into `dist/index.html`), `scripts/copy-demo.mjs` (`../app/dist-demo` → `dist/demo/`; a placeholder when it is missing)
-- Preview: `npm run preview`. Deploy: `wrangler.jsonc` (Cloudflare Workers static assets); the hostname is set in the dashboard, never in the repo.
+- Preview: `npm run preview`. Deploy: `npm run deploy` (Cloudflare Workers static assets via the `cf` CLI). Its config is in `deploy/`, away from Vite: there `cf` builds with Wrangler, which only collects `dist/`, so our build (prerender, demo) stays ours; the hostname is set in the dashboard, never in the repo.
 - Build-time settings: `MUXTOWER_SITE_REPO` (the GitHub repository URL; links to it, the README and SECURITY.md are left out when unset). Read only in `src/config.ts`.
 
 ## Stack
