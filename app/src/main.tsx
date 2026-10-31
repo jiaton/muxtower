@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { RouterProvider, createRouter } from '@tanstack/react-router'
+import { RouterProvider, createHashHistory, createRouter } from '@tanstack/react-router'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { listenForInstall } from './features/install/store'
@@ -8,7 +8,10 @@ import { reloadOnUpdate } from './lib/reload-on-update'
 import { routeTree } from './routeTree.gen'
 import './styles/tokens.css'
 
-const router = createRouter({ routeTree, basepath: import.meta.env.BASE_URL })
+// The demo build (`src/demo/`) lives on a static site that serves one page for it: it routes by the hash.
+const router = createRouter(
+  import.meta.env.MODE === 'demo' ? { routeTree, history: createHashHistory() } : { routeTree, basepath: import.meta.env.BASE_URL },
+)
 
 declare module '@tanstack/react-router' {
   interface Register {
