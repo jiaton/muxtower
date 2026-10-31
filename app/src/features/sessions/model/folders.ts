@@ -1,6 +1,6 @@
 /**
- * A device's folders as a tree: a folder that lies inside another listed folder sits under it (on the
- * NAS, ~/projects/home and ~/projects/muxtower under ~/projects), named by the part below it. Only
+ * A device's folders as a tree: a folder that lies inside another listed folder sits under it
+ * (~/projects/shop and ~/projects/blog under ~/projects), named by the part below it. Only
  * folders that are listed become parents; none is made up to hold others.
  */
 
