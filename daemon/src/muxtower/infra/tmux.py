@@ -2,6 +2,7 @@
 
 import logging
 import os
+import shutil
 import subprocess
 
 from muxtower.terminal.ports import PaneInfo, PaneRef
@@ -80,6 +81,13 @@ class TmuxCli:
             *env_args, "-P", "-F", "#{pane_id}", "--", *without_inside_claude(argv, names),
         )  # fmt: skip
         return PaneRef(socket=socket, pane_id=result.stdout.strip())
+
+    def finds(self, socket: str, binary: str) -> bool:
+        """Whether a new session of that server can run `binary`: tmux runs it on the PATH of the server's
+        environment (the one this daemon starts it with, when no server runs yet)."""
+        shown = self._run(socket, "show-environment", "-g", "PATH", check=False)
+        path = shown.stdout.strip().partition("=")[2] if shown.returncode == 0 else _ENV.get("PATH")
+        return shutil.which(binary, path=path or None) is not None
 
     def list_panes(self, socket: str) -> list[PaneInfo]:
         result = self._run(socket, "list-panes", "-a", "-F", _FIELDS, check=False)

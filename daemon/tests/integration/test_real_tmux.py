@@ -189,3 +189,19 @@ def test_giving_the_size_back_with_no_terminal_attached_keeps_it(tmp_path: Path)
         assert size == "220x50" and window_size == ""  # kept, and no longer pinned
     finally:
         subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)
+
+
+def test_an_agent_is_looked_up_on_the_path_the_tmux_server_runs_it_with(tmp_path: Path) -> None:
+    from muxtower.infra.tmux import TmuxCli
+
+    socket = f"mxt-test-{uuid.uuid4().hex[:8]}"
+    tmux = TmuxCli()
+    assert tmux.finds(socket, "sh") and not tmux.finds(socket, "no-such-agent")  # no server yet: ours
+    (tmp_path / "agent").write_text("#!/bin/sh\n")
+    (tmp_path / "agent").chmod(0o755)
+    tmux.new_session(socket, "agent", str(tmp_path), ["sleep", "30"], {}, 80, 24)
+    try:
+        subprocess.run(["tmux", "-L", socket, "set-environment", "-g", "PATH", f"{tmp_path}:/usr/bin:/bin"], check=True)
+        assert tmux.finds(socket, "agent") and tmux.finds(socket, "sh")
+    finally:
+        subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)

@@ -25,6 +25,15 @@ def test_create_rejects_unknown_runtime_and_bad_cwd(client: TestClient, auth: di
     assert client.post("/v1/sessions", json={"runtime": "claude", "cwd": "/no/such"}, headers=auth).status_code == 400
 
 
+def test_an_agent_that_is_not_installed_is_not_started(
+    client: TestClient, auth: dict[str, str], tmux: FakeTmux, tmp_path: Path
+) -> None:
+    tmux.missing.add("claude")
+    res = client.post("/v1/sessions", json={"runtime": "claude", "cwd": str(tmp_path)}, headers=auth)
+    assert res.status_code == 409 and "claude is not installed" in res.json()["detail"]
+    assert tmux.panes == {}
+
+
 def test_monitor_adopts_agents_and_reaps_gone_panes(app: FastAPI, client: TestClient, auth: dict[str, str],
                                                     tmux: FakeTmux) -> None:  # fmt: skip
     pane = tmux.add_pane("default", "work", "claude")
