@@ -16,11 +16,11 @@ export function HowItWorks() {
   return (
     <Section id="how-it-works">
       <SectionHeading eyebrow={how.eyebrow} title={how.title} lead={how.lead} />
-      <ol className="flex flex-col items-stretch gap-3 lg:flex-row lg:items-center">
+      <ol className="flex flex-col items-stretch gap-3 lg:flex-row">
         {stages.map((stage, i) => (
           <Fragment key={stage.id}>
             {i > 0 && (
-              <li aria-hidden className="flex justify-center text-fg-muted [&_svg]:size-5">
+              <li aria-hidden className="flex justify-center self-center text-fg-muted [&_svg]:size-5">
                 <ArrowDown className="lg:hidden" />
                 <ArrowRight className="hidden lg:block" />
               </li>
