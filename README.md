@@ -21,6 +21,8 @@ muxtower pair                # prints a one-time code
 
 Open the daemon's address on your phone and enter the code. The daemon cannot know which address your phone uses (LAN, tailnet, tunnel), so it does not guess; once you set `public_url`, `muxtower pair` also shows a QR code you can scan.
 
+For the app to install on the phone and send notifications, the daemon needs an HTTPS address. With [Tailscale](https://tailscale.com) that is one more command, `muxtower expose tailscale`, before `muxtower pair`; see [Reach it from your phone over HTTPS](#reach-it-from-your-phone-over-https) for the other ways.
+
 Detach with the usual tmux keys (`Ctrl-b d`); the agent keeps running. Agents you already started in plain tmux are picked up automatically.
 
 ## Commands
@@ -31,11 +33,12 @@ Detach with the usual tmux keys (`Ctrl-b d`); the agent keeps running. Agents yo
 | `muxtower run AGENT [ARGS…]` | start an agent (`claude`, `codex`, …) in a managed tmux session; `-d` to stay detached, `-n` to name it |
 | `muxtower attach [NAME]` | open a session in this terminal |
 | `muxtower pair` | add a device with a one-time code (and a QR code when the address is known: `--url` or `public_url`). `--revoke NAME` removes one. `--join HUB --code CODE` joins this daemon to another as a node; `--leave` stops |
+| `muxtower expose tailscale` | serve the daemon over HTTPS on your tailnet (`tailscale serve`) and set `public_url` to that address; `--off` undoes it |
 | `muxtower serve` | run the daemon in the foreground (systemd, Docker). `muxtower run` starts it for you otherwise |
 
 ## Reach it from your phone over HTTPS
 
-The daemon listens on `127.0.0.1:8731`. Put HTTPS in front of it: the app needs a secure context to install on the home screen and to receive notifications. Then tell the daemon its address, so pairing codes point there:
+The daemon listens on `127.0.0.1:8731`. Put HTTPS in front of it: the app needs a secure context to install on the home screen and to receive notifications. Then tell the daemon its address, so pairing codes point there (with Tailscale, `muxtower expose tailscale` does both):
 
 ```toml
 # ~/.config/muxtower/config.toml
@@ -44,10 +47,11 @@ public_url = "https://muxtower.example.com"
 
 Pick one:
 
-1. **Tailscale** (simplest for personal use; no domain, no open port):
+1. **Tailscale** (simplest for personal use; no domain, no open port). With Tailscale signed in on this machine and on the phone:
    ```sh
-   tailscale serve --bg 8731     # → https://<machine>.<tailnet>.ts.net
+   muxtower expose tailscale     # → https://<machine>.<tailnet>.ts.net, written to the config as public_url
    ```
+   It runs `tailscale serve` for you, which keeps serving across restarts. Only devices on your tailnet can reach it. The first time, Tailscale may ask you to turn on HTTPS for the tailnet; on Linux it needs root or `sudo tailscale set --operator=$USER` once.
 2. **Cloudflare Tunnel** (reachable from anywhere, no open port):
    ```sh
    cloudflared tunnel --url http://127.0.0.1:8731      # quick try; use a named tunnel for a stable hostname
