@@ -12,7 +12,7 @@ lock that is never held across a network call.
 import asyncio
 import logging
 import threading
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from muxtower.claude_conversation import PendingRequest
@@ -167,7 +167,21 @@ class RemoteControlSource:
                     result.conversation[session_id] = items + result.conversation.get(session_id, [])
                     result.changed = True
             self._unsent.clear()
+            searches = lineage.to_search(lineage.listed(self.sessions))
+        if searches and self._search_copies(searches):
+            result.changed = True
         return result
+
+    def _search_copies(self, searches: dict[str, list[str]]) -> bool:
+        """Blocking (HTTP). Places the copies no first message did (`lineage.search`); True when one was."""
+        with self._lock:
+            firsts = {cid: rc.lineage.first for cid, rc in self.sessions.items() if cid in searches}
+        found = lineage.search(self.port.events_after, searches, firsts)
+        with self._lock:
+            for copy_id, parent in found.items():
+                if rc := self.sessions.get(copy_id):
+                    rc.lineage = replace(rc.lineage, searched=True, found_in=parent)
+        return any(found.values())
 
     async def run_loop(self, bus: EventBus, interval: float) -> None:
         logger.info("Remote Control source polling every %ss", interval)
