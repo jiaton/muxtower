@@ -34,6 +34,12 @@ WHAT = {
 IMAGE_ITEMS = 2000  # how far back in a conversation its images can be read
 
 
+def _as_listed(session: Session, listed_as: dict[str, str]) -> Session:
+    """A fork names its parent's Remote Control id; a parent in tmux here is listed under its own."""
+    parent = listed_as.get(session.fork_of or "")
+    return session.model_copy(update={"fork_of": parent}) if parent else session
+
+
 class SessionDirectory(OwnerMarks):
     def __init__(
         self,
@@ -96,12 +102,18 @@ class SessionDirectory(OwnerMarks):
         merged_into = {s.remote_id for s in locals_ if s.remote_id} | {v.remote_id for _, v in remotes if v.remote_id}
         kept = [v for source, v in remotes if v.id not in merged_into and self.source_of(v.id) is source]
         archived = self.archive_store.views() if self.archive_store else []
-        # A fork names its parent's Remote Control id; a parent in tmux here is listed under its own.
         listed_as = {s.remote_id: s.id for s in locals_ if s.remote_id}
-        kept = [v.model_copy(update={"fork_of": listed_as[v.fork_of]}) if v.fork_of in listed_as else v for v in kept]
-        return [self._decorate(s) for s in locals_ + kept] + archived
+        return [self._decorate(_as_listed(s, listed_as)) for s in locals_ + kept] + [
+            _as_listed(s, listed_as) for s in archived
+        ]
 
     def get(self, session_id: str) -> Session:
+        found = self._get(session_id)
+        if found.fork_of:
+            found = _as_listed(found, {s.remote_id: s.id for s in self.local.list() if s.remote_id})
+        return found
+
+    def _get(self, session_id: str) -> Session:
         if self.archive_store and (archived := self.archive_store.get(session_id)):
             return archived
         source = self.source_of(session_id)

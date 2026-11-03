@@ -21,7 +21,8 @@ def with_detail(local: Session, remote: Session) -> PendingAction | None:
 
 
 def merged(local: Session, remote: Session) -> Session:
-    """The tmux entry, with the remote side's name, conversation, summary and origin."""
+    """The tmux entry, with the remote side's name, conversation, summary, origin and where it came from
+    (a fork, a side chat)."""
     return local.model_copy(
         update={
             "pending": with_detail(local, remote),
@@ -35,5 +36,7 @@ def merged(local: Session, remote: Session) -> Session:
             "cwd": deeper(local.cwd, remote.cwd),
             "last_message": local.last_message or remote.last_message,
             "capabilities": local.capabilities.model_copy(update={"conversation": True}),
+            "fork_of": local.fork_of or remote.fork_of,
+            "side_chat": local.side_chat or remote.side_chat,
         }
     )
