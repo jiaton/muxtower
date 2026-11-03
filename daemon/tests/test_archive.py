@@ -132,3 +132,44 @@ def test_a_node_session_on_remote_control_is_archived_there_too() -> None:
     store: Any = SimpleNamespace(keep=lambda *args: kept.append(args))
     Archiver(directory, store).archive("mac~ab12")
     assert done == [("remote control", "cse_9"), ("node", "mac~ab12")] and len(kept) == 1
+
+
+def test_an_archived_fork_still_says_where_it_came_from(tmp_path: Path) -> None:
+    """A fork in tmux (also on Remote Control) keeps its parent when listed and once archived; a fork of a
+    session in tmux names that one by its tmux id, archived or not."""
+    tmux = FakeTmux()
+    pane = tmux.add_pane("default", "parent", "claude")
+    pane.info = dataclasses.replace(pane.info, pid=4242)
+    fork_pane = tmux.add_pane("default", "fork", "claude")
+    fork_pane.info = dataclasses.replace(fork_pane.info, pid=4343)
+    tag = ["remote-control-fork-parent:session_parent"]
+    port = FakeRemoteControl()
+    port.sessions = [
+        session("cse_parent", title="Plan"),
+        session("cse_fork", title="Plan (fork)", tags=tag),
+        session("cse_away", title="Plan (fork 2)", tags=tag),
+    ]
+    source = RemoteControlSource(port, {})
+    source.tick()
+    app = _app(tmp_path, tmux, source)
+    Monitor(app.state.sessions, FakeProcesses({4242: "cse_parent", 4343: "cse_fork"}, {})).tick()
+    client = TestClient(app)
+    _, token = app.state.tokens.create("phone")
+    auth = {"Authorization": f"Bearer {token}"}
+
+    def by_remote() -> dict[str, dict[str, object]]:
+        listed = client.get("/v1/sessions", headers=auth).json()
+        return {s["remote_id"] or s["id"]: s for s in listed}
+
+    listed = by_remote()
+    parent_id = listed["cse_parent"]["id"]
+    assert parent_id != "cse_parent"  # listed under its tmux id
+    assert listed["cse_fork"]["fork_of"] == parent_id and listed["cse_away"]["fork_of"] == parent_id
+    assert client.get("/v1/sessions/cse_away", headers=auth).json()["fork_of"] == parent_id
+
+    fork_id = listed["cse_fork"]["id"]
+    for archived_id in (fork_id, "cse_away"):
+        assert client.post(f"/v1/sessions/{archived_id}/archive", headers=auth).status_code == 204
+    archived = {s["id"]: s for s in client.get("/v1/sessions", headers=auth).json() if s["archived_at"]}
+    assert archived[fork_id]["fork_of"] == parent_id and archived["cse_away"]["fork_of"] == parent_id
+    assert client.get(f"/v1/sessions/{fork_id}", headers=auth).json()["fork_of"] == parent_id
