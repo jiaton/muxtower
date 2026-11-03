@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from muxtower.sessions.merged import deeper
-from muxtower.sessions.models import NotifyLevel, Placement, Session, SessionRole
+from muxtower.sessions.models import GitPlace, NotifyLevel, Placement, Session, SessionRole
 from muxtower.sessions.ports import SessionSource
 
 if TYPE_CHECKING:
@@ -43,7 +43,11 @@ def decorate(session: Session, directory: SessionDirectory) -> Session:
         update["machine"] = marks.machine or update.get("machine", session.machine)
         update["cwd"] = marks.folder or update.get("cwd", session.cwd)
     if d.team and (team := d.team(session.id)):  # kept on the hub; a node's own say is kept otherwise
-        update.update(team_role=team.role, team_note=team.note, project=team.project)
+        update.update(team_role=team.role, team_note=team.note, project=None if team.project_auto else team.project)
+    here = bool(update.get("on_host", session.on_host))
+    cwd = update.get("cwd", session.cwd)
+    if d.checkout and here and isinstance(cwd, str) and cwd and (found := d.checkout(cwd)).repo and found.root:
+        update["git"] = GitPlace(repo=found.repo, worktree=found.root, branch=found.branch, remote=found.remote)
     if d.concierge_id and session.id == d.concierge_id:
         update["role"] = SessionRole.CONCIERGE
         update["capabilities"] = session.capabilities.model_copy(update={"archive": False})  # it is restarted

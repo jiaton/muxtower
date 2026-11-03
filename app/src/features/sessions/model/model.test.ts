@@ -170,8 +170,8 @@ describe('query', () => {
       { label: NO_ENVIRONMENT, count: 1, needs: 0 },
     ])
     expect(facets.devices[0].folders).toEqual([
-      { label: '~/projects/web', count: 4, needs: 2 },
-      { label: '~/projects/api', count: 1, needs: 0 },
+      { label: '~/projects/web', count: 4, needs: 2, kind: 'folder' },
+      { label: '~/projects/api', count: 1, needs: 0, kind: 'folder' },
     ])
     expect(facets.devices[1].folders).toEqual([]) // only an unknown folder
     expect(facets.sources.map((s) => s.label)).toEqual(['tmux', 'Remote Control'])
@@ -227,7 +227,7 @@ describe('agents', () => {
     ])
   })
 
-  it('tell apart sources that are named alike: a CLI is Claude Code\'s or Codex\'s', () => {
+  it("tell apart sources that are named alike: a CLI is Claude Code's or Codex's", () => {
     const rc = entry('r', { source: 'remote_control', origin: 'claude_code_cli' })
     expect(sourceOf(rc.session)).toBe(sourceOf(shared.session))
     expect(agentOf(rc.session)).not.toBe(agentOf(shared.session))

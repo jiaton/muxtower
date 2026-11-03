@@ -80,6 +80,15 @@ class Capabilities(BaseModel):
     images: bool = Field(default=False, description="a message to it may carry images (SendInput.images)")
 
 
+class GitPlace(BaseModel):
+    """Where a session's folder sits in git, read on the machine it runs on."""
+
+    repo: str = Field(description="the repository's main folder, which its worktrees share")
+    worktree: str = Field(description="the top folder of the worktree the session is in (`repo` for the main one)")
+    branch: str | None = Field(default=None, description="null: detached")
+    remote: str | None = Field(default=None, description="its origin as owner/repo")
+
+
 class Session(BaseModel):
     id: str
     name: str
@@ -134,7 +143,10 @@ class Session(BaseModel):
     )
     team_role: str | None = Field(default=None, description="what it is for in its team (free text; `teams/`)")
     team_note: str | None = Field(default=None, description="one more line about its team role")
-    project: str | None = Field(default=None, description="the team project it belongs to, once one is kept")
+    project: str | None = Field(
+        default=None, description="the project an agent or the owner put it in (null: its repository says)"
+    )
+    git: GitPlace | None = Field(default=None, description="its folder's repository; null outside one, or elsewhere")
     on_host: bool = Field(default=False, description="its agent runs on the daemon that lists it")
     offline: bool = Field(
         default=False, description="its node is not connected: the last known view, read only until it is back"

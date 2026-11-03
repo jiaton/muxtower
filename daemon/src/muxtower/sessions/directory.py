@@ -22,7 +22,7 @@ from muxtower.sessions.ports import ClaudeProcessPort, SessionSourcePort
 from muxtower.sessions.service import SessionService
 from muxtower.sessions.transcripts import Transcripts
 from muxtower.summaries.service import SummaryService
-from muxtower.teams.ports import TeamRecord
+from muxtower.teams.ports import Checkout, TeamRecord
 from muxtower.terminal.models import Resize, Screen, SendInput
 from muxtower.terminal.service import TerminalService
 
@@ -69,6 +69,7 @@ class SessionDirectory(OwnerMarks):
         self.accounts = accounts  # the account a session here runs as (`agents/accounts.py`)
         self.concierge_id: str | None = None  # set by the concierge service once its session runs
         self.team: Callable[[str], TeamRecord | None] | None = None  # set by the team service: a session's role
+        self.checkout: Callable[[str], Checkout] | None = None  # set by the team service: git, per folder here
 
     # --- reading ------------------------------------------------------------------------------
 

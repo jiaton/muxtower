@@ -79,7 +79,7 @@ export function releaseNotes(): Scene {
       state_source: 'remote',
       last_message: 'Release notes for 2.4 are ready.',
       team_role: 'research',
-      project: 'acme/shop',
+      git: { repo: '/home/dev/code/shop-api', worktree: '/home/dev/code/shop-api', branch: 'main', remote: 'acme/shop-api' },
       created_at: ago(180),
       updated_at: ago(30),
     }),

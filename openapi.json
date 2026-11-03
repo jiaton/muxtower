@@ -511,6 +511,51 @@
         "title": "Features",
         "type": "object"
       },
+      "GitPlace": {
+        "description": "Where a session's folder sits in git, read on the machine it runs on.",
+        "properties": {
+          "branch": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null: detached",
+            "title": "Branch"
+          },
+          "remote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "its origin as owner/repo",
+            "title": "Remote"
+          },
+          "repo": {
+            "description": "the repository's main folder, which its worktrees share",
+            "title": "Repo",
+            "type": "string"
+          },
+          "worktree": {
+            "description": "the top folder of the worktree the session is in (`repo` for the main one)",
+            "title": "Worktree",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repo",
+          "worktree"
+        ],
+        "title": "GitPlace",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1360,6 +1405,17 @@
             "description": "the session it was forked from, as listed here (a side chat's too)",
             "title": "Fork Of"
           },
+          "git": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GitPlace"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "its folder's repository; null outside one, or elsewhere"
+          },
           "hidden": {
             "default": false,
             "description": "the owner hid it: kept out of the lists and done notifications",
@@ -1489,7 +1545,7 @@
                 "type": "null"
               }
             ],
-            "description": "the team project it belongs to, once one is kept",
+            "description": "the project an agent or the owner put it in (null: its repository says)",
             "title": "Project"
           },
           "remote_id": {

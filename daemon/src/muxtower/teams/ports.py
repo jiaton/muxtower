@@ -28,7 +28,9 @@ class Checkout:
     project: str
     source: str  # git remote | git root | folder
     root: str | None = None  # the worktree's top folder
-    branch: str | None = None
+    branch: str | None = None  # None: detached, or no repository
+    repo: str | None = None  # the repository's main folder, shared by all its worktrees
+    remote: str | None = None  # its origin, as `owner/repo`
 
 
 @dataclass

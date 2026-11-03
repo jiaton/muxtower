@@ -64,7 +64,7 @@ export function shopApi(): Scene {
       updated_at: ago(0.3),
       team_role: 'worker',
       team_note: 'Implements what research agreed on',
-      project: 'acme/shop',
+      git: { repo: `${HOME}/code/shop-api`, worktree: `${HOME}/code/shop-api`, branch: 'main', remote: 'acme/shop-api' },
     }),
     history: [
       ...claudeWelcome(`~/code/shop-api`),

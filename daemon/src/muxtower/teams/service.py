@@ -9,18 +9,16 @@ project for all its sessions. Kept on the hub, which sees every session."""
 import os
 import re
 import threading
-import time
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 
 from muxtower.errors import Invalid, NotFound
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.models import Session
-from muxtower.teams.checkout import checkout
+from muxtower.teams.checkout import CheckoutCache, checkout
 from muxtower.teams.ports import Checkout, TeamRecord, TeamRepository
 
 UUID_AT_END = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
-CHECKOUT_SECONDS = 60.0  # a folder's branch is read again after this
 ROLE_CHARS = 60
 NOTE_CHARS = 300
 PROJECT_CHARS = 120
@@ -60,13 +58,13 @@ class TeamService:
     ) -> None:
         self.directory = directory
         self.repo = repo
-        self.read = read
+        self.checkouts = CheckoutCache(read)
         self.transcript_of = transcript_of or (lambda _: None)
         self.changed: Callable[[], None] = lambda: None  # a role or project changed (the lists show them)
         self._lock = threading.Lock()
         self._records = repo.load()
-        self._checkouts: dict[str, tuple[float, Checkout]] = {}
         directory.team = self.kept
+        directory.checkout = self.checkouts.get
 
     def kept(self, session_id: str) -> TeamRecord | None:
         """Its role and project as kept, without looking anything up (for every listing)."""
@@ -74,13 +72,10 @@ class TeamService:
             return self._records.get(session_id)
 
     def _checkout(self, session: Session) -> Checkout | None:
-        """Blocking (git). Only a session whose folder is on this machine has one."""
+        """Blocking (git, cached). Only a session whose folder is on this machine has one."""
         if not session.on_host or not session.cwd:
             return None
-        known = self._checkouts.get(session.cwd)
-        if known is None or time.monotonic() - known[0] > CHECKOUT_SECONDS:
-            known = self._checkouts[session.cwd] = (time.monotonic(), self.read(session.cwd))
-        return known[1]
+        return self.checkouts.get(session.cwd)
 
     def _known_as(self, session: Session, record: TeamRecord | None) -> TeamRecord | None:
         """Its record with the agent's own id, once that is known: a session nobody gave a role or a project

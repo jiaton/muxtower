@@ -4,7 +4,8 @@
  * status, by device and folder, by agent or by account (each offered only when there is more than one),
  * or by source. Lives in the URL, so back, reload and links keep it.
  */
-import { nestFolders } from './folders'
+import { nestFolders, withRepositories } from './folders'
+import { homeKind, homeOf, worktreeOf, type PlaceKind } from './places'
 import {
   NO_ENVIRONMENT,
   SOURCES,
@@ -15,7 +16,6 @@ import {
   agentOf,
   compareAgents,
   deviceOf,
-  folderOf,
   isAssistant,
   placeOf,
   sourceOf,
@@ -70,7 +70,8 @@ export const GROUP_LABEL: Record<GroupBy, string> = {
 }
 
 export const deviceLabel = (entry: SessionEntry) => deviceOf(entry.session) ?? NO_ENVIRONMENT
-export const folderLabel = (entry: SessionEntry) => folderOf(entry.session) ?? UNKNOWN_FOLDER
+/** Where it is listed under its device (`homeOf`: its project, repository or folder), or UNKNOWN_FOLDER. */
+export const folderLabel = (entry: SessionEntry) => homeOf(entry.session) ?? UNKNOWN_FOLDER
 export const agentLabel = (entry: SessionEntry) => agentOf(entry.session)
 export const sourceLabel = (entry: SessionEntry) => sourceOf(entry.session)
 export const accountLabel = (entry: SessionEntry) => accountOf(entry.session)
@@ -97,7 +98,7 @@ export function filterEntries(entries: SessionEntry[], query: SessionQuery): Ses
     if (placeOf(entry.session) !== placeIn(query.view)) return false
     if (placeIn(query.view) === 'listed' && query.view !== 'all' && status !== query.view) return false
     if (query.device && deviceLabel(entry) !== query.device) return false
-    if (query.folder && folderLabel(entry) !== query.folder) return false
+    if (query.folder && folderLabel(entry) !== query.folder && worktreeOf(entry.session)?.label !== query.folder) return false
     if (query.agent && agentLabel(entry) !== query.agent) return false
     if (query.source && sourceLabel(entry) !== query.source) return false
     if (query.account && accountLabel(entry) !== query.account) return false
@@ -128,6 +129,8 @@ export interface Section {
   label: string
   /** The full name when `label` is shortened. */
   title?: string
+  /** What kind of place a device's section is: a project, a repository, one of its worktrees, a folder. */
+  kind?: PlaceKind
   entries: SessionEntry[]
   /** In a tree of folders (`nestFolders`): how deep, the folder it lies in, its name there, and how many
    *  sessions it holds with the folders inside it. */
@@ -170,12 +173,22 @@ const bySize = (byKey: Map<string, SessionEntry[]>, last: string) =>
 /** Folders of one device, as a tree (`nestFolders`); none when no folder is known (a lone "Unknown
  *  folder" says nothing). */
 function folderSections(entries: SessionEntry[]): Section[] | undefined {
-  const byFolder = bucket(entries, folderLabel)
+  const byFolder = bucket(entries, (e) => worktreeOf(e.session)?.label ?? folderLabel(e))
   if (byFolder.size === 1 && byFolder.has(UNKNOWN_FOLDER)) return undefined
-  const folders = [...byFolder].map(([label, entries]) => ({ label, count: entries.length, entries }))
+  type Item = { label: string; count: number; entries: SessionEntry[]; under?: string; name?: string; title?: string; kind: PlaceKind }
+  const folders = withRepositories<Item>(
+    [...byFolder].map(([label, entries]) => {
+      const worktree = worktreeOf(entries[0].session)
+      const kind = worktree ? 'worktree' : homeKind(entries[0].session)
+      return { label, count: entries.length, entries, under: worktree?.under, name: worktree?.name, title: worktree?.path, kind }
+    }),
+    (label) => ({ label, count: 0, entries: [], kind: 'repository' }),
+  )
   return nestFolders(folders, UNKNOWN_FOLDER).map(({ item, depth, parent, name, total }) => ({
     key: item.label,
     label: item.label,
+    title: item.title,
+    kind: item.kind,
     entries: item.entries,
     depth,
     parent,
