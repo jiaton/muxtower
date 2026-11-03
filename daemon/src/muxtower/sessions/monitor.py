@@ -7,7 +7,7 @@ import hashlib
 import logging
 import os
 import time
-from collections import defaultdict
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
@@ -23,6 +23,7 @@ logger = logging.getLogger("muxtower.monitor")
 
 WAKE_SETTLE = 0.04  # seconds: keys typed in a row arrive within this, and are captured together
 MIN_GAP = 0.1  # seconds between ticks, however often hooks or input wake the loop
+TIMINGS_KEPT = 120  # ticks whose timing is kept (a couple of minutes)
 
 
 @dataclass
@@ -51,12 +52,22 @@ def newest(*paths: str | None) -> str | None:
     return max(found)[1] if found else None
 
 
+@dataclass(frozen=True)
+class TickTiming:
+    """One tick: how long it took, and the screen rule that took longest (session, rule, seconds)."""
+
+    at: float  # monotonic
+    seconds: float
+    slowest: tuple[str, str, float] | None
+
+
 class Monitor:
     def __init__(self, service: SessionService, processes: ClaudeProcessPort | None = None) -> None:
         self.service = service
         self.processes = processes
         self._panes: dict[tuple[str, str], PaneInfo] = {}  # (socket, pane id) -> as last listed
         self._viewers: dict[str, list[int]] = defaultdict(list)  # session id -> history lines wanted
+        self.timings: deque[TickTiming] = deque(maxlen=TIMINGS_KEPT)  # the latest ticks, for `usage/`
         self._loop: asyncio.AbstractEventLoop | None = None
         self._woken: asyncio.Event | None = None
 
@@ -142,6 +153,8 @@ class Monitor:
     def tick(self) -> TickResult:
         """Blocking: runs tmux. Called from a worker thread by run_loop."""
         svc = self.service
+        started = time.perf_counter()
+        slowest: tuple[str, str, float] | None = None
         result = TickResult(sessions_changed=self.reconcile())
         now = time.monotonic()
         for record in svc.repo.list():
@@ -155,6 +168,8 @@ class Monitor:
 
             runtime = svc.runtime_of(record)
             classification = runtime.classify(text) if runtime else Classification(AgentState.UNKNOWN, None)
+            if classification.slowest and (slowest is None or classification.slowest[1] > slowest[2]):
+                slowest = (record.id, classification.slowest[0], classification.slowest[1])
             previous = live.screen
             since = previous.since if previous and previous.classification.state == classification.state else now
             ansi = None
@@ -187,6 +202,7 @@ class Monitor:
                 result.sessions_changed = True
             if entered:
                 result.attention.append(record.id)
+        self.timings.append(TickTiming(now, time.perf_counter() - started, slowest))
         return result
 
     async def run_loop(self, bus: EventBus, interval: float) -> None:

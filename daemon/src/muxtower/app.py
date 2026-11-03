@@ -87,6 +87,8 @@ from muxtower.terminal.images import ImageDrop
 from muxtower.terminal.ports import TmuxPort
 from muxtower.terminal.service import TerminalService
 from muxtower.terminal.stream import router as stream_router
+from muxtower.usage.routes import router as usage_router
+from muxtower.usage.sampler import UsageSampler
 from muxtower.web import mount_ui
 
 logger = logging.getLogger("muxtower")
@@ -142,9 +144,14 @@ def create_app(
     archiver = Archiver(directory, archive)
     placements = Placements(directory, marks)
     # This daemon as a node of a hub, once it joined one (`muxtower pair --join`).
+    usage = UsageSampler(
+        daemon_name, settings.usage, lambda: list(monitor.timings),
+        lambda sid: session.name if (session := directory.find(sid)) else None,
+    )  # fmt: skip
+    node_api = NodeApi(directory, launcher, archiver, placements, audit, processes)
+    node_api.usage_now = lambda: usage.current
     hub = HubClient(
-        HubStore(settings.state_dir / "hub.json"), settings.hub.headers,
-        NodeApi(directory, launcher, archiver, placements, audit, processes), monitor, bus,
+        HubStore(settings.state_dir / "hub.json"), settings.hub.headers, node_api, monitor, bus,
         lambda: node_protocol.Hello(
             protocol=node_protocol.PROTOCOL, oldest=node_protocol.OLDEST, name=daemon_name, version=__version__,
             runtimes=launcher.runtimes(), platform=sys.platform,
@@ -174,6 +181,7 @@ def create_app(
                 "transcripts": transcripts.run_loop(bus, directory.transcript_paths),
                 "auto-approve": AutoApprover(approvals, audit).run_loop(bus),
                 "team-tasks": team_tasks.run_loop(bus),
+                "usage": usage.run_loop(),
             }
             if summaries.available:
 
@@ -220,6 +228,7 @@ def create_app(
     app.state.summaries = summaries
     app.state.concierge = concierge
     app.state.teams, app.state.team_tasks = teams, team_tasks
+    app.state.usage = usage
     teams.changed = lambda: bus.publish("sessions", None)
     app.state.mcp = McpTools(
         directory,
@@ -263,7 +272,7 @@ def create_app(
         app.add_exception_handler(error, handler)
 
     routers = (system_router, auth_router, sessions_router, summaries_router, asr_router, mcp_router, stream_router,
-               push_router, hooks_router, nodes_router, teams_router)  # fmt: skip
+               push_router, hooks_router, nodes_router, teams_router, usage_router)  # fmt: skip
     for router in routers:
         app.include_router(router)
 

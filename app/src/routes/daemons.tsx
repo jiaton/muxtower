@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Pane, PaneBody, PaneHeader } from '@/components/ui/pane'
 import { DaemonCard } from '@/features/daemons/components/daemon-card'
+import { Diagnostics } from '@/features/daemons/components/diagnostics'
 import { PresetWarning } from '@/features/daemons/components/preset-warning'
 import { InstallApp } from '@/features/install/components/install-app'
 import { AddDaemonDialog } from '@/features/pairing/components/add-daemon-dialog'
@@ -57,6 +58,7 @@ function DaemonsPage() {
             </EmptyState>
           )}
           <InstallApp />
+          <Diagnostics />
           {paired.length ? (
             <section className="flex flex-col gap-2">
               <h2 className="text-sm font-medium">Other devices</h2>

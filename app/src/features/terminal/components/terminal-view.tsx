@@ -1,5 +1,6 @@
 import { ArrowDown, LoaderCircle, MoveHorizontal } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { countRender } from '@/lib/diagnostics'
 import { Button } from '@/components/ui/button'
 import { ansiToLines } from '@/lib/ansi'
 import { align } from '../lines'
@@ -31,7 +32,11 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
   const atBottom = useRef(true)
   const [behind, setBehind] = useState(false)
   const [tooWide, setTooWide] = useState(false)
-  const lines = useMemo(() => (ansi === undefined ? null : ansiToLines(ansi.replace(/\n+$/, ''))), [ansi])
+  const drawing = useRef(0) // when the screen now drawn arrived (`lib/diagnostics`: how long drawing takes)
+  const lines = useMemo(() => {
+    drawing.current = performance.now()
+    return ansi === undefined ? null : ansiToLines(ansi.replace(/\n+$/, ''))
+  }, [ansi])
 
   useLayoutEffect(() => {
     const box = scroller.current
@@ -88,6 +93,10 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
   // Fit: how many cells across and lines down this box shows at the current font size, measured again
   // when the box resizes or fonts arrive. The probe is one line of ten cells in the same font and line
   // height as the output (whose non-ASCII text is boxed to its cells, see lib/ansi.ts).
+  useLayoutEffect(() => {
+    if (lines) countRender(performance.now() - drawing.current) // after the one above has drawn it
+  }, [lines])
+
   useEffect(() => {
     const box = scroller.current
     if (!box || !onFit) return

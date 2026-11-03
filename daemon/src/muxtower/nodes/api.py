@@ -2,6 +2,7 @@
 the same as a device does through the API, on this daemon's own sessions. Blocking; run from a thread."""
 
 import base64
+from collections.abc import Callable
 from typing import Any
 
 from pydantic import BaseModel
@@ -16,6 +17,7 @@ from muxtower.sessions.models import CreateSession, UpdateSession
 from muxtower.sessions.placement import Placements
 from muxtower.sessions.ports import ClaudeProcessPort
 from muxtower.terminal.models import Resize, SendInput
+from muxtower.usage.models import MachineUsage
 
 
 def _json(value: Any) -> Any:
@@ -34,6 +36,7 @@ class NodeApi:
         audit: AuditLog, processes: ClaudeProcessPort,
     ) -> None:  # fmt: skip
         self.processes = processes
+        self.usage_now: Callable[[], MachineUsage] | None = None  # set once the usage sampler runs
         self.directory = directory
         self.launcher = launcher
         self.archiver = archiver
@@ -43,6 +46,9 @@ class NodeApi:
     def sessions(self) -> list[dict[str, Any]]:
         """Everything it lists itself (not what its own nodes report: a node is no hub of the hub's)."""
         return [s.model_dump(mode="json") for s in self.directory.list() if s.node is None]
+
+    def usage(self) -> MachineUsage | None:
+        return self.usage_now() if self.usage_now else None
 
     def running(self) -> list[dict[str, Any]]:
         """Its Claude Code processes with Remote Control on, which the hub lists itself (`processes.py`)."""

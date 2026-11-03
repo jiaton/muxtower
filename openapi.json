@@ -760,6 +760,124 @@
         "title": "LoginStart",
         "type": "object"
       },
+      "MachineUsage": {
+        "description": "What the daemon on one machine uses, sampled every few seconds. A value it cannot read there is null\n(unknown), never 0.",
+        "properties": {
+          "alerts": {
+            "items": {
+              "$ref": "#/components/schemas/UsageAlert"
+            },
+            "title": "Alerts",
+            "type": "array"
+          },
+          "children": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/ProcessUsage"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null: cannot be read on this system",
+            "title": "Children"
+          },
+          "cpu_10m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cpu 10M"
+          },
+          "cpu_1m": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "percent of one core, average over the last minute",
+            "title": "Cpu 1M"
+          },
+          "machine": {
+            "title": "Machine",
+            "type": "string"
+          },
+          "open_files": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Open Files"
+          },
+          "peak_rss_mb": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Peak Rss Mb"
+          },
+          "rss_mb": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rss Mb"
+          },
+          "sampled_at": {
+            "format": "date-time",
+            "title": "Sampled At",
+            "type": "string"
+          },
+          "stale": {
+            "default": false,
+            "description": "a node's last report is old: it may be gone",
+            "title": "Stale",
+            "type": "boolean"
+          },
+          "threads": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Threads"
+          },
+          "tick": {
+            "$ref": "#/components/schemas/TickUsage"
+          }
+        },
+        "required": [
+          "machine",
+          "sampled_at"
+        ],
+        "title": "MachineUsage",
+        "type": "object"
+      },
       "MarkRead": {
         "properties": {
           "read": {
@@ -1147,6 +1265,47 @@
           }
         },
         "title": "PongFrame",
+        "type": "object"
+      },
+      "ProcessUsage": {
+        "properties": {
+          "cpu_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "of one core, over the last minute; null: unknown",
+            "title": "Cpu Percent"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "pid": {
+            "title": "Pid",
+            "type": "integer"
+          },
+          "rss_mb": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rss Mb"
+          }
+        },
+        "required": [
+          "pid",
+          "name"
+        ],
+        "title": "ProcessUsage",
         "type": "object"
       },
       "QuestionOption": {
@@ -1761,6 +1920,41 @@
         "title": "SessionsFrame",
         "type": "object"
       },
+      "SlowRule": {
+        "description": "The screen rule that took longest in the latest ticks.",
+        "properties": {
+          "ms": {
+            "title": "Ms",
+            "type": "number"
+          },
+          "rule": {
+            "title": "Rule",
+            "type": "string"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "session_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Name"
+          }
+        },
+        "required": [
+          "session_id",
+          "rule",
+          "ms"
+        ],
+        "title": "SlowRule",
+        "type": "object"
+      },
       "StateSource": {
         "enum": [
           "hook",
@@ -2092,6 +2286,46 @@
         "title": "TeamTask",
         "type": "object"
       },
+      "TickUsage": {
+        "description": "The capture loop: each tick reads and classifies every pane.",
+        "properties": {
+          "avg_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "over the last minute; null: no tick yet",
+            "title": "Avg Ms"
+          },
+          "max_ms": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Ms"
+          },
+          "slowest": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SlowRule"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "TickUsage",
+        "type": "object"
+      },
       "Transcript": {
         "properties": {
           "text": {
@@ -2243,6 +2477,41 @@
           }
         },
         "title": "UpdateTeam",
+        "type": "object"
+      },
+      "UsageAlert": {
+        "properties": {
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "metric": {
+            "description": "cpu | tick | memory",
+            "title": "Metric",
+            "type": "string"
+          },
+          "threshold": {
+            "title": "Threshold",
+            "type": "number"
+          },
+          "value": {
+            "title": "Value",
+            "type": "number"
+          }
+        },
+        "required": [
+          "metric",
+          "value",
+          "threshold"
+        ],
+        "title": "UsageAlert",
         "type": "object"
       },
       "ValidationError": {
@@ -3974,6 +4243,32 @@
         "summary": "Stream Schema",
         "tags": [
           "stream"
+        ]
+      }
+    },
+    "/v1/usage": {
+      "get": {
+        "description": "What the daemon on each machine uses: this one first, then each node joined to it (as it last said),\nwith what is over its threshold (`alerts`). Sampled every few seconds; asking costs nothing.",
+        "operationId": "usage_v1_usage_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/MachineUsage"
+                  },
+                  "title": "Response Usage V1 Usage Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Usage",
+        "tags": [
+          "usage"
         ]
       }
     }

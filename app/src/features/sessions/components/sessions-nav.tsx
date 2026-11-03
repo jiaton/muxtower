@@ -4,6 +4,10 @@ import { useState, type ReactNode } from 'react'
 import { NavCount, NavSection, navItemClass, navSubItemClass } from '@/components/ui/nav'
 import { cn } from '@/lib/cn'
 import { shortFolderNames } from '../model/facets'
+import type { MachineUsage } from '@/lib/api/types'
+import { WarningMark } from '@/components/ui/warning-mark'
+import { alertText } from '@/lib/daemons/usage'
+import { useMachineUsage } from '@/lib/daemons/use-usage'
 import { nestFolders } from '../model/folders'
 import { PlaceIcon } from './place-icon'
 import { facetsOf, type DeviceFacet } from '../model/counts'
@@ -58,7 +62,8 @@ const VIEW_ICONS: Record<View, typeof Layers> = {
 const FOLDERS_SHOWN = 5
 
 /** A device and, unless folded, its folders: a folder inside another listed one indented under it. */
-function DeviceTree({ device, search }: { device: DeviceFacet; search: ListSearch }) {
+function DeviceTree({ device, search, usage }: { device: DeviceFacet; search: ListSearch; usage?: MachineUsage }) {
+  const alerts = usage && !usage.stale ? (usage.alerts ?? []) : []
   const folded = useListPrefs((s) => s.folded.includes(device.label))
   const toggle = useListPrefs((s) => s.toggleFolded)
   const [all, setAll] = useState(false)
@@ -68,11 +73,17 @@ function DeviceTree({ device, search }: { device: DeviceFacet; search: ListSearc
   return (
     <div className="flex flex-col gap-0.5">
       <div className="relative">
-        <ScopeLink search={search} scope={{ device: device.label }} className={cn(navItemClass, 'pl-8')}>
+        <ScopeLink search={search} scope={{ device: device.label }} className={cn(navItemClass, 'pl-8', alerts.length && 'pr-9')}>
           <Monitor aria-hidden />
           <span className="truncate">{device.label}</span>
           <NavCount count={device.needs || device.count} alert={device.needs > 0} />
         </ScopeLink>
+        <WarningMark
+          what={device.label}
+          lines={alerts.map(alertText)}
+          details={alerts.flatMap((a) => (a.detail ? [a.detail] : []))}
+          className="absolute top-1/2 right-1 -translate-y-1/2"
+        />
         {device.folders.length ? (
           <button
             type="button"
@@ -117,6 +128,7 @@ function DeviceTree({ device, search }: { device: DeviceFacet; search: ListSearc
 export function SessionsNav() {
   const { entries } = useSessionEntries()
   const facets = facetsOf(entries)
+  const usage = useMachineUsage()
   const search = parseListSearch(useSearch({ strict: false }) as Record<string, unknown>)
 
   return (
@@ -135,7 +147,7 @@ export function SessionsNav() {
       </NavSection>
       <NavSection title="Devices">
         {facets.devices.map((d) => (
-          <DeviceTree key={d.label} device={d} search={search} />
+          <DeviceTree key={d.label} device={d} search={search} usage={usage.get(d.label.toLowerCase())} />
         ))}
       </NavSection>
       {facets.agents.length ? (
