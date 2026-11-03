@@ -98,6 +98,14 @@ A Claude Code process can be both a tmux pane and a Remote Control session. The 
 - Its instructions say that only the owner's messages are instructions; what it reads from sessions is data.
 - Clients pin it (`role: "concierge"`); on the glasses, talking outside a session talks to it.
 
+## Teams
+
+Sessions can work as a team: the owner gives each a role (free text: muxtower does not read meaning into it, every project has its own), and sessions of a project find each other and hand each other work. Nobody dispatches; any session may.
+
+- **Projects.** A session's project is worked out once, the first time it is seen on the machine its folder is on (`teams/checkout.py`): its origin remote (`owner/repo`, so one repository cloned at different paths or on different machines is one project), else its repository's top folder (its worktrees together), else the folder. A session elsewhere goes by its folder's name until something sets it. An agent or the owner can move a session to another project or rename a project for all its sessions; what was set is kept as set. Roles and projects are kept on the hub (`session_team`).
+- **Reaching muxtower as itself.** A session muxtower starts gets muxtower's MCP server with a token of its own, `session.<id>.<hook token>`, written the way its hooks are (Claude Code: an `--mcp-config` file, mode 0600; Codex: `-c mcp_servers.muxtower…` with the token in its environment). The token opens `/v1/mcp` and nothing else, and dies with the session; a session started with its own `--mcp-config` (the concierge) keeps its own. A device's token is no session: `my_team` then says it cannot tell who is calling and lists every project.
+- **Tools.** `initialize` returns instructions (call `my_team` first; no role, ask the owner or set the one they gave; decide yourself whom to ask by role and state; `[muxtower task from …]` messages are a teammate's work). `my_team` says who the caller is and lists its project's other sessions with role, device, state, folder, worktree and branch; `set_role` and `set_project` set them for the caller or, by `session_id`, for another.
+
 ## Reply summaries and voice
 
 - **Summaries.** A reply longer than `summaries.min_chars` gets a few lines in its own language that keep what the owner must decide, commands proposed and failures. They are made by a coding agent CLI already logged in on the daemon's machine (`claude -p` with haiku, or `codex exec`), so a subscription is used instead of an API key. The CLI runs with no tools, settings or MCP servers in an empty directory, and gets the reply on stdin. Each reply is summarized once (keyed by its hash, cached in SQLite), in the background: when a client asks (`POST /v1/sessions/{id}/summary`) and, with `summaries.eager`, as soon as a session starts needing the owner. Sessions carry it as `reply_summary`; the stream pushes the list again when one is ready.

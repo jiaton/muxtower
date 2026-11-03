@@ -79,6 +79,8 @@ from muxtower.sources.codex.shared import SharedCodexSource
 from muxtower.sources.remote_control.service import RemoteControlSource
 from muxtower.summaries.routes import router as summaries_router
 from muxtower.system.routes import router as system_router
+from muxtower.teams.repository import SqliteTeamRepository
+from muxtower.teams.service import TeamService
 from muxtower.terminal.images import ImageDrop
 from muxtower.terminal.ports import TmuxPort
 from muxtower.terminal.service import TerminalService
@@ -211,7 +213,9 @@ def create_app(
     app.state.hub = hub
     app.state.summaries = summaries
     app.state.concierge = concierge
-    app.state.mcp = McpTools(directory, launcher, concierge, daemon_name, lambda: list(nodes.all()))
+    teams = TeamService(directory, SqliteTeamRepository(db))
+    app.state.teams = teams
+    app.state.mcp = McpTools(directory, launcher, concierge, daemon_name, lambda: list(nodes.all()), teams)
     app.state.asr = build_asr(settings, lambda: [s.name for s in directory.list()])
     app.state.terminal = terminal
     app.state.approvals = approvals

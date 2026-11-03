@@ -7,7 +7,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from muxtower.hooks.events import SESSION_HEADER, AskingTools, HookEvent
-from muxtower.hooks.ports import HookLaunch
+from muxtower.hooks.ports import MCP_SERVER, HookLaunch
 
 EVENTS = [
     "SessionStart",
@@ -46,7 +46,15 @@ class ClaudeCodeHooks:
         settings = launch.files / f"{launch.session_id}.json"
         settings.parent.mkdir(parents=True, exist_ok=True)
         settings.write_text(json.dumps(hook_settings(launch.url)))
-        return ["--settings", str(settings)]
+        args = ["--settings", str(settings)]
+        if launch.mcp_url:
+            server = {"type": "http", "url": launch.mcp_url, "headers": {"Authorization": f"Bearer {launch.mcp_token}"}}
+            config = launch.files / f"{launch.session_id}.mcp.json"
+            config.touch(mode=0o600)
+            config.chmod(0o600)
+            config.write_text(json.dumps({"mcpServers": {MCP_SERVER: server}}))
+            args += ["--mcp-config", str(config)]
+        return args
 
     def event(self, body: bytes) -> HookEvent:
         try:

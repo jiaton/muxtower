@@ -10,9 +10,11 @@ from pydantic import BaseModel, Field
 from muxtower.concierge.service import ConciergeService
 from muxtower.errors import Conflict, Invalid, Unavailable
 from muxtower.mcp.describe import line
+from muxtower.mcp.team_tools import ProjectArgs, RoleArgs, TeamArgs, TeamTools
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.launcher import Launcher
 from muxtower.sessions.models import ConversationItemKind, CreateSession, ItemStatus, Session
+from muxtower.teams.service import TeamService
 from muxtower.terminal.models import SendInput
 
 REPLY_CHARS = 20000  # a reply is relayed whole, within reason
@@ -83,7 +85,7 @@ def _clip(text: str, chars: int) -> str:
 class McpTools:
     def __init__(
         self, directory: SessionDirectory, launcher: Launcher, concierge: ConciergeService | None, hub: str,
-        machines: Callable[[], list[str]] = list,
+        machines: Callable[[], list[str]] = list, teams: TeamService | None = None,
     ) -> None:  # fmt: skip
         self.directory = directory
         self.launcher = launcher
@@ -115,6 +117,17 @@ class McpTools:
                 Tool("list_events", "The [muxtower event] lines muxtower recorded after an event number (it "
                      "keeps the latest few hundred), to catch up after a restart or when one may be missed.",
                      EventsArgs, self.list_events),
+            ]  # fmt: skip
+        if teams is not None:
+            team = TeamTools(teams)
+            tools += [
+                Tool("my_team", "Who you are (your session, role and project) and who works with you: each "
+                     "session of your project with its role, device, state, folder and branch. Call it first.",
+                     TeamArgs, team.my_team),
+                Tool("set_role", "Set what a session is for (free text, a few words, plus an optional note): "
+                     "yours, or a teammate's by session_id. An empty role clears it.", RoleArgs, team.set_role),
+                Tool("set_project", "Move a session (yours by default) to a project, a new name making a new "
+                     "one; or, with rename, rename its project for all its sessions.", ProjectArgs, team.set_project),
             ]  # fmt: skip
         self.tools = {t.name: t for t in tools}
 
