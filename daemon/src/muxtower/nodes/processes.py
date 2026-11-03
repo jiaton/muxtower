@@ -7,18 +7,39 @@ and how they were started (`running`), and the hub lists them as that computer's
 folder of a kind of machine (`/Users/…`) whose process is not running is taken for the one node of
 that kind, when there is just one."""
 
+from collections.abc import Callable
 from typing import Any
+
+from pydantic import ValidationError
 
 from muxtower.nodes.hub import Nodes
 from muxtower.sessions.claude_processes import ClaudeProcess
+from muxtower.sessions.models import GitPlace
+from muxtower.teams.ports import Checkout
 
 
-def report(running: dict[str, ClaudeProcess]) -> list[dict[str, Any]]:
-    """What a node says of the processes on its own machine (not those its own nodes report)."""
-    return sorted(
-        ({"remote_id": rid, "cwd": p.cwd, "entrypoint": p.entrypoint} for rid, p in running.items() if not p.machine),
-        key=lambda r: str(r["remote_id"]),
-    )
+def report(
+    running: dict[str, ClaudeProcess], checkout: Callable[[str], Checkout] | None = None
+) -> list[dict[str, Any]]:
+    """What a node says of the processes on its own machine (not those its own nodes report): with where each
+    one's folder sits in git, read here (`checkout`, cached), since the hub cannot."""
+
+    def told(rid: str, p: ClaudeProcess) -> dict[str, Any]:
+        found = checkout(p.cwd) if checkout and p.cwd else None
+        git = None
+        if found is not None and found.repo and found.root:
+            git = {"repo": found.repo, "worktree": found.root, "branch": found.branch, "remote": found.remote}
+        return {"remote_id": rid, "cwd": p.cwd, "entrypoint": p.entrypoint, "git": git}
+
+    return sorted((told(rid, p) for rid, p in running.items() if not p.machine), key=lambda r: str(r["remote_id"]))
+
+
+def _git(raw: Any) -> GitPlace | None:
+    """A node's reading of a folder's repository (older nodes send none)."""
+    try:
+        return GitPlace.model_validate(raw) if isinstance(raw, dict) else None
+    except ValidationError:
+        return None
 
 
 def platform_of(cwd: str | None) -> str | None:
@@ -56,7 +77,7 @@ class NodeProcesses:
                     entrypoint = raw.get("entrypoint")
                     found[raw["remote_id"]] = ClaudeProcess(
                         pid=0, cwd=str(raw.get("cwd") or ""), machine=name,
-                        entrypoint=str(entrypoint) if entrypoint else None,
+                        entrypoint=str(entrypoint) if entrypoint else None, git=_git(raw.get("git")),
                     )  # fmt: skip
         return found
 

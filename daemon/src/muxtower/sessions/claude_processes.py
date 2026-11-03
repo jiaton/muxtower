@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from muxtower.infra.procfs import Children, alive, family
+from muxtower.sessions.models import GitPlace
 
 SEARCH_DEPTH = 3
 BRIDGE_PREFIX = "session_"
@@ -67,6 +68,7 @@ class ClaudeProcess:
     cwd: str
     entrypoint: str | None = None
     machine: str | None = None  # the node it runs on, as its hub knows it; None: this machine
+    git: GitPlace | None = None  # its folder's repository, as that node read it (git runs only there)
 
     @property
     def origin(self) -> str | None:

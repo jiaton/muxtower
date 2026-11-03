@@ -56,3 +56,45 @@ def test_a_session_whose_process_runs_on_a_node_is_that_node_s(tmp_path: Path) -
     # What a node reports is its own machine's only, and a Windows folder is told apart.
     assert report({"x": ClaudeProcess(pid=1, cwd="/", machine="other")}) == []
     assert platform_of("C:\\Users\\me") == "win32" and platform_of("/home/me") is None
+
+
+def test_a_desktop_session_on_a_node_says_where_it_sits_in_git(tmp_path: Path) -> None:
+    """The hub cannot run git on the node's folders: the node reads them with what it reports."""
+    from muxtower.teams.ports import Checkout
+
+    port = FakeRemoteControl()
+    port.sessions = [session("cse_wt", environment_id=None), session("cse_plain", environment_id=None)]
+    source = RemoteControlSource(port, {})
+    source.tick()
+    settings = load_settings(
+        config_file=tmp_path / "none.toml", env={},
+        overrides={"name": "nas", "state_dir": tmp_path / "s", "config_dir": tmp_path / "c", "serve_ui": False},
+    )  # fmt: skip
+    app = create_app(settings, tmux=FakeTmux(), run_loops=False, remote_control=source)
+    name, _ = app.state.nodes.claim("mac")
+    _, token = app.state.tokens.create("phone")
+    phone = TestClient(app, headers={"Authorization": f"Bearer {token}"})
+
+    # What the Mac reads of its folders (its git): a worktree of a repository, and a folder outside git.
+    wt, repo = "/Users/me/shop-teams", "/Users/me/shop"
+    folders = {
+        wt: Checkout("acme/shop", "git remote", wt, "teams", repo, "acme/shop"),
+        "/Users/me/notes": Checkout("notes", "folder"),
+    }
+    running = {
+        "cse_wt": ClaudeProcess(pid=7, cwd="/Users/me/shop-teams", entrypoint="claude-desktop"),
+        "cse_plain": ClaudeProcess(pid=8, cwd="/Users/me/notes", entrypoint="claude-desktop"),
+    }
+    told = report(running, folders.__getitem__)
+    assert told[1]["git"] == {
+        "repo": "/Users/me/shop",
+        "worktree": "/Users/me/shop-teams",
+        "branch": "teams",
+        "remote": "acme/shop",
+    }
+    app.state.nodes.on_event(name, "running", told)
+    listed = {s["id"]: s for s in phone.get("/v1/sessions").json()}
+    assert listed["cse_wt"]["machine"] == "mac" and listed["cse_wt"]["git"]["worktree"] == "/Users/me/shop-teams"
+    assert listed["cse_plain"]["git"] is None
+    app.state.nodes.on_event(name, "running", [{"remote_id": "cse_wt", "cwd": "/Users/me/shop-teams"}])  # an older node
+    assert next(s for s in phone.get("/v1/sessions").json() if s["id"] == "cse_wt")["git"] is None

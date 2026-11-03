@@ -34,6 +34,8 @@ def decorate(session: Session, directory: SessionDirectory) -> Session:
             update.update(machine=process.machine or d.hub_name or session.machine, on_host=here)
             update["cwd"] = deeper(process.cwd, session.cwd)
             update["origin"] = process.origin or session.origin  # what Claude Code says beats the tags
+            if process.git and not here:  # read on its node, which runs git where the folder is
+                update["git"] = process.git
         if d.accounts and (account := d.accounts(session)):
             update["account"] = account
     if d.summaries and (summary := d.summaries.lookup(session.last_message)):
