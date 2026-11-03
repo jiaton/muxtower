@@ -6,49 +6,61 @@ binary = "claude"
 hooks = "claude-code"
 default_state = "idle"
 auto_approve_states = ["needs_permission", "needs_trust"]
+# Its input box between two rules (older versions: "> " over "? for shortcuts"). While it shows, a dialog
+# can only be the panel framed right above it (a tip like "Teach auto mode…"), whatever the conversation
+# above quotes.
+prompt = '^─{8,}\n❯[^\n]*(?:\n[^─\n][^\n]*)*\n─{8,}|^>[^\n]*\n\s*\?\s+for\s+shortcuts'
+panel_rule = '^─{8,}\s*$'
 
 [[rules]]
 name = "tool-permission"
 state = "needs_permission"
 pattern = 'Tab\s+to\s+amend.*ctrl\+e\s+to\s+explain'
+last_lines = 4
 
 [[rules]]
 name = "tool-permission-generic"
 state = "needs_permission"
 pattern = 'Do\s+you\s+want\s+to.*?\n\s*❯?\s*1\.\s*Yes'
+last_lines = 12
 
 [[rules]]
 name = "question"
 state = "needs_answer"
 pattern = '↑/↓\s+to\s+navigate'
+last_lines = 4
 
 [[rules]]
 name = "question-multi-step"
 state = "needs_answer"
-pattern = '☐.*✔\s*Submit'
+pattern = '☐[^\n]*✔\s*Submit'
+last_lines = 40
 
 [[rules]]
 name = "mcp-server-trust"
 state = "needs_trust"
 # Anchored (\A): an unanchored lookahead is tried at every position of the screen, each scanning to its end.
-pattern = '\A(?=.*MCP\s+server)(?=.*Enter\s+to\s+confirm)'
+# The dialog's last line is its footer (a quote of these words sits above the input box instead).
+pattern = '\A(?=.*MCP\s+server).*Enter\s+to\s+confirm[^\n]*\Z'
 last_lines = 40
 
 [[rules]]
 name = "workspace-trust"
 state = "needs_trust"
-pattern = '\A(?=.*trust\s+this\s+folder)(?=.*Enter\s+to\s+confirm)'
+pattern = '\A(?=.*trust\s+this\s+folder).*Enter\s+to\s+confirm[^\n]*\Z'
 last_lines = 40
 
 [[rules]]
 name = "plan-review"
 state = "plan_review"
 pattern = 'How\s+would\s+you\s+like\s+to\s+proceed\?'
+last_lines = 12
 
 [[rules]]
 name = "choice-dialog"
 state = "needs_answer"
-pattern = 'Enter\s+to\s+confirm\s+·\s+Esc\s+to\s+cancel'
+pattern = 'Enter\s+to\s+confirm\s+·\s+Esc\s+to\s+cancel[^\n]*\Z'
+last_lines = 3
 
 [[rules]]
 name = "api-error"

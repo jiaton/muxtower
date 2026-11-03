@@ -77,6 +77,17 @@ class LiveSession:
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 
+def _hook_knows_better(hook: HookState | None, screen: ScreenState) -> bool:
+    """A dialog the screen rules see, when the agent's hooks say otherwise: words a dialog uses, quoted on the
+    screen (a reply, a diff), are no dialog. Hooks report the agent's own prompts (permission, question,
+    plan), so a hook that said "working" or "done" since that screen showed wins; and trust dialogs show
+    only at startup, before any hook, so once one came the screen's trust is not believed."""
+    if hook is None or hook.state in ATTENTION_STATES:
+        return False
+    state = screen.classification.state
+    return state == AgentState.NEEDS_TRUST or (state in APPROVABLE_STATES and hook.at >= screen.since)
+
+
 def merge(hook: HookState | None, screen: ScreenState | None, now: float, busy_stale: float = 0.0) -> Effective:
     screen_state = screen.classification.state if screen else AgentState.UNKNOWN
     options: list[Option] = screen.classification.options if screen else []
@@ -97,11 +108,12 @@ def merge(hook: HookState | None, screen: ScreenState | None, now: float, busy_s
             )
             return Effective(hook.state, StateSource.HOOK, rule, pending)
 
-    if screen is not None and screen_state in ATTENTION_STATES:
+    overruled = screen is not None and _hook_knows_better(hook, screen)
+    if screen is not None and screen_state in ATTENTION_STATES and not overruled:
         pending = PendingAction(state=screen_state, options=options)
         return Effective(screen_state, StateSource.SCREEN, rule, pending)
 
-    if screen is not None and rule is not None:
+    if screen is not None and rule is not None and not overruled:
         return Effective(screen_state, StateSource.SCREEN, rule, None)
     if (
         hook is not None

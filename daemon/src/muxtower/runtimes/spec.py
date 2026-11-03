@@ -11,7 +11,7 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, field_validator
 
-from muxtower.runtimes.models import AgentState, Option
+from muxtower.runtimes.models import APPROVABLE_STATES, AgentState, Option
 
 logger = logging.getLogger("muxtower.runtimes")
 
@@ -77,6 +77,14 @@ class RuntimeConfig(BaseModel):
     # (0: always). For an agent whose hooks do not report every way a turn ends (Codex has no failure event).
     busy_stale_seconds: float = Field(default=0.0, ge=0)
     rules: list[RuleConfig] = Field(default_factory=list)
+    # The agent's input box, as it shows at the bottom (a match starts at its first line). A dialog either
+    # takes its place, or (`panel_rule`) sits right above it, framed by rule lines. While the box shows,
+    # rules for a dialog see only that framed panel, or nothing: the words a dialog uses, quoted in a reply
+    # or a diff above the box, do not make one.
+    prompt: str | None = None
+    prompt_last_lines: int = Field(default=12, ge=1)
+    panel_rule: str | None = None  # a line that frames the box and a panel above it, e.g. '^─{8,}\s*$'
+    panel_lines: int = Field(default=25, ge=1)  # the tallest such panel
     menu: MenuConfig = Field(default_factory=MenuConfig)
     approve: ApproveConfig = Field(default_factory=ApproveConfig)
     deny: DenyConfig = Field(default_factory=DenyConfig)
@@ -109,6 +117,8 @@ class Runtime:
         self.config = config
         self.source = source
         self.rules = [(r, re.compile(r.pattern, re.DOTALL)) for r in config.rules]
+        self.prompt = re.compile(config.prompt, re.MULTILINE) if config.prompt else None
+        self.panel_rule = re.compile(config.panel_rule) if config.panel_rule else None
         self.prefer = {state: [re.compile(p) for p in ps] for state, ps in config.approve.prefer.items()}
         self.default = [re.compile(p) for p in config.approve.default]
 
@@ -116,10 +126,30 @@ class Runtime:
     def name(self) -> str:
         return self.config.name
 
+    def dialog_lines(self, lines: list[str]) -> list[str] | None:
+        """Where a dialog can be: the whole screen while no input box shows at the bottom; else only the panel
+        framed right above the box (`panel_rule`), or nowhere (None)."""
+        shown = len(lines) - self.config.prompt_last_lines
+        found = self.prompt.search("\n".join(lines[max(shown, 0) :])) if self.prompt else None
+        if found is None:
+            return lines
+        box = max(shown, 0) + found.string.count("\n", 0, found.start())  # the box's first line
+        if self.panel_rule is None:
+            return None
+        rule = self.panel_rule
+        top = next(
+            (i for i in range(box - 1, max(box - self.config.panel_lines, 0) - 1, -1) if rule.match(lines[i])), None
+        )
+        return lines[top + 1 : box] if top is not None else None
+
     def classify(self, screen: str) -> Classification:
         lines = screen.rstrip().splitlines()
+        dialog = self.dialog_lines(lines)
         for rule, pattern in self.rules:
-            if pattern.search("\n".join(lines[-rule.last_lines :]) if rule.last_lines else screen):
+            seen = dialog if rule.state in APPROVABLE_STATES else lines
+            if seen is None:
+                continue
+            if pattern.search("\n".join(seen[-rule.last_lines :]) if rule.last_lines else "\n".join(seen)):
                 menu = self.parse_menu(screen) if rule.state != AgentState.BUSY else None
                 return Classification(rule.state, rule.name, menu)
         return Classification(self.config.default_state, None)

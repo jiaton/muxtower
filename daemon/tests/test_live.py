@@ -51,3 +51,17 @@ def test_a_hook_that_says_busy_is_believed_until_the_screen_has_shown_nothing_at
     eff = merge(hook, idle, now=33, busy_stale=20)  # the turn failed: no Stop will ever come
     assert eff.state == AgentState.IDLE and eff.source == StateSource.SCREEN
     assert merge(hook, screen(AgentState.BUSY, 12), now=500, busy_stale=20).state == AgentState.BUSY  # visibly working
+
+
+def test_a_hook_since_the_screen_showed_a_dialog_s_words_wins() -> None:
+    """The words quoted in a reply or a diff: the hook that came after says what the agent is doing."""
+    quoted = screen(AgentState.NEEDS_ANSWER, 10)
+    assert merge(HookState(AgentState.BUSY, at=11), quoted, now=12).state == AgentState.BUSY
+    assert merge(HookState(AgentState.IDLE, at=11), quoted, now=12).state == AgentState.IDLE
+    # A dialog drawn after the last hook (one no hook reports) is still believed.
+    assert merge(HookState(AgentState.IDLE, at=9), quoted, now=12).state == AgentState.NEEDS_ANSWER
+    # Trust dialogs come before any hook: once one came, the screen's trust is words on it.
+    assert merge(HookState(AgentState.IDLE, at=1), screen(AgentState.NEEDS_TRUST, 10), now=12).state == AgentState.IDLE
+    assert merge(None, screen(AgentState.NEEDS_TRUST, 10), now=12).state == AgentState.NEEDS_TRUST
+    # An error is no dialog: shown after the hook's last word, it stands.
+    assert merge(HookState(AgentState.BUSY, at=11), screen(AgentState.ERROR, 10), now=12).state == AgentState.ERROR

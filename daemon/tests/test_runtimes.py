@@ -180,3 +180,18 @@ def test_an_unanchored_lookahead_is_refused(tmp_path: Path) -> None:
         'name = "slow"\nbinary = "slow"\n[[rules]]\nname = "x"\nstate = "needs_trust"\npattern = \'(?=.*a)(?=.*b)\'\n'
     )
     assert "slow" not in load_runtimes(tmp_path)  # logged and left out, like any broken file
+
+
+def test_a_dialog_s_words_above_the_input_box_are_no_dialog() -> None:
+    """Quoted in a diff or a reply, a dialog's words must not make a session wait on the owner: the app
+    would offer Deny (Esc), which interrupts it."""
+    rt = claude()
+    assert rt.classify(screens.BUSY_QUOTING_DIALOG).state == AgentState.BUSY
+    idle = rt.classify(screens.IDLE_QUOTING_DIALOG)
+    assert idle.state == AgentState.IDLE and idle.rule is None
+    codex = load_runtimes(None)["codex"].classify(screens.CODEX_IDLE_QUOTING)
+    assert codex.state == AgentState.IDLE and codex.rule is None
+    for dialog in (screens.TRUST, screens.MCP_TRUST, screens.PERMISSION, screens.QUESTION):  # still dialogs
+        assert rt.classify(screens.LONG_IDLE.rsplit(">", 1)[0] + dialog).state in (
+            AgentState.NEEDS_TRUST, AgentState.NEEDS_PERMISSION, AgentState.NEEDS_ANSWER,
+        )  # fmt: skip
