@@ -112,3 +112,28 @@ def test_read_session_pages_through_what_is_new() -> None:
     assert "#1 [reply] reply 1\n#2 [reply] reply 2" in first and first.endswith("after=2)")
     assert "Nothing new after item 7." in tools.read_session(ReadArgs(session_id="s1", after=7))
     assert "Recent conversation:" in tools.read_session(ReadArgs(session_id="s1"))
+
+
+def test_start_session_starts_on_the_device_it_names() -> None:
+    from types import SimpleNamespace
+
+    import pytest
+
+    from muxtower.errors import Invalid
+    from muxtower.mcp.service import McpTools, StartArgs
+
+    started: list[CreateSession] = []
+
+    def create(request: CreateSession) -> SimpleNamespace:
+        started.append(request)
+        return SimpleNamespace(name="web", id="s9", cwd=request.cwd)
+
+    launcher = SimpleNamespace(create=create)
+    tools = McpTools(SimpleNamespace(), launcher, None, "hub", lambda: ["laptop"])  # type: ignore[arg-type]
+    assert tools.start_session(StartArgs(cwd="/srv/web", machine="@Laptop")).endswith("on laptop in /srv/web.")
+    assert started[-1].node == "laptop"
+    for here in (None, "hub", "HUB", ""):
+        tools.start_session(StartArgs(cwd="/srv/web", machine=here))
+        assert started[-1].node is None
+    with pytest.raises(Invalid, match="one of: hub, laptop"):
+        tools.start_session(StartArgs(cwd="/srv/web", machine="phone"))
