@@ -58,6 +58,7 @@ describe('the demo daemon over HTTP', () => {
       'docs',
       'laptop~infra',
       'release-notes',
+      'release-notes-fork',
     ])
     const screen = await (await call(w, 'GET', '/v1/sessions/shop-api/screen')).json()
     expect(screen.text).toContain('Do you want to proceed?')

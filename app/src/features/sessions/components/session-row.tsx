@@ -18,6 +18,8 @@ export interface RowContext {
   showAccount?: boolean
   /** The list holds more than one agent (Claude Code, Codex…): mark which this one is. */
   showAgent?: boolean
+  /** Listed under the session it was forked from: the tree already says it is a fork. */
+  nested?: boolean
 }
 
 /** One line of Markdown as plain text: no emphasis marks, code ticks or heading hashes. */
@@ -52,7 +54,7 @@ export function SessionRow({
   const { daemon, session } = entry
   const folder = folderOf(session)
   const where = [
-    session.fork_of ? (session.side_chat ? 'Side chat' : 'Fork') : null,
+    session.fork_of && !context.nested ? (session.side_chat ? 'Side chat' : 'Fork') : null,
     context.showDaemon ? daemon.name : null,
     context.hideDevice ? null : (deviceOf(session) ?? NO_ENVIRONMENT),
     context.hideFolder || !folder ? null : folderName(folder),

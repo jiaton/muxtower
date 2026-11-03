@@ -20,6 +20,7 @@ import { agentsDiffer, entryKey, folderName, isAssistant } from '@/features/sess
 import { keptEntries, keptGroups } from '@/features/sessions/model/kept'
 import { facetsOf } from '@/features/sessions/model/counts'
 import { filterEntries, groupEntries, queryTitle } from '@/features/sessions/model/query'
+import { foldForks } from '@/features/sessions/model/forks'
 import { foldSideChats } from '@/features/sessions/model/side-chats'
 import { parseListSearch, toQuery } from '@/features/sessions/model/search'
 import { useListMemory, useListPrefs, useSessionDrawer } from '@/features/sessions/store'
@@ -58,13 +59,19 @@ function SessionsLayout() {
 
   const visible = filterEntries(entries, query)
   const selectedKey = open ? entryKey(open.params.daemonId, open.params.sessionId) : undefined
-  const opened = useOpenedHere(listKey, selectedKey, visible.some((e) => e.key === selectedKey))
+  const opened = useOpenedHere(
+    listKey,
+    selectedKey,
+    visible.some((e) => e.key === selectedKey),
+  )
   const kept = keptEntries(entries, visible, opened, query)
 
   if (!daemons.length) return <Onboarding unpairedName={unpaired[0]?.name} unpairedUrl={unpaired[0]?.url} />
 
-  // Side chats sit under the session they were asked beside, folded (one that needs you stays out).
-  const { shown, sideChats } = foldSideChats(visible)
+  // Side chats sit under the session they were asked beside, folded (one that needs you stays out);
+  // forks are listed under the session they were forked from.
+  const { shown: unfolded, sideChats } = foldSideChats(visible)
+  const { shown, forks } = foldForks(unfolded)
   const groups = [...groupEntries(shown, query.group), ...keptGroups(kept)]
   const count = visible.filter((e) => !isAssistant(e.session)).length
   const facets = facetsOf(entries)
@@ -75,84 +82,84 @@ function SessionsLayout() {
     <div className="flex min-w-0 flex-1">
       <Drawer drawer={asDrawer} open={drawerOpen} onOpenChange={setDrawer} onPull={setPull} label="Sessions">
         <Pane className="flex w-full border-r border-border md:w-80 md:shrink-0 xl:w-96" aria-label="Sessions">
-        <PaneHeader
-          title={
-            <h1 className="truncate" title={title}>
-              {query.folder ? folderName(title) : title}
-            </h1>
-          }
-          subtitle={within ? `${within} · ${counted}` : counted}
-          actions={
-            <>
-              <ListMenu
-                query={query}
-                unread={visible.filter((e) => e.session.unread)}
-                agents={facets.agents.length > 0}
-                accounts={facets.accounts.length > 0}
-              />
-              <FilterMenu query={query} search={search} facets={facets} className="lg:hidden" />
-              <div className="lg:hidden">
-                <NewSessionDialog
-                  trigger={
-                    <Button variant="ghost" size="icon-sm" aria-label="New session" title="New session">
-                      <Plus />
-                    </Button>
-                  }
+          <PaneHeader
+            title={
+              <h1 className="truncate" title={title}>
+                {query.folder ? folderName(title) : title}
+              </h1>
+            }
+            subtitle={within ? `${within} · ${counted}` : counted}
+            actions={
+              <>
+                <ListMenu
+                  query={query}
+                  unread={visible.filter((e) => e.session.unread)}
+                  agents={facets.agents.length > 0}
+                  accounts={facets.accounts.length > 0}
                 />
+                <FilterMenu query={query} search={search} facets={facets} className="lg:hidden" />
+                <div className="lg:hidden">
+                  <NewSessionDialog
+                    trigger={
+                      <Button variant="ghost" size="icon-sm" aria-label="New session" title="New session">
+                        <Plus />
+                      </Button>
+                    }
+                  />
+                </div>
+              </>
+            }
+          >
+            <SearchField search={search} />
+            <ListChips query={query} search={search} facets={facets} className="lg:hidden" />
+            <ScopeChip query={query} search={search} />
+          </PaneHeader>
+          <PaneBody ref={listRef}>
+            <DaemonAlerts daemons={daemons} />
+            <ExpiredLogins />
+            {groups.length ? (
+              <SessionList
+                groups={groups}
+                held={{ sideChats, forks }}
+                selectedKey={selectedKey}
+                foldScope={query.group}
+                unfolded={Boolean(query.q?.trim())}
+                context={{
+                  hideDevice: Boolean(query.device),
+                  hideFolder: Boolean(query.folder),
+                  hideSource: Boolean(query.source),
+                  showDaemon: daemons.length > 1,
+                  showAccount: facets.accounts.length > 0 && !query.account,
+                  showAgent: agentsDiffer([...visible, ...kept].map((e) => e.session)),
+                }}
+                extra={({ daemon, session }) =>
+                  session.needs_attention && session.pending ? (
+                    <QuickApproval daemonId={daemon.id} sessionId={session.id} pending={session.pending} />
+                  ) : null
+                }
+              />
+            ) : loading ? null : (
+              <div className="p-4">
+                {query.q ? (
+                  <EmptyState icon={<SearchX />} title={`No sessions match “${query.q}”`} />
+                ) : query.view === 'needs' ? (
+                  <EmptyState icon={<BellOff />} title="Nothing needs you right now" />
+                ) : query.view === 'unread' ? (
+                  <EmptyState icon={<CheckCheck />} title="All caught up" />
+                ) : query.view === 'hidden' ? (
+                  <EmptyState icon={<EyeOff />} title="Nothing hidden">
+                    Swipe a session right, or use its menu, to hide it.
+                  </EmptyState>
+                ) : query.view === 'archived' ? (
+                  <EmptyState icon={<Archive />} title="Nothing archived">
+                    Archiving a session ends it and keeps its conversation here.
+                  </EmptyState>
+                ) : (
+                  <EmptyState title="No sessions here" />
+                )}
               </div>
-            </>
-          }
-        >
-          <SearchField search={search} />
-          <ListChips query={query} search={search} facets={facets} className="lg:hidden" />
-          <ScopeChip query={query} search={search} />
-        </PaneHeader>
-        <PaneBody ref={listRef}>
-          <DaemonAlerts daemons={daemons} />
-          <ExpiredLogins />
-          {groups.length ? (
-            <SessionList
-              groups={groups}
-              sideChats={sideChats}
-              selectedKey={selectedKey}
-              foldScope={query.group}
-              unfolded={Boolean(query.q?.trim())}
-              context={{
-                hideDevice: Boolean(query.device),
-                hideFolder: Boolean(query.folder),
-                hideSource: Boolean(query.source),
-                showDaemon: daemons.length > 1,
-                showAccount: facets.accounts.length > 0 && !query.account,
-                showAgent: agentsDiffer([...visible, ...kept].map((e) => e.session)),
-              }}
-              extra={({ daemon, session }) =>
-                session.needs_attention && session.pending ? (
-                  <QuickApproval daemonId={daemon.id} sessionId={session.id} pending={session.pending} />
-                ) : null
-              }
-            />
-          ) : loading ? null : (
-            <div className="p-4">
-              {query.q ? (
-                <EmptyState icon={<SearchX />} title={`No sessions match “${query.q}”`} />
-              ) : query.view === 'needs' ? (
-                <EmptyState icon={<BellOff />} title="Nothing needs you right now" />
-              ) : query.view === 'unread' ? (
-                <EmptyState icon={<CheckCheck />} title="All caught up" />
-              ) : query.view === 'hidden' ? (
-                <EmptyState icon={<EyeOff />} title="Nothing hidden">
-                  Swipe a session right, or use its menu, to hide it.
-                </EmptyState>
-              ) : query.view === 'archived' ? (
-                <EmptyState icon={<Archive />} title="Nothing archived">
-                  Archiving a session ends it and keeps its conversation here.
-                </EmptyState>
-              ) : (
-                <EmptyState title="No sessions here" />
-              )}
-            </div>
-          )}
-        </PaneBody>
+            )}
+          </PaneBody>
         </Pane>
       </Drawer>
       <div className={cn('min-w-0 flex-1', open ? 'flex' : 'hidden md:flex')}>

@@ -91,3 +91,29 @@ export function releaseNotes(): Scene {
     reply: talk(null, 10),
   }
 }
+
+const SHORTER = 'Shorter, for the changelog: "2.4 adds a usage chart and payment retries, and fixes double-counted tax on refunds."'
+
+/** A fork of the release notes (its conversation copied into a session of its own), listed under them. */
+export function releaseNotesFork(): Scene {
+  const scene = releaseNotes()
+  return {
+    ...scene,
+    session: {
+      ...scene.session,
+      id: 'release-notes-fork',
+      name: 'Release notes for 2.4 (fork)',
+      remote_id: 'cse_demo_fork',
+      fork_of: 'release-notes',
+      unread: true,
+      last_message: SHORTER,
+      created_at: ago(25),
+      updated_at: ago(12),
+    },
+    items: [
+      ...scene.items,
+      prompt(4, { text: 'Now a one-line version for the changelog.', at: ago(14) }),
+      reply(5, { text: SHORTER, at: ago(12) }),
+    ],
+  }
+}
