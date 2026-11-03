@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 
 
@@ -27,3 +28,27 @@ class Checkout:
     source: str  # git remote | git root | folder
     root: str | None = None  # the worktree's top folder
     branch: str | None = None
+
+
+@dataclass
+class Task:
+    """Work one session sent another. `text` is whole while it is held; the record keeps its start."""
+
+    id: int
+    at: datetime
+    from_id: str | None  # None: sent from a device, not a session
+    from_label: str  # "<name> (<role>)", as the prefix says it
+    to_id: str
+    text: str
+    status: str  # delivered | held | undeliverable
+    delivered_at: datetime | None = None
+
+
+class TaskRepository(Protocol):
+    def add(self, task: Task) -> Task:
+        """Stores it (its id given here) and drops the oldest past the latest few hundred."""
+        ...
+
+    def update(self, task: Task) -> None: ...
+    def held(self) -> list[Task]: ...
+    def latest_to(self, session_ids: list[str], each: int) -> dict[str, list[Task]]: ...
