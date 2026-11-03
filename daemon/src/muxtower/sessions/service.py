@@ -13,7 +13,7 @@ from pathlib import Path
 from muxtower.errors import Conflict, Invalid, NotFound, Unauthorized
 from muxtower.hooks.events import HookEvent, apply_event
 from muxtower.hooks.harnesses import harness
-from muxtower.hooks.ports import HookLaunch
+from muxtower.hooks.ports import MCP_SERVER, MCP_TOKEN_ENV, HookLaunch
 from muxtower.runtimes.models import ATTENTION_STATES, AgentState
 from muxtower.runtimes.spec import Runtime
 from muxtower.sessions.live import Effective, HookState, LiveSession, merge
@@ -34,6 +34,10 @@ class SessionConfig:
 
 def _hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _brings_mcp(args: Sequence[str]) -> bool:
+    return any(a == "--mcp-config" or a.startswith("--mcp-config=") or f"mcp_servers.{MCP_SERVER}" in a for a in args)
 
 
 class SessionService:
@@ -163,13 +167,18 @@ class SessionService:
         session_id = uuid.uuid4().hex[:12]
         hook_token = secrets.token_urlsafe(24)
         argv = [runtime.config.binary]
+        env = {"MUXTOWER_SESSION_ID": session_id, "MUXTOWER_HOOK_TOKEN": hook_token}
         if hooks and (harnessed := harness(runtime.config.hooks)):
             url = f"{self.config.local_url}/v1/hooks/{harnessed.name}"
-            argv += harnessed.launch_args(HookLaunch(session_id, hook_token, url, self.hook_files))
+            # muxtower's MCP too, reached as this session, unless its arguments bring their own (the concierge)
+            mcp = None if _brings_mcp(args) else f"{self.config.local_url}/v1/mcp"
+            launch = HookLaunch(session_id, hook_token, url, self.hook_files, mcp)
+            argv += harnessed.launch_args(launch)
+            if mcp:
+                env[MCP_TOKEN_ENV] = launch.mcp_token
         argv += args
 
         tmux_session = f"mxt-{session_id[:8]}"
-        env = {"MUXTOWER_SESSION_ID": session_id, "MUXTOWER_HOOK_TOKEN": hook_token}
         pane = self.tmux.new_session(self.config.socket, tmux_session, cwd, argv, env, DEFAULT_COLS, DEFAULT_ROWS)
         record = SessionRecord(
             id=session_id,
@@ -227,12 +236,19 @@ class SessionService:
         """Where harnesses keep the files they write for a session's hooks, named after its id."""
         return self.config.state_dir / "hooks"
 
+    def holds_token(self, session_id: str, hook_token: str) -> bool:
+        """Whether `hook_token` is the one this session was started with."""
+        record = self.repo.get(session_id)
+        if record is None or record.hook_token_hash is None:
+            return False
+        return secrets.compare_digest(record.hook_token_hash, _hash(hook_token))
+
     def apply_hook(self, session_id: str, hook_token: str, event: HookEvent) -> bool:
         """Returns True when the session entered an attention state."""
         record = self.repo.get(session_id)
         if record is None or record.hook_token_hash is None:
             raise NotFound("unknown session")
-        if not secrets.compare_digest(record.hook_token_hash, _hash(hook_token)):
+        if not self.holds_token(session_id, hook_token):
             raise Unauthorized("bad hook token")
         live = self.live_of(session_id)
         if event.transcript_path:

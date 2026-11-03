@@ -24,7 +24,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from muxtower.hooks.events import AskingTools, HookEvent
-from muxtower.hooks.ports import HookLaunch
+from muxtower.hooks.ports import MCP_SERVER, MCP_TOKEN_ENV, HookLaunch
 
 RELAY = Path(__file__).with_name("relay.py")
 TIMEOUT_SECONDS = 3  # the most Codex allows a SessionEnd or Interrupt hook; it hashes the clamped value
@@ -90,7 +90,12 @@ class CodexHooks:
         target.touch(mode=0o600)
         target.chmod(0o600)
         target.write_text(json.dumps({"url": launch.url, "session": launch.session_id, "token": launch.token}))
-        return ["-c", f"hooks={toml(hooks_config(relay_command(target)))}"]
+        args = ["-c", f"hooks={toml(hooks_config(relay_command(target)))}"]
+        if launch.mcp_url:  # its token comes from the environment muxtower starts it with
+            server = f"mcp_servers.{MCP_SERVER}"
+            args += ["-c", f"{server}.url={json.dumps(launch.mcp_url)}"]
+            args += ["-c", f"{server}.bearer_token_env_var={json.dumps(MCP_TOKEN_ENV)}"]
+        return args
 
     def event(self, body: bytes) -> HookEvent:
         try:
