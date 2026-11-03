@@ -1480,6 +1480,18 @@
             ],
             "description": "where the owner placed it; `machine` and `cwd` already follow it"
           },
+          "project": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the team project it belongs to, once one is kept",
+            "title": "Project"
+          },
           "remote_id": {
             "anyOf": [
               {
@@ -1542,6 +1554,30 @@
                 "type": "null"
               }
             ]
+          },
+          "team_note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "one more line about its team role",
+            "title": "Team Note"
+          },
+          "team_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what it is for in its team (free text; `teams/`)",
+            "title": "Team Role"
           },
           "terminal_attached": {
             "default": false,
@@ -1934,6 +1970,72 @@
         "title": "SummaryStatus",
         "type": "object"
       },
+      "TeamTask": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "delivered_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Delivered At"
+          },
+          "from_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the session that sent it; null: a device",
+            "title": "From Id"
+          },
+          "from_label": {
+            "title": "From Label",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "status": {
+            "description": "delivered | held | undeliverable",
+            "title": "Status",
+            "type": "string"
+          },
+          "text": {
+            "description": "its start, whole while it is held",
+            "title": "Text",
+            "type": "string"
+          },
+          "to_id": {
+            "title": "To Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "from_id",
+          "from_label",
+          "to_id",
+          "text",
+          "status"
+        ],
+        "title": "TeamTask",
+        "type": "object"
+      },
       "Transcript": {
         "properties": {
           "text": {
@@ -2035,6 +2137,56 @@
           }
         },
         "title": "UpdateSession",
+        "type": "object"
+      },
+      "UpdateTeam": {
+        "description": "Only what is given changes. An empty role clears it.",
+        "properties": {
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 300,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "maxLength": 120,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project"
+          },
+          "rename_project": {
+            "default": false,
+            "description": "rename its project, for every session in it",
+            "title": "Rename Project",
+            "type": "boolean"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "maxLength": 60,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          }
+        },
+        "title": "UpdateTeam",
         "type": "object"
       },
       "ValidationError": {
@@ -3619,6 +3771,117 @@
         "summary": "Request Summary",
         "tags": [
           "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/tasks": {
+      "get": {
+        "description": "The tasks it was sent and sent, newest first.",
+        "operationId": "session_tasks_v1_sessions__session_id__tasks_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TeamTask"
+                  },
+                  "title": "Response Session Tasks V1 Sessions  Session Id  Tasks Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Session Tasks",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/team": {
+      "put": {
+        "operationId": "update_team_v1_sessions__session_id__team_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateTeam"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Team",
+        "tags": [
+          "teams"
         ]
       }
     },

@@ -85,6 +85,14 @@ class SqliteTaskRepository:
             rows = conn.execute("SELECT * FROM team_tasks WHERE status = 'held' ORDER BY id").fetchall()
         return [_task(r) for r in rows]
 
+    def involving(self, session_id: str, limit: int) -> list[Task]:
+        with self.db.connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM team_tasks WHERE to_id = ? OR from_id = ? ORDER BY id DESC LIMIT ?",
+                (session_id, session_id, limit),
+            ).fetchall()
+        return [_task(r) for r in rows]
+
     def latest_to(self, session_ids: list[str], each: int) -> dict[str, list[Task]]:
         found: dict[str, list[Task]] = {}
         with self.db.connect() as conn:

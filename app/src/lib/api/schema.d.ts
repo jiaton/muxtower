@@ -660,6 +660,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_id}/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Session Tasks
+         * @description The tasks it was sent and sent, newest first.
+         */
+        get: operations["session_tasks_v1_sessions__session_id__tasks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sessions/{session_id}/team": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Update Team */
+        put: operations["update_team_v1_sessions__session_id__team_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/stream/cookie": {
         parameters: {
             query?: never;
@@ -1400,6 +1437,11 @@ export interface components {
             /** @description where the owner placed it; `machine` and `cwd` already follow it */
             placement?: components["schemas"]["Placement"] | null;
             /**
+             * Project
+             * @description the team project it belongs to, once one is kept
+             */
+            project?: string | null;
+            /**
              * Remote Id
              * @description the controller session of this agent (Claude Code's Remote Control session, a Codex thread of the shared app-server), when it has one; listed once, under this id
              */
@@ -1422,6 +1464,16 @@ export interface components {
             state: components["schemas"]["AgentState"];
             state_source: components["schemas"]["StateSource"];
             summary?: components["schemas"]["TurnSummary"] | null;
+            /**
+             * Team Note
+             * @description one more line about its team role
+             */
+            team_note?: string | null;
+            /**
+             * Team Role
+             * @description what it is for in its team (free text; `teams/`)
+             */
+            team_role?: string | null;
             /**
              * Terminal Attached
              * @description a terminal is attached to its tmux session, so someone may be watching it at its own size
@@ -1580,6 +1632,37 @@ export interface components {
         SummaryStatus: {
             state: components["schemas"]["SummaryState"];
         };
+        /** TeamTask */
+        TeamTask: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Delivered At */
+            delivered_at?: string | null;
+            /**
+             * From Id
+             * @description the session that sent it; null: a device
+             */
+            from_id: string | null;
+            /** From Label */
+            from_label: string;
+            /** Id */
+            id: number;
+            /**
+             * Status
+             * @description delivered | held | undeliverable
+             */
+            status: string;
+            /**
+             * Text
+             * @description its start, whole while it is held
+             */
+            text: string;
+            /** To Id */
+            to_id: string;
+        };
         /** Transcript */
         Transcript: {
             /** Text */
@@ -1622,6 +1705,24 @@ export interface components {
             auto_approve?: boolean | null;
             /** Name */
             name?: string | null;
+        };
+        /**
+         * UpdateTeam
+         * @description Only what is given changes. An empty role clears it.
+         */
+        UpdateTeam: {
+            /** Note */
+            note?: string | null;
+            /** Project */
+            project?: string | null;
+            /**
+             * Rename Project
+             * @description rename its project, for every session in it
+             * @default false
+             */
+            rename_project: boolean;
+            /** Role */
+            role?: string | null;
         };
         /** ValidationError */
         ValidationError: {
@@ -2764,6 +2865,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SummaryStatus"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    session_tasks_v1_sessions__session_id__tasks_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamTask"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_team_v1_sessions__session_id__team_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTeam"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
                 };
             };
             /** @description Validation Error */

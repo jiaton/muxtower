@@ -80,6 +80,7 @@ from muxtower.sources.remote_control.service import RemoteControlSource
 from muxtower.summaries.routes import router as summaries_router
 from muxtower.system.routes import router as system_router
 from muxtower.teams.repository import SqliteTaskRepository, SqliteTeamRepository
+from muxtower.teams.routes import router as teams_router
 from muxtower.teams.service import TeamService
 from muxtower.teams.tasks import TaskService
 from muxtower.terminal.images import ImageDrop
@@ -219,6 +220,7 @@ def create_app(
     app.state.summaries = summaries
     app.state.concierge = concierge
     app.state.teams, app.state.team_tasks = teams, team_tasks
+    teams.changed = lambda: bus.publish("sessions", None)
     app.state.mcp = McpTools(
         directory,
         launcher,
@@ -261,7 +263,7 @@ def create_app(
         app.add_exception_handler(error, handler)
 
     routers = (system_router, auth_router, sessions_router, summaries_router, asr_router, mcp_router, stream_router,
-               push_router, hooks_router, nodes_router)  # fmt: skip
+               push_router, hooks_router, nodes_router, teams_router)  # fmt: skip
     for router in routers:
         app.include_router(router)
 

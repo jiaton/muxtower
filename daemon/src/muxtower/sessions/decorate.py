@@ -42,6 +42,8 @@ def decorate(session: Session, directory: SessionDirectory) -> Session:
         update["placement"] = Placement(machine=marks.machine, folder=marks.folder)
         update["machine"] = marks.machine or update.get("machine", session.machine)
         update["cwd"] = marks.folder or update.get("cwd", session.cwd)
+    if d.team and (team := d.team(session.id)):  # kept on the hub; a node's own say is kept otherwise
+        update.update(team_role=team.role, team_note=team.note, project=team.project)
     if d.concierge_id and session.id == d.concierge_id:
         update["role"] = SessionRole.CONCIERGE
         update["capabilities"] = session.capabilities.model_copy(update={"archive": False})  # it is restarted
