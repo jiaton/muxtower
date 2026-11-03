@@ -36,6 +36,9 @@ class FakeTmux:
         pane.argv, pane.env = argv, env
         return PaneRef(socket, pane.info.pane_id)
 
+    def installed(self) -> bool:
+        return "tmux" not in self.missing
+
     def finds(self, socket: str, binary: str) -> bool:
         return binary not in self.missing
 

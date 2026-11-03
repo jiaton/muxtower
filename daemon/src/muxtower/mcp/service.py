@@ -8,7 +8,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from muxtower.concierge.service import ConciergeService
-from muxtower.errors import Invalid
+from muxtower.errors import Conflict, Invalid, Unavailable
 from muxtower.mcp.describe import line
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.launcher import Launcher
@@ -212,7 +212,12 @@ class McpTools:
         request = CreateSession(
             runtime=args.runtime, cwd=args.cwd, name=args.name, args=[args.prompt] if args.prompt else [], node=node
         )
-        created = self.launcher.create(request)
+        try:
+            created = self.launcher.create(request)
+        except (Conflict, Unavailable) as exc:
+            if node is None:
+                raise
+            raise type(exc)(f"could not start it on {node}: {exc}") from exc
         return f"Started {created.name} ({created.id}) on {node or self.hub} in {created.cwd}."
 
     def watch(self, args: SessionArg) -> str:

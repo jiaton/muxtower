@@ -31,6 +31,9 @@ def test_an_agent_that_is_not_installed_is_not_started(
     tmux.missing.add("claude")
     res = client.post("/v1/sessions", json={"runtime": "claude", "cwd": str(tmp_path)}, headers=auth)
     assert res.status_code == 409 and "claude is not installed" in res.json()["detail"]
+    tmux.missing.add("tmux")  # a Mac without tmux: said as plainly, not a failure of tmux itself
+    res = client.post("/v1/sessions", json={"runtime": "claude", "cwd": str(tmp_path)}, headers=auth)
+    assert res.status_code == 409 and "tmux is not installed" in res.json()["detail"]
     assert tmux.panes == {}
 
 
