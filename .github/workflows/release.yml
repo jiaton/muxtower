@@ -24,12 +24,14 @@ jobs:
           cache-dependency-path: |
             app/package-lock.json
             glasses/package-lock.json
+            site/package-lock.json
       - run: pipx install poetry
       - name: The tag names the version being released
         run: test "${GITHUB_REF_NAME#v}" = "$(cd daemon && poetry version -s)"
       - run: cd daemon && poetry install
       - run: cd app && npm ci
       - run: cd glasses && npm ci
+      - run: cd site && npm ci  # make check lints the site too
       - run: make check
       - run: make wheel
       - uses: pypa/gh-action-pypi-publish@release/v1
