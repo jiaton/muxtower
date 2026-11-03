@@ -238,3 +238,42 @@ MCP_TRUST = """\
 # A long conversation scrolled by on the screen (history), matching no rule: what every rule meets on
 # most panes, most of the time. 20 000 characters.
 LONG_IDLE = ("● Read 3 files and ran the tests; all 42 pass.\n  ⎿  src/payments/client.ts\n" * 280)[:20000] + IDLE
+
+# At work, with a diff on screen that adds a dialog's words (a session editing these rules).
+BUSY_QUOTING_DIALOG = """\
+⏺ Update(tests/screens.py)
+  ⎿  Added 12 lines
+      225 + MCP_TRUST = \"\"\"\\\\
+      226 +  New MCP server found in .mcp.json: docs
+      227 +  Do you want to proceed?
+      228 +  ❯ 1. Yes
+      229 +  Enter to confirm · Esc to cancel
+
+✻ Pondering… (41s · ↓ 2.1k tokens)
+──────────────────────────────────────────────────
+❯ 
+──────────────────────────────────────────────────
+  ⏵⏵ auto mode on (shift+tab to cycle) · esc to interrupt
+"""
+
+# Idle, its reply quoting a dialog's words as the last thing it said.
+IDLE_QUOTING_DIALOG = """\
+⏺ The rule matched the footer of the trust dialog, which reads:
+
+  ❯ 1. Yes, I trust this folder
+    2. No, exit
+
+  Enter to confirm · Esc to cancel
+──────────────────────────────────────────────────
+❯ 
+──────────────────────────────────────────────────
+  ? for shortcuts
+"""
+
+CODEX_IDLE_QUOTING = """\
+• Codex asks "Would you like to run the following command?" before it runs one, and waits.
+
+› Ask Codex to do anything
+
+  gpt-5.5 default · ~/projects/web
+"""

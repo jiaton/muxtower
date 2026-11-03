@@ -13,6 +13,10 @@ enter_delay = 0.15
 busy_stale_seconds = 20
 auto_approve_states = ["needs_permission", "needs_trust"]
 
+# Its composer ("› " and what is typed, not a "› 1." choice). While it shows, no dialog is up.
+prompt = '^›(?!\s*\d+\.)'
+prompt_last_lines = 4
+
 [[rules]]
 # Codex asks at startup to trust hooks it does not know yet; muxtower trusts its own, so this means a
 # hook of the owner's or one Codex hashes differently. Approving continues without trusting them.
