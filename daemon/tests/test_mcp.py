@@ -119,7 +119,7 @@ def test_start_session_starts_on_the_device_it_names() -> None:
 
     import pytest
 
-    from muxtower.errors import Invalid
+    from muxtower.errors import Conflict, Invalid
     from muxtower.mcp.service import McpTools, StartArgs
 
     started: list[CreateSession] = []
@@ -137,3 +137,10 @@ def test_start_session_starts_on_the_device_it_names() -> None:
         assert started[-1].node is None
     with pytest.raises(Invalid, match="one of: hub, laptop"):
         tools.start_session(StartArgs(cwd="/srv/web", machine="phone"))
+
+    def refused(request: CreateSession) -> SimpleNamespace:
+        raise Conflict("tmux is not installed here")
+
+    launcher.create = refused
+    with pytest.raises(Conflict, match="could not start it on laptop: tmux is not installed here"):
+        tools.start_session(StartArgs(cwd="/srv/web", machine="laptop"))

@@ -82,6 +82,9 @@ class TmuxCli:
         )  # fmt: skip
         return PaneRef(socket=socket, pane_id=result.stdout.strip())
 
+    def installed(self) -> bool:
+        return shutil.which(self.binary, path=_ENV.get("PATH")) is not None
+
     def finds(self, socket: str, binary: str) -> bool:
         """Whether a new session of that server can run `binary`: tmux runs it on the PATH of the server's
         environment (the one this daemon starts it with, when no server runs yet)."""

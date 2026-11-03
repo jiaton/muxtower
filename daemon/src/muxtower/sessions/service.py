@@ -153,6 +153,11 @@ class SessionService:
     def launch(self, runtime: Runtime, cwd: str, args: Sequence[str], name: str | None, hooks: bool) -> Session:
         """Starts the runtime's binary with `args` in a tmux session of its own; with its hooks, if it has
         them, reporting to this daemon."""
+        if not self.tmux.installed():
+            raise Conflict(
+                "tmux is not installed here (not on the PATH muxtower runs with): install it, "
+                "e.g. `brew install tmux` on a Mac, and restart muxtower"
+            )
         if not self.tmux.finds(self.config.socket, runtime.config.binary):
             raise Conflict(f"{runtime.config.binary} is not installed here (not on the PATH tmux runs agents with)")
         session_id = uuid.uuid4().hex[:12]
