@@ -24,8 +24,13 @@ class FileConciergeStore:
     def load(self) -> ConciergeState:
         try:
             data = json.loads(self.path.read_text())
-            return ConciergeState(session_id=data.get("session_id"), watched=list(data.get("watched") or []))
-        except (OSError, ValueError, AttributeError):
+            return ConciergeState(
+                session_id=data.get("session_id"),
+                watched=list(data.get("watched") or []),
+                names=dict(data.get("names") or {}),
+                events=int(data.get("events") or 0),
+            )
+        except (OSError, ValueError, AttributeError, TypeError):
             return ConciergeState()
 
     def save(self, state: ConciergeState) -> None:
