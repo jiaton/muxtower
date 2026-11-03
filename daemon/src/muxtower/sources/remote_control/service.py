@@ -15,23 +15,18 @@ import threading
 from dataclasses import dataclass, field, replace
 from typing import Any
 
-from muxtower.claude_conversation import PendingRequest
-from muxtower.errors import Conflict, LoginExpired, NotFound, Unavailable
+from muxtower.errors import LoginExpired, NotFound, Unavailable
 from muxtower.infra.bus import EventBus
-from muxtower.runtimes.models import AgentState
 from muxtower.sessions.models import Conversation, ConversationItem, Session
-from muxtower.sources.remote_control import lineage, prompts
-from muxtower.sources.remote_control.folder import WorkingFolder
+from muxtower.sources.remote_control import lineage
+from muxtower.sources.remote_control.actions import EVENTS_PER_PAGE, RcActions
 from muxtower.sources.remote_control.ports import RawEvent, RemoteControlPort
-from muxtower.sources.remote_control.view import KEYS, RcSession, to_session
-from muxtower.terminal.models import ImageInput
+from muxtower.sources.remote_control.view import RcSession, to_session
 
 logger = logging.getLogger("muxtower.remote_control")
 
 FIRST_LOAD_EVENTS = 150
-EVENTS_PER_PAGE = 200
 MAX_EVENT_PAGES = 5
-MAX_DETECT_PAGES = 50  # of a whole log read for its folder, on the owner's request
 MAX_SESSION_PAGES = 4
 FINGERPRINT = ("last_event_at", "worker_status", "status_bucket", "unread", "title")
 
@@ -43,7 +38,7 @@ class RcTick:
     conversation: dict[str, list[ConversationItem]] = field(default_factory=dict)
 
 
-class RemoteControlSource:
+class RemoteControlSource(RcActions):
     def __init__(self, port: RemoteControlPort, environments: dict[str, str]) -> None:
         self.port = port
         self.environments = environments
@@ -210,61 +205,3 @@ class RemoteControlSource:
                 for session_id in result.attention:
                     bus.publish(f"attention:{session_id}", None)
             await asyncio.sleep(interval)
-
-    # --- actions ------------------------------------------------------------------------------
-
-    def _answerable(self, session_id: str) -> tuple[PendingRequest, Session]:
-        """The prompt to answer, from a fresh read of the log: it may be answered or withdrawn by now."""
-        self._refresh(session_id)
-        with self._lock:
-            rc = self._session(session_id)
-            request = rc.builder.pending
-            if request is None or not rc.waiting or rc.view is None:
-                raise Conflict("nothing to answer: the session is not waiting on a prompt")
-            return request, rc.view
-
-    def approve(
-        self, session_id: str, option: str | None, answers: list[list[str]] | None = None
-    ) -> tuple[AgentState, str]:
-        request, view = self._answerable(session_id)
-        return prompts.approve(self.port, session_id, request, view, option, answers)
-
-    def deny(self, session_id: str) -> AgentState:
-        request, view = self._answerable(session_id)
-        return prompts.deny(self.port, session_id, request, view)
-
-    def send_text(self, session_id: str, text: str, images: list[ImageInput] | None = None) -> None:
-        self.get(session_id)
-        self.port.send_message(session_id, text, images or [])
-
-    def mark_read(self, session_id: str) -> None:
-        self.get(session_id)
-        self.port.mark_read(session_id)
-
-    def detect_folder(self, session_id: str) -> str | None:
-        """The folder its whole log names (the cache holds its latest events only): what its tool calls
-        say they ran in. None when they say nothing."""
-        self.get(session_id)
-        folder, seq = WorkingFolder(), 0
-        for _ in range(MAX_DETECT_PAGES):
-            page = self.port.events_after(session_id, seq, EVENTS_PER_PAGE)
-            folder.feed(page)
-            if len(page) < EVENTS_PER_PAGE:
-                break
-            seq = max(e.seq for e in page)
-        return folder.cwd or None
-
-    def archive(self, session_id: str) -> None:
-        """Archived on Remote Control (which ends its agent), and out of this cache at once rather than
-        at the next poll."""
-        self.get(session_id)
-        self.port.archive_session(session_id)
-        with self._lock:
-            self.sessions.pop(session_id, None)
-            self._unsent.pop(session_id, None)
-
-    def send_key(self, session_id: str, key: str) -> None:
-        self.get(session_id)
-        if key not in KEYS:
-            raise Conflict("this session only takes Escape (interrupt) as a key")
-        self.port.interrupt(session_id)
