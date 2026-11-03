@@ -145,3 +145,55 @@ def test_a_session_on_another_machine_goes_by_its_folder_until_set() -> None:
     assert (member.project, member.project_source, saved, reads) == ("web", "folder", [], [])  # nothing kept, no git
     teams.set_project("mac~1", "shop")
     assert teams.find("mac~1").project == "shop" and saved[-1].project == "shop" and not saved[-1].project_auto
+
+
+def test_a_task_goes_to_a_role_now_or_once_the_receiver_stops_waiting(
+    make_app: Callable[..., FastAPI], tmux: FakeTmux, tmp_path: Path
+) -> None:
+    import time
+
+    from muxtower.runtimes.models import AgentState
+    from muxtower.sessions.live import HookState
+
+    app = make_app()
+    client = TestClient(app)
+    make = app.state.sessions.create
+    research = make(CreateSession(runtime="claude", cwd=str(tmp_path), name="research"))
+    worker = make(CreateSession(runtime="claude", cwd=str(tmp_path), name="worker"))
+
+    def token_of(session: Any) -> str:
+        pane = next(p for p in tmux.panes.values() if p.info.session_name == session.tmux_session)
+        return str(pane.env["MUXTOWER_MCP_TOKEN"])
+
+    def sent_to(session: Any) -> list[str]:
+        pane = next(p for p in tmux.panes.values() if p.info.session_name == session.tmux_session)
+        return [text for kind, text in pane.sent if kind in ("text", "paste")]
+
+    token = token_of(research)
+    _tool(client, token, "set_role", role="research")
+    assert "no role 'worker' in project" in _tool(client, token, "send_task", to="worker", text="x")
+    _tool(client, token, "set_role", role="Worker", session_id=worker.id)
+    done = _tool(client, token, "send_task", to="worker", text="Add retries to the payment client.")
+    assert done.startswith(f"Delivered to worker (Worker, {worker.id})")
+    assert sent_to(worker) == [
+        f"[muxtower task from research (research) · {research.id}] Add retries to the payment client."
+    ]
+
+    # Waiting on the owner: held, then sent once the prompt is answered.
+    live = app.state.sessions.live_of(worker.id)
+    live.hook, live.effective = HookState(AgentState.NEEDS_PERMISSION, at=time.monotonic()), None
+    held = _tool(client, token, "send_task", to=worker.id, text="Then update the docs.")
+    assert "is waiting on the owner" in held and len(sent_to(worker)) == 1
+    app.state.team_tasks.retry()
+    assert len(sent_to(worker)) == 1  # still waiting
+    live.hook, live.effective = None, None
+    app.state.team_tasks.retry()
+    assert sent_to(worker)[-1].endswith("] Then update the docs.")
+    assert "recent tasks:" in _tool(client, token, "my_team") and "(delivered)" in _tool(client, token, "my_team")
+
+    # Two sessions with the role: the sender picks one.
+    other = make(CreateSession(runtime="claude", cwd=str(tmp_path), name="worker-2"))
+    _tool(client, token, "set_role", role="worker", session_id=other.id)
+    clash = _tool(client, token, "send_task", to="worker", text="x")
+    assert clash.startswith("ERROR 2 sessions have role 'worker'") and worker.id in clash and other.id in clash
+    assert _tool(client, token, "send_task", to=research.id, text="x") == "ERROR that is you"

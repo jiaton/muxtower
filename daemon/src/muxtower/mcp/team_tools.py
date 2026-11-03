@@ -9,7 +9,10 @@ from pydantic import BaseModel, Field
 from muxtower.errors import Invalid
 from muxtower.mcp.caller import CALLER
 from muxtower.mcp.describe import device
+from muxtower.mcp.tool import Tool
+from muxtower.teams.ports import Task
 from muxtower.teams.service import Member, TeamService
+from muxtower.teams.tasks import TaskService
 
 UNKNOWN_CALLER = (
     "muxtower cannot tell which session you are: you reached it with a device token, not as one of the "
@@ -39,6 +42,11 @@ class RoleArgs(BaseModel):
     session_id: str | None = Field(default=None, description="whose role; default: yours")
 
 
+class TaskArgs(BaseModel):
+    to: str = Field(min_length=1, description="a session id, or a role in your project (when one session has it)")
+    text: str = Field(min_length=1, max_length=20000, description="the work, as you would ask a colleague")
+
+
 class ProjectArgs(BaseModel):
     project: str = Field(min_length=1, description="the project's name; a new name makes a new project")
     session_id: str | None = Field(default=None, description="which session; default: yours")
@@ -59,9 +67,37 @@ def _project(m: Member) -> str:
     return m.project + ("" if m.project_source == "set" else f" (from its {m.project_source})")
 
 
+def _tasks(tasks: list[Task]) -> str:
+    def one(t: Task) -> str:
+        head = " ".join(t.text.split())
+        head = head if len(head) <= 60 else head[:59] + "…"
+        return f"{t.at.astimezone():%m-%d %H:%M} from {t.from_label.split(' · ')[0]}: {head} ({t.status})"
+
+    return "  recent tasks: " + "; ".join(one(t) for t in tasks)
+
+
 class TeamTools:
-    def __init__(self, teams: TeamService) -> None:
+    def __init__(self, teams: TeamService, tasks: TaskService | None = None) -> None:
         self.teams = teams
+        self.tasks = tasks
+
+    def tools(self) -> list[Tool]:
+        found = [
+            Tool("my_team", "Who you are (your session, role and project) and who works with you: each session "
+                 "of your project with its role, device, state, folder, branch and the tasks it was sent last. "
+                 "Call it first.", TeamArgs, self.my_team),
+            Tool("set_role", "Set what a session is for (free text, a few words, plus an optional note): yours, "
+                 "or a teammate's by session_id. An empty role clears it.", RoleArgs, self.set_role),
+            Tool("set_project", "Move a session (yours by default) to a project, a new name making a new one; "
+                 "or, with rename, rename its project for all its sessions.", ProjectArgs, self.set_project),
+        ]  # fmt: skip
+        if self.tasks is not None:
+            found.append(
+                Tool("send_task", "Hand work to a teammate: `to` is its session id, or a role of your project "
+                     "that one session has. It arrives as a message headed [muxtower task from <you>]; one "
+                     "waiting on the owner gets it once that prompt is answered.", TaskArgs, self.send_task)
+            )  # fmt: skip
+        return found
 
     def _target(self, session_id: str | None) -> str:
         target = session_id or CALLER.get().session_id
@@ -82,12 +118,31 @@ class TeamTools:
                 out += [f"Project {name}:", *(f"- {_who(m)}" for m in team)]
             return "\n".join(out)
         others = [m for m in members if m.project == mine.project and m.session.id != me]
+        recent = self.tasks.recent([m.session.id for m in [mine, *others]]) if self.tasks else {}
         out = [f"You: {_who(mine)} · project {_project(mine)}"]
+        if mine.session.id in recent:
+            out.append(_tasks(recent[mine.session.id]))
         if not mine.role:
             out.append("You have no role yet: ask the owner what you are for, or set it (set_role).")
         out.append(f"Your team ({len(others)} other session{'s' if len(others) != 1 else ''} in {mine.project}):")
-        out += [f"- {_who(m)}" for m in others] or ["- nobody else yet"]
+        for m in others:
+            out.append(f"- {_who(m)}")
+            if m.session.id in recent:
+                out.append(_tasks(recent[m.session.id]))
+        if not others:
+            out.append("- nobody else yet")
         return "\n".join(out)
+
+    def send_task(self, args: TaskArgs) -> str:
+        assert self.tasks is not None
+        caller = CALLER.get()
+        task, to = self.tasks.send(caller.session_id, caller.actor, args.to, args.text)
+        who = f"{to.session.name} ({to.role or 'no role'}, {to.session.id})"
+        if task.status == "delivered":
+            return f"Delivered to {who}: it takes it up when it can (Claude Code queues it behind what it is doing)."
+        if task.status == "held":
+            return f"{who} is waiting on the owner (a prompt): it gets the task as soon as that is answered."
+        return f"Not delivered: {who} is gone."
 
     def set_role(self, args: RoleArgs) -> str:
         m = self.teams.set_role(self._target(args.session_id), args.role, args.note)
