@@ -62,6 +62,9 @@ export function shopApi(): Scene {
         questions: [],
       },
       updated_at: ago(0.3),
+      team_role: 'worker',
+      team_note: 'Implements what research agreed on',
+      project: 'acme/shop',
     }),
     history: [
       ...claudeWelcome(`~/code/shop-api`),
@@ -76,6 +79,13 @@ export function shopApi(): Scene {
       tool(3, { tool_name: 'Edit', text: 'src/payments/client.ts', status: 'done' }),
       tool(4, { tool_name: 'Bash', text: COMMAND, description: 'Run the payment tests', status: 'running' }),
     ],
+    tasks: [
+      {
+        id: 1, at: ago(5), from_id: 'release-notes', from_label: 'Release notes for 2.4 (research) · release-notes',
+        to_id: 'shop-api', text: 'Add retries with backoff to the payment client, then run its tests.', status: 'delivered',
+        delivered_at: ago(5),
+      },
+    ], // prettier-ignore
     approve: (option) => (option === '3' ? declined() : approved()),
     deny: declined,
     reply: talk('claude', 10),

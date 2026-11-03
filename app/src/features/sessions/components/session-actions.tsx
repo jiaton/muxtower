@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Archive, Eye, EyeOff, FolderInput, Mail, MailOpen, Pencil, Pin, PinOff, Power, Trash2, type LucideIcon } from 'lucide-react'
+import { Archive, Eye, EyeOff, FolderInput, Mail, MailOpen, Pencil, Pin, PinOff, Power, Trash2, Users, type LucideIcon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -9,9 +9,10 @@ import type { Session } from '@/lib/api/types'
 import { useArchiveSession, useTerminateSession, useUpdateSession } from '../api/use-session-mutations'
 import { useHideSession, useMarkRead, usePinSession } from '../api/use-session-marks'
 import { PlaceDialog } from './place-dialog'
+import { TeamDialog } from './team-dialog'
 
 export interface SessionAction {
-  id: 'read' | 'pin' | 'rename' | 'place' | 'hide' | 'archive' | 'stop' | 'delete'
+  id: 'read' | 'pin' | 'rename' | 'place' | 'team' | 'hide' | 'archive' | 'stop' | 'delete'
   label: string
   icon: LucideIcon
   tone?: 'accent' | 'neutral' | 'danger'
@@ -41,7 +42,7 @@ export function SessionActions({
   const markRead = useMarkRead()
   const hide = useHideSession()
   const pin = usePinSession()
-  const [dialog, setDialog] = useState<'rename' | 'place' | 'archive' | 'stop' | 'delete' | null>(null)
+  const [dialog, setDialog] = useState<'rename' | 'place' | 'team' | 'archive' | 'stop' | 'delete' | null>(null)
   const ids = { daemonId, sessionId: session.id }
   const leaving = (then: () => void) => (open ? () => void navigate({ to: '/', search: true }).then(then) : then)
 
@@ -62,6 +63,7 @@ export function SessionActions({
       live.push({ id: 'rename', label: 'Rename', icon: Pencil, tone: 'neutral', run: () => setDialog('rename'), menuOnly: true })
     if (session.capabilities.place)
       live.push({ id: 'place', label: 'Move', icon: FolderInput, tone: 'neutral', run: () => setDialog('place'), menuOnly: true })
+    live.push({ id: 'team', label: 'Team', icon: Users, tone: 'neutral', run: () => setDialog('team'), menuOnly: true })
     live.push(
       session.hidden
         ? { id: 'hide', label: 'Show', icon: Eye, tone: 'neutral', run: () => hide.mutate({ ...ids, hidden: false }) }
@@ -78,6 +80,7 @@ export function SessionActions({
       {children(actions)}
       {dialog === 'rename' ? <RenameDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} /> : null}
       {dialog === 'place' ? <PlaceDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} /> : null}
+      {dialog === 'team' ? <TeamDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} /> : null}
       {dialog === 'archive' ? <ArchiveDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} /> : null}
       {dialog === 'stop' ? (
         <StopDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} onDone={leaving(() => {})} />

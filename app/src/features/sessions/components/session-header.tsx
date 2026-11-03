@@ -21,7 +21,8 @@ export function SessionHeader({ daemonId, session, actions }: { daemonId: string
   const setDrawer = useSessionDrawer((s) => s.setOpen)
   const agent = agentOf(session)
   const AgentIcon = agentIcon(agent)
-  const where = [agent, deviceOf(session) ?? NO_ENVIRONMENT, folderOf(session), sourceOf(session)].filter(Boolean)
+  const team = session.team_role ? `${session.team_role}${session.project ? ` in ${session.project}` : ''}` : null
+  const where = [team, agent, deviceOf(session) ?? NO_ENVIRONMENT, folderOf(session), sourceOf(session)].filter(Boolean)
   return (
     <PaneHeader
       leading={

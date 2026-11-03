@@ -19,6 +19,7 @@ const MENU_LABEL: Record<SessionAction['id'], (session: Session) => string> = {
   pin: (s) => (s.pinned ? 'Unpin' : 'Pin to the top'),
   rename: () => 'Rename',
   place: () => 'Move…',
+  team: (s) => (s.team_role ? `Team: ${s.team_role}…` : 'Set its role…'),
   hide: (s) => (s.hidden ? 'Show in the list' : 'Hide from the list'),
   archive: () => 'Archive',
   stop: () => 'Stop session',
