@@ -1219,6 +1219,14 @@ export interface components {
              */
             machine?: string | null;
         };
+        /** PongFrame */
+        PongFrame: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "pong";
+        };
         /** QuestionOption */
         QuestionOption: {
             /** Description */
@@ -1474,14 +1482,27 @@ export interface components {
          */
         StateSource: "hook" | "screen" | "default" | "remote";
         /**
+         * StreamPing
+         * @description Is this connection still alive? Answered with a `pong` frame (a daemon older than this answers with an
+         *     `error` frame: any frame says the connection works).
+         */
+        StreamPing: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "ping";
+        };
+        /**
          * StreamSchema
          * @description Documents the WebSocket message shapes so they reach the generated client types.
          */
         StreamSchema: {
-            client: components["schemas"]["StreamSubscribe"];
+            /** Client */
+            client: components["schemas"]["StreamSubscribe"] | components["schemas"]["StreamPing"];
             conversation?: components["schemas"]["ConversationFrame"] | null;
             /** Server */
-            server: components["schemas"]["SessionsFrame"] | components["schemas"]["ScreenFrame"] | components["schemas"]["ConversationFrame"] | components["schemas"]["ErrorFrame"];
+            server: components["schemas"]["SessionsFrame"] | components["schemas"]["ScreenFrame"] | components["schemas"]["ConversationFrame"] | components["schemas"]["ErrorFrame"] | components["schemas"]["PongFrame"];
         };
         /** StreamSubscribe */
         StreamSubscribe: {
@@ -1498,7 +1519,7 @@ export interface components {
              */
             topic: "sessions" | "screen" | "conversation";
             /**
-             * Type
+             * @description discriminator enum property added by openapi-typescript
              * @enum {string}
              */
             type: "subscribe" | "unsubscribe";

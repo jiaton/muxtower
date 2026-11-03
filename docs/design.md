@@ -47,7 +47,7 @@ Approval is always explicit. Approve re-reads the live screen, parses the menu, 
 ## API
 
 - Versioned under `/v1`. FastAPI's OpenAPI schema is exported to `openapi.json` at the repo root and is the contract for the app (`openapi-typescript` + `openapi-fetch`); CI fails if it is stale.
-- One WebSocket, `/v1/stream`: the client sends `{"type":"subscribe","topic":"sessions"}`, `{"type":"subscribe","topic":"screen","session_id":…,"history":N}` or `{"type":"subscribe","topic":"conversation","session_id":…}`; the server pushes `sessions`, `screen` and `conversation` frames (shapes in the OpenAPI schema via `/v1/stream/schema`).
+- One WebSocket, `/v1/stream`: the client sends `{"type":"subscribe","topic":"sessions"}`, `{"type":"subscribe","topic":"screen","session_id":…,"history":N}` or `{"type":"subscribe","topic":"conversation","session_id":…}`; the server pushes `sessions`, `screen` and `conversation` frames (shapes in the OpenAPI schema via `/v1/stream/schema`). `{"type":"ping"}` is answered with a `pong` frame: the app asks after 25 s without any frame and takes a connection that does not answer within 5 s for dead (a phone that changed networks keeps an `open` socket nothing arrives on), dropping it and connecting again at once. It also connects at once, instead of at the end of its backoff (1 s doubling to 15 s), when the page is shown again or the network comes back, and asks an open connection then. A session's header shows a small dot: live, polling (the connection is down, queries poll), or offline.
 - Health: `GET /v1/health` is public and returns only `{status, version}`.
 
 ## Auth

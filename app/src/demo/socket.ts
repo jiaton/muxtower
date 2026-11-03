@@ -1,4 +1,4 @@
-import type { ServerFrame, StreamSubscribe } from '@/lib/api/types'
+import type { ServerFrame, StreamPing, StreamSubscribe } from '@/lib/api/types'
 import type { World } from './world'
 
 /**
@@ -35,7 +35,11 @@ export class DemoSocket {
   }
 
   send(raw: string) {
-    const message = JSON.parse(raw) as StreamSubscribe
+    const message = JSON.parse(raw) as StreamSubscribe | StreamPing
+    if (message.type === 'ping') {
+      this.deliver({ type: 'pong' })
+      return
+    }
     const key = message.topic === 'sessions' ? 'sessions' : `${message.topic}:${message.session_id}`
     if (message.type === 'unsubscribe') {
       this.topics.delete(key)
