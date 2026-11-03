@@ -7,42 +7,8 @@ import { shortFolderNames, type SessionEntry } from '../model/facets'
 import type { Group, Section } from '../model/query'
 import { foldKey, useListPrefs } from '../store'
 import { AgentMark } from './agent-mark'
-import { SessionListRow } from './session-list-row'
-import { SideChats } from './side-chats'
 import type { RowContext } from './session-row'
-
-type Extra = (entry: SessionEntry) => ReactNode
-
-function Rows({
-  entries,
-  selectedKey,
-  context,
-  extra,
-  sideChats,
-}: {
-  entries: SessionEntry[]
-  selectedKey?: string
-  context: RowContext
-  extra?: Extra
-  sideChats?: Map<string, SessionEntry[]>
-}) {
-  return entries.map((entry) => {
-    const held = sideChats?.get(entry.key)
-    const under = extra?.(entry)
-    return (
-      <div key={entry.key} data-flip={entry.key} className="relative">
-        <SessionListRow entry={entry} selected={entry.key === selectedKey} context={context}>
-          {under || held ? (
-            <>
-              {under}
-              {held ? <SideChats entries={held} selectedKey={selectedKey} /> : null}
-            </>
-          ) : null}
-        </SessionListRow>
-      </div>
-    )
-  })
-}
+import { Rows, withForks, type Extra, type Held } from './session-tree'
 
 /** What a header says beside its name: how many sessions, and, while folded, how many of them need you
  *  (so folding a group never hides a prompt). */
@@ -134,7 +100,7 @@ const membership = (groups: Group[], folded: string[]) =>
  *  what is under it, remembered per `foldScope` (the grouping); while `unfolded` (a search) everything
  *  shows. Rows leave out what their group already says, and slide to their new place when they change
  *  groups (a session that finished, one kept at the end once opened). `extra` renders a slot under a row
- *  (quick actions); `sideChats` are the side chats each row holds (`foldSideChats`), folded under it. */
+ *  (quick actions); `held` is what each row holds: side chats folded under it, forks listed under it. */
 export function SessionList({
   groups,
   selectedKey,
@@ -142,10 +108,10 @@ export function SessionList({
   extra,
   foldScope,
   unfolded = false,
-  sideChats,
+  held = {},
 }: {
   groups: Group[]
-  sideChats?: Map<string, SessionEntry[]>
+  held?: Held
   selectedKey?: string
   context?: RowContext
   extra?: Extra
@@ -187,7 +153,7 @@ export function SessionList({
               >
                 {group.sections ? <Monitor aria-hidden /> : group.implies.agent ? <AgentMark decorative agent={group.label} /> : null}
                 <span className="truncate">{group.label}</span>
-                <HeaderCount entries={group.entries} folded={groupFolded} className="normal-case" />
+                <HeaderCount entries={withForks(group.entries, held.forks)} folded={groupFolded} className="normal-case" />
               </FoldButton>
             </h3>
             {groupFolded ? null : group.sections && names ? (
@@ -204,18 +170,18 @@ export function SessionList({
                     <SectionHeader
                       section={section}
                       label={section.depth ? (section.name ?? section.label) : (names.get(section.label) ?? section.label)}
-                      held={heldBy(sections, index)}
+                      held={withForks(heldBy(sections, index), held.forks)}
                       folded={sectionFolded}
                       onToggle={onToggle(sectionKey)}
                     />
                     {sectionFolded ? null : (
-                      <Rows entries={section.entries} selectedKey={selectedKey} context={rowContext} extra={extra} sideChats={sideChats} />
+                      <Rows entries={section.entries} selectedKey={selectedKey} context={rowContext} extra={extra} held={held} />
                     )}
                   </section>
                 )
               })
             ) : (
-              <Rows entries={group.entries} selectedKey={selectedKey} context={rowContext} extra={extra} sideChats={sideChats} />
+              <Rows entries={group.entries} selectedKey={selectedKey} context={rowContext} extra={extra} held={held} />
             )}
           </section>
         )
