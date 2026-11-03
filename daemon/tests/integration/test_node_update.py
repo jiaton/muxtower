@@ -10,7 +10,7 @@ from fastapi import FastAPI
 
 from muxtower import __version__
 from muxtower.app import create_app
-from muxtower.nodes.protocol import PROTOCOL, Hello, agree
+from muxtower.nodes.protocol import OLDEST, PROTOCOL, Hello, agree
 from muxtower.nodes.update import RETRY_SECONDS, Policy, Updater, newer
 from tests.fakes import FakeTmux
 from tests.integration.test_node_link import Running, _free_port, _settings, _until, hub  # noqa: F401 - a fixture
@@ -97,7 +97,8 @@ def test_a_link_speaks_the_older_side_s_protocol_while_both_still_speak_it() -> 
     assert agree(PROTOCOL, None) == PROTOCOL
     assert agree(PROTOCOL + 1, PROTOCOL) == PROTOCOL  # a newer node talks down
     assert agree(PROTOCOL + 1, None) is None  # one that no longer speaks this hub's protocol
-    assert agree(PROTOCOL - 1, None) is None  # older than this hub still speaks (OLDEST)
+    assert agree(OLDEST, None) == OLDEST  # an older node, in a protocol this hub still speaks
+    assert agree(OLDEST - 1, None) is None  # older than this hub still speaks
 
 
 def test_versions_compare_as_releases() -> None:

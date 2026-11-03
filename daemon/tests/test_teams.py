@@ -235,3 +235,21 @@ def test_a_resumed_session_keeps_its_role_and_project(
     )
     codex = _tool(client, device, "start_session", cwd=str(tmp_path), runtime="opencode", resume=agent)
     assert codex.startswith("ERROR opencode sessions cannot be resumed")
+
+
+async def test_a_node_may_ask_its_hub_for_team_tools_only(make_app: Callable[..., FastAPI]) -> None:
+    from muxtower.nodes import asked
+
+    tools = make_app().state.mcp
+    reply = json.loads(
+        await asked.answer(tools, "mac", {"id": 1, "method": "team_tool", "params": {"tool": "approve"}})
+    )
+    assert reply["error"]["status"] == 400 and "no team tool" in reply["error"]["message"]
+    reply = json.loads(await asked.answer(tools, "mac", {"id": 2, "method": "approve", "params": {}}))
+    assert reply["error"]["status"] == 400
+    reply = json.loads(
+        await asked.answer(
+            tools, "mac", {"id": 3, "method": "team_tool", "params": {"tool": "my_team", "session_id": "x1"}}
+        )
+    )
+    assert reply["result"]["text"].startswith("muxtower cannot tell which session you are")  # mac~x1 is not listed

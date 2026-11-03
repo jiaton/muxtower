@@ -9,7 +9,7 @@ from muxtower.concierge.service import ConciergeService
 from muxtower.errors import Invalid
 from muxtower.mcp.describe import line
 from muxtower.mcp.session_tools import SessionTools
-from muxtower.mcp.team_tools import TeamTools
+from muxtower.mcp.team_tools import Forward, TeamTools
 from muxtower.mcp.tool import Tool
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.directory import SessionDirectory
@@ -67,7 +67,7 @@ class McpTools:
     def __init__(
         self, directory: SessionDirectory, launcher: Launcher, concierge: ConciergeService | None, hub: str,
         machines: Callable[[], list[str]] = list, teams: TeamService | None = None,
-        team_tasks: TaskService | None = None, archiver: Archiver | None = None,
+        team_tasks: TaskService | None = None, archiver: Archiver | None = None, forward: Forward | None = None,
     ) -> None:  # fmt: skip
         self.directory = directory
         self.concierge = concierge
@@ -98,7 +98,7 @@ class McpTools:
                      EventsArgs, self.list_events),
             ]  # fmt: skip
         if teams is not None:
-            tools += TeamTools(teams, team_tasks).tools()
+            tools += TeamTools(teams, team_tasks, forward).tools()
         self.tools = {t.name: t for t in tools}
 
     def _target(self, session_id: str) -> Session:

@@ -220,7 +220,15 @@ def create_app(
     app.state.concierge = concierge
     app.state.teams, app.state.team_tasks = teams, team_tasks
     app.state.mcp = McpTools(
-        directory, launcher, concierge, daemon_name, lambda: list(nodes.all()), teams, team_tasks, archiver
+        directory,
+        launcher,
+        concierge,
+        daemon_name,
+        lambda: list(nodes.all()),
+        teams,
+        team_tasks,
+        archiver,
+        forward=hub.team_tool,
     )
     app.state.asr = build_asr(settings, lambda: [s.name for s in directory.list()])
     app.state.terminal = terminal

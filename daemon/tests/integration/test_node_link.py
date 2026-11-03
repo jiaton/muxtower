@@ -144,3 +144,55 @@ def test_a_node_s_session_is_driven_through_its_hub(hub: tuple[FastAPI, str], tm
         assert listed() is None
     finally:
         link.stop()
+
+
+def test_a_node_s_sessions_see_the_whole_team_through_the_hub(hub: tuple[FastAPI, str], tmp_path: Path) -> None:
+    from fastapi.testclient import TestClient
+
+    from muxtower.sessions.models import CreateSession
+
+    hub_app, hub_url = hub
+    work = tmp_path / "shop"
+    work.mkdir()
+    research = hub_app.state.sessions.create(CreateSession(runtime="claude", cwd=str(work), name="research"))
+    _, device = hub_app.state.tokens.create("phone")
+    node_tmux = FakeTmux()
+    node = create_app(_settings(tmp_path, "mac", _free_port()), tmux=node_tmux, run_loops=False)
+    worker = node.state.sessions.create(CreateSession(runtime="claude", cwd=str(work), name="worker"))
+    token = next(p for p in node_tmux.panes.values() if p.info.session_name == worker.tmux_session).env[
+        "MUXTOWER_MCP_TOKEN"
+    ]
+    node_mcp = TestClient(node)
+
+    def tool(client: Any, bearer: str, name: str, **arguments: Any) -> str:
+        body = {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": name, "arguments": arguments}}
+        result = client.post("/v1/mcp", json=body, headers={"Authorization": f"Bearer {bearer}"}).json()["result"]
+        return ("ERROR " if result["isError"] else "") + str(result["content"][0]["text"])
+
+    link = Running(node.state.hub.run_loop())
+    try:
+        assert node.state.hub.join(hub_url, hub_app.state.pairing.create_code("phone").code).name == "mac"
+        _until(lambda: node.state.hub.status().connected and node.state.hub.hub_protocol == 2)
+        _until(lambda: any(s.id == f"mac~{worker.id}" for s in hub_app.state.directory.list()))
+        hub_mcp = TestClient(hub_app)
+        tool(hub_mcp, device, "set_role", role="research", session_id=research.id)
+
+        # Asked on the node, answered by the hub, which sees both machines.
+        mine = tool(node_mcp, token, "my_team")
+        assert mine.startswith(f"You: mac~{worker.id} · worker · no role yet · @mac")
+        assert f"- {research.id} · research · role: research" in mine
+        assert tool(node_mcp, token, "set_role", role="worker").endswith("role worker.")
+        sent = tool(node_mcp, token, "send_task", to="research", text="Spec is ready for review?")
+        assert sent.startswith(f"Delivered to research (research, {research.id})")
+        pane = next(
+            p for t, p in hub_app.state.sessions.tmux.panes.items() if p.info.session_name == research.tmux_session
+        )
+        assert any(f"[muxtower task from worker (worker) · mac~{worker.id}]" in text for _, text in pane.sent)
+
+        # Without its hub, the node answers for itself and says so.
+        link.stop()
+        _until(lambda: not node.state.hub.status().connected)
+        alone = tool(node_mcp, token, "my_team")
+        assert alone.startswith("(this machine is not linked to its hub right now: only this machine's sessions")
+    finally:
+        link.stop()

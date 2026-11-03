@@ -32,6 +32,7 @@ from muxtower.sessions.monitor import Monitor
 logger = logging.getLogger("muxtower.hub")
 
 MAX_BACKOFF_SECONDS = 30.0
+ASK_SECONDS = 20.0
 
 
 def link_url(hub: str) -> str:
@@ -56,6 +57,8 @@ class HubClient:
         self._wake: asyncio.Event | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
         self._ws: ClientConnection | None = None
+        self._session: LinkSession | None = None
+        self.hub_protocol: int | None = None  # the link protocol the hub speaks, from its `hub` event
 
     # --- joining (blocking, from a request thread) --------------------------------------------
 
@@ -165,13 +168,17 @@ class HubClient:
             self._ws = ws
             self.connected, self.error = True, None
             logger.info("linked to the hub %s as %s", joined.url, joined.name)
+            self._session = LinkSession(ws, self.api, self.monitor, self.bus, self.hello, self._told)
             try:
-                await LinkSession(ws, self.api, self.monitor, self.bus, self.hello, self._told).run()
+                await self._session.run()
             finally:
-                self._ws = None
+                self._ws, self._session = None, None
+                self.connected = False
 
     def _told(self, kind: str, data: Any) -> None:
         """What the hub tells this node unasked: its version (`update.py`)."""
+        if kind == "hub" and isinstance(data, dict) and isinstance(data.get("protocol"), int):
+            self.hub_protocol = data["protocol"]
         following = self._following is not None and not self._following.done()
         if kind == "hub" and (target := self.updater.heard(data)) and not following:
             self._following = asyncio.create_task(self._follow(target))
@@ -182,3 +189,20 @@ class HubClient:
             await asyncio.to_thread(self.updater.install, target)
             await asyncio.sleep(RETRY_SECONDS)
             target = self.updater.heard()
+
+    # --- asking the hub (blocking, from a request thread) --------------------------------------
+
+    def team_tool(self, tool: str, arguments: dict[str, Any], session_id: str | None) -> str | None:
+        """A team tool one of this node's sessions called, answered by the hub (which sees every session);
+        None when this daemon is no node. Unavailable when the hub cannot answer it now."""
+        if self.store.load() is None:
+            return None
+        session, loop = self._session, self._loop
+        if session is None or loop is None or not self.connected:
+            raise Unavailable("this machine is not linked to its hub right now")
+        if (self.hub_protocol or 1) < 2:
+            raise Unavailable("the hub runs an older muxtower, without teams")
+        params = {"tool": tool, "arguments": arguments, "session_id": session_id}
+        asked = asyncio.run_coroutine_threadsafe(session.asks.call("team_tool", params, ASK_SECONDS), loop)
+        result = asked.result(ASK_SECONDS + 5)
+        return str((result or {}).get("text", ""))

@@ -3,10 +3,12 @@ session's role and project. A session is told apart by its own token (`caller.py
 answered for all projects, since it is no session."""
 
 from collections import defaultdict
+from collections.abc import Callable
+from typing import Any
 
 from pydantic import BaseModel, Field
 
-from muxtower.errors import Invalid
+from muxtower.errors import Invalid, Unavailable
 from muxtower.mcp.caller import CALLER
 from muxtower.mcp.describe import device
 from muxtower.mcp.tool import Tool
@@ -76,10 +78,30 @@ def _tasks(tasks: list[Task]) -> str:
     return "  recent tasks: " + "; ".join(one(t) for t in tasks)
 
 
+# A team tool asked of the hub this daemon is a node of: its text, None when it is no node (raises
+# Unavailable when the hub cannot answer now).
+Forward = Callable[[str, dict[str, Any], str | None], str | None]
+
+
 class TeamTools:
-    def __init__(self, teams: TeamService, tasks: TaskService | None = None) -> None:
+    def __init__(self, teams: TeamService, tasks: TaskService | None = None, forward: Forward | None = None) -> None:
         self.teams = teams
         self.tasks = tasks
+        self.forward = forward
+
+    def _via_hub(self, name: str, here: Callable[[Any], str]) -> Callable[[Any], str]:
+        """On a node, the hub answers (it sees every session); without it, this machine does, and says so."""
+
+        def run(args: BaseModel) -> str:
+            if self.forward is None:
+                return here(args)
+            try:
+                answered = self.forward(name, args.model_dump(), CALLER.get().session_id)
+            except Unavailable as exc:
+                return f"({exc}: only this machine's sessions below.)\n{here(args)}"
+            return here(args) if answered is None else answered
+
+        return run
 
     def tools(self) -> list[Tool]:
         found = [
@@ -97,7 +119,7 @@ class TeamTools:
                      "that one session has. It arrives as a message headed [muxtower task from <you>]; one "
                      "waiting on the owner gets it once that prompt is answered.", TaskArgs, self.send_task)
             )  # fmt: skip
-        return found
+        return [Tool(t.name, t.description, t.args, self._via_hub(t.name, t.run)) for t in found]
 
     def _target(self, session_id: str | None) -> str:
         target = session_id or CALLER.get().session_id
