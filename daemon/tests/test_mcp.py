@@ -120,7 +120,7 @@ def test_start_session_starts_on_the_device_it_names() -> None:
     import pytest
 
     from muxtower.errors import Conflict, Invalid
-    from muxtower.mcp.service import McpTools, StartArgs
+    from muxtower.mcp.session_tools import SessionTools, StartArgs
 
     started: list[CreateSession] = []
 
@@ -129,7 +129,7 @@ def test_start_session_starts_on_the_device_it_names() -> None:
         return SimpleNamespace(name="web", id="s9", cwd=request.cwd)
 
     launcher = SimpleNamespace(create=create)
-    tools = McpTools(SimpleNamespace(), launcher, None, "hub", lambda: ["laptop"])  # type: ignore[arg-type]
+    tools = SessionTools(SimpleNamespace(), launcher, "hub", lambda: ["laptop"])  # type: ignore[arg-type]
     assert tools.start_session(StartArgs(cwd="/srv/web", machine="@Laptop")).endswith("on laptop in /srv/web.")
     assert started[-1].node == "laptop"
     for here in (None, "hub", "HUB", ""):

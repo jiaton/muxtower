@@ -13,21 +13,23 @@ class SqliteTeamRepository:
         with self.db.connect() as conn:
             rows = conn.execute("SELECT * FROM session_team").fetchall()
         return {
-            r["session_id"]: TeamRecord(r["session_id"], r["role"], r["note"], r["project"], bool(r["project_auto"]))
+            r["session_id"]: TeamRecord(
+                r["session_id"], r["role"], r["note"], r["project"], bool(r["project_auto"]), r["agent_id"]
+            )
             for r in rows
         }
 
     def save(self, record: TeamRecord) -> None:
         with self.db.connect() as conn:
             conn.execute(
-                """INSERT INTO session_team (session_id, role, note, project, project_auto, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?)
+                """INSERT INTO session_team (session_id, role, note, project, project_auto, agent_id, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(session_id) DO UPDATE SET role = excluded.role, note = excluded.note,
                        project = excluded.project, project_auto = excluded.project_auto,
-                       updated_at = excluded.updated_at""",
+                       agent_id = excluded.agent_id, updated_at = excluded.updated_at""",
                 (
                     record.session_id, record.role, record.note, record.project, int(record.project_auto),
-                    datetime.now(UTC).isoformat(),
+                    record.agent_id, datetime.now(UTC).isoformat(),
                 ),
             )  # fmt: skip
 

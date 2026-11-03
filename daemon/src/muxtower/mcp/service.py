@@ -6,13 +6,15 @@ from collections.abc import Callable
 from pydantic import BaseModel, Field
 
 from muxtower.concierge.service import ConciergeService
-from muxtower.errors import Conflict, Invalid, Unavailable
+from muxtower.errors import Invalid
 from muxtower.mcp.describe import line
+from muxtower.mcp.session_tools import SessionTools
 from muxtower.mcp.team_tools import TeamTools
 from muxtower.mcp.tool import Tool
+from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.launcher import Launcher
-from muxtower.sessions.models import ConversationItemKind, CreateSession, ItemStatus, Session
+from muxtower.sessions.models import ConversationItemKind, ItemStatus, Session
 from muxtower.teams.service import TeamService
 from muxtower.teams.tasks import TaskService
 from muxtower.terminal.models import SendInput
@@ -57,16 +59,6 @@ class ApproveArgs(SessionArg):
     )
 
 
-class StartArgs(BaseModel):
-    cwd: str = Field(description="directory to work in, on the machine it starts on")
-    prompt: str | None = Field(default=None, description="first message for the new agent")
-    name: str | None = None
-    runtime: str = Field(default="claude-code", description="claude-code, codex, …")
-    machine: str | None = Field(
-        default=None, description="the device to start it on, as list_sessions names it (@name); default: the hub"
-    )
-
-
 def _clip(text: str, chars: int) -> str:
     return text if len(text) <= chars else f"{text[:chars]}… ({len(text) - chars} more characters)"
 
@@ -75,11 +67,9 @@ class McpTools:
     def __init__(
         self, directory: SessionDirectory, launcher: Launcher, concierge: ConciergeService | None, hub: str,
         machines: Callable[[], list[str]] = list, teams: TeamService | None = None,
-        team_tasks: TaskService | None = None,
+        team_tasks: TaskService | None = None, archiver: Archiver | None = None,
     ) -> None:  # fmt: skip
         self.directory = directory
-        self.launcher = launcher
-        self.machines = machines  # the names of the nodes joined to this hub
         self.concierge = concierge
         self.hub = hub
         tools = [
@@ -95,9 +85,8 @@ class McpTools:
                  ApproveArgs, self.approve),
             Tool("deny", "Decline a session's pending prompt.", SessionArg, self.deny),
             Tool("interrupt", "Stop what a session is doing (Escape).", SessionArg, self.interrupt),
-            Tool("start_session", "Start a new agent session in tmux, on the hub or on another device joined "
-                 "to it (machine).", StartArgs, self.start_session),
         ]  # fmt: skip
+        tools += SessionTools(directory, launcher, hub, machines, teams, archiver).tools()
         if concierge is not None:
             tools += [
                 Tool("watch_session", "Be told (a [muxtower event #N · time] line with its id, state and where its "
@@ -188,31 +177,6 @@ class McpTools:
         s = self._target(args.session_id)
         self.directory.send_input(s.id, SendInput(key="Escape"))
         return f"{s.name}: interrupted."
-
-    def _node(self, machine: str | None) -> str | None:
-        """The node a machine name means (None: the hub itself), however the caller capitalised it."""
-        wanted = (machine or "").strip().removeprefix("@").lower()
-        if not wanted or wanted == self.hub.lower():
-            return None
-        nodes = self.machines()
-        found = next((n for n in nodes if n.lower() == wanted), None)
-        if found is None:
-            known = ", ".join([self.hub, *nodes])
-            raise Invalid(f"no device named {machine}; start it on one of: {known}")
-        return found
-
-    def start_session(self, args: StartArgs) -> str:
-        node = self._node(args.machine)
-        request = CreateSession(
-            runtime=args.runtime, cwd=args.cwd, name=args.name, args=[args.prompt] if args.prompt else [], node=node
-        )
-        try:
-            created = self.launcher.create(request)
-        except (Conflict, Unavailable) as exc:
-            if node is None:
-                raise
-            raise type(exc)(f"could not start it on {node}: {exc}") from exc
-        return f"Started {created.name} ({created.id}) on {node or self.hub} in {created.cwd}."
 
     def watch(self, args: SessionArg) -> str:
         assert self.concierge is not None
