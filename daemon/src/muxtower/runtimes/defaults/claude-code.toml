@@ -30,12 +30,15 @@ pattern = '☐.*✔\s*Submit'
 [[rules]]
 name = "mcp-server-trust"
 state = "needs_trust"
-pattern = '(?=.*MCP\s+server)(?=.*Enter\s+to\s+confirm)'
+# Anchored (\A): an unanchored lookahead is tried at every position of the screen, each scanning to its end.
+pattern = '\A(?=.*MCP\s+server)(?=.*Enter\s+to\s+confirm)'
+last_lines = 40
 
 [[rules]]
 name = "workspace-trust"
 state = "needs_trust"
-pattern = '(?=.*trust\s+this\s+folder)(?=.*Enter\s+to\s+confirm)'
+pattern = '\A(?=.*trust\s+this\s+folder)(?=.*Enter\s+to\s+confirm)'
+last_lines = 40
 
 [[rules]]
 name = "plan-review"

@@ -152,3 +152,31 @@ def test_codex_permission_tool_and_rate_limit_dialogs() -> None:
     assert rt.choose_option(tool.state, tool.options) == "1"  # run it once, not "remember"
     limit = rt.classify(screens.CODEX_RATE_LIMIT)
     assert limit.state == AgentState.NEEDS_ANSWER and rt.choose_option(limit.state, limit.options) is None
+
+
+def test_trust_dialogs_are_found_below_a_long_conversation() -> None:
+    rt = claude()
+    for screen in (screens.TRUST, screens.MCP_TRUST):
+        assert rt.classify(screens.LONG_IDLE + screen).state == AgentState.NEEDS_TRUST
+
+
+def test_every_default_rule_reads_a_big_screen_in_linear_time() -> None:
+    """Each pane is classified every second: a rule that backtracks over the whole screen from every position
+    (an unanchored lookahead with DOTALL) took 40-115 ms on 10 000 characters and kept a core busy."""
+    import time
+
+    for runtime in load_runtimes(None).values():
+        for rule, pattern in runtime.rules:
+            took = []
+            for _ in range(3):
+                started = time.perf_counter()
+                pattern.search(screens.LONG_IDLE)
+                took.append(time.perf_counter() - started)
+            assert min(took) < 0.005, f"{runtime.name}:{rule.name} took {min(took) * 1000:.1f} ms"
+
+
+def test_an_unanchored_lookahead_is_refused(tmp_path: Path) -> None:
+    (tmp_path / "slow.toml").write_text(
+        'name = "slow"\nbinary = "slow"\n[[rules]]\nname = "x"\nstate = "needs_trust"\npattern = \'(?=.*a)(?=.*b)\'\n'
+    )
+    assert "slow" not in load_runtimes(tmp_path)  # logged and left out, like any broken file

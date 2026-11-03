@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from importlib import resources
 from pathlib import Path
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from muxtower.runtimes.models import AgentState, Option
 
@@ -30,6 +30,15 @@ class RuleConfig(BaseModel):
     # Search only the screen's last lines (blank ones below the last text not counted); 0: all of it. For a
     # sign that sits at the bottom, so the same words in the conversation above it do not count.
     last_lines: int = Field(default=0, ge=0)
+
+    @field_validator("pattern")
+    @classmethod
+    def anchored_lookahead(cls, pattern: str) -> str:
+        """A pattern that opens with a lookahead is tried at every position of the screen, and each try scans
+        to its end (screens are matched with DOTALL): quadratic, tens of milliseconds a pane a second."""
+        if pattern.startswith("(?=") or pattern.startswith("(?!"):
+            raise ValueError(f"pattern {pattern!r} opens with a lookahead: anchor it, \\A(?=…)")
+        return pattern
 
 
 class MenuConfig(BaseModel):
