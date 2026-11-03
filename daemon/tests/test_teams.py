@@ -276,3 +276,67 @@ def test_the_owner_sets_roles_from_the_app_and_reads_the_tasks(
     (task,) = client.get(f"/v1/sessions/{b.id}/tasks", headers=auth).json()
     assert (task["from_id"], task["to_id"], task["text"], task["status"]) == (a.id, b.id, "Build it.", "delivered")
     assert client.get(f"/v1/sessions/{a.id}/tasks", headers=auth).json()[0]["id"] == task["id"]  # sent ones too
+
+
+def test_every_place_a_folder_can_be_in_git(tmp_path: Path) -> None:
+    """One repository whatever folder of it a session runs in: its main folder, a subfolder, a worktree inside
+    or outside it; a submodule is its own; folders outside git and unknown ones are just folders."""
+    git = ["-c", "user.name=t", "-c", "user.email=t@example.com", "-c", "protocol.file.allow=always"]
+    lib = tmp_path / "lib"
+    lib.mkdir()
+    _git(lib, "init", "-q", "-b", "main")
+    _git(lib, *git, "commit", "-q", "--allow-empty", "-m", "x")
+    shop = tmp_path / "shop"
+    (shop / "src").mkdir(parents=True)
+    _git(shop, "init", "-q", "-b", "main")
+    _git(shop, "remote", "add", "origin", "https://github.com/acme/shop.git")
+    _git(shop, *git, "commit", "-q", "--allow-empty", "-m", "x")
+    _git(shop, "worktree", "add", "-q", "-b", "inside", str(shop / ".worktrees" / "inside"))
+    _git(shop, "worktree", "add", "-q", "-b", "teams", str(tmp_path / "shop-teams"))
+    _git(shop, *git, "submodule", "add", "-q", str(lib), "vendor/lib")
+    (tmp_path / "notes").mkdir()
+
+    def where(folder: Path) -> tuple[str | None, str | None, str | None, str]:
+        found = checkout(str(folder))
+        return found.repo, found.root, found.branch, found.project
+
+    assert where(shop) == (str(shop), str(shop), "main", "acme/shop")
+    assert where(shop / "src") == (str(shop), str(shop), "main", "acme/shop")  # a subfolder: the repository
+    assert where(shop / ".worktrees" / "inside") == (
+        str(shop),
+        str(shop / ".worktrees" / "inside"),
+        "inside",
+        "acme/shop",
+    )
+    assert where(tmp_path / "shop-teams") == (str(shop), str(tmp_path / "shop-teams"), "teams", "acme/shop")
+    sub = where(shop / "vendor" / "lib")  # the innermost repository
+    assert sub[0] == sub[1] == str(shop / "vendor" / "lib") and sub[3].endswith("lib")  # its own origin
+    assert where(tmp_path / "notes") == (None, None, None, "notes")
+    assert where(tmp_path / "gone") == (None, None, None, "gone")
+
+
+def test_sessions_say_where_they_sit_in_git_and_only_a_project_someone_set(
+    make_app: Callable[..., FastAPI], tmp_path: Path
+) -> None:
+    shop = tmp_path / "shop"
+    shop.mkdir()
+    _git(shop, "init", "-q", "-b", "main")
+    _git(shop, "-c", "user.name=t", "-c", "user.email=t@example.com", "commit", "-q", "--allow-empty", "-m", "x")
+    _git(shop, "worktree", "add", "-q", "-b", "fix", str(tmp_path / "shop-fix"))
+    app = make_app()
+    client = TestClient(app)
+    _, device = app.state.tokens.create("phone")
+    auth = {"Authorization": f"Bearer {device}"}
+    main = app.state.sessions.create(CreateSession(runtime="claude", cwd=str(shop), name="main"))
+    fix = app.state.sessions.create(CreateSession(runtime="claude", cwd=str(tmp_path / "shop-fix"), name="fix"))
+    plain = app.state.sessions.create(CreateSession(runtime="claude", cwd=str(tmp_path), name="plain"))
+    _tool(client, device, "my_team")  # works out (and keeps) their projects
+    listed = {s["id"]: s for s in client.get("/v1/sessions", headers=auth).json()}
+    assert listed[main.id]["git"] == {"repo": str(shop), "worktree": str(shop), "branch": "main", "remote": None}
+    assert listed[fix.id]["git"]["repo"] == str(shop) and listed[fix.id]["git"]["branch"] == "fix"
+    assert listed[plain.id]["git"] is None
+    assert listed[main.id]["project"] is None  # worked out from git: the repository says it
+    client.put(f"/v1/sessions/{fix.id}/team", json={"project": "Payments"}, headers=auth)
+    assert (
+        next(s for s in client.get("/v1/sessions", headers=auth).json() if s["id"] == fix.id)["project"] == "Payments"
+    )

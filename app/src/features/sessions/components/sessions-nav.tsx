@@ -1,10 +1,11 @@
 import { Link, useSearch } from '@tanstack/react-router'
-import { Archive, ChevronRight, CircleAlert, CircleCheck, EyeOff, Folder, Layers, LoaderCircle, Monitor, UserRound } from 'lucide-react'
+import { Archive, ChevronRight, CircleAlert, CircleCheck, EyeOff, Layers, LoaderCircle, Monitor, UserRound } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { NavCount, NavSection, navItemClass, navSubItemClass } from '@/components/ui/nav'
 import { cn } from '@/lib/cn'
 import { shortFolderNames } from '../model/facets'
 import { nestFolders } from '../model/folders'
+import { PlaceIcon } from './place-icon'
 import { facetsOf, type DeviceFacet } from '../model/counts'
 import { toggleable, VIEW_LABEL, VIEWS, type View } from '../model/query'
 import { isCurrentScope, parseListSearch, scopeSearch, type ListSearch, type Scope } from '../model/search'
@@ -92,10 +93,10 @@ function DeviceTree({ device, search }: { device: DeviceFacet; search: ListSearc
               search={search}
               scope={{ device: device.label, folder: f.label }}
               className={navSubItemClass}
-              title={f.label}
+              title={f.title ?? f.label}
               indent={depth}
             >
-              <Folder aria-hidden />
+              <PlaceIcon kind={f.kind} />
               <span className="truncate">{depth ? name : names.get(f.label)}</span>
               <NavCount count={f.needs || f.count} alert={f.needs > 0} />
             </ScopeLink>

@@ -967,6 +967,32 @@ export interface components {
              */
             summaries: boolean;
         };
+        /**
+         * GitPlace
+         * @description Where a session's folder sits in git, read on the machine it runs on.
+         */
+        GitPlace: {
+            /**
+             * Branch
+             * @description null: detached
+             */
+            branch?: string | null;
+            /**
+             * Remote
+             * @description its origin as owner/repo
+             */
+            remote?: string | null;
+            /**
+             * Repo
+             * @description the repository's main folder, which its worktrees share
+             */
+            repo: string;
+            /**
+             * Worktree
+             * @description the top folder of the worktree the session is in (`repo` for the main one)
+             */
+            worktree: string;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1379,6 +1405,8 @@ export interface components {
              * @description the session it was forked from, as listed here (a side chat's too)
              */
             fork_of?: string | null;
+            /** @description its folder's repository; null outside one, or elsewhere */
+            git?: components["schemas"]["GitPlace"] | null;
             /**
              * Hidden
              * @description the owner hid it: kept out of the lists and done notifications
@@ -1438,7 +1466,7 @@ export interface components {
             placement?: components["schemas"]["Placement"] | null;
             /**
              * Project
-             * @description the team project it belongs to, once one is kept
+             * @description the project an agent or the owner put it in (null: its repository says)
              */
             project?: string | null;
             /**

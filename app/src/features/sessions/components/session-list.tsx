@@ -1,4 +1,4 @@
-import { ChevronRight, Folder, Monitor } from 'lucide-react'
+import { ChevronRight, Monitor } from 'lucide-react'
 import { useRef, type ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/cn'
@@ -7,6 +7,7 @@ import { shortFolderNames, type SessionEntry } from '../model/facets'
 import type { Group, Section } from '../model/query'
 import { foldKey, useListPrefs } from '../store'
 import { AgentMark } from './agent-mark'
+import { PlaceIcon } from './place-icon'
 import type { RowContext } from './session-row'
 import { Rows, withForks, type Extra, type Held } from './session-tree'
 
@@ -70,14 +71,14 @@ function SectionHeader({
   onToggle?: () => void
 }) {
   return (
-    <h4 data-flip={`section:${section.key}`} title={section.label}>
+    <h4 data-flip={`section:${section.key}`} title={section.title ?? section.label}>
       <FoldButton
         folded={folded}
         onToggle={onToggle}
         className="gap-1.5 bg-surface-muted px-3 py-1 text-xs text-fg-muted hover:text-fg sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0"
         indent={(section.depth ?? 0) * INDENT_REM}
       >
-        <Folder aria-hidden />
+        <PlaceIcon kind={section.kind} />
         <span className="min-w-0 truncate font-medium text-fg">{label}</span>
         <HeaderCount entries={folded ? held : section.entries} folded={folded} className="ml-auto" />
       </FoldButton>

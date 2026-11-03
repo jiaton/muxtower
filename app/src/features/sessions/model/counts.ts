@@ -13,6 +13,8 @@ import {
   statusOf,
   type SessionEntry,
 } from './facets'
+import { withRepositories } from './folders'
+import { homeKind, worktreeOf, type PlaceKind } from './places'
 import { SOURCE_ORDER, accountLabel, agentLabel, deviceLabel, folderLabel, orderBy, sourceLabel, type View } from './query'
 
 export interface Facet {
@@ -20,6 +22,11 @@ export interface Facet {
   count: number
   /** How many of them need you. */
   needs: number
+  /** A worktree: the repository it is listed under, its name there (its branch), and its folder. */
+  under?: string
+  name?: string
+  title?: string
+  kind?: PlaceKind
 }
 
 export interface DeviceFacet extends Facet {
@@ -65,11 +72,26 @@ export function facetsOf(entries: SessionEntry[]): Facets {
       archived: entries.filter((e) => placeOf(e.session) === 'archived').length,
     },
     devices: facet(counted, deviceLabel, NO_ENVIRONMENT).map((device) => {
-      const folders = facet(
-        counted.filter((e) => deviceLabel(e) === device.label),
+      const here = counted.filter((e) => deviceLabel(e) === device.label)
+      const worktrees = facet(
+        here.filter((e) => worktreeOf(e.session)),
+        (e) => worktreeOf(e.session)!.label,
+        '',
+      ).map((f) => {
+        const worktree = worktreeOf(here.find((e) => worktreeOf(e.session)?.label === f.label)!.session)!
+        return { ...f, under: worktree.under, name: worktree.name, title: worktree.path, kind: 'worktree' as const }
+      })
+      const homes = facet(
+        here.filter((e) => !worktreeOf(e.session)),
         folderLabel,
         UNKNOWN_FOLDER,
-      )
+      ).map((f) => ({ ...f, kind: homeKind(here.find((e) => folderLabel(e) === f.label)!.session) }))
+      const folders = withRepositories<Facet>([...homes, ...worktrees], (label) => ({
+        label,
+        count: 0,
+        needs: 0,
+        kind: 'repository',
+      }))
       // Like the list: a lone "Unknown folder" is no second level.
       return { ...device, folders: folders.length === 1 && folders[0].label === UNKNOWN_FOLDER ? [] : folders }
     }),
@@ -87,5 +109,5 @@ export function folderSuggestions(entries: SessionEntry[], daemonId: string, nod
   const local = entries.filter(
     (e) => e.daemon.id === daemonId && (e.session.node ?? null) === node && e.session.on_host && folderOf(e.session),
   )
-  return facet(local, folderLabel, '')
+  return facet(local, (e) => folderOf(e.session) ?? '', '') // where to start one: real folders
 }

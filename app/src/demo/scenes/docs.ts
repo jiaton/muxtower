@@ -12,7 +12,8 @@ export function docs(): Scene {
     session: demoSession({
       id: 'docs',
       name: 'docs',
-      cwd: `${HOME}/code/docs`,
+      cwd: `${HOME}/code/shop-api-docs`,
+      git: { repo: `${HOME}/code/shop-api`, worktree: `${HOME}/code/shop-api-docs`, branch: 'docs', remote: 'acme/shop-api' },
       runtime: 'codex',
       source: 'adopted',
       tmux_socket: 'default',
@@ -34,7 +35,7 @@ export function docs(): Scene {
       created_at: ago(25),
       updated_at: ago(0.1),
     }),
-    history: [...codexWelcome('~/code/docs'), ...codexSaid('Write the getting started guide for the CLI.')],
+    history: [...codexWelcome('~/code/shop-api-docs'), ...codexSaid('Write the getting started guide for the CLI.')],
     footer: [...codexWorking(4), ...codexInput],
     items: [],
     start: [
