@@ -2,6 +2,8 @@ import type { components } from './schema'
 
 type Schemas = components['schemas']
 export type Session = Schemas['Session']
+export type UpdateTeam = Schemas['UpdateTeam']
+export type TeamTask = Schemas['TeamTask']
 export type AgentState = Schemas['AgentState']
 export type NotifyLevel = Schemas['NotifyLevel']
 export type PendingAction = Schemas['PendingAction']

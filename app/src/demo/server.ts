@@ -79,6 +79,15 @@ const SESSION_ROUTES: Record<string, Handler> = {
     const patch = typeof body.name === 'string' ? { name: body.name } : {}
     return world.mark(id, patch) ? json(world.session(id)) : refuse(404, 'no such session')
   },
+  'PUT team': (world, id, body) => {
+    const text = (key: string) => (typeof body[key] === 'string' ? (body[key] as string).trim() || null : undefined)
+    const patch: Partial<Session> = {}
+    if (text('role') !== undefined) patch.team_role = text('role')
+    if (text('note') !== undefined) patch.team_note = text('note')
+    if (text('project')) patch.project = text('project')
+    return world.mark(id, patch) ? json(world.session(id)) : refuse(404, 'no such session')
+  },
+  'GET tasks': (world, id) => (world.session(id) ? json(world.tasks(id)) : refuse(404, 'no such session')),
   'DELETE ': (world, id) => (world.remove(id) ? empty() : refuse(404, 'no such session')),
   'POST resize': () => empty(),
   'POST resize/release': () => empty(),

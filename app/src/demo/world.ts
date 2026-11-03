@@ -1,4 +1,4 @@
-import type { ConversationItem, PendingAction, ServerFrame, Session } from '@/lib/api/types'
+import type { ConversationItem, PendingAction, ServerFrame, Session, TeamTask } from '@/lib/api/types'
 
 /** One moment of a scripted story: after `after` ms, the session changes, the screen gains lines (and a
  *  new footer: the prompt box, a dialog, a spinner) and the conversation gains or updates items. */
@@ -21,6 +21,8 @@ export interface Scene {
   approve?: (option: string) => Step[]
   deny?: () => Step[]
   reply?: (text: string) => Step[]
+  /** Work teammates sent it, or it sent them (the Team dialog). */
+  tasks?: TeamTask[]
 }
 
 type Listener = (frame: ServerFrame) => void
@@ -53,6 +55,10 @@ export class World {
 
   session(id: string): Session | undefined {
     return this.scenes.get(id)?.session
+  }
+
+  tasks(id: string): TeamTask[] {
+    return this.scenes.get(id)?.tasks ?? []
   }
 
   screen(id: string): string | null {

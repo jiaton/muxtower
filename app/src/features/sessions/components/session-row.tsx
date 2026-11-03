@@ -54,6 +54,7 @@ export function SessionRow({
   const { daemon, session } = entry
   const folder = folderOf(session)
   const where = [
+    session.team_role,
     session.fork_of && !context.nested ? (session.side_chat ? 'Side chat' : 'Fork') : null,
     context.showDaemon ? daemon.name : null,
     context.hideDevice ? null : (deviceOf(session) ?? NO_ENVIRONMENT),

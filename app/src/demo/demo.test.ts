@@ -70,6 +70,9 @@ describe('the demo daemon over HTTP', () => {
     expect((await call(w, 'POST', '/v1/sessions/web-app/approve', {})).status).toBe(409)
     expect((await call(w, 'POST', '/v1/sessions/docs/read', { read: true })).status).toBe(204)
     expect((await call(w, 'POST', '/v1/sessions', { runtime: 'claude' })).status).toBe(409)
+    expect((await (await call(w, 'GET', '/v1/sessions/shop-api/tasks')).json())[0].from_id).toBe('release-notes')
+    const team = await (await call(w, 'PUT', '/v1/sessions/docs/team', { role: 'writer', note: '', rename_project: false })).json()
+    expect([team.team_role, team.team_note]).toEqual(['writer', null])
   })
 })
 
