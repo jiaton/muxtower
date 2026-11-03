@@ -8,7 +8,9 @@
   when that one was compacted since (the copy starts after its summary), the newest older session with
   the same title (a side chat keeps its parent's).
 
-Copies without the note count as forks of that parent."""
+Copies without the note count as forks of that parent. Claude desktop's fork carries no tag, and one made
+from the middle of a session starts at that message, not at the parent's first: such a copy's parent is the
+newest older session with its title whose log holds its first message (looked for once, `holds`)."""
 
 import logging
 from collections.abc import Callable, Iterable
@@ -38,6 +40,8 @@ class Lineage:
     copied: bool = False  # it began as a copy of another session's history
     side_chat: bool = False
     parent: str | None = None  # named by its tags (a fork)
+    searched: bool = False  # a copy no first message places: the sessions of its title were searched
+    found_in: str | None = None  # the session whose log holds its first message, when searched
 
 
 def tagged_parent(tags: Iterable[Any]) -> str | None:
@@ -96,13 +100,67 @@ def _read(events_after: Callable[[str, int, int], list[RawEvent]], session_id: s
     return Lineage(first, copied, False, parent)
 
 
-def forks(sessions: "dict[str, RcSession]") -> dict[str, str]:
-    """Each fork's or side chat's parent among the sessions listed."""
-    listed = {
+def listed(sessions: "dict[str, RcSession]") -> dict[str, tuple[Lineage, str, str]]:
+    return {
         sid: (s.lineage, str(s.raw.get("created_at") or ""), str(s.raw.get("title") or ""))
         for sid, s in sessions.items()
     }
-    return parents(listed)
+
+
+def forks(sessions: "dict[str, RcSession]") -> dict[str, str]:
+    """Each fork's or side chat's parent among the sessions listed."""
+    return parents(listed(sessions))
+
+
+def to_search(lineages: dict[str, tuple[Lineage, str, str]]) -> dict[str, list[str]]:
+    """Copies that no first message places and that were not searched yet, each with the sessions that may
+    hold its first message: older ones with its title that are neither side chats nor tagged forks, newest
+    first. Only one that does is its parent, so an equal title alone never makes one."""
+    placed = parents(lineages)
+    found: dict[str, list[str]] = {}
+    for session_id, (lineage, created, title) in lineages.items():
+        if not lineage.copied or lineage.side_chat or lineage.parent or lineage.searched or not lineage.first:
+            continue
+        if session_id in placed or not title:
+            continue
+        older = [
+            (c, sid) for sid, (other, c, t) in lineages.items()
+            if sid != session_id and t == title and c < created and not other.side_chat and not other.parent
+        ]  # fmt: skip
+        found[session_id] = [sid for _, sid in sorted(older, reverse=True)]
+    return found
+
+
+def search(
+    events_after: Callable[[str, int, int], list[RawEvent]],
+    searches: dict[str, list[str]],
+    firsts: dict[str, str | None],
+) -> dict[str, str | None]:
+    """Blocking (HTTP). For each copy to search (`to_search`) that has candidates, the first of them whose
+    log holds its first message, or None; a copy whose search failed is left out, to be searched again."""
+    found: dict[str, str | None] = {}
+    for copy_id, candidates in searches.items():
+        first = firsts.get(copy_id)
+        if not first or not candidates:
+            continue  # none to search yet: a parent listed later is still found
+        try:
+            found[copy_id] = next((c for c in candidates if holds(events_after, c, first)), None)
+        except Unavailable as exc:
+            logger.warning("could not look for where %s came from: %s", copy_id, exc)
+    return found
+
+
+def holds(events_after: Callable[[str, int, int], list[RawEvent]], session_id: str, message_id: str) -> bool:
+    """Blocking (HTTP). Whether a session's log (its first MAX_PAGES pages) has that message."""
+    seq = 0
+    for _ in range(MAX_PAGES):
+        events = events_after(session_id, seq, PAGE)
+        if any(str(e.payload.get("uuid") or "") == message_id for e in events):
+            return True
+        if len(events) < PAGE:
+            return False
+        seq = max(e.seq for e in events)
+    return False
 
 
 def placed(rc: "RcSession", forks: dict[str, str]) -> Session:
@@ -133,6 +191,8 @@ def parents(lineages: dict[str, tuple[Lineage, str, str]]) -> dict[str, str]:
             found[session_id] = lineage.parent
         elif lineage.copied and original and original[0] != session_id:
             found[session_id] = original[0]
+        elif lineage.found_in:
+            found[session_id] = lineage.found_in
         elif lineage.side_chat and title:
             older = [
                 (c, sid) for sid, (other, c, t) in lineages.items()

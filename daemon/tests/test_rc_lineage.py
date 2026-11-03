@@ -116,3 +116,56 @@ def test_a_long_copy_written_in_batches_is_still_one_copy() -> None:
     }
     views = {v.id: (v.fork_of, v.side_chat) for v in source(port).views()}
     assert views["cse_side"] == ("cse_main", True)
+
+
+def test_a_desktop_fork_from_the_middle_of_a_session_is_found_by_its_first_message() -> None:
+    """Claude desktop's fork has no tag; made from a message deep in the parent, its copy starts there."""
+    port = FakeRemoteControl()
+    port.sessions = [
+        session("cse_parent", title="Moveworks", created_at="2026-10-20T10:00:00Z"),
+        session("cse_decoy", title="Moveworks", created_at="2026-10-22T10:00:00Z"),
+        session("cse_fork", title="Moveworks", created_at="2026-10-25T09:00:00Z"),
+    ]
+    burst = "2026-10-25T09:00:01.500Z"
+    port.events = {
+        "cse_parent": [
+            *history(),
+            say(314, "2026-10-21T08:00:00Z", "user", "m314", "Where were we on the offer?"),
+            say(315, "2026-10-21T08:00:09Z", "assistant", "m315"),
+        ],
+        "cse_decoy": [say(1, "2026-10-22T10:00:01Z", "user", "d1"), say(2, "2026-10-22T10:00:07Z", "assistant", "d2")],
+        "cse_fork": [
+            say(1, burst, "user", "m314", "Where were we on the offer?"),
+            say(2, burst, "assistant", "m315"),
+            say(3, "2026-10-25T09:00:20Z", "user", "f1"),
+            say(4, "2026-10-25T09:00:30Z", "assistant", "f2"),
+        ],
+    }
+    src = source(port)
+    views = {v.id: (v.fork_of, v.side_chat) for v in src.views()}
+    assert views == {"cse_parent": (None, False), "cse_decoy": (None, False), "cse_fork": ("cse_parent", False)}
+    read: list[str] = []
+    events_after = port.events_after
+    port.events_after = lambda sid, after, limit: read.append(sid) or events_after(sid, after, limit)  # type: ignore[method-assign]
+    port.sessions[0]["updated_at"] = "2026-10-25T09:05:00Z"  # something changed: a tick reads again
+    src.tick()
+    assert src.get("cse_fork").fork_of == "cse_parent"
+    assert "cse_decoy" not in read  # searched once, kept with its lineage
+
+
+def test_an_equal_title_alone_does_not_make_a_parent() -> None:
+    port = FakeRemoteControl()
+    port.sessions = [
+        session("cse_other", title="Moveworks", created_at="2026-10-20T10:00:00Z"),
+        session("cse_fork", title="Moveworks", created_at="2026-10-25T09:00:00Z"),
+    ]
+    burst = "2026-10-25T09:00:01.500Z"
+    port.events = {
+        "cse_other": history(),
+        "cse_fork": [
+            say(1, burst, "user", "m314"),
+            say(2, burst, "assistant", "m315"),
+            say(3, "2026-10-25T09:00:20Z", "user", "f1"),
+        ],
+    }
+    assert {v.id: v.fork_of for v in source(port).views()} == {"cse_other": None, "cse_fork": None}
