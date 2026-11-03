@@ -4,8 +4,9 @@ one entirely; a new file adds a runtime."""
 
 import logging
 import re
+import time
 import tomllib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from importlib import resources
 from pathlib import Path
 
@@ -101,6 +102,8 @@ class Classification:
     state: AgentState
     rule: str | None  # name of the matching rule, None when default_state applied
     menu: Menu | None = None
+    # The rule that took longest to try, and its seconds: what shows a rule gone slow (`usage/`).
+    slowest: tuple[str, float] | None = field(default=None, compare=False)
 
     @property
     def options(self) -> list[Option]:
@@ -145,14 +148,20 @@ class Runtime:
     def classify(self, screen: str) -> Classification:
         lines = screen.rstrip().splitlines()
         dialog = self.dialog_lines(lines)
+        slowest: tuple[str, float] | None = None
         for rule, pattern in self.rules:
             seen = dialog if rule.state in APPROVABLE_STATES else lines
             if seen is None:
                 continue
-            if pattern.search("\n".join(seen[-rule.last_lines :]) if rule.last_lines else "\n".join(seen)):
+            started = time.perf_counter()
+            found = pattern.search("\n".join(seen[-rule.last_lines :]) if rule.last_lines else "\n".join(seen))
+            took = time.perf_counter() - started
+            if slowest is None or took > slowest[1]:
+                slowest = (rule.name, took)
+            if found:
                 menu = self.parse_menu(screen) if rule.state != AgentState.BUSY else None
-                return Classification(rule.state, rule.name, menu)
-        return Classification(self.config.default_state, None)
+                return Classification(rule.state, rule.name, menu, slowest)
+        return Classification(self.config.default_state, None, None, slowest)
 
     def parse_menu(self, screen: str) -> Menu | None:
         """The lowest block of 2+ choices around a cursor line. A lone cursor line is the prompt input."""

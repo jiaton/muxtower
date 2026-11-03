@@ -734,6 +734,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Usage
+         * @description What the daemon on each machine uses: this one first, then each node joined to it (as it last said),
+         *     with what is over its threshold (`alerts`). Sampled every few seconds; asking costs nothing.
+         */
+        get: operations["usage_v1_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1089,6 +1110,49 @@ export interface components {
              */
             url: string | null;
         };
+        /**
+         * MachineUsage
+         * @description What the daemon on one machine uses, sampled every few seconds. A value it cannot read there is null
+         *     (unknown), never 0.
+         */
+        MachineUsage: {
+            /** Alerts */
+            alerts?: components["schemas"]["UsageAlert"][];
+            /**
+             * Children
+             * @description null: cannot be read on this system
+             */
+            children?: components["schemas"]["ProcessUsage"][] | null;
+            /** Cpu 10M */
+            cpu_10m?: number | null;
+            /**
+             * Cpu 1M
+             * @description percent of one core, average over the last minute
+             */
+            cpu_1m?: number | null;
+            /** Machine */
+            machine: string;
+            /** Open Files */
+            open_files?: number | null;
+            /** Peak Rss Mb */
+            peak_rss_mb?: number | null;
+            /** Rss Mb */
+            rss_mb?: number | null;
+            /**
+             * Sampled At
+             * Format: date-time
+             */
+            sampled_at: string;
+            /**
+             * Stale
+             * @description a node's last report is old: it may be gone
+             * @default false
+             */
+            stale: boolean;
+            /** Threads */
+            threads?: number | null;
+            tick?: components["schemas"]["TickUsage"];
+        };
         /** MarkRead */
         MarkRead: {
             /**
@@ -1289,6 +1353,20 @@ export interface components {
              * @enum {string}
              */
             type: "pong";
+        };
+        /** ProcessUsage */
+        ProcessUsage: {
+            /**
+             * Cpu Percent
+             * @description of one core, over the last minute; null: unknown
+             */
+            cpu_percent?: number | null;
+            /** Name */
+            name: string;
+            /** Pid */
+            pid: number;
+            /** Rss Mb */
+            rss_mb?: number | null;
         };
         /** QuestionOption */
         QuestionOption: {
@@ -1557,6 +1635,20 @@ export interface components {
             type: "sessions";
         };
         /**
+         * SlowRule
+         * @description The screen rule that took longest in the latest ticks.
+         */
+        SlowRule: {
+            /** Ms */
+            ms: number;
+            /** Rule */
+            rule: string;
+            /** Session Id */
+            session_id: string;
+            /** Session Name */
+            session_name?: string | null;
+        };
+        /**
          * StateSource
          * @enum {string}
          */
@@ -1691,6 +1783,20 @@ export interface components {
             /** To Id */
             to_id: string;
         };
+        /**
+         * TickUsage
+         * @description The capture loop: each tick reads and classifies every pane.
+         */
+        TickUsage: {
+            /**
+             * Avg Ms
+             * @description over the last minute; null: no tick yet
+             */
+            avg_ms?: number | null;
+            /** Max Ms */
+            max_ms?: number | null;
+            slowest?: components["schemas"]["SlowRule"] | null;
+        };
         /** Transcript */
         Transcript: {
             /** Text */
@@ -1751,6 +1857,20 @@ export interface components {
             rename_project: boolean;
             /** Role */
             role?: string | null;
+        };
+        /** UsageAlert */
+        UsageAlert: {
+            /** Detail */
+            detail?: string | null;
+            /**
+             * Metric
+             * @description cpu | tick | memory
+             */
+            metric: string;
+            /** Threshold */
+            threshold: number;
+            /** Value */
+            value: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -3008,6 +3128,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StreamSchema"];
+                };
+            };
+        };
+    };
+    usage_v1_usage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MachineUsage"][];
                 };
             };
         };

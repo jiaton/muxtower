@@ -1,5 +1,6 @@
 import type { Daemon, StreamAuth } from '@/lib/daemons/types'
 import { responseKind } from './client'
+import { countFrame } from '@/lib/diagnostics'
 import { Heartbeat } from './heartbeat'
 import { openSocket } from './stream-open'
 import type { StreamStatus } from './stream-status'
@@ -194,6 +195,7 @@ export class DaemonStream {
     this.heartbeat.heard()
     ws.onmessage = (event) => {
       this.heartbeat.heard()
+      countFrame(String(event.data).length)
       try {
         const frame = JSON.parse(String(event.data)) as ServerFrame
         if (frame.type !== 'pong') this.handlers.onFrame(frame)

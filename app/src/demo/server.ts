@@ -1,5 +1,5 @@
 import type { components } from '@/lib/api/schema'
-import type { NodeInfo, RuntimeInfo, Session } from '@/lib/api/types'
+import type { MachineUsage, NodeInfo, RuntimeInfo, Session } from '@/lib/api/types'
 import { DEMO_DAEMON, NODE } from './scenes/session'
 import { plain } from './scenes/terminal'
 import type { World } from './world'
@@ -100,7 +100,19 @@ const ROUTES: Record<string, (world: World) => Response> = {
   'GET /v1/runtimes': () => json(RUNTIMES),
   'GET /v1/nodes': () => json(NODES),
   'GET /v1/devices': () => json([{ name: 'This browser', created_at: new Date().toISOString(), last_used_at: null, current: true }]),
+  'GET /v1/usage': () => json(USAGE()),
 }
+
+/** What the demo's two machines use: little, as a daemon should. */
+const USAGE = (): MachineUsage[] =>
+  [
+    ['build-box', 1.8, 2.1, 46, 4.2],
+    ['laptop', 0.9, 1.2, 38, 2.7],
+  ].map(([machine, cpu1, cpu10, rss, tick]) => ({
+    machine: machine as string, sampled_at: new Date().toISOString(), stale: false, cpu_1m: cpu1 as number,
+    cpu_10m: cpu10 as number, rss_mb: rss as number, peak_rss_mb: null, threads: 14, open_files: 31, children: [],
+    tick: { avg_ms: tick as number, max_ms: (tick as number) * 2, slowest: null }, alerts: [],
+  })) // prettier-ignore
 
 /** Answers a request to the demo daemon the way a daemon would, from `world`. */
 export async function respond(world: World, request: Request): Promise<Response> {

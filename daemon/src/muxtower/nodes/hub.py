@@ -13,6 +13,7 @@ import logging
 import re
 import secrets
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -30,6 +31,7 @@ from muxtower.nodes.repository import NodeRecord, NodeRepository
 from muxtower.nodes.update import newer
 from muxtower.runtimes.models import RuntimeInfo
 from muxtower.sessions.models import ConversationItem, Session
+from muxtower.usage.models import MachineUsage
 
 logger = logging.getLogger("muxtower.nodes")
 
@@ -43,12 +45,17 @@ def slug(name: str) -> str:
     return cleaned or "node"
 
 
+USAGE_STALE_SECONDS = 60.0  # a node reports what it uses every 10 s
+
+
 @dataclass(eq=False)
 class Node:
     record: NodeRecord
     sessions: dict[str, Session] = field(default_factory=dict)  # by the node's own ids
     link: NodeLink | None = None
     screens: dict[str, list[int]] = field(default_factory=dict)  # watched here: local id -> histories
+    usage: MachineUsage | None = None  # what its daemon uses, as it last said (`usage/`)
+    usage_at: float = 0.0  # monotonic
 
     @property
     def online(self) -> bool:
@@ -204,6 +211,26 @@ class Nodes:
             self._forward(name, data, kind)
         elif kind == "running" and isinstance(data, list):
             self._running(name, data)
+        elif kind == "usage" and isinstance(data, dict):
+            self._usage(name, data)
+
+    def _usage(self, name: str, data: dict[str, Any]) -> None:
+        try:
+            usage = MachineUsage.model_validate(data).model_copy(update={"machine": name})
+        except ValidationError:
+            return
+        with self._lock:
+            if node := self.nodes.get(name):
+                node.usage, node.usage_at = usage, time.monotonic()
+
+    def usages(self) -> list[MachineUsage]:
+        """What each node's daemon last said it uses; stale when that is old or the node is offline."""
+        now = time.monotonic()
+        with self._lock:
+            known = [(n, n.usage) for n in self.nodes.values() if n.usage is not None]
+        return [
+            u.model_copy(update={"stale": not n.online or now - n.usage_at > USAGE_STALE_SECONDS}) for n, u in known
+        ]
 
     def _running(self, name: str, raw: list[dict[str, Any]]) -> None:
         with self._lock:

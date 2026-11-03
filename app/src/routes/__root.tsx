@@ -2,6 +2,7 @@ import { Link, Outlet, createRootRoute, useMatch } from '@tanstack/react-router'
 import { Layers, Plus, Server } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { navItemClass, tabItemClass } from '@/components/ui/nav'
+import { WebUsageMark } from '@/features/daemons/components/web-usage-mark'
 import { NewSessionDialog } from '@/features/sessions/components/new-session-dialog'
 import { SessionsNav } from '@/features/sessions/components/sessions-nav'
 import { useListMemory } from '@/features/sessions/store'
@@ -46,6 +47,7 @@ function RootLayout() {
           <Link to="/" className="font-mono font-semibold">
             muxtower
           </Link>
+          <WebUsageMark />
           <div className="ml-auto">
             <NewSessionDialog
               trigger={

@@ -18,7 +18,8 @@ from muxtower.sessions.monitor import Monitor
 logger = logging.getLogger("muxtower.hub")
 
 RESEND_SECONDS = 60.0
-PROCESS_SECONDS = 5.0  # how often its Claude Code processes are looked at (files, no network)
+PROCESS_SECONDS = 5.0
+USAGE_SECONDS = 10.0  # how often its Claude Code processes are looked at (files, no network)
 DEBOUNCE_SECONDS = 0.3
 
 
@@ -47,7 +48,8 @@ class LinkSession:
         bus.subscribe("sessions", self.queue)
         bus.subscribe("conversation:*", self.queue)
         self.dirty.set()
-        tasks = [asyncio.create_task(t) for t in (self.read(), self.pump(), self.report(), self.processes())]
+        loops = (self.read(), self.pump(), self.report(), self.processes(), self.usage())
+        tasks = [asyncio.create_task(t) for t in loops]
         try:
             done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
             for task in done:
@@ -82,6 +84,13 @@ class LinkSession:
                 await self.ws.send(protocol.event("running", running))
                 sent = running
             await asyncio.sleep(PROCESS_SECONDS)
+
+    async def usage(self) -> None:
+        """What this daemon uses (`usage/`), as last sampled: the hub shows it with the other machines."""
+        while True:
+            if (usage := self.api.usage()) is not None:
+                await self.ws.send(protocol.event("usage", usage.model_dump(mode="json")))
+            await asyncio.sleep(USAGE_SECONDS)
 
     async def pump(self) -> None:
         while True:

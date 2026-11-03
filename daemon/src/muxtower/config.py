@@ -121,6 +121,14 @@ class HubSettings(BaseModel):
     update: Literal["always", "incompatible", "never"] = "incompatible"
 
 
+class UsageSettings(BaseModel):
+    """When what the daemon uses is worth showing (an alert by the machine's name in the app)."""
+
+    cpu_percent: float = 20.0  # of one core, over the last minute
+    tick_ms: float = 200.0  # the capture loop's ticks, on average over the last minute
+    rss_mb: float = 500.0
+
+
 class Settings(BaseModel):
     name: str | None = None  # display name in the app; defaults to the hostname
     host: str = "127.0.0.1"
@@ -147,6 +155,7 @@ class Settings(BaseModel):
     summaries: SummarySettings = Field(default_factory=SummarySettings)
     asr: AsrSettings = Field(default_factory=AsrSettings)
     concierge: ConciergeSettings = Field(default_factory=ConciergeSettings)
+    usage: UsageSettings = Field(default_factory=UsageSettings)
     hub: HubSettings = Field(default_factory=HubSettings)
 
     @property
