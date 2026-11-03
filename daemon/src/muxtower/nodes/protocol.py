@@ -12,7 +12,8 @@ sessions have their Claude Code process there: `processes.py`); a peer ignores e
 know. The hub asks the node to act on its sessions with requests named like the daemon's own API
 (`METHODS`), and tells it first which version it runs (`hub`: `update.py`). Errors travel as
 HTTP statuses and come out on the other side as the same exception, so a 409 from a node is a 409
-from the hub.
+from the hub. Since protocol 2 the node asks the hub too (`HUB_METHODS`): its sessions' team tools
+(`my_team`, `send_task`…) are answered by the hub, which sees every session.
 
 PROTOCOL is raised only by a change an older peer cannot read (a new event or field is not one). A side
 may keep speaking older protocols, back to OLDEST: the link speaks the older of the two sides'
@@ -27,7 +28,7 @@ from pydantic import BaseModel, Field
 from muxtower.errors import Conflict, Forbidden, Invalid, NotFound, TooManyRequests, Unauthorized, Unavailable
 from muxtower.runtimes.models import RuntimeInfo
 
-PROTOCOL = 1  # the newest link this side speaks
+PROTOCOL = 2  # the newest link this side speaks (2: the node asks the hub, HUB_METHODS)
 OLDEST = 1  # the oldest it still speaks
 MAX_FRAME_BYTES = 16 * 1024 * 1024
 CLOSE_REVOKED = 4401  # the hub no longer knows this node: it should stop trying
@@ -38,6 +39,10 @@ METHODS = frozenset({
     "conversation", "screen", "watch_screen", "unwatch_screen", "input", "approve", "deny", "resize",
     "release_size", "update", "terminate", "archive", "mark_read", "detect_folder", "create", "image",
 })  # fmt: skip
+
+# What a node may ask of its hub (protocol 2): one of its sessions calls a team tool.
+HUB_METHODS = frozenset({"team_tool"})
+TEAM_TOOLS = frozenset({"my_team", "set_role", "set_project", "send_task"})
 
 ERRORS: dict[int, type[Exception]] = {
     400: Invalid, 401: Unauthorized, 403: Forbidden, 404: NotFound, 409: Conflict, 429: TooManyRequests,

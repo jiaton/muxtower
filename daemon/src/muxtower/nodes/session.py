@@ -12,7 +12,7 @@ from muxtower.errors import Invalid, Unavailable
 from muxtower.infra.bus import EventBus
 from muxtower.nodes import protocol
 from muxtower.nodes.api import CHANGES_LIST, NodeApi
-from muxtower.nodes.link import parse
+from muxtower.nodes.link import NodeLink, parse
 from muxtower.sessions.monitor import Monitor
 
 logger = logging.getLogger("muxtower.hub")
@@ -36,6 +36,7 @@ class LinkSession:
         self.hello = hello
         self.told = told  # the hub's events
         self.queue: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
+        self.asks = NodeLink("the hub", ws.send, lambda code: ws.close(code=code))  # this node's requests
         self.dirty = asyncio.Event()
         self.screens: dict[str, list[int]] = {}
 
@@ -54,6 +55,7 @@ class LinkSession:
         finally:
             for task in tasks:
                 task.cancel()
+            self.asks.close()  # what waits on the hub fails now
             bus.unsubscribe_all(self.queue)
             for session_id, histories in self.screens.items():
                 for history in histories:
@@ -99,6 +101,8 @@ class LinkSession:
             frame = parse(raw if isinstance(raw, str) else raw.decode())
             if frame is not None and isinstance(frame.get("method"), str) and "id" in frame:
                 asyncio.create_task(self.answer(frame))
+            elif frame is not None and "id" in frame:  # the hub answers this node's request
+                self.asks.answered(frame)
             elif frame is not None and isinstance(frame.get("event"), str):
                 self.told(frame["event"], frame.get("data"))
 

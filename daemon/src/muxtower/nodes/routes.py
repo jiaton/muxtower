@@ -4,7 +4,7 @@ daemon joins a hub (`/hub`)."""
 
 import asyncio
 import logging
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect
 from pydantic import ValidationError
@@ -12,7 +12,8 @@ from pydantic import ValidationError
 from muxtower import __version__
 from muxtower.auth.deps import WS_BEARER_PREFIX, WS_SUBPROTOCOL, CurrentDevice
 from muxtower.auth.routes import Audit
-from muxtower.nodes import protocol
+from muxtower.mcp.service import McpTools
+from muxtower.nodes import asked, protocol
 from muxtower.nodes.client import HubClient
 from muxtower.nodes.hub import Nodes
 from muxtower.nodes.link import NodeLink, parse
@@ -79,6 +80,13 @@ def leave_hub(device: CurrentDevice, hub: HubDep, audit: Audit) -> None:
     audit.record(device.name, "hub-left")
 
 
+async def _reply(ws: WebSocket, tools: McpTools, name: str, frame: dict[str, Any]) -> None:
+    try:
+        await ws.send_text(await asked.answer(tools, name, frame))
+    except (WebSocketDisconnect, RuntimeError):
+        pass
+
+
 @router.websocket("/nodes/link")
 async def node_link(ws: WebSocket) -> None:
     nodes: Nodes = ws.app.state.nodes
@@ -112,6 +120,8 @@ async def node_link(ws: WebSocket) -> None:
                 continue
             if "event" in frame:
                 nodes.on_event(name, str(frame["event"]), frame.get("data"))
+            elif "method" in frame and "id" in frame:  # the node asks (protocol 2)
+                asyncio.create_task(_reply(ws, ws.app.state.mcp, name, frame))
             elif "id" in frame:
                 link.answered(frame)
     except (WebSocketDisconnect, RuntimeError):  # gone, or hung up from here (removed, replaced)
