@@ -253,3 +253,26 @@ async def test_a_node_may_ask_its_hub_for_team_tools_only(make_app: Callable[...
         )
     )
     assert reply["result"]["text"].startswith("muxtower cannot tell which session you are")  # mac~x1 is not listed
+
+
+def test_the_owner_sets_roles_from_the_app_and_reads_the_tasks(
+    make_app: Callable[..., FastAPI], tmux: FakeTmux, tmp_path: Path
+) -> None:
+    app = make_app()
+    client = TestClient(app)
+    _, device = app.state.tokens.create("phone")
+    auth = {"Authorization": f"Bearer {device}"}
+    a = app.state.sessions.create(CreateSession(runtime="claude", cwd=str(tmp_path), name="a"))
+    b = app.state.sessions.create(CreateSession(runtime="claude", cwd=str(tmp_path), name="b"))
+    set_a = client.put(f"/v1/sessions/{a.id}/team", json={"role": "research", "note": "talks it through"}, headers=auth)
+    assert (set_a.json()["team_role"], set_a.json()["team_note"]) == ("research", "talks it through")
+    client.put(f"/v1/sessions/{b.id}/team", json={"role": "worker", "project": "shop"}, headers=auth)
+    listed = {s["id"]: s for s in client.get("/v1/sessions", headers=auth).json()}
+    assert (listed[b.id]["team_role"], listed[b.id]["project"]) == ("worker", "shop")
+    kept = client.put(f"/v1/sessions/{a.id}/team", json={"project": "shop"}, headers=auth).json()
+    assert kept["team_note"] == "talks it through"  # only what is given changes
+    pane = next(p for p in tmux.panes.values() if p.info.session_name == a.tmux_session)
+    _tool(client, pane.env["MUXTOWER_MCP_TOKEN"], "send_task", to="worker", text="Build it.")
+    (task,) = client.get(f"/v1/sessions/{b.id}/tasks", headers=auth).json()
+    assert (task["from_id"], task["to_id"], task["text"], task["status"]) == (a.id, b.id, "Build it.", "delivered")
+    assert client.get(f"/v1/sessions/{a.id}/tasks", headers=auth).json()[0]["id"] == task["id"]  # sent ones too

@@ -132,6 +132,9 @@ class Session(BaseModel):
     side_chat: bool = Field(
         default=False, description="something asked on the side of `fork_of` (Claude desktop's side chat)"
     )
+    team_role: str | None = Field(default=None, description="what it is for in its team (free text; `teams/`)")
+    team_note: str | None = Field(default=None, description="one more line about its team role")
+    project: str | None = Field(default=None, description="the team project it belongs to, once one is kept")
     on_host: bool = Field(default=False, description="its agent runs on the daemon that lists it")
     offline: bool = Field(
         default=False, description="its node is not connected: the last known view, read only until it is back"

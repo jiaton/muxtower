@@ -62,9 +62,16 @@ class TeamService:
         self.repo = repo
         self.read = read
         self.transcript_of = transcript_of or (lambda _: None)
+        self.changed: Callable[[], None] = lambda: None  # a role or project changed (the lists show them)
         self._lock = threading.Lock()
         self._records = repo.load()
         self._checkouts: dict[str, tuple[float, Checkout]] = {}
+        directory.team = self.kept
+
+    def kept(self, session_id: str) -> TeamRecord | None:
+        """Its role and project as kept, without looking anything up (for every listing)."""
+        with self._lock:
+            return self._records.get(session_id)
 
     def _checkout(self, session: Session) -> Checkout | None:
         """Blocking (git). Only a session whose folder is on this machine has one."""
@@ -122,7 +129,10 @@ class TeamService:
     def _save(self, record: TeamRecord) -> None:
         self.repo.save(record)
         with self._lock:
+            before = self._records.get(record.session_id)
             self._records[record.session_id] = record
+        if before is None or (before.role, before.note, before.project) != (record.role, record.note, record.project):
+            self.changed()
 
     def members(self) -> list[Member]:
         """Blocking. Every session that is not archived, as a team member."""
