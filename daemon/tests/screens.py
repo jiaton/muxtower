@@ -221,3 +221,20 @@ DONE_QUOTING = """\
 
 
 """
+
+MCP_TRUST = """\
+────────────────────────────────────────────────
+ New MCP server found in .mcp.json: docs
+
+ MCP servers may execute code or access system resources. All tool calls require approval.
+
+ ❯ 1. Use this and all future MCP servers in this project
+   2. Use this MCP server
+   3. Continue without using this MCP server
+
+ Enter to confirm · Esc to cancel
+"""
+
+# A long conversation scrolled by on the screen (history), matching no rule: what every rule meets on
+# most panes, most of the time. 20 000 characters.
+LONG_IDLE = ("● Read 3 files and ran the tests; all 42 pass.\n  ⎿  src/payments/client.ts\n" * 280)[:20000] + IDLE
