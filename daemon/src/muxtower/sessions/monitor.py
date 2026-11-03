@@ -21,6 +21,9 @@ from muxtower.terminal.ports import PaneInfo, PaneRef
 
 logger = logging.getLogger("muxtower.monitor")
 
+WAKE_SETTLE = 0.04  # seconds: keys typed in a row arrive within this, and are captured together
+MIN_GAP = 0.1  # seconds between ticks, however often hooks or input wake the loop
+
 
 @dataclass
 class TickResult:
@@ -54,6 +57,14 @@ class Monitor:
         self.processes = processes
         self._panes: dict[tuple[str, str], PaneInfo] = {}  # (socket, pane id) -> as last listed
         self._viewers: dict[str, list[int]] = defaultdict(list)  # session id -> history lines wanted
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._woken: asyncio.Event | None = None
+
+    def wake(self) -> None:
+        """From any thread: look again soon instead of at the next interval (input was just sent, a hook
+        said the state changed), so what was typed shows at once."""
+        if self._loop is not None and self._woken is not None:
+            self._loop.call_soon_threadsafe(self._woken.set)
 
     # Viewers (open terminal views) make the loop also capture colors + scrollback for that session.
     def add_viewer(self, session_id: str, history: int) -> None:
@@ -179,8 +190,13 @@ class Monitor:
         return result
 
     async def run_loop(self, bus: EventBus, interval: float) -> None:
+        """A tick every `interval`, or soon after `wake`: keys typed in a row are taken together (after
+        WAKE_SETTLE), and ticks stay MIN_GAP apart however often something wakes it."""
         logger.info("monitor loop started (every %ss)", interval)
+        self._loop, self._woken = asyncio.get_running_loop(), asyncio.Event()
         while True:
+            self._woken.clear()  # a wake during this tick asks for another
+            started = time.monotonic()
             try:
                 result = await asyncio.wait_for(asyncio.to_thread(self.tick), timeout=30)
             except TimeoutError:
@@ -194,4 +210,8 @@ class Monitor:
                     bus.publish(f"screen:{session_id}", ansi)
                 for session_id in result.attention:
                     bus.publish(f"attention:{session_id}", None)
-            await asyncio.sleep(interval)
+            try:
+                await asyncio.wait_for(self._woken.wait(), max(0.0, interval - (time.monotonic() - started)))
+            except TimeoutError:
+                continue
+            await asyncio.sleep(max(WAKE_SETTLE, MIN_GAP - (time.monotonic() - started)))

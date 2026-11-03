@@ -25,4 +25,5 @@ async def receive_hook(name: str, request: Request) -> Response:
     if app.sessions.apply_hook(session_id, token, event):
         app.bus.publish(f"attention:{session_id}", None)
     app.bus.publish("sessions", None)
+    app.monitor.wake()  # its state changed: its screen most likely too
     return Response(status_code=200)

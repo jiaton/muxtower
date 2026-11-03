@@ -53,6 +53,7 @@ class TerminalService:
                 tmux.send_key(record.pane, "Enter")
         elif body.key is not None:
             tmux.send_key(record.pane, body.key)
+        self.monitor.wake()  # what was typed shows at once, not at the next tick
 
     def resize(self, session_id: str, body: Resize) -> None:
         """Fit the pane to a viewer. Any session may be resized because release() gives the size back."""
