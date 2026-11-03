@@ -30,6 +30,7 @@ from muxtower.builders import (
     build_summaries,
     build_token_service,
 )
+from muxtower.concierge.events_repository import SqliteConciergeEvents
 from muxtower.concierge.service import ConciergeService
 from muxtower.concierge.store import FileConciergeStore
 from muxtower.config import Settings
@@ -150,7 +151,8 @@ def create_app(
     if settings.concierge.enabled:
         store = FileConciergeStore(settings.state_dir / "concierge.json", settings.state_dir / "concierge")
         mcp_url = f"{settings.local_url}/v1/mcp"
-        concierge = ConciergeService(settings.concierge, sessions, directory, tokens, store, mcp_url)
+        events = SqliteConciergeEvents(db)
+        concierge = ConciergeService(settings.concierge, sessions, directory, tokens, store, events, mcp_url)
     sender = WebPushSender(settings.state_dir, subject(settings.push_contact, settings.public_url))
     push = PushService(SqliteSubscriptionRepository(db), sender, directory, daemon_name, tokens.exists)
 
@@ -209,7 +211,7 @@ def create_app(
     app.state.hub = hub
     app.state.summaries = summaries
     app.state.concierge = concierge
-    app.state.mcp = McpTools(directory, sessions, concierge, daemon_name)
+    app.state.mcp = McpTools(directory, launcher, concierge, daemon_name, lambda: list(nodes.all()))
     app.state.asr = build_asr(settings, lambda: [s.name for s in directory.list()])
     app.state.terminal = terminal
     app.state.approvals = approvals

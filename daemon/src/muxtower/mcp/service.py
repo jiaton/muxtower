@@ -11,8 +11,8 @@ from muxtower.concierge.service import ConciergeService
 from muxtower.errors import Invalid
 from muxtower.mcp.describe import line
 from muxtower.sessions.directory import SessionDirectory
+from muxtower.sessions.launcher import Launcher
 from muxtower.sessions.models import ConversationItemKind, CreateSession, ItemStatus, Session
-from muxtower.sessions.service import SessionService
 from muxtower.terminal.models import SendInput
 
 REPLY_CHARS = 20000  # a reply is relayed whole, within reason
@@ -40,6 +40,10 @@ class ReadArgs(SessionArg):
     )
 
 
+class EventsArgs(BaseModel):
+    after: int = Field(default=0, ge=0, description="the last event number you saw; 0 for all that are kept")
+
+
 class MessageArgs(SessionArg):
     text: str = Field(min_length=1, max_length=20000, description="sent as the owner's message to that session")
 
@@ -52,10 +56,13 @@ class ApproveArgs(SessionArg):
 
 
 class StartArgs(BaseModel):
-    cwd: str = Field(description="directory on the hub to work in")
+    cwd: str = Field(description="directory to work in, on the machine it starts on")
     prompt: str | None = Field(default=None, description="first message for the new agent")
     name: str | None = None
     runtime: str = Field(default="claude-code", description="claude-code, codex, …")
+    machine: str | None = Field(
+        default=None, description="the device to start it on, as list_sessions names it (@name); default: the hub"
+    )
 
 
 @dataclass
@@ -75,10 +82,12 @@ def _clip(text: str, chars: int) -> str:
 
 class McpTools:
     def __init__(
-        self, directory: SessionDirectory, sessions: SessionService, concierge: ConciergeService | None, hub: str
-    ) -> None:
+        self, directory: SessionDirectory, launcher: Launcher, concierge: ConciergeService | None, hub: str,
+        machines: Callable[[], list[str]] = list,
+    ) -> None:  # fmt: skip
         self.directory = directory
-        self.sessions = sessions
+        self.launcher = launcher
+        self.machines = machines  # the names of the nodes joined to this hub
         self.concierge = concierge
         self.hub = hub
         tools = [
@@ -94,7 +103,8 @@ class McpTools:
                  ApproveArgs, self.approve),
             Tool("deny", "Decline a session's pending prompt.", SessionArg, self.deny),
             Tool("interrupt", "Stop what a session is doing (Escape).", SessionArg, self.interrupt),
-            Tool("start_session", "Start a new agent session on the hub.", StartArgs, self.start_session),
+            Tool("start_session", "Start a new agent session in tmux, on the hub or on another device joined "
+                 "to it (machine).", StartArgs, self.start_session),
         ]  # fmt: skip
         if concierge is not None:
             tools += [
@@ -102,6 +112,9 @@ class McpTools:
                      "new items start) when this session finishes a turn or needs the owner.",
                      SessionArg, self.watch),
                 Tool("unwatch_session", "Stop being told about this session.", SessionArg, self.unwatch),
+                Tool("list_events", "The [muxtower event] lines muxtower recorded after an event number (it "
+                     "keeps the latest few hundred), to catch up after a restart or when one may be missed.",
+                     EventsArgs, self.list_events),
             ]  # fmt: skip
         self.tools = {t.name: t for t in tools}
 
@@ -182,11 +195,25 @@ class McpTools:
         self.directory.send_input(s.id, SendInput(key="Escape"))
         return f"{s.name}: interrupted."
 
+    def _node(self, machine: str | None) -> str | None:
+        """The node a machine name means (None: the hub itself), however the caller capitalised it."""
+        wanted = (machine or "").strip().removeprefix("@").lower()
+        if not wanted or wanted == self.hub.lower():
+            return None
+        nodes = self.machines()
+        found = next((n for n in nodes if n.lower() == wanted), None)
+        if found is None:
+            known = ", ".join([self.hub, *nodes])
+            raise Invalid(f"no device named {machine}; start it on one of: {known}")
+        return found
+
     def start_session(self, args: StartArgs) -> str:
-        created = self.sessions.create(
-            CreateSession(runtime=args.runtime, cwd=args.cwd, name=args.name, args=[args.prompt] if args.prompt else [])
+        node = self._node(args.machine)
+        request = CreateSession(
+            runtime=args.runtime, cwd=args.cwd, name=args.name, args=[args.prompt] if args.prompt else [], node=node
         )
-        return f"Started {created.name} ({created.id}) in {created.cwd}."
+        created = self.launcher.create(request)
+        return f"Started {created.name} ({created.id}) on {node or self.hub} in {created.cwd}."
 
     def watch(self, args: SessionArg) -> str:
         assert self.concierge is not None
@@ -197,3 +224,13 @@ class McpTools:
         assert self.concierge is not None
         self.concierge.unwatch(args.session_id)
         return "Stopped watching."
+
+    def list_events(self, args: EventsArgs) -> str:
+        assert self.concierge is not None
+        events = self.concierge.recorded(args.after)
+        if not events:
+            return f"No events after #{args.after}."
+        out = [e.line + ("" if e.delivered else " (not sent to you yet)") for e in events]
+        if len(events) == 50:
+            out.append(f"More: list_events(after={events[-1].number})")
+        return "\n".join(out)

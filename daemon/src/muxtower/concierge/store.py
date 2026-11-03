@@ -28,7 +28,8 @@ class FileConciergeStore:
                 session_id=data.get("session_id"),
                 watched=list(data.get("watched") or []),
                 names=dict(data.get("names") or {}),
-                events=int(data.get("events") or 0),
+                seen={k: list(v) for k, v in (data.get("seen") or {}).items()},
+                cursors={k: int(v) for k, v in (data.get("cursors") or {}).items()},
             )
         except (OSError, ValueError, AttributeError, TypeError):
             return ConciergeState()

@@ -13,8 +13,8 @@ from typing import Any
 
 from muxtower.auth.service import TokenService
 from muxtower.concierge.events import Event, render
-from muxtower.concierge.ports import ConciergeStore
-from muxtower.concierge.prompt import INSTRUCTIONS
+from muxtower.concierge.ports import ConciergeEvents, ConciergeStore, RecordedEvent
+from muxtower.concierge.prompt import INSTRUCTIONS, UPDATE_PREFIX
 from muxtower.config import ConciergeSettings
 from muxtower.errors import Conflict, Invalid, NotFound
 from muxtower.infra.bus import EventBus
@@ -30,12 +30,13 @@ TOKEN_NAME = "concierge"  # noqa: S105 - a device name, not a secret
 MCP_SERVER = "muxtower"
 ENSURE_SECONDS = 30
 SETTLE_SECONDS = 2.0  # let a burst of changes settle before telling the concierge
+SEND_AT_MOST = 20  # events in one message; the concierge asks list_events for older ones
 HOLD_SECONDS = 120.0  # how long updates wait for a busy concierge before Claude Code queues them instead
 
 
-def _fingerprint(session: Session) -> tuple[AgentState, str]:
+def _fingerprint(session: Session) -> list[str]:
     reply = hashlib.sha256((session.last_message or "").encode()).hexdigest()[:16]
-    return session.state, reply
+    return [session.state.value, reply]
 
 
 class ConciergeService:
@@ -46,6 +47,7 @@ class ConciergeService:
         directory: SessionDirectory,
         tokens: TokenService,
         store: ConciergeStore,
+        events: ConciergeEvents,
         mcp_url: str,
     ) -> None:
         self.settings = settings
@@ -53,12 +55,10 @@ class ConciergeService:
         self.directory = directory
         self.tokens = tokens
         self.store = store
+        self.events = events
         self.mcp_url = mcp_url
         self.state = store.load()
-        self._seen: dict[str, tuple[AgentState, str]] = {}
-        self._cursor: dict[str, int] = {}  # the last conversation item each watched session was told up to
-        self._outbox: list[str] = []  # updates held while the concierge is busy or waits on the owner
-        self._held_since: float | None = None
+        self._held_since: float | None = None  # since when updates wait for a busy concierge
 
     @property
     def session_id(self) -> str | None:
@@ -101,19 +101,19 @@ class ConciergeService:
         if session.id not in self.state.watched:
             self.state.watched.append(session.id)
         self.state.names[session.id] = session.name
-        self.store.save(self.state)
-        self._seen[session.id] = _fingerprint(session)
+        self.state.seen[session.id] = _fingerprint(session)
         if (latest := self._latest(session)) is not None:
-            self._cursor[session.id] = latest
+            self.state.cursors[session.id] = latest
+        self.store.save(self.state)
         return session
 
     def unwatch(self, session_id: str) -> None:
         if session_id in self.state.watched:
             self.state.watched.remove(session_id)
         self.state.names.pop(session_id, None)
+        self.state.seen.pop(session_id, None)
+        self.state.cursors.pop(session_id, None)
         self.store.save(self.state)
-        self._seen.pop(session_id, None)
-        self._cursor.pop(session_id, None)
 
     def _latest(self, session: Session) -> int | None:
         """Blocking. The number of its latest conversation item; None when it has no conversation."""
@@ -125,54 +125,70 @@ class ConciergeService:
             return None
 
     def _event(self, session_id: str, name: str, kind: str, session: Session | None = None) -> Event:
-        self.state.events += 1
         watched_as = self.state.names.get(session_id)
         event = Event(
-            number=self.state.events, at=datetime.now().astimezone(), session_id=session_id, name=name,
+            number=self.events.next_number(), at=datetime.now().astimezone(), session_id=session_id, name=name,
             watched_as=watched_as if watched_as and watched_as != name else None, kind=kind,
         )  # fmt: skip
         if session is not None:
             event.state = session.state.value
-            event.after = self._cursor.get(session_id)
+            event.after = self.state.cursors.get(session_id)
             event.latest = self._latest(session)
             if event.latest is not None:
-                self._cursor[session_id] = event.latest
+                self.state.cursors[session_id] = event.latest
         return event
 
+    def _record(self, event: Event) -> str:
+        line = render(event)
+        self.events.add(event.number, event.at, event.session_id, line)
+        return line
+
     def updates(self) -> list[str]:
-        """Blocking. One line per watched session that finished a turn, started needing the owner, or ended."""
+        """Blocking. Records an event for each watched session that finished a turn, started needing the
+        owner, or ended, and returns their lines."""
         lines: list[str] = []
+        changed = False
         for session_id in list(self.state.watched):
             session = self.directory.find(session_id)
             if session is None:
-                lines.append(render(self._event(session_id, self.state.names.get(session_id, session_id), "ended")))
+                name = self.state.names.get(session_id, session_id)
+                lines.append(self._record(self._event(session_id, name, "ended")))
                 self.unwatch(session_id)
                 continue
-            before = self._seen.get(session_id)
-            now = self._seen[session_id] = _fingerprint(session)
-            if before is None or before == now:
-                if before is None and session_id not in self._cursor and (latest := self._latest(session)):
-                    self._cursor[session_id] = latest  # watched before a restart: told from here on
+            before = self.state.seen.get(session_id)
+            now = _fingerprint(session)
+            if before == now:
                 continue
-            if session.needs_attention and before[0] != session.state:
+            self.state.seen[session_id] = now
+            changed = True
+            if before is None:
+                if session_id not in self.state.cursors and (latest := self._latest(session)) is not None:
+                    self.state.cursors[session_id] = latest  # told from here on
+                continue
+            if session.needs_attention and before[0] != session.state.value:
                 event = self._event(session_id, session.name, "needs_owner", session)
                 if pending := session.pending:
                     event.asks = f"{pending.tool_name or ''} {pending.detail or ''}".strip() or None
                     event.options = [(o.key, o.label) for o in pending.options]
-                lines.append(render(event))
+                lines.append(self._record(event))
             elif session.state != AgentState.BUSY and before[1] != now[1]:
                 event = self._event(session_id, session.name, "finished", session)
                 event.said = session.reply_summary or session.last_message or None
-                lines.append(render(event))
-        if lines:
-            self.store.save(self.state)  # the event numbers go on after a restart
+                lines.append(self._record(event))
+        if changed:
+            self.store.save(self.state)  # what happens while the daemon is down is told after it
         return lines
 
-    def deliver(self, lines: list[str]) -> None:
-        """Blocking. Sends what is waiting as one message, once the concierge is idle: not in the middle of
-        its turn (or, after HOLD_SECONDS, queued by Claude Code) and never while it shows a prompt."""
-        self._outbox += lines
-        if not self._outbox:
+    def recorded(self, after: int, limit: int = 50) -> list[RecordedEvent]:
+        return self.events.after(after, limit)
+
+    def deliver(self) -> None:
+        """Blocking. Sends the events not yet told as one message, once the concierge is idle: not in the
+        middle of its turn (or, after HOLD_SECONDS, queued by Claude Code) and never while it shows a prompt.
+        Until then they wait on disk, also across restarts."""
+        waiting = self.events.undelivered()
+        if not waiting:
+            self._held_since = None
             return
         if self._held_since is None:
             self._held_since = time.monotonic()
@@ -182,13 +198,22 @@ class ConciergeService:
         if concierge.state == AgentState.BUSY and time.monotonic() - self._held_since < HOLD_SECONDS:
             return
         # Remote Control takes the message whole; typed into a terminal, a newline would send it early.
-        text = ("\n" if concierge.remote_id else " | ").join(self._outbox)
+        lines = [e.line for e in waiting[-SEND_AT_MOST:]]
+        if (skipped := len(waiting) - SEND_AT_MOST) > 0:
+            since, until = waiting[0].number - 1, waiting[skipped - 1].number
+            lines.insert(0, f"{UPDATE_PREFIX}s] {skipped} earlier: list_events(after={since}) up to #{until}")
+        text = ("\n" if concierge.remote_id else " | ").join(lines)
         try:
             self.directory.send_input(concierge.id, SendInput(text=text, enter=True))
         except Conflict as exc:
             logger.warning("could not tell the concierge: %s", exc)
             return
-        self._outbox, self._held_since = [], None
+        self.events.mark_delivered(waiting[-1].number)
+        self._held_since = None
+
+    def _tell(self) -> None:
+        self.updates()
+        self.deliver()
 
     async def run_loop(self, bus: EventBus) -> None:
         queue: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
@@ -203,16 +228,15 @@ class ConciergeService:
             try:
                 await asyncio.wait_for(queue.get(), timeout=ENSURE_SECONDS)
             except TimeoutError:
-                if self._outbox:  # held for a busy concierge: try again
-                    try:
-                        await asyncio.to_thread(self.deliver, [])
-                    except Exception:
-                        logger.exception("concierge update failed")
+                try:  # events held for a busy concierge, or left from before a restart
+                    await asyncio.to_thread(self.deliver)
+                except Exception:
+                    logger.exception("concierge update failed")
                 continue
             await asyncio.sleep(SETTLE_SECONDS)
             while not queue.empty():
                 queue.get_nowait()
             try:
-                await asyncio.to_thread(lambda: self.deliver(self.updates()))
+                await asyncio.to_thread(self._tell)
             except Exception:
                 logger.exception("concierge update failed")
