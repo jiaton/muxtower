@@ -65,7 +65,12 @@ last_lines = 3
 [[rules]]
 name = "api-error"
 state = "error"
-pattern = 'API\s+Error:'
+# Only the error the agent ended its turn on: its own line (●/⏺), then at most the turn's "✻ … done"
+# line, right above the input box. An older one, followed by a reply or a prompt, or one quoted in a
+# message (❯), is not.
+pattern = '(?m)^[ \t]*[●⏺][ \t]+API\s+Error:[^\n]*(?:\n(?![ \t]*[●⏺✻❯>])[^\n]*)*(?:\n[ \t]*✻[^\n]*)?(?:\n[ \t]*)*\Z'
+last_lines = 12
+above_prompt = true
 
 [[rules]]
 # The spinner line above the prompt: "✢ Misting… (22s · ↓ 1.9k tokens)". Once the turn is over it says

@@ -1,6 +1,6 @@
 from muxtower.runtimes.models import AgentState, Option
 from muxtower.runtimes.spec import Classification, Menu
-from muxtower.sessions.live import STALE_HOOK_SECONDS, HookState, ScreenState, merge
+from muxtower.sessions.live import ERROR_GRACE_SECONDS, STALE_HOOK_SECONDS, HookState, ScreenState, merge
 from muxtower.sessions.models import StateSource
 
 
@@ -63,5 +63,8 @@ def test_a_hook_since_the_screen_showed_a_dialog_s_words_wins() -> None:
     # Trust dialogs come before any hook: once one came, the screen's trust is words on it.
     assert merge(HookState(AgentState.IDLE, at=1), screen(AgentState.NEEDS_TRUST, 10), now=12).state == AgentState.IDLE
     assert merge(None, screen(AgentState.NEEDS_TRUST, 10), now=12).state == AgentState.NEEDS_TRUST
-    # An error is no dialog: shown after the hook's last word, it stands.
-    assert merge(HookState(AgentState.BUSY, at=11), screen(AgentState.ERROR, 10), now=12).state == AgentState.ERROR
+    # An error stands with the Stop that came with it; a hook well after it says the agent went on.
+    error = screen(AgentState.ERROR, 10)
+    assert merge(HookState(AgentState.IDLE, at=11), error, now=12).state == AgentState.ERROR
+    assert merge(HookState(AgentState.IDLE, at=9), error, now=12).state == AgentState.ERROR
+    assert merge(HookState(AgentState.IDLE, at=10 + ERROR_GRACE_SECONDS + 1), error, now=30).state == AgentState.IDLE

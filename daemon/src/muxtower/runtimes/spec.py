@@ -31,6 +31,9 @@ class RuleConfig(BaseModel):
     # Search only the screen's last lines (blank ones below the last text not counted); 0: all of it. For a
     # sign that sits at the bottom, so the same words in the conversation above it do not count.
     last_lines: int = Field(default=0, ge=0)
+    # Look only at what is above the input box (`RuntimeConfig.prompt`), while it shows: the end of the
+    # conversation, for a sign that only counts as the last thing said (an error the agent ended on).
+    above_prompt: bool = False
 
     @field_validator("pattern")
     @classmethod
@@ -129,14 +132,17 @@ class Runtime:
     def name(self) -> str:
         return self.config.name
 
-    def dialog_lines(self, lines: list[str]) -> list[str] | None:
+    def box_at(self, lines: list[str]) -> int | None:
+        """The line the input box starts on, while it shows at the bottom."""
+        shown = max(len(lines) - self.config.prompt_last_lines, 0)
+        found = self.prompt.search("\n".join(lines[shown:])) if self.prompt else None
+        return shown + found.string.count("\n", 0, found.start()) if found else None
+
+    def dialog_lines(self, lines: list[str], box: int | None) -> list[str] | None:
         """Where a dialog can be: the whole screen while no input box shows at the bottom; else only the panel
         framed right above the box (`panel_rule`), or nowhere (None)."""
-        shown = len(lines) - self.config.prompt_last_lines
-        found = self.prompt.search("\n".join(lines[max(shown, 0) :])) if self.prompt else None
-        if found is None:
+        if box is None:
             return lines
-        box = max(shown, 0) + found.string.count("\n", 0, found.start())  # the box's first line
         if self.panel_rule is None:
             return None
         rule = self.panel_rule
@@ -147,10 +153,12 @@ class Runtime:
 
     def classify(self, screen: str) -> Classification:
         lines = screen.rstrip().splitlines()
-        dialog = self.dialog_lines(lines)
+        box = self.box_at(lines)
+        dialog = self.dialog_lines(lines, box)
+        above = lines[:box] if box is not None else lines
         slowest: tuple[str, float] | None = None
         for rule, pattern in self.rules:
-            seen = dialog if rule.state in APPROVABLE_STATES else lines
+            seen = dialog if rule.state in APPROVABLE_STATES else above if rule.above_prompt else lines
             if seen is None:
                 continue
             started = time.perf_counter()

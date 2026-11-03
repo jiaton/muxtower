@@ -15,6 +15,7 @@ from muxtower.runtimes.spec import Classification
 from muxtower.sessions.models import PendingAction, StateSource
 
 STALE_HOOK_SECONDS = 10.0
+ERROR_GRACE_SECONDS = 5.0  # a hook this long after the screen showed an error says the agent went on
 
 
 @dataclass
@@ -78,13 +79,16 @@ class LiveSession:
 
 
 def _hook_knows_better(hook: HookState | None, screen: ScreenState) -> bool:
-    """A dialog the screen rules see, when the agent's hooks say otherwise: words a dialog uses, quoted on the
-    screen (a reply, a diff), are no dialog. Hooks report the agent's own prompts (permission, question,
-    plan), so a hook that said "working" or "done" since that screen showed wins; and trust dialogs show
-    only at startup, before any hook, so once one came the screen's trust is not believed."""
+    """A dialog (or an error) the screen rules see, when the agent's hooks say otherwise: words a dialog
+    uses, quoted on the screen (a reply, a diff), are no dialog. Hooks report the agent's own prompts
+    (permission, question, plan), so a hook that said "working" or "done" since that screen showed wins;
+    trust dialogs show only at startup, before any hook, so once one came the screen's trust is not
+    believed; and an error stands with the Stop that came with it, not against a hook well after it."""
     if hook is None or hook.state in ATTENTION_STATES:
         return False
     state = screen.classification.state
+    if state == AgentState.ERROR:  # an error the agent went on from: its Stop comes with it, a later hook after
+        return hook.at - screen.since > ERROR_GRACE_SECONDS
     return state == AgentState.NEEDS_TRUST or (state in APPROVABLE_STATES and hook.at >= screen.since)
 
 
