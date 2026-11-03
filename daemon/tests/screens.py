@@ -277,3 +277,37 @@ CODEX_IDLE_QUOTING = """\
 
   gpt-5.5 default · ~/projects/web
 """
+
+# An API error the agent ended its turn on (as Claude Code shows it: the error, then the turn's done line).
+API_ERROR = """\
+● Searched for 1 pattern, ran 2 shell commands
+
+● API Error: Output blocked by content filtering policy
+
+✻ Churned for 7m 4s · done 6:11 PM
+
+────────────────────────────────────────
+❯ 
+────────────────────────────────────────
+  ⏵⏵ auto mode on (shift+tab to cycle)
+"""
+
+# Idle after a turn that went on: the older errors scrolled up, one quoted in what the owner asked.
+ERROR_SCROLLED_UP = """\
+● API Error: Output blocked by content filtering policy
+
+✻ Churned for 7m 4s · done 6:11 PM
+
+❯ API Error: Output blocked by content filtering policy 是什么意思
+
+● The API's output filter blocked that reply; it is not the project. Carrying on with made-up lyrics.
+
+  Ran 4 shell commands
+
+✻ Cooked for 2m 26s · done 9:30 PM
+
+────────────────────────────────────────
+❯ 
+────────────────────────────────────────
+  ⏵⏵ auto mode on (shift+tab to cycle)
+"""

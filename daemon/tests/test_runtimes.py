@@ -195,3 +195,11 @@ def test_a_dialog_s_words_above_the_input_box_are_no_dialog() -> None:
         assert rt.classify(screens.LONG_IDLE.rsplit(">", 1)[0] + dialog).state in (
             AgentState.NEEDS_TRUST, AgentState.NEEDS_PERMISSION, AgentState.NEEDS_ANSWER,
         )  # fmt: skip
+
+
+def test_only_the_error_a_turn_ended_on_is_an_error() -> None:
+    rt = claude()
+    assert rt.classify(screens.API_ERROR).state == AgentState.ERROR
+    idle = rt.classify(screens.ERROR_SCROLLED_UP)
+    assert idle.state == AgentState.IDLE and idle.rule is None
+    assert rt.classify(screens.LONG_IDLE.rsplit(">", 1)[0] + screens.API_ERROR).state == AgentState.ERROR
