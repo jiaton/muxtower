@@ -46,7 +46,7 @@ class NodeApi:
 
     def running(self) -> list[dict[str, Any]]:
         """Its Claude Code processes with Remote Control on, which the hub lists itself (`processes.py`)."""
-        return report(self.processes.running())
+        return report(self.processes.running(), self.directory.checkout)
 
     def handle(self, method: str, params: dict[str, Any]) -> Any:
         d = self.directory
