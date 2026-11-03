@@ -1,14 +1,40 @@
 """Which processes a process started (a tmux pane's shell and the agent it runs), and whether one is
-alive: from /proc on Linux, from `ps` and `lsof` where there is none (macOS)."""
+alive: from /proc on Linux, from `ps` and `lsof` where there is none (macOS). Those are slow (tens of ms a
+call, more for lsof) and every pane asks each tick, several times: their answers are kept a few seconds
+(`_kept`), so a tick costs a few calls, not dozens."""
 
 import os
 import shlex
 import subprocess
+import threading
 import time
-from collections.abc import Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
+from typing import TypeVar
 
 PS_TIMEOUT_SECONDS = 2
+T = TypeVar("T")
+TABLE_SECONDS = 2.0  # the process table (who started whom) from `ps`
+PROCESS_SECONDS = 5.0  # one process's command line, folder, start and open files from `ps` / `lsof`
+
+_known: dict[tuple[object, ...], tuple[float, object]] = {}
+_lock = threading.Lock()
+
+
+def _kept(key: tuple[object, ...], seconds: float, read: Callable[[], T]) -> T:
+    """What `read` returns, kept `seconds` under `key` (only for the outside tools: /proc is cheap)."""
+    now = time.monotonic()
+    with _lock:
+        known = _known.get(key)
+        if known is not None and now - known[0] < seconds:
+            return known[1]  # type: ignore[return-value]
+    value = read()
+    with _lock:
+        if len(_known) > 4096:  # drop what is old before it grows
+            for k in [k for k, (at, _) in _known.items() if now - at >= PROCESS_SECONDS]:
+                del _known[k]
+        _known[key] = (now, value)
+    return value
 
 
 def alive(pid: int) -> bool:
@@ -51,7 +77,7 @@ class Children:
         """(pid, parent pid) of every process, from `/proc/<pid>/stat`: the parent is the second field
         after the command name, which is in parentheses and may hold anything. Without /proc, from `ps`."""
         if not self.proc.is_dir():
-            yield from _ps_parents()
+            yield from _kept(("ps-parents",), TABLE_SECONDS, lambda: list(_ps_parents()))
             return
         for entry in self.proc.iterdir():
             if not entry.name.isdigit():
@@ -103,7 +129,7 @@ def argv_of(pid: int, proc: Path = Path("/proc")) -> list[str] | None:
             return (proc / str(pid) / "cmdline").read_bytes().decode(errors="replace").rstrip("\0").split("\0")
         except OSError:
             return None
-    line = _tool(["ps", "-o", "command=", "-p", str(pid)]).strip()
+    line = _kept(("argv", pid), PROCESS_SECONDS, lambda: _tool(["ps", "-o", "command=", "-p", str(pid)])).strip()
     try:
         return shlex.split(line) if line else None
     except ValueError:
@@ -117,9 +143,8 @@ def cwd_of(pid: int, proc: Path = Path("/proc")) -> str | None:
             return os.readlink(proc / str(pid) / "cwd")
         except OSError:
             return None
-    names = [
-        line[1:] for line in _tool(["lsof", "-a", "-d", "cwd", "-p", str(pid), "-Fn"]).splitlines() if line[:1] == "n"
-    ]
+    out = _kept(("cwd", pid), PROCESS_SECONDS, lambda: _tool(["lsof", "-a", "-d", "cwd", "-p", str(pid), "-Fn"]))
+    names = [line[1:] for line in out.splitlines() if line[:1] == "n"]
     return names[0] if names else None
 
 
@@ -136,7 +161,12 @@ def started_at(pid: int, proc: Path = Path("/proc")) -> float | None:
         return boot + ticks / os.sysconf("SC_CLK_TCK")
     try:
         return time.mktime(
-            time.strptime(_tool(["ps", "-o", "lstart=", "-p", str(pid)]).strip(), "%a %b %d %H:%M:%S %Y")
+            time.strptime(
+                _kept(
+                    ("started", pid), PROCESS_SECONDS, lambda: _tool(["ps", "-o", "lstart=", "-p", str(pid)])
+                ).strip(),
+                "%a %b %d %H:%M:%S %Y",
+            )
         )
     except ValueError:
         return None
@@ -160,7 +190,8 @@ def open_files(pids: Iterable[int], proc: Path = Path("/proc")) -> list[str]:
                 except OSError:
                     continue
         return found
-    out = _tool(["lsof", "-Fn", "-p", ",".join(map(str, pids))])
+    listed = ",".join(map(str, sorted(pids)))
+    out = _kept(("open", listed), PROCESS_SECONDS, lambda: _tool(["lsof", "-Fn", "-p", listed]))
     return [line[1:] for line in out.splitlines() if line[:1] == "n" and line[1:2] == "/"]
 
 
