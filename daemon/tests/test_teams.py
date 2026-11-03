@@ -40,8 +40,8 @@ def _rpc(client: TestClient, token: str, method: str, params: dict[str, Any] | N
     return client.post("/v1/mcp", json=body, headers={"Authorization": f"Bearer {token}"})
 
 
-def _tool(client: TestClient, token: str, name: str, **arguments: Any) -> str:
-    result = _rpc(client, token, "tools/call", {"name": name, "arguments": arguments}).json()["result"]
+def _tool(client: TestClient, token: str, tool: str, /, **arguments: Any) -> str:
+    result = _rpc(client, token, "tools/call", {"name": tool, "arguments": arguments}).json()["result"]
     text: str = result["content"][0]["text"]
     return ("ERROR " if result["isError"] else "") + text
 
@@ -197,3 +197,41 @@ def test_a_task_goes_to_a_role_now_or_once_the_receiver_stops_waiting(
     clash = _tool(client, token, "send_task", to="worker", text="x")
     assert clash.startswith("ERROR 2 sessions have role 'worker'") and worker.id in clash and other.id in clash
     assert _tool(client, token, "send_task", to=research.id, text="x") == "ERROR that is you"
+
+
+def test_a_resumed_session_keeps_its_role_and_project(
+    make_app: Callable[..., FastAPI], tmux: FakeTmux, tmp_path: Path
+) -> None:
+    app = make_app()
+    client = TestClient(app)
+    _, device = app.state.tokens.create("phone")
+    agent = "4f1c2e8a-1b2c-4d3e-8f90-123456789abc"
+    first = app.state.sessions.create(CreateSession(runtime="claude", cwd=str(tmp_path), name="worker"))
+    transcripts = {first.id: f"/home/dev/.claude/projects/x/{agent}.jsonl"}
+    app.state.teams.transcript_of = transcripts.get
+    _tool(client, device, "set_role", role="worker", session_id=first.id)
+    _tool(client, device, "set_project", project="shop", session_id=first.id)
+    assert _tool(client, device, "archive_session", session_id=first.id).startswith(f"Archived {first.id}")
+
+    started = _tool(client, device, "start_session", cwd=str(tmp_path), resume=agent, name="worker again")
+    assert started.endswith("Role: worker; project shop.")
+    again = next(s for s in app.state.directory.list() if s.name == "worker again")
+    pane = next(p for p in tmux.panes.values() if p.info.session_name == again.tmux_session)
+    assert pane.argv[pane.argv.index("--resume") + 1] == agent
+
+    # Resumed by hand (`muxtower run claude --resume …`): known once its transcript is.
+    by_hand = app.state.sessions.create(CreateSession(runtime="claude", cwd=str(tmp_path), name="by hand"))
+    transcripts[by_hand.id] = f"/home/dev/.claude/projects/x/{agent}.jsonl"
+    assert "role: worker" in _tool(client, device, "my_team")
+    assert app.state.teams.find(by_hand.id).project == "shop"
+    set_first = app.state.sessions.create(CreateSession(runtime="claude", cwd=str(tmp_path), name="own"))
+    _tool(client, device, "set_role", role="research", session_id=set_first.id)
+    transcripts[set_first.id] = f"/home/dev/.claude/projects/x/{agent}.jsonl"
+    assert app.state.teams.find(set_first.id).role == "research"  # given a role already: kept
+
+    assert (
+        _tool(client, device, "rename_session", session_id=by_hand.id, name="worker 2")
+        == f"Renamed {by_hand.id} to worker 2."
+    )
+    codex = _tool(client, device, "start_session", cwd=str(tmp_path), runtime="opencode", resume=agent)
+    assert codex.startswith("ERROR opencode sessions cannot be resumed")

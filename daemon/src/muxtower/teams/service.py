@@ -6,6 +6,8 @@ A session's project is worked out once, when it is first seen, from git on this 
 its origin remote, else its repository, else its folder. An agent or the owner can move it, or rename a
 project for all its sessions. Kept on the hub, which sees every session."""
 
+import os
+import re
 import threading
 import time
 from collections.abc import Callable
@@ -17,6 +19,7 @@ from muxtower.sessions.models import Session
 from muxtower.teams.checkout import checkout
 from muxtower.teams.ports import Checkout, TeamRecord, TeamRepository
 
+UUID_AT_END = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 CHECKOUT_SECONDS = 60.0  # a folder's branch is read again after this
 ROLE_CHARS = 60
 NOTE_CHARS = 300
@@ -40,13 +43,25 @@ def _text(value: str | None, limit: int, what: str) -> str | None:
     return text or None
 
 
+def agent_id_of(transcript: str | None) -> str | None:
+    """The agent's own id for a session, from its transcript's name (Claude Code: `<id>.jsonl`; Codex:
+    `rollout-<time>-<thread id>.jsonl`)."""
+    found = UUID_AT_END.search(os.path.basename(transcript or "").removesuffix(".jsonl"))
+    return found.group(0) if found else None
+
+
 class TeamService:
     def __init__(
-        self, directory: SessionDirectory, repo: TeamRepository, read: Callable[[str], Checkout] = checkout
+        self,
+        directory: SessionDirectory,
+        repo: TeamRepository,
+        read: Callable[[str], Checkout] = checkout,
+        transcript_of: Callable[[str], str | None] | None = None,
     ) -> None:
         self.directory = directory
         self.repo = repo
         self.read = read
+        self.transcript_of = transcript_of or (lambda _: None)
         self._lock = threading.Lock()
         self._records = repo.load()
         self._checkouts: dict[str, tuple[float, Checkout]] = {}
@@ -60,10 +75,33 @@ class TeamService:
             known = self._checkouts[session.cwd] = (time.monotonic(), self.read(session.cwd))
         return known[1]
 
+    def _known_as(self, session: Session, record: TeamRecord | None) -> TeamRecord | None:
+        """Its record with the agent's own id, once that is known: a session nobody gave a role or a project
+        yet that resumes one muxtower knew (by that id) takes over that one's role and project."""
+        agent = agent_id_of(self.transcript_of(session.id)) if session.on_host else None
+        if agent is None or (record is not None and record.agent_id == agent):
+            return record
+        untouched = record is None or (record.role is None and (record.project is None or record.project_auto))
+        with self._lock:
+            was = next((r for r in self._records.values() if r.agent_id == agent and r.session_id != session.id), None)
+        if untouched and was is not None:
+            record = replace(was, session_id=session.id)
+        else:
+            record = replace(record or TeamRecord(session.id), agent_id=agent)
+        self._save(record)
+        return record
+
+    def resumed(self, session_id: str, agent_id: str) -> None:
+        """A session started to resume the agent's `agent_id`: it is that one again, role and project kept."""
+        with self._lock:
+            was = next((r for r in self._records.values() if r.agent_id == agent_id), None)
+        self._save(replace(was, session_id=session_id) if was else TeamRecord(session_id, agent_id=agent_id))
+
     def member(self, session: Session) -> Member:
         """Blocking (git). A session as a team sees it; its project worked out (and kept) on first sight."""
         with self._lock:
             record = self._records.get(session.id)
+        record = self._known_as(session, record)
         found = self._checkout(session)
         if record is None or record.project is None:
             if found is not None:  # worked out once from git here, then kept as it is
