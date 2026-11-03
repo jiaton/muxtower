@@ -71,3 +71,44 @@ def test_codex_sessions_are_told_apart_by_how_muxtower_reaches_them() -> None:
     assert harness(shared) == "Codex (VS Code)"
     pane = codex(SessionSource.ADOPTED, "codex_cli", remote_id="t1")
     assert reached(pane, "hub") == "muxtower on hub: found in tmux, also in Codex's shared app-server"
+
+
+def test_read_session_pages_through_what_is_new() -> None:
+    from datetime import UTC, datetime
+    from types import SimpleNamespace
+
+    from muxtower.mcp.service import McpTools, ReadArgs
+    from muxtower.runtimes.models import AgentState
+    from muxtower.sessions.models import (
+        Capabilities,
+        Conversation,
+        ConversationItem,
+        ConversationItemKind,
+        Session,
+        StateSource,
+    )  # fmt: skip
+    from muxtower.sessions.ports import SessionSource
+
+    caps = Capabilities(screen=False, conversation=True, keys=[], resize=False, terminate=False, rename=False)
+    now = datetime.now(UTC)
+    session = Session(
+        id="s1", name="web", runtime="claude-code", cwd="/srv/web", source=SessionSource.ADOPTED,
+        capabilities=caps, state=AgentState.IDLE, state_source=StateSource.HOOK, matched_rule=None,
+        needs_attention=False, pending=None, last_message=None, auto_approve=False, can_auto_approve=False,
+        created_at=now, updated_at=now,
+    )  # fmt: skip
+    items = [ConversationItem(seq=n, kind=ConversationItemKind.REPLY, text=f"reply {n}") for n in range(1, 8)]
+
+    def conversation(session_id: str, after: int, limit: int) -> Conversation:
+        newer = [i for i in items if i.seq > after]
+        return Conversation(session_id=session_id, items=newer[-limit:] if after == 0 else newer[:limit], latest_seq=7)
+
+    directory = SimpleNamespace(get=lambda _id: session, conversation=conversation)
+    tools = McpTools(directory, None, None, "hub")  # type: ignore[arg-type]
+    page = tools.read_session(ReadArgs(session_id="s1", after=3, items=2))
+    assert "Conversation after item 3:\n#4 [reply] reply 4\n#5 [reply] reply 5" in page
+    assert page.endswith('More: read_session(session_id="s1", after=5)')
+    first = tools.read_session(ReadArgs(session_id="s1", after=0, items=2))
+    assert "#1 [reply] reply 1\n#2 [reply] reply 2" in first and first.endswith("after=2)")
+    assert "Nothing new after item 7." in tools.read_session(ReadArgs(session_id="s1", after=7))
+    assert "Recent conversation:" in tools.read_session(ReadArgs(session_id="s1"))

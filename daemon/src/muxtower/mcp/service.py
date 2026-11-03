@@ -18,6 +18,7 @@ from muxtower.terminal.models import SendInput
 REPLY_CHARS = 20000  # a reply is relayed whole, within reason
 ITEM_CHARS = 1000
 SCREEN_LINES = 60
+ALL_ITEMS = 10000
 
 
 class NoArgs(BaseModel):
@@ -34,6 +35,9 @@ class SessionArg(BaseModel):
 
 class ReadArgs(SessionArg):
     items: int = Field(default=20, ge=1, le=100, description="how many recent conversation items")
+    after: int | None = Field(
+        default=None, ge=0, description="only the conversation items after this one (as a [muxtower event] names)"
+    )
 
 
 class MessageArgs(SessionArg):
@@ -94,8 +98,9 @@ class McpTools:
         ]  # fmt: skip
         if concierge is not None:
             tools += [
-                Tool("watch_session", "Be told (a [muxtower] message) when this session finishes a turn or "
-                     "needs the owner.", SessionArg, self.watch),
+                Tool("watch_session", "Be told (a [muxtower event #N · time] line with its id, state and where its "
+                     "new items start) when this session finishes a turn or needs the owner.",
+                     SessionArg, self.watch),
                 Tool("unwatch_session", "Stop being told about this session.", SessionArg, self.unwatch),
             ]  # fmt: skip
         self.tools = {t.name: t for t in tools}
@@ -128,18 +133,30 @@ class McpTools:
         if s.summary and (s.summary.needs or s.summary.recent):
             out.append(f"Turn summary: {s.summary.needs or ''} {s.summary.recent or ''}".strip())
         if s.capabilities.conversation:
-            items = self.directory.conversation(s.id, 0, args.items).items
+            if args.after == 0:  # from the start: the conversation API answers after=0 with the latest items
+                page = self.directory.conversation(s.id, 0, ALL_ITEMS)
+                page.items = page.items[: args.items]
+            else:
+                page = self.directory.conversation(s.id, args.after or 0, args.items)
+            items = page.items
             step = next((i for i in reversed(items) if i.kind == ConversationItemKind.NEXT_STEP), None)
             if step and step.status == ItemStatus.PENDING and step.actions:
                 replies = "; ".join(f"{a.label} = send_message {a.message!r}" for a in step.actions)
                 out.append(f"NEXT STEP it offers: {step.ask or ''} | replies: {replies}")
-            out.append("Recent conversation:")
-            out += [f"[{i.kind.value}{'/' + i.status.value if i.status else ''}] "
+            if args.after is None:
+                out.append("Recent conversation:")
+            else:
+                out.append(
+                    f"Conversation after item {args.after}:" if items else f"Nothing new after item {args.after}."
+                )
+            out += [f"#{i.seq} [{i.kind.value}{'/' + i.status.value if i.status else ''}] "
                     f"{(i.tool_name + ' ') if i.tool_name else ''}{_clip(i.text or '', ITEM_CHARS)}"
                     for i in items]  # fmt: skip
+            if args.after is not None and items and page.latest_seq > items[-1].seq:
+                out.append(f'More: read_session(session_id="{s.id}", after={items[-1].seq})')
         elif s.capabilities.screen:
             lines = self.directory.screen(s.id, 0).text.rstrip().splitlines()
-            out.append("Screen:")
+            out.append("Screen (no conversation items to page through):" if args.after is not None else "Screen:")
             out += lines[-SCREEN_LINES:]
         if s.last_message:
             out.append(f"Latest reply: {_clip(s.last_message, REPLY_CHARS)}")
