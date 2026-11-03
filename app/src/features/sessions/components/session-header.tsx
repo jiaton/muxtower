@@ -10,6 +10,7 @@ import { NO_ENVIRONMENT, agentOf, deviceOf, folderOf, sourceOf } from '../model/
 import { useSessionDrawer } from '../store'
 import { agentIcon } from './agent-mark'
 import { StateBadge } from './state-badge'
+import { StreamMark } from './stream-mark'
 
 /** The top of a session page: the list as a drawer (phones), name and state, which agent it is and where
  *  it runs (and, for a side chat or a fork, the session it came from, one tap away), and the page's
@@ -40,6 +41,7 @@ export function SessionHeader({ daemonId, session, actions }: { daemonId: string
         <>
           <h1 className="min-w-0 truncate">{session.name}</h1>
           {session.archived_at ? <Badge>Archived</Badge> : session.offline ? <Badge>Offline</Badge> : <StateBadge state={session.state} />}
+          <StreamMark daemonId={daemonId} />
         </>
       }
       subtitle={

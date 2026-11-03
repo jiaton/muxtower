@@ -1092,6 +1092,18 @@
         "title": "Placement",
         "type": "object"
       },
+      "PongFrame": {
+        "properties": {
+          "type": {
+            "const": "pong",
+            "default": "pong",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "title": "PongFrame",
+        "type": "object"
+      },
       "QuestionOption": {
         "properties": {
           "description": {
@@ -1667,11 +1679,42 @@
         "title": "StateSource",
         "type": "string"
       },
+      "StreamPing": {
+        "description": "Is this connection still alive? Answered with a `pong` frame (a daemon older than this answers with an\n`error` frame: any frame says the connection works).",
+        "properties": {
+          "type": {
+            "const": "ping",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "title": "StreamPing",
+        "type": "object"
+      },
       "StreamSchema": {
         "description": "Documents the WebSocket message shapes so they reach the generated client types.",
         "properties": {
           "client": {
-            "$ref": "#/components/schemas/StreamSubscribe"
+            "discriminator": {
+              "mapping": {
+                "ping": "#/components/schemas/StreamPing",
+                "subscribe": "#/components/schemas/StreamSubscribe",
+                "unsubscribe": "#/components/schemas/StreamSubscribe"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/StreamSubscribe"
+              },
+              {
+                "$ref": "#/components/schemas/StreamPing"
+              }
+            ],
+            "title": "Client"
           },
           "conversation": {
             "anyOf": [
@@ -1688,6 +1731,7 @@
               "mapping": {
                 "conversation": "#/components/schemas/ConversationFrame",
                 "error": "#/components/schemas/ErrorFrame",
+                "pong": "#/components/schemas/PongFrame",
                 "screen": "#/components/schemas/ScreenFrame",
                 "sessions": "#/components/schemas/SessionsFrame"
               },
@@ -1705,6 +1749,9 @@
               },
               {
                 "$ref": "#/components/schemas/ErrorFrame"
+              },
+              {
+                "$ref": "#/components/schemas/PongFrame"
               }
             ],
             "title": "Server"

@@ -67,3 +67,12 @@ def test_bad_message_gets_error_frame(client: TestClient, auth: dict[str, str]) 
     with client.websocket_connect(f"/v1/stream?access_token={_token(auth)}") as ws:
         ws.send_json({"type": "subscribe", "topic": "nope"})
         assert ws.receive_json()["type"] == "error"
+
+
+def test_a_ping_is_answered_so_a_client_can_tell_a_dead_connection(client: TestClient, auth: dict[str, str]) -> None:
+    with client.websocket_connect("/v1/stream", subprotocols=["muxtower", f"bearer.{_token(auth)}"]) as ws:
+        ws.send_json({"type": "ping"})
+        assert ws.receive_json() == {"type": "pong"}
+        ws.send_json({"type": "nope"})
+        assert ws.receive_json()["type"] == "error"
+        _expect_sessions(ws)  # still subscribes as before

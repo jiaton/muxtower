@@ -9,7 +9,7 @@ import logging
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Request, Response, WebSocket, WebSocketDisconnect
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field, TypeAdapter, ValidationError
 
 from muxtower.auth.deps import WS_BEARER_PREFIX, WS_SUBPROTOCOL, CurrentDevice
 from muxtower.auth.stream_cookie import COOKIE_NAME, COOKIE_PATH, MAX_AGE_SECONDS
@@ -27,6 +27,17 @@ class StreamSubscribe(BaseModel):
     topic: Literal["sessions", "screen", "conversation"]
     session_id: str | None = None
     history: int = Field(default=200, ge=0, le=5000)
+
+
+class StreamPing(BaseModel):
+    """Is this connection still alive? Answered with a `pong` frame (a daemon older than this answers with an
+    `error` frame: any frame says the connection works)."""
+
+    type: Literal["ping"]
+
+
+ClientMessage = Annotated[StreamSubscribe | StreamPing, Field(discriminator="type")]
+CLIENT_MESSAGE: TypeAdapter[StreamSubscribe | StreamPing] = TypeAdapter(ClientMessage)
 
 
 class SessionsFrame(BaseModel):
@@ -53,13 +64,19 @@ class ErrorFrame(BaseModel):
     message: str
 
 
-ServerFrame = Annotated[SessionsFrame | ScreenFrame | ConversationFrame | ErrorFrame, Field(discriminator="type")]
+class PongFrame(BaseModel):
+    type: Literal["pong"] = "pong"
+
+
+ServerFrame = Annotated[
+    SessionsFrame | ScreenFrame | ConversationFrame | ErrorFrame | PongFrame, Field(discriminator="type")
+]
 
 
 class StreamSchema(BaseModel):
     """Documents the WebSocket message shapes so they reach the generated client types."""
 
-    client: StreamSubscribe
+    client: ClientMessage
     server: ServerFrame
     conversation: ConversationFrame | None = None
 
@@ -166,7 +183,15 @@ class _Connection:
         while True:
             raw = await self.ws.receive_text()
             try:
-                await self.handle(StreamSubscribe.model_validate_json(raw))
+                message = CLIENT_MESSAGE.validate_json(raw)
+            except ValidationError as exc:
+                await self.send(ErrorFrame(message=f"bad message: {exc.errors()[0]['msg']}"))
+                continue
+            if isinstance(message, StreamPing):
+                await self.send(PongFrame())
+                continue
+            try:
+                await self.handle(message)
             except ValidationError as exc:
                 await self.send(ErrorFrame(message=f"bad message: {exc.errors()[0]['msg']}"))
 

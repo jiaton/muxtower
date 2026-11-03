@@ -1,7 +1,9 @@
 import type { Daemon, StreamAuth } from '@/lib/daemons/types'
 import { responseKind } from './client'
+import { Heartbeat } from './heartbeat'
+import { openSocket } from './stream-open'
 import type { StreamStatus } from './stream-status'
-import type { ServerFrame, StreamSubscribe } from './types'
+import type { ServerFrame, StreamPing, StreamSubscribe } from './types'
 
 interface Handlers {
   onFrame: (frame: ServerFrame) => void
@@ -12,11 +14,9 @@ interface Handlers {
 }
 
 const ORDER: StreamAuth[] = ['cookie', 'subprotocol', 'query']
-const OPEN_TIMEOUT_MS = 8000
 const MAX_BACKOFF_MS = 15000
 const BLOCKED_RETRY_MS = 60000
-/** Not `token`: gates in front of a daemon treat an unknown `?token=` as a password guess. */
-export const QUERY_TOKEN = 'access_token'
+export { QUERY_TOKEN } from './stream-open'
 
 const keyOf = (m: StreamSubscribe) => (m.topic === 'screen' ? `screen:${m.session_id}` : m.topic)
 
@@ -29,6 +29,9 @@ const keyOf = (m: StreamSubscribe) => (m.topic === 'screen' ? `screen:${m.sessio
  * Before any handshake, one plain HTTP call checks that the request gets through at all: a revoked
  * token (onRejected) or a sign-in gate in front (status `blocked`) then costs a single refused request
  * instead of a series of refused handshakes, which a gate or fail2ban would count as guessing.
+ *
+ * Coming back (the page shown again, the network back) connects at once instead of at the end of the
+ * backoff, or asks an open connection whether it still works; so does a while without any frame.
  */
 export class DaemonStream {
   private ws: WebSocket | null = null
@@ -37,6 +40,15 @@ export class DaemonStream {
   private timer: ReturnType<typeof setTimeout> | undefined
   private stopped = false
   private halted = false
+  private rejected = false
+  private connecting = false
+  private readonly heartbeat = new Heartbeat(
+    () => this.send({ type: 'ping' }),
+    () => this.dead(),
+  )
+  private readonly woken = () => {
+    if (globalThis.document?.visibilityState !== 'hidden') this.wake()
+  }
   private readonly daemon: Daemon
   private readonly handlers: Handlers
 
@@ -46,13 +58,45 @@ export class DaemonStream {
   }
 
   start() {
+    globalThis.document?.addEventListener('visibilitychange', this.woken)
+    globalThis.addEventListener?.('online', this.woken)
     void this.connect()
   }
 
   stop() {
     this.stopped = true
+    globalThis.document?.removeEventListener('visibilitychange', this.woken)
+    globalThis.removeEventListener?.('online', this.woken)
     clearTimeout(this.timer)
+    this.heartbeat.stop()
     this.ws?.close()
+  }
+
+  /** Back in view, or back online: connect now if not connected, else check the connection. */
+  wake() {
+    if (this.stopped || this.rejected) return
+    if (this.ws) {
+      this.heartbeat.ask()
+      return
+    }
+    if (this.connecting) return
+    clearTimeout(this.timer)
+    this.retry = 0
+    void this.connect()
+  }
+
+  /** Nothing came back: drop the socket without waiting for the browser to notice, and connect again. */
+  private dead() {
+    const ws = this.ws
+    if (!ws) return
+    ws.onclose = null
+    ws.onmessage = null
+    ws.close()
+    this.ws = null
+    this.heartbeat.stop()
+    this.handlers.onStatus('offline')
+    this.retry = 0
+    void this.connect()
   }
 
   subscribe(message: StreamSubscribe): () => void {
@@ -71,7 +115,7 @@ export class DaemonStream {
     }
   }
 
-  private send(message: StreamSubscribe) {
+  private send(message: StreamSubscribe | StreamPing) {
     if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(message))
   }
 
@@ -94,6 +138,7 @@ export class DaemonStream {
   /** Stops this round of connecting; true when the caller must not try further methods. */
   private refused(kind: 'rejected' | 'blocked'): true {
     if (kind === 'rejected') {
+      this.rejected = true
       this.handlers.onStatus('offline')
       this.handlers.onRejected?.()
     } else {
@@ -105,6 +150,15 @@ export class DaemonStream {
   }
 
   private async connect() {
+    this.connecting = true
+    try {
+      await this.attempt()
+    } finally {
+      this.connecting = false
+    }
+  }
+
+  private async attempt() {
     this.halted = false
     this.handlers.onStatus('connecting')
     const kind = await this.probe()
@@ -114,7 +168,11 @@ export class DaemonStream {
     }
     for (const method of this.methods()) {
       if (this.stopped || this.halted) return
-      const ws = await this.open(method)
+      const ws = await openSocket(this.daemon, method)
+      if (ws === 'rejected' || ws === 'blocked') {
+        this.refused(ws)
+        return
+      }
       if (ws) {
         if (this.stopped) {
           ws.close()
@@ -128,63 +186,24 @@ export class DaemonStream {
     this.reconnectLater()
   }
 
-  private async open(method: StreamAuth): Promise<WebSocket | null> {
-    const { url, token } = this.daemon
-    if (!token) return null
-    const base = `${url.replace(/^http/, 'ws')}/v1/stream`
-    let ws: WebSocket
-    try {
-      if (method === 'cookie') {
-        const res = await fetch(`${url}/v1/stream/cookie`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          credentials: 'same-origin',
-        })
-        const kind = responseKind(res)
-        if (kind === 'rejected' || kind === 'blocked') {
-          this.refused(kind)
-          return null
-        }
-        if (!res.ok) return null
-        ws = new WebSocket(base, ['muxtower'])
-      } else if (method === 'subprotocol') {
-        ws = new WebSocket(base, ['muxtower', `bearer.${token}`])
-      } else {
-        ws = new WebSocket(`${base}?${QUERY_TOKEN}=${encodeURIComponent(token)}`)
-      }
-    } catch {
-      return null
-    }
-    return new Promise((resolve) => {
-      const timeout = setTimeout(() => {
-        ws.close()
-        resolve(null)
-      }, OPEN_TIMEOUT_MS)
-      ws.onopen = () => {
-        clearTimeout(timeout)
-        resolve(ws)
-      }
-      ws.onclose = () => {
-        clearTimeout(timeout)
-        resolve(null)
-      }
-    })
-  }
-
   private attach(ws: WebSocket, method: StreamAuth) {
     this.ws = ws
     this.retry = 0
     this.handlers.onAuth(method)
     this.handlers.onStatus('open')
+    this.heartbeat.heard()
     ws.onmessage = (event) => {
+      this.heartbeat.heard()
       try {
-        this.handlers.onFrame(JSON.parse(String(event.data)) as ServerFrame)
+        const frame = JSON.parse(String(event.data)) as ServerFrame
+        if (frame.type !== 'pong') this.handlers.onFrame(frame)
       } catch {
         // A malformed frame is dropped; the next one carries the full state again.
       }
     }
     ws.onclose = () => {
       this.ws = null
+      this.heartbeat.stop()
       if (this.stopped) return
       this.handlers.onStatus('offline')
       this.reconnectLater()
