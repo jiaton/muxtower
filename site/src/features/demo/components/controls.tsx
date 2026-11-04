@@ -24,7 +24,7 @@ export function Controls({ player, className }: { player: Player; className?: st
         >
           {player.playing ? <Pause /> : <Play />}
         </Button>
-        <ol className="flex flex-1 gap-1 overflow-x-auto" aria-label="Demo steps">
+        <ol className="flex min-w-0 flex-1 gap-1 overflow-x-auto" aria-label="Demo steps">
           {BEATS.map((b, i) => (
             <li key={b.id} className="min-w-20 flex-1">
               <Button variant="step" size="step" aria-current={i === index ? 'step' : undefined} onClick={() => player.seek(b.start)}>
