@@ -13,6 +13,7 @@ from datetime import UTC, datetime
 from muxtower.runtimes.models import APPROVABLE_STATES, ATTENTION_STATES, AgentState, Option, PendingQuestion
 from muxtower.runtimes.spec import Classification
 from muxtower.sessions.models import PendingAction, StateSource
+from muxtower.sessions.naming import AgentName
 
 STALE_HOOK_SECONDS = 10.0
 ERROR_GRACE_SECONDS = 5.0  # a hook this long after the screen showed an error says the agent went on
@@ -73,6 +74,7 @@ class LiveSession:
     transcript: str | None = None  # its Claude Code transcript file, when it has one
     hook_transcript: str | None = None  # the transcript its hooks last named
     title: str | None = None  # the name its Claude Code goes by, when it has one
+    title_origin: AgentName | None = None  # where that name came from, and since when
     alt_screen: bool = False  # draws full screen: tmux keeps no scrollback for it
     attached: bool = False  # a terminal is attached to its tmux session
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))

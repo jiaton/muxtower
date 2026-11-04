@@ -17,10 +17,12 @@ import os
 import re
 import time
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 from muxtower.infra.procfs import Children, alive, family
 from muxtower.sessions.models import GitPlace
+from muxtower.sessions.naming import AgentName
 
 SEARCH_DEPTH = 3
 BRIDGE_PREFIX = "session_"
@@ -110,6 +112,16 @@ class ClaudeProcesses:
         info = self._info(pane_pid)
         name = info.get("name") if info else None
         return (name.strip()[:80] or None) if isinstance(name, str) else None
+
+    def name_origin(self, pane_pid: int, screen: str = "") -> AgentName | None:
+        """Where that name came from (`nameSource`: "user" or "derived") and since when (`nameSince`, ms)."""
+        info = self._info(pane_pid)
+        source = info.get("nameSource") if info else None
+        if not isinstance(source, str):
+            return None
+        since = info.get("nameSince") if info else None
+        at = datetime.fromtimestamp(since / 1000, UTC) if isinstance(since, int | float) else None
+        return AgentName(source, at)
 
     def transcript(self, pane_pid: int, screen: str = "") -> str | None:
         """The transcript file of the pane's Claude Code session, when it exists."""

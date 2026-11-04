@@ -2,6 +2,7 @@
 answers (a pane runs one agent; each plugin finds only its own)."""
 
 from muxtower.sessions.claude_processes import ClaudeProcess
+from muxtower.sessions.naming import AgentName
 from muxtower.sessions.ports import ClaudeProcessPort
 
 
@@ -17,6 +18,12 @@ class AgentProcesses:
 
     def name(self, pane_pid: int, screen: str = "") -> str | None:
         return next((found for p in self.plugins if (found := p.name(pane_pid, screen))), None)
+
+    def name_origin(self, pane_pid: int, screen: str = "") -> AgentName | None:
+        for p in self.plugins:
+            if (ask := getattr(p, "name_origin", None)) and (found := ask(pane_pid, screen)):
+                return found  # type: ignore[no-any-return]
+        return None
 
     def running(self) -> dict[str, ClaudeProcess]:
         return {k: v for p in self.plugins for k, v in p.running().items()}

@@ -91,6 +91,8 @@ class SessionTools:
         request = CreateSession(runtime=args.runtime, cwd=args.cwd, name=args.name, args=agent_args, node=node)
         try:
             created = self.launcher.create(request)
+            if args.name:  # a name an agent chose for a teammate: kept like a rename (`sessions/naming.py`)
+                created = self.directory.update(created.id, UpdateSession(name=args.name))
         except (Conflict, Unavailable) as exc:
             if node is None:
                 raise

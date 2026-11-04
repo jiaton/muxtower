@@ -90,6 +90,10 @@ The app is a static SPA; the same build runs anywhere.
 
 A Claude Code process can be both a tmux pane and a Remote Control session. The process writes `~/.claude/sessions/<pid>.json`, whose `bridgeSessionId` (`session_<id>`) is its Remote Control session (`cse_<id>`). The capture loop looks for that file from each pane's process down (the pane may run a shell first); the directory then lists the agent once, under its tmux id, with the remote side's name, origin, summary and conversation. Text messages to such an agent go through Remote Control (structured, cannot land in a dialog); keys go to tmux.
 
+## A session's name
+
+The latest deliberate name wins (`sessions/naming.py`). A name muxtower gave it (at launch, or renamed in the app, or chosen by an agent starting a teammate) beats one its agent made up itself (Claude Code's `nameSource: "derived"`); a name the owner set on the agent's side (claude.ai, the Claude app, `/rename`: `nameSource: "user"`, with `nameSince`) newer than muxtower's beats it; a rename after that wins again. A Remote Control title other than the name Claude Code derived was set there by someone, at a time not known: it beats a launch name, not a rename. With nothing known of where the agent's name came from, only a rename counts. The rename dialog offers the agent's own name (`agent_name`).
+
 ## After a restart
 
 A machine (or its tmux) that restarts takes its sessions' panes along. A session whose pane is gone is told apart (`sessions/interrupted.py`): ended when the tmux server it ran in is still there (its pane was closed), or is gone but this daemon saw it alive since it started (it was that server's last pane); interrupted otherwise (another server on its socket, none never seen, or a server not known), since when muxtower cannot tell it keeps the session rather than drop it. An interrupted session is kept with what starts it again, saved when it started: its options (never its first prompt, never a token; `option_values` says which take a value) and the agent's own id for its conversation (from its transcript's name). An adopted session is kept only when that id is known.

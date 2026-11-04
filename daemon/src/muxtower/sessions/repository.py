@@ -20,6 +20,7 @@ def _record(row: sqlite3.Row) -> SessionRecord:
         auto_approve=bool(row["auto_approve"]),
         created_at=datetime.fromisoformat(row["created_at"]),
         named=bool(row["named"]),
+        named_at=datetime.fromisoformat(row["named_at"]) if row["named_at"] else None,
         launch_args=json.loads(row["launch_args"]) if row["launch_args"] else None,
         agent_id=row["agent_id"],
         server_id=row["server_id"],
@@ -47,19 +48,21 @@ class SqliteSessionRepository:
             conn.execute(
                 """INSERT INTO sessions (id, name, runtime, cwd, source, socket, tmux_session, pane_id,
                                          hook_token_hash, auto_approve, created_at, named, launch_args, agent_id,
-                                         server_id, interrupted_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                         server_id, interrupted_at, named_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(id) DO UPDATE SET name = excluded.name, runtime = excluded.runtime,
                        cwd = excluded.cwd, source = excluded.source, socket = excluded.socket,
                        tmux_session = excluded.tmux_session, pane_id = excluded.pane_id,
                        hook_token_hash = excluded.hook_token_hash, auto_approve = excluded.auto_approve,
                        named = excluded.named, launch_args = excluded.launch_args, agent_id = excluded.agent_id,
-                       server_id = excluded.server_id, interrupted_at = excluded.interrupted_at""",
+                       server_id = excluded.server_id, interrupted_at = excluded.interrupted_at,
+                       named_at = excluded.named_at""",
                 (
                     r.id, r.name, r.runtime, r.cwd, r.source.value, r.pane.socket, r.tmux_session,
                     r.pane.pane_id, r.hook_token_hash, int(r.auto_approve), r.created_at.isoformat(), int(r.named),
                     json.dumps(r.launch_args) if r.launch_args is not None else None, r.agent_id, r.server_id,
                     r.interrupted_at.isoformat() if r.interrupted_at else None,
+                    r.named_at.isoformat() if r.named_at else None,
                 ),
             )  # fmt: skip
 
