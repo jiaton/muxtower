@@ -24,6 +24,7 @@ logger = logging.getLogger("muxtower.monitor")
 WAKE_SETTLE = 0.04  # seconds: keys typed in a row arrive within this, and are captured together
 MIN_GAP = 0.1  # seconds between ticks, however often hooks or input wake the loop
 TIMINGS_KEPT = 120  # ticks whose timing is kept (a couple of minutes)
+REREAD_SECONDS = 5.0  # a pane with no output since is still read this often
 
 
 @dataclass
@@ -68,6 +69,7 @@ class Monitor:
         self._panes: dict[tuple[str, str], PaneInfo] = {}  # (socket, pane id) -> as last listed
         self._viewers: dict[str, list[int]] = defaultdict(list)  # session id -> history lines wanted
         self.timings: deque[TickTiming] = deque(maxlen=TIMINGS_KEPT)  # the latest ticks, for `usage/`
+        self._captured: dict[str, tuple[float, float]] = {}  # session id -> when last read (wall, monotonic)
         self._loop: asyncio.AbstractEventLoop | None = None
         self._woken: asyncio.Event | None = None
 
@@ -133,6 +135,7 @@ class Monitor:
             if key not in alive:
                 logger.info("session %s (%s) is gone", record.id, record.name)
                 svc.forget(record.id)
+                self._captured.pop(record.id, None)
                 changed = True
             else:
                 known.add(key)
@@ -150,6 +153,15 @@ class Monitor:
 
     # --- capture -------------------------------------------------------------------------------
 
+    def _unchanged(self, session_id: str, pane: PaneInfo | None, now: float) -> bool:
+        """Nothing to read again: tmux says its window had no output since before the last capture (it counts
+        whole seconds, so output in that same second is read), nobody watches it, and it was read lately."""
+        captured = self._captured.get(session_id)
+        if captured is None or pane is None or not pane.activity or session_id in self._viewers:
+            return False
+        wall, at = captured
+        return pane.activity < int(wall) and now - at < REREAD_SECONDS
+
     def tick(self) -> TickResult:
         """Blocking: runs tmux. Called from a worker thread by run_loop."""
         svc = self.service
@@ -157,14 +169,18 @@ class Monitor:
         slowest: tuple[str, str, float] | None = None
         result = TickResult(sessions_changed=self.reconcile())
         now = time.monotonic()
+        wall = time.time()
         for record in svc.repo.list():
+            pane = self._panes.get((record.pane.socket, record.pane.pane_id))
+            if self._unchanged(record.id, pane, now):
+                continue
             text = svc.tmux.capture(record.pane)
             if text is None:
                 continue  # gone; the next reconcile drops it
+            self._captured[record.id] = (wall, now)
             live = svc.live_of(record.id)
             first_sight = live.screen is None
             before = svc.effective(record)
-            pane = self._panes.get((record.pane.socket, record.pane.pane_id))
 
             runtime = svc.runtime_of(record)
             classification = runtime.classify(text) if runtime else Classification(AgentState.UNKNOWN, None)
