@@ -1,6 +1,6 @@
 [project]
 name = "muxtower"
-version = "0.1.44"
+version = "0.1.45"
 description = "Approve and drive coding agents running in tmux on a remote machine, from your phone. Headless daemon + API, one Bearer token, works behind any reverse proxy."
 readme = "README.md"
 license = "Apache-2.0"
