@@ -35,6 +35,10 @@ export const questions = [
     a: 'Yes. Run the daemon on each and join them to the one that is always on. Your phone needs only that address; a sleeping laptop’s sessions stay listed, marked offline.',
   },
   {
+    q: 'Can my agents work together?',
+    a: 'Yes. Every session muxtower starts can reach it as itself through MCP: `my_team` says who it is and who else works on its project, and `send_task` hands a teammate work. A task waits while its receiver is busy with you, and roles are plain text you choose.',
+  },
+  {
     q: 'Is it free?',
     a: 'Yes. muxtower is open source under the Apache 2.0 license. You need your own agents and their accounts.',
   },

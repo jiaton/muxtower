@@ -2,6 +2,8 @@ import {
   BellRing,
   Bot,
   DoorOpen,
+  FolderGit2,
+  Gauge,
   Glasses,
   Hand,
   Keyboard,
@@ -11,6 +13,7 @@ import {
   MonitorSmartphone,
   Network,
   ScanEye,
+  Users,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Card } from '@/components/ui/card'
@@ -20,7 +23,9 @@ import { type FeatureId, featureList, features } from '@/content/features'
 const ICONS: Record<FeatureId, ReactNode> = {
   asks: <ScanEye />,
   approve: <Hand />,
+  team: <Users />,
   machines: <Network />,
+  projects: <FolderGit2 />,
   conversation: <MessagesSquare />,
   push: <BellRing />,
   voice: <Mic />,
@@ -29,6 +34,7 @@ const ICONS: Record<FeatureId, ReactNode> = {
   codex: <Bot />,
   desktop: <MonitorSmartphone />,
   keys: <Keyboard />,
+  usage: <Gauge />,
   gate: <DoorOpen />,
 }
 

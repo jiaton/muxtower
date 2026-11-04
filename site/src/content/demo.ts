@@ -1,6 +1,6 @@
 /** The live demo's scenarios: each opens a session of the demo app (ids from `app/src/demo/`). */
 
-export type ScenarioId = 'approve' | 'answer' | 'watch' | 'machines' | 'desktop'
+export type ScenarioId = 'approve' | 'answer' | 'watch' | 'team' | 'machines' | 'desktop'
 
 export interface Scenario {
   id: ScenarioId
@@ -39,9 +39,17 @@ export const scenarios: Scenario[] = [
     session: 'docs',
   },
   {
+    id: 'team',
+    label: 'Agents as a team',
+    description:
+      'Give each session a role. This worker got its job from the research session as a task: open the menu, then Team, to see its role, its project and the tasks it was sent.',
+    session: 'shop-api',
+  },
+  {
     id: 'machines',
     label: 'Every computer, one list',
-    description: 'Your laptop joins the always-on machine as a node: its sessions show up in the same list, marked by computer.',
+    description:
+      'Your laptop joins the always-on machine as a node, and its sessions show up in the same list. Under each computer, sessions sit by project and repository, a worktree by its branch, and a fork under the session it came from.',
   },
   {
     id: 'desktop',
