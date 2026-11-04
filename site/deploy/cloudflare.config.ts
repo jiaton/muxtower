@@ -1,6 +1,10 @@
-// Cloudflare Workers static assets, deployed with the `cf` CLI: `npm run deploy`. The hostname is the
-// deployment's (set in the dashboard), not this file's; the files served are `../dist` (wrangler.config.ts).
+// Cloudflare Workers static assets, deployed with the `cf` CLI: `npm run deploy`. The files served are
+// `../dist` (wrangler.config.ts). The hostname is the deployment's, never this file's: set
+// MUXTOWER_SITE_DOMAIN when deploying to serve the site on it (a custom domain of the Worker; Cloudflare
+// adds its DNS record and certificate). Unset, the Worker keeps only its workers.dev address.
 import { defineConfig } from 'cf/config'
+
+const domain = process.env.MUXTOWER_SITE_DOMAIN?.trim()
 
 export default defineConfig({
   worker: {
@@ -9,5 +13,6 @@ export default defineConfig({
     // Every page is a file: the site is one page, and the demo one more (it routes by the URL's hash).
     // Anything else is a plain 404.
     assets: { notFoundHandling: 'none' },
+    ...(domain ? { domains: [domain] } : {}),
   },
 })
