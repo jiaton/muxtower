@@ -22,3 +22,14 @@ export function useJoinCode(daemonId: string) {
   const client = useDaemonClient(daemonId)
   return useMutation({ mutationFn: async () => unwrap(await client!.POST('/v1/pair/codes')) })
 }
+
+/** The owner's address for reaching a node itself while the hub is down (null: the one it reports). */
+export function useSetNodeAddress(daemonId: string) {
+  const client = useDaemonClient(daemonId)
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ name, url }: { name: string; url: string | null }) =>
+      check(await client!.PATCH('/v1/nodes/{name}', { params: { path: { name } }, body: { direct_url: url } })),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: daemonKey(daemonId, 'nodes') }),
+  })
+}

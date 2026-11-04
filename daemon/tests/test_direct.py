@@ -106,7 +106,10 @@ def test_a_node_makes_only_direct_tokens_and_a_new_one_replaces_the_last(app: Fa
 
 
 def test_the_hubs_app_may_call_a_node_and_a_private_address_is_answered(app: FastAPI) -> None:
-    assert app_origins(["https://app.example"], "https://hub.example/") == ["https://app.example", "https://hub.example"]
+    assert app_origins(["https://app.example"], "https://hub.example/") == [
+        "https://app.example",
+        "https://hub.example",
+    ]
     assert app_origins(["*"], "https://hub.example") == ["*"]
     client = TestClient(app)
     preflight = client.options(

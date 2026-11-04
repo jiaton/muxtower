@@ -11,6 +11,7 @@ import { useCloseSettledNotifications, useNotificationClicks } from '@/features/
 import { useAllSessions } from '@/features/sessions/api/use-sessions'
 import { isSettled } from '@/features/sessions/model/facets'
 import { useDaemonStreams, useRecheckRejected } from '@/lib/api/streams'
+import { useHubFallback } from '@/lib/daemons/use-hub-fallback'
 import { cn } from '@/lib/cn'
 import { useConfiguredDaemons } from '@/lib/runtime-config'
 import { useColorScheme } from '@/lib/use-color-scheme'
@@ -25,6 +26,7 @@ function RootLayout() {
   useColorScheme()
   useConfiguredDaemons()
   useDaemonStreams()
+  useHubFallback()
   useRecheckRejected()
   useKeepPushSubscriptions()
   useNotificationClicks()

@@ -1,6 +1,6 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { History, MessagesSquare, Reply, SquareTerminal, Unplug } from 'lucide-react'
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { QueryState } from '@/components/query-state'
 import { Banner } from '@/components/ui/banner'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -31,11 +31,31 @@ import { useDictation } from '@/features/voice/hooks/use-dictation'
 import { entryKey } from '@/features/sessions/model/facets'
 import type { Session } from '@/lib/api/types'
 import { useOutgoing } from '@/lib/use-outbox'
+import { directPlace, useFallback } from '@/lib/daemons/fallback'
+import { useDaemonsStore } from '@/lib/daemons/store'
 
 export const Route = createFileRoute('/_sessions/d/$daemonId/s/$sessionId')({ component: SessionPage })
 
+/** While a hub is down, its node's session is reached directly, and back once the hub answers: the page
+ *  follows it there, its draft and quotes with it (`lib/daemons/fallback.ts`). */
+function useFollowFallback(daemonId: string, sessionId: string) {
+  const navigate = useNavigate()
+  const down = useFallback((f) => f.down)
+  const daemons = useDaemonsStore((s) => s.daemons)
+  useEffect(() => {
+    const to = directPlace(daemons, daemonId, sessionId, down)
+    if (!to) return
+    const drafts = useDrafts.getState()
+    const [from, there] = [draftKey(daemonId, sessionId), draftKey(to.daemonId, to.sessionId)]
+    if (drafts.drafts[from] && !drafts.drafts[there]) drafts.setDraft(there, drafts.drafts[from])
+    if (drafts.quotes[from]?.length && !drafts.quotes[there]?.length) drafts.setQuotes(there, drafts.quotes[from])
+    void navigate({ to: '/d/$daemonId/s/$sessionId', params: to, search: true, replace: true })
+  }, [daemons, daemonId, sessionId, down, navigate])
+}
+
 function SessionPage() {
   const { daemonId, sessionId } = Route.useParams()
+  useFollowFallback(daemonId, sessionId)
   const query = useSession(daemonId, sessionId)
   return (
     <QueryState query={query}>

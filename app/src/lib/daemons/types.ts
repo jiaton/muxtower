@@ -16,4 +16,9 @@ export interface Daemon {
   pushSubscriptionId?: string
   /** Push also says when an agent finishes a turn (default on). */
   pushDone?: boolean
+  /** A computer joined to the hub with this id, reached directly only while that hub does not answer: its
+   *  address and a token of its own came from the hub (`lib/daemons/fallback.ts`). */
+  via?: string
+  /** Its name on that hub. */
+  node?: string
 }

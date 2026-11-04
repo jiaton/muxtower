@@ -35,7 +35,7 @@ export function useShareCodes() {
   return useMutation({
     mutationFn: async () => {
       const results = await Promise.allSettled(
-        daemons.map(async (d) => {
+        daemons.filter((d) => !d.via).map(async (d) => {
           const code = unwrap(await createDaemonClient(d).POST('/v1/pair/codes'))
           return { url: d.url, code: code.code, name: d.name, expiresAt: code.expires_at }
         }),
