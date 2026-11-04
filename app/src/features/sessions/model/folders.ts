@@ -28,6 +28,9 @@ export function foldersAround(folder: string, folders: string[]): string[] {
 /** The folder of `folders` that `folder` lies in most closely, if any. */
 const parentOf = (folder: string, folders: string[]): string | undefined => foldersAround(folder, folders)[0]
 
+/** Where an item that sits at a folder (`at`) goes: in that folder when it is listed, else as `parentOf`. */
+const holderOf = (at: string, folders: string[]): string | undefined => (folders.includes(at) ? at : parentOf(at, folders))
+
 /** Folders in tree order: each followed by the ones inside it, the most sessions first at every level;
  *  `last` (the unknown folder) at the end, at the top level. */
 export function nestFolders<T extends { label: string; count: number; under?: string; name?: string; at?: string }>(
@@ -42,9 +45,9 @@ export function nestFolders<T extends { label: string; count: number; under?: st
       i.label,
       i.under && listed.has(i.under)
         ? i.under
-        : parentOf(
+        : (i.at ? holderOf : parentOf)(
             i.at ?? i.label,
-            labels.filter((l) => !known.find((k) => k.label === l)?.under),
+            labels.filter((l) => l !== i.label && !known.find((k) => k.label === l)?.under),
           ),
     ]),
   )

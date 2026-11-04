@@ -88,15 +88,17 @@ describe('where a session is listed', () => {
     const m2 = entry('m2', { ...set, cwd: `${MUX}-teams`, git: git(`${MUX}-teams`, 'teams', MUX), project_anchor: MUX })
     const stray = entry('stray', { ...set, cwd: '/srv/elsewhere', project_anchor: MUX }) // listed inside, as it is
     const loose = entry('loose', { project: 'loose', project_source: 'set', cwd: '' }) // no folder known
+    const gate = entry('gate', { project: 'gate', project_source: 'set', cwd: '/home/me/projects', project_anchor: '/home/me/projects' })
     const mac = { ...entry('mac', { ...set, machine: 'mac', cwd: '/Users/me/mux', project_anchor: '/Users/me/mux' }) }
     const macHome = entry('mac-home', { machine: 'mac', cwd: '/Users/me' })
-    const [nas, onMac] = groupEntries([projects, notes, m1, m2, stray, loose, mac, macHome], 'device')
+    const [nas, onMac] = groupEntries([projects, notes, m1, m2, stray, loose, gate, mac, macHome], 'device')
     const tree = nas.sections!.map((s) => [s.label, s.depth, s.parent ?? null, s.name, s.entries.map((e) => e.session.id)])
     // Its name, nested where it is; a set project holds its worktrees and strays as its own rows.
     expect(tree).toContainEqual(['mux', 1, '~/projects', 'mux', ['m1', 'm2', 'stray']])
-    expect(nas.sections!.find((s) => s.label === '~/projects')?.total).toBe(5) // 1 + its repositories' 4
+    expect(nas.sections!.find((s) => s.label === '~/projects')?.total).toBe(6) // 1 + its repositories' and projects' 5
     expect(tree).toContainEqual(['~/projects/notes', 1, '~/projects', 'notes', ['notes']]) // beside a plain repository
     expect(tree).toContainEqual(['loose', 0, null, 'loose', ['loose']]) // nowhere known: at the top
+    expect(tree).toContainEqual(['gate', 1, '~/projects', 'gate', ['gate']]) // at a listed folder: in it
     const folders = facetsOf([projects, notes, m1, m2, stray]).devices[0].folders
     expect(folders.find((f) => f.label === 'mux')?.at).toBe('~/projects/mux')
     expect(onMac.sections!.map((s) => [s.label, s.parent ?? null])).toContainEqual(['mux', '~']) // its own, on the Mac

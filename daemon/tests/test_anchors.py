@@ -59,3 +59,11 @@ def test_each_device_has_its_own() -> None:
 def test_a_folder_named_project_is_no_project_node_and_gets_none() -> None:
     folder = _s("a", "/srv/x").model_copy(update={"project_source": "folder"})
     assert _anchors([folder]) == {"a": None}
+
+
+def test_a_project_kept_before_its_source_was_is_told_by_its_name() -> None:
+    from muxtower.sessions.decorate import _guessed_source
+
+    assert _guessed_source("acme/notes", "/home/me/projects") == "git remote"
+    assert _guessed_source("projects", "/home/me/projects") == "folder"
+    assert _guessed_source("shop", "/home/me/code") == "git root"
