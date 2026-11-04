@@ -4,17 +4,13 @@ muxtower lets whoever holds a device token type into terminals and approve what 
 
 ## Official addresses
 
-The only official domains are **muxtower.dev** (the site and its demo) and **app.muxtower.dev** (the public copy of the app). Anything else asking for your daemon's address or a pairing code is not us. muxtower itself never asks for a token: a pairing code is entered only in an app you chose, and is good once.
+The only official domains are **muxtower.dev** (the site and its demo) and **app.muxtower.dev** (the public copy of the app, built from release tags with no preset daemons). Anything else asking for your daemon's address or a pairing code is not us, and the app your daemon serves itself needs no one's hosting. muxtower itself never asks for a token: a pairing code is entered only in an app you chose, and is good once.
 
 ## Reporting
 
 Use GitHub's private reporting: **Security → Report a vulnerability** on this repository. Please do not open a public issue, discussion or pull request for it.
 
 Include what an attacker needs (network position, a token or none, a paired device, a node), the steps, and the version (`muxtower --version`). Reports are answered as soon as possible, and fixed in a release before anything is disclosed.
-
-## Official domains
-
-The project's own: **muxtower.dev** (the website and its demo) and **app.muxtower.dev** (the public hosted web app, built from release tags with no preset daemons). Any other host offering a muxtower app is not the project's; the app your daemon serves itself needs no one's hosting.
 
 ## Supported versions
 
