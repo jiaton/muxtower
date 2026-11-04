@@ -95,6 +95,7 @@ from muxtower.terminal.stream import router as stream_router
 from muxtower.usage.routes import router as usage_router
 from muxtower.usage.sampler import UsageSampler
 from muxtower.web import mount_ui
+from muxtower.writes.tracker import WriteTracker, Writing
 
 logger = logging.getLogger("muxtower")
 
@@ -180,6 +181,9 @@ def create_app(
     push = PushService(SqliteSubscriptionRepository(db), sender, directory, daemon_name, tokens.exists)
 
     teams = TeamService(directory, SqliteTeamRepository(db), transcript_of=directory.local.transcript_of)
+    writes = WriteTracker(lambda: settings.writes.window_minutes, teams.checkouts)
+    sessions.gone = writes.forget
+    directory.writing = Writing(writes, lambda sid: r.name if (r := sessions.repo.get(sid)) else None).of
     team_tasks = TaskService(teams, directory, SqliteTaskRepository(db))
 
     @asynccontextmanager
@@ -244,6 +248,7 @@ def create_app(
     app.state.teams, app.state.team_tasks = teams, team_tasks
     app.state.usage = usage
     app.state.recovery = recovery
+    app.state.writes = writes
     app.state.feature_settings, app.state.node_sessions = feature_settings, node_sessions
     teams.changed = lambda: bus.publish("sessions", None)
     app.state.mcp = McpTools(

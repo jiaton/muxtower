@@ -33,7 +33,9 @@ muxtower runs the owner's coding agent sessions, on this machine and others, and
 - Your team is every session of your project; it has no name of its own. Your project and role stay as
   they are when you cd elsewhere or edit files in another repository.
 - Wrong project? Move a session with set_project, or rename yours for all its sessions (rename=true).
-- Messages that start with "[muxtower task from …]" are work a teammate sent you."""
+- Messages that start with "[muxtower task from …]" are work a teammate sent you.
+- "also writing in <worktree>" means another session changes files in your checkout: agree with it
+  (send_task) or ask the owner. If no file is changed by both, go on, but commit only your own changes."""
 
 
 class TeamArgs(BaseModel):
@@ -65,6 +67,20 @@ def _who(m: Member) -> str:
         where += f" · worktree {m.checkout.root}" + (f" on {m.checkout.branch}" if m.checkout.branch else "")
     state = s.state.value + (" · NEEDS THE OWNER" if s.needs_attention else "")
     return f"{s.id} · {s.name} · {role} · @{device(s)} · {state} · {where}"
+
+
+def _writing(m: Member) -> list[str]:
+    """Who else wrote in the worktree it writes in, lately (`writes/`): one line per worktree."""
+    by_tree: dict[str, list[str]] = defaultdict(list)
+    files: dict[str, set[str]] = defaultdict(set)
+    for w in m.session.also_writing:
+        by_tree[w.worktree].append(f"{w.name} ({w.session_id})")
+        files[w.worktree] |= set(w.files)
+    return [
+        f"  also writing in {tree}: {', '.join(names)}"
+        + (f" · both changed {', '.join(sorted(files[tree])[:10])}" if files[tree] else "")
+        for tree, names in by_tree.items()
+    ]
 
 
 def _project(m: Member) -> str:
@@ -143,7 +159,7 @@ class TeamTools:
             return "\n".join(out)
         others = [m for m in members if m.project == mine.project and m.session.id != me]
         recent = self.tasks.recent([m.session.id for m in [mine, *others]]) if self.tasks else {}
-        out = [f"You: {_who(mine)} · project {_project(mine)}"]
+        out = [f"You: {_who(mine)} · project {_project(mine)}", *_writing(mine)]
         if mine.session.id in recent:
             out.append(_tasks(recent[mine.session.id]))
         if not mine.role:
@@ -151,6 +167,7 @@ class TeamTools:
         out.append(f"Your team ({len(others)} other session{'s' if len(others) != 1 else ''} in {mine.project}):")
         for m in others:
             out.append(f"- {_who(m)}")
+            out += _writing(m)
             if m.session.id in recent:
                 out.append(_tasks(recent[m.session.id]))
         if not others:

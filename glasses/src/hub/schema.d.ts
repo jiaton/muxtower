@@ -813,6 +813,23 @@ export interface components {
          * @enum {string}
          */
         AgentState: "needs_permission" | "needs_answer" | "needs_trust" | "plan_review" | "error" | "busy" | "idle" | "unknown";
+        /**
+         * AlsoWriting
+         * @description Another session of this machine that wrote in the same git worktree lately (`writes/`).
+         */
+        AlsoWriting: {
+            /**
+             * Files
+             * @description written by both, relative to the worktree
+             */
+            files: string[];
+            /** Name */
+            name: string;
+            /** Session Id */
+            session_id: string;
+            /** Worktree */
+            worktree: string;
+        };
         /** ApprovalResult */
         ApprovalResult: {
             /** Option */
@@ -1534,6 +1551,11 @@ export interface components {
              * @description the account its agent runs as, as far as known (an email, or "API key")
              */
             account?: string | null;
+            /**
+             * Also Writing
+             * @description other running sessions here that wrote files in the same worktree within the last minutes (file-editing tools only, not Bash): a hint, nothing is held back
+             */
+            also_writing?: components["schemas"]["AlsoWriting"][];
             /**
              * Alt Screen
              * @description draws full screen (alternate screen): tmux keeps no scrollback, see the conversation

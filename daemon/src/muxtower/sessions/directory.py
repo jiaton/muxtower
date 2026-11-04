@@ -17,7 +17,7 @@ from muxtower.sessions.decorate import decorate
 from muxtower.sessions.images import ImageFile, read_shown
 from muxtower.sessions.marks import SessionMarks
 from muxtower.sessions.merged import merged
-from muxtower.sessions.models import Conversation, Session, UpdateSession
+from muxtower.sessions.models import AlsoWriting, Conversation, Session, UpdateSession
 from muxtower.sessions.owner_marks import OwnerMarks
 from muxtower.sessions.ports import ClaudeProcessPort, SessionSourcePort
 from muxtower.sessions.service import SessionService
@@ -72,6 +72,7 @@ class SessionDirectory(OwnerMarks):
         self.concierge_id: str | None = None  # set by the concierge service once its session runs
         self.team: Callable[[str], TeamRecord | None] | None = None  # set by the team service: a session's role
         self.checkout: Callable[[str], Checkout] | None = None  # set by the team service: git, per folder here
+        self.writing: Callable[[str], list[AlsoWriting]] | None = None  # set by the app: `writes/`
 
     # --- reading ------------------------------------------------------------------------------
 
