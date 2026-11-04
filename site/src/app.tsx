@@ -1,3 +1,4 @@
+import { useReveal } from '@/hooks/use-reveal'
 import { ApiClients } from '@/sections/api-clients'
 import { Assistant } from '@/sections/assistant'
 import { Faq } from '@/sections/faq'
@@ -15,6 +16,7 @@ import { Usage } from '@/sections/usage'
 
 /** The page, top to bottom: the demo first, then one claim per section, each with the real thing. */
 export function App() {
+  useReveal()
   return (
     <div id="top" className="min-h-dvh bg-background text-foreground">
       <Header />

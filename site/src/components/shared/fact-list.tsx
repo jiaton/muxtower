@@ -5,8 +5,8 @@ import { RichText } from './rich-text'
 export function FactList({ facts }: { facts: string[] }) {
   return (
     <ul className="flex flex-col gap-4">
-      {facts.map((fact) => (
-        <li key={fact} className="flex gap-3 leading-relaxed">
+      {facts.map((fact, i) => (
+        <li key={fact} data-reveal-item style={{ '--i': i } as React.CSSProperties} className="flex gap-3 leading-relaxed">
           <Check className="mt-1 size-4 shrink-0 text-primary" aria-hidden />
           <span>
             <RichText text={fact} />

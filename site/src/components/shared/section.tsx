@@ -4,7 +4,7 @@ import { RichText } from './rich-text'
 /** A band of the page: an anchor, a centered measure, the page's vertical rhythm. */
 export function Section({ id, className, children }: { id?: string; className?: string; children: React.ReactNode }) {
   return (
-    <section id={id} className={cn('mx-auto w-full max-w-6xl px-5 py-20 sm:px-8 lg:py-28', className)}>
+    <section id={id} data-reveal className={cn('mx-auto w-full max-w-6xl px-5 py-20 sm:px-8 lg:py-28', className)}>
       {children}
     </section>
   )
