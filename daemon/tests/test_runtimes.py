@@ -209,4 +209,6 @@ def test_the_first_bypass_start_waits_for_the_owner_not_idle() -> None:
     rt = load_runtimes(None)["claude-code"]
     result = rt.classify(screens.BYPASS_CONFIRM)
     assert (result.state, result.rule) == (AgentState.NEEDS_TRUST, "bypass-mode-confirm")
-    assert rt.choose_option(result.state, result.options) is not None  # approving accepts it
+    assert [o.label for o in result.options] == ["No, exit", "Yes, I accept"]
+    key = rt.choose_option(result.state, result.options)
+    assert key == "2" and [s.key for s in rt.select_steps(result.menu, key)] == ["Down", "Enter"]  # approving accepts
