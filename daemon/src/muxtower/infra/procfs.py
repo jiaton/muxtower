@@ -1,8 +1,10 @@
 """Which processes a process started (a tmux pane's shell and the agent it runs), and whether one is
-alive: from /proc on Linux, from `ps` and `lsof` where there is none (macOS). Those are slow (tens of ms a
+alive: from /proc on Linux, from the kernel itself on macOS (`libproc.py`), and from `ps` and `lsof` where
+neither answers. Those are slow (tens of ms a
 call, more for lsof) and every pane asks each tick, several times: their answers are kept a few seconds
 (`_kept`), so a tick costs a few calls, not dozens."""
 
+import ctypes
 import os
 import shlex
 import subprocess
@@ -12,6 +14,8 @@ from collections.abc import Callable, Iterable, Iterator
 from pathlib import Path
 from typing import TypeVar
 
+from muxtower.infra.libproc import LibProc, libproc
+
 PS_TIMEOUT_SECONDS = 2
 T = TypeVar("T")
 TABLE_SECONDS = 2.0  # the process table (who started whom) from `ps`
@@ -19,6 +23,17 @@ PROCESS_SECONDS = 5.0  # one process's command line, folder, start and open file
 
 _known: dict[tuple[object, ...], tuple[float, object]] = {}
 _lock = threading.Lock()
+
+
+def _kernel(ask: Callable[[LibProc], T | None]) -> T | None:
+    """What the macOS kernel answers (`libproc.py`), or None where it is not there or will not tell."""
+    kernel = libproc()
+    if kernel is None:
+        return None
+    try:
+        return ask(kernel)
+    except (OSError, ValueError, ctypes.ArgumentError):
+        return None
 
 
 def _kept(key: tuple[object, ...], seconds: float, read: Callable[[], T]) -> T:
@@ -77,7 +92,9 @@ class Children:
         """(pid, parent pid) of every process, from `/proc/<pid>/stat`: the parent is the second field
         after the command name, which is in parentheses and may hold anything. Without /proc, from `ps`."""
         if not self.proc.is_dir():
-            yield from _kept(("ps-parents",), TABLE_SECONDS, lambda: list(_ps_parents()))
+            yield from _kept(
+                ("ps-parents",), TABLE_SECONDS, lambda: _kernel(lambda k: k.parents()) or list(_ps_parents())
+            )
             return
         for entry in self.proc.iterdir():
             if not entry.name.isdigit():
@@ -129,6 +146,8 @@ def argv_of(pid: int, proc: Path = Path("/proc")) -> list[str] | None:
             return (proc / str(pid) / "cmdline").read_bytes().decode(errors="replace").rstrip("\0").split("\0")
         except OSError:
             return None
+    if (argv := _kernel(lambda k: k.argv(pid))) is not None:
+        return argv or None
     line = _kept(("argv", pid), PROCESS_SECONDS, lambda: _tool(["ps", "-o", "command=", "-p", str(pid)])).strip()
     try:
         return shlex.split(line) if line else None
@@ -143,6 +162,8 @@ def cwd_of(pid: int, proc: Path = Path("/proc")) -> str | None:
             return os.readlink(proc / str(pid) / "cwd")
         except OSError:
             return None
+    if (cwd := _kernel(lambda k: k.cwd(pid))) is not None:
+        return cwd
     out = _kept(("cwd", pid), PROCESS_SECONDS, lambda: _tool(["lsof", "-a", "-d", "cwd", "-p", str(pid), "-Fn"]))
     names = [line[1:] for line in out.splitlines() if line[:1] == "n"]
     return names[0] if names else None
@@ -159,6 +180,8 @@ def started_at(pid: int, proc: Path = Path("/proc")) -> float | None:
         except (OSError, IndexError, ValueError, StopIteration):
             return None
         return boot + ticks / os.sysconf("SC_CLK_TCK")
+    if (started := _kernel(lambda k: k.started(pid))) is not None:
+        return started
     try:
         return time.mktime(
             time.strptime(
@@ -190,6 +213,13 @@ def open_files(pids: Iterable[int], proc: Path = Path("/proc")) -> list[str]:
                 except OSError:
                     continue
         return found
+
+    def files_of(pid: int) -> list[str] | None:
+        return _kernel(lambda k: k.open_files(pid))
+
+    held = [files_of(pid) for pid in pids]
+    if all(h is not None for h in held):
+        return [path for h in held for path in h or [] if path.startswith("/")]
     listed = ",".join(map(str, sorted(pids)))
     out = _kept(("open", listed), PROCESS_SECONDS, lambda: _tool(["lsof", "-Fn", "-p", listed]))
     return [line[1:] for line in out.splitlines() if line[:1] == "n" and line[1:2] == "/"]
@@ -204,6 +234,9 @@ def all_commands(proc: Path = Path("/proc")) -> dict[int, list[str]]:
             if (argv := argv_of(pid, proc))
         }
         return found
+    kernel = libproc()
+    if kernel is not None and (pids := kernel.pids()) is not None:
+        return {pid: argv for pid in pids if (argv := kernel.argv(pid))}
     found = {}
     for line in _tool(["ps", "-Ao", "pid=,command="]).splitlines():
         pid, _, command = line.strip().partition(" ")
