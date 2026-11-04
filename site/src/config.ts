@@ -7,11 +7,8 @@ export const config = {
   securityUrl: repo ? `${repo}/blob/main/SECURITY.md` : null,
   readmeUrl: repo ? `${repo}#readme` : null,
   pypiUrl: 'https://pypi.org/project/muxtower/',
-  /** The app's demo build, copied next to the site (`scripts/copy-demo.mjs`). */
-  demoUrl: `${import.meta.env.BASE_URL}demo/`,
 }
 
-/** A page of the demo app: its session list, or one session. The demo routes by the URL's hash
- *  (`#/d/<daemon>/s/<session>`), so a static host serves every page of it from one index.html. */
-export const demoPage = (sessionId?: string) =>
-  sessionId ? `${config.demoUrl}#/d/demo/s/${encodeURIComponent(sessionId)}` : config.demoUrl
+/** The real app's demo build (against a daemon simulated in the page), copied next to the site by
+ *  `scripts/copy-demo.mjs`. */
+export const demoUrl = `${import.meta.env.BASE_URL}demo/`

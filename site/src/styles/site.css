@@ -1,19 +1,59 @@
-/* The app's tokens are the site's too: one palette, one type scale (app/src/styles/tokens.css). This
-   file only adds what the site alone needs; colors never get defined here. */
+/* The site's one token file. Colors, type scale and radii come from the app (app/src/styles/tokens.css),
+   so the page and the product look like one thing; this file maps shadcn/ui's token names onto them and
+   adds what only the site needs. No color is defined anywhere else (scripts/check-tokens.mjs).
+   shadcn's own `accent` (a hover background) is not mapped: the app's accent is its brand blue, so the
+   generated components use `muted` for hovers instead (see AGENTS.md). */
 @import '../../../app/src/styles/tokens.css';
+@import '@fontsource-variable/inter';
 
 @source '../';
 
+@theme inline {
+  --color-background: var(--color-bg);
+  --color-foreground: var(--color-fg);
+  --color-card: var(--color-surface);
+  --color-card-foreground: var(--color-fg);
+  --color-popover: var(--color-surface);
+  --color-popover-foreground: var(--color-fg);
+  --color-primary: var(--color-accent);
+  --color-primary-foreground: var(--color-accent-fg);
+  --color-secondary: var(--color-surface-muted);
+  --color-secondary-foreground: var(--color-fg);
+  --color-muted: var(--color-surface-muted);
+  --color-muted-foreground: var(--color-fg-muted);
+  --color-destructive: var(--color-danger);
+  --color-input: var(--color-border);
+  --color-ring: var(--color-focus);
+}
+
 @theme static {
-  /* The rounded corners of the phone the demo runs in. */
-  --radius-device: 2.75rem;
-  --radius-screen: 2rem;
-  --shadow-device: 0 24px 60px -20px oklch(0 0 0 / 0.45), 0 0 0 1px oklch(0 0 0 / 0.08);
+  --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --radius-xl: 1.25rem;
+  /* The demo stage: a window and a phone drawn by the site (src/features/demo/). */
+  --radius-device: 2.5rem;
+  --radius-screen: 1.75rem;
+  --shadow-device: 0 30px 80px -24px oklch(0 0 0 / 0.7), 0 0 0 1px oklch(1 0 0 / 0.08);
+  --shadow-window: 0 30px 80px -30px oklch(0 0 0 / 0.75), 0 0 0 1px oklch(1 0 0 / 0.07);
+  --shadow-glow: 0 0 0 4px oklch(0.68 0.15 255 / 0.25);
+  --color-glow: oklch(0.68 0.15 255 / 0.18);
+  --color-cursor: oklch(0.99 0 0);
+  --color-cursor-edge: oklch(0.15 0 0);
+  --color-device-frame: oklch(0.12 0.005 260);
+  --color-scrim: oklch(0.17 0.008 260 / 0.82);
+  --text-code: 0.85em;
+  --text-hero: clamp(2.25rem, 5vw, 4rem);
+  --text-hero--line-height: 1.02;
+  --text-hero--letter-spacing: -0.035em;
 }
 
 @layer base {
   html {
     scroll-behavior: smooth;
     scroll-padding-top: 5rem;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
   }
 }

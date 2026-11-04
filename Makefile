@@ -12,7 +12,7 @@ check:
 	cd daemon && poetry run ruff check . && poetry run ruff format --check . && poetry run mypy src && poetry run pytest -q
 	cd app && npm run lint && npm run typecheck && npm test
 	cd glasses && npm run lint && npm run typecheck && npm test
-	cd site && npm run lint && npm run typecheck
+	cd site && npm run check
 	$(MAKE) contract-check
 
 wheel:

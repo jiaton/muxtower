@@ -1,31 +1,70 @@
-/** The page's copy outside its sections' lists: header, hero, footer. English only. */
+/** The page's copy outside its lists. English only; `code` in backticks. Every sentence states a fact a
+ *  developer can check in the README or docs/design.md. */
 
 export const nav = [
   { href: '#demo', label: 'Demo' },
-  { href: '#how-it-works', label: 'How it works' },
-  { href: '#get-started', label: 'Get started' },
-  { href: '#features', label: 'Features' },
+  { href: '#hub', label: 'Hub' },
+  { href: '#team', label: 'Teams' },
+  { href: '#install', label: 'Install' },
   { href: '#faq', label: 'FAQ' },
 ]
 
 export const hero = {
-  eyebrow: 'Open source · Self-hosted',
-  title: 'Your coding agents, from your phone.',
-  lead: 'Approve, answer and steer Claude Code and Codex in the terminals they already run in. muxtower is a small daemon next to your agents and a web app on your phone: no account, no cloud, nothing to change in how you work.',
+  eyebrow: 'Open source · self-hosted · no account',
+  title: 'Every machine. Every agent. One list.',
+  lead: 'muxtower watches the Claude Code and Codex sessions on all your computers and lists them on a hub you host. When one needs you, your phone says so, and you answer from there.',
   install: 'pipx install muxtower',
-  demo: 'Try the live demo',
-  source: 'View on GitHub',
+  tryApp: 'Open the real app',
+  tryAppNote: 'against a simulated daemon',
 }
 
-/** Said by name, never by logo: muxtower is not affiliated with any of them. */
-export const agents = [
-  { name: 'Claude Code', note: 'hooks + screen' },
-  { name: 'Codex', note: 'hooks + app-server' },
-  { name: 'OpenCode', note: 'terminal' },
-]
+export const hub = {
+  label: '01',
+  title: 'One hub. Every machine dials in.',
+  lead: 'Run a daemon on each computer and join it to the one that is always on. Your phone needs only the hub’s address.',
+  facts: [
+    'A joined machine dials out to the hub, so a laptop needs no address and no open port.',
+    'The hub reaches your phone over HTTPS: `muxtower expose tailscale`, or your own domain behind any proxy. No SSH to expose.',
+    'A sleeping laptop’s sessions stay listed, marked offline. A machine too old for its hub installs the hub’s version itself.',
+  ],
+}
+
+export const team = {
+  label: '02',
+  title: 'Agents that work as a team.',
+  lead: 'Every session muxtower starts reaches it as itself, over MCP. It can see who else works on its project and hand them work.',
+  facts: [
+    'A role is plain text you give: research, worker, reviewer. muxtower keeps it and reads nothing into it.',
+    'A project is its git remote, so one repository on two machines is one project, worktrees included.',
+    'A task waits while its receiver is waiting on you: it is never typed into an open prompt.',
+  ],
+}
+
+export const sources = {
+  label: '03',
+  title: 'Wherever the session started.',
+  lead: 'You do not have to start agents through muxtower. It finds them where they already run.',
+}
+
+export const reach = {
+  label: '04',
+  title: 'Answer from wherever you are.',
+}
+
+export const security = {
+  label: '05',
+  title: 'Safe on the open internet.',
+  lead: 'muxtower brings its own lock, and fits behind whatever you already run.',
+}
+
+export const install = {
+  label: '06',
+  title: 'Running in two minutes.',
+  lead: 'Python 3.11+ and tmux on the machine your agents run on. The daemon serves the app itself.',
+}
 
 export const footer = {
   tagline: 'A control tower for the coding agents on your machines.',
-  status: 'Status: early (0.1). Interfaces may change.',
+  status: 'Early: version 0.1. Interfaces may change.',
   license: 'Apache-2.0',
 }

@@ -1,18 +1,20 @@
-// The app's token discipline (app/AGENTS.md), for the site: no raw colors or palette/arbitrary visual
-// Tailwind values outside the token files. Colors themselves come from app/src/styles/tokens.css.
+// Token discipline (site/AGENTS.md): no raw colors or Tailwind palette classes outside the token file,
+// and no arbitrary visual values outside components/ui/, the one place a visual style is defined
+// (shadcn/ui's generated primitives use a few, such as their 3px focus ring).
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 const ROOT = new URL('../src', import.meta.url).pathname
-// site.css holds the site's own tokens; icons.tsx draws a mark in currentColor.
+// site.css is the token file.
 const ALLOWED = new Set(['styles/site.css'])
 const PALETTE =
   'slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|black|white'
+const ARBITRARY = 'arbitrary visual value'
 const RULES = [
   [/#[0-9a-fA-F]{3,8}\b/, 'raw hex color'],
   [/\b(?:rgba?|hsla?|oklch)\(/, 'raw color function'],
   [new RegExp(`\\b[a-z-]+-(?:${PALETTE})(?:-\\d{2,3})?\\b`), 'Tailwind palette class'],
-  [/\b(?:bg|text|border|ring|outline|shadow|rounded|fill|stroke|font|decoration|caret|accent|from|via|to)-\[/, 'arbitrary visual value'],
+  [/\b(?:bg|text|border|ring|outline|shadow|rounded|fill|stroke|font|decoration|caret|accent|from|via|to)-\[/, ARBITRARY],
 ]
 
 const files = []
@@ -33,6 +35,7 @@ for (const file of files) {
     .split('\n')
     .forEach((line, i) => {
       for (const [re, what] of RULES) {
+        if (what === ARBITRARY && rel.startsWith('components/ui/')) continue
         if (re.test(line)) {
           console.error(`src/${rel}:${i + 1}: ${what}: ${line.trim()}`)
           failures++
