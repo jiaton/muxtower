@@ -1,8 +1,11 @@
+import { ArrowUpRight } from 'lucide-react'
 import { Section, SectionHeading } from '@/components/shared/section'
 import { Terminal } from '@/components/shared/terminal'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { installTabs } from '@/content/lists'
-import { install } from '@/content/page'
+import { Button } from '@/components/ui/button'
+import { config } from '@/config'
+import { hostedApp, install } from '@/content/page'
 
 export function Install() {
   return (
@@ -23,6 +26,20 @@ export function Install() {
           </TabsContent>
         ))}
       </Tabs>
+      {config.appUrl && (
+        <div className="mt-12 flex max-w-3xl flex-col items-start gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-1">
+            <p className="font-medium">{hostedApp.title}</p>
+            <p className="text-sm text-muted-foreground">{hostedApp.text}</p>
+          </div>
+          <Button asChild variant="outline">
+            <a href={config.appUrl} target="_blank" rel="noreferrer">
+              {hostedApp.action}
+              <ArrowUpRight />
+            </a>
+          </Button>
+        </div>
+      )}
     </Section>
   )
 }

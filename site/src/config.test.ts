@@ -11,3 +11,9 @@ describe('config', () => {
     expect(demoUrl).toBe('/demo/')
   })
 })
+
+describe('the hosted app', () => {
+  it('has no entry unless the build names its address', () => {
+    expect(config.appUrl).toBeNull()
+  })
+})
