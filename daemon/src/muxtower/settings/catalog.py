@@ -8,7 +8,7 @@ that use it are built when the daemon starts, so a change applies then."""
 from dataclasses import dataclass
 from typing import Literal
 
-Kind = Literal["choice", "bool", "number", "text"]
+Kind = Literal["choice", "bool", "number", "text", "args"]
 
 
 @dataclass(frozen=True)
@@ -29,6 +29,15 @@ FIELDS: tuple[Field, ...] = (
           "older ones are kept, just not listed; 0: always listed"),
     Field("writes.window_minutes", "Teams", "Two sessions writing in one worktree: count writes of the last (minutes)",
           "number", "now", "file-editing tools only, not Bash"),
+    Field("launch.claude_code_mode", "New sessions", "Claude Code permission mode", "choice", "now",
+          "agent: its own settings (defaultMode)",
+          ("agent", "plan", "default", "acceptEdits", "auto", "bypassPermissions")),
+    Field("launch.claude_code_args", "New sessions", "Claude Code extra arguments", "args", "now"),
+    Field("launch.codex_mode", "New sessions", "Codex permission mode", "choice", "now",
+          "agent: its own config.toml", ("agent", "untrusted", "on-request", "full-auto", "full-access")),
+    Field("launch.codex_args", "New sessions", "Codex extra arguments", "args", "now"),
+    Field("launch.agents_may_escalate", "New sessions", "Agents may start sessions above the default mode", "bool",
+          "now", "off: an agent's start_session never asks more than the default, nor bypass or full access"),
     Field("concierge.enabled", "Concierge", "Concierge", "bool", "restart",
           "a session that watches the others for you"),
     Field("concierge.name", "Concierge", "Name", "text", "restart"),

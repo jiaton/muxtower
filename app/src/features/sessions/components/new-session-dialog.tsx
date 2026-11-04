@@ -19,6 +19,8 @@ import { AgentMark } from './agent-mark'
 
 /** Starts a session on a daemon's machine, or on one of its nodes (another computer joined to it).
  *  `trigger`: the element that opens it (a button), defaulting to a labelled one. */
+import { splitArgs } from '../model/launch'
+import { LaunchOptions } from './launch-options'
 export function NewSessionDialog({ trigger }: { trigger?: ReactNode }) {
   const daemons = usePairedDaemons()
   const [open, setOpen] = useState(false)
@@ -40,6 +42,8 @@ export function NewSessionDialog({ trigger }: { trigger?: ReactNode }) {
   const [cwd, setCwd] = useState('')
   const [name, setName] = useState('')
   const [headless, setHeadless] = useState(false)
+  const [mode, setMode] = useState<string | null>(null)
+  const [extra, setExtra] = useState('')
   const canRunHeadless = Boolean(runtimes.data?.find((r) => r.name === runtime)?.headless)
   const asHeadless = headless && canRunHeadless
   const { entries } = useSessionEntries()
@@ -71,7 +75,10 @@ export function NewSessionDialog({ trigger }: { trigger?: ReactNode }) {
           onSubmit={(e) => {
             e.preventDefault()
             create.mutate(
-              { runtime, cwd, name: name.trim() || null, headless: asHeadless, node: node?.name ?? null },
+              {
+                runtime, cwd, name: name.trim() || null, headless: asHeadless, node: node?.name ?? null,
+                permission_mode: asHeadless ? null : mode, args: asHeadless ? [] : splitArgs(extra),
+              }, // prettier-ignore
               {
                 onSuccess: (session) => {
                   rememberRuntime(runtime)
@@ -159,6 +166,9 @@ export function NewSessionDialog({ trigger }: { trigger?: ReactNode }) {
             Name <span className="font-normal text-fg-muted">optional, defaults to the directory name</span>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </label>
+          {asHeadless ? null : (
+            <LaunchOptions runtime={runtimes.data?.find((r) => r.name === runtime)} mode={mode} onMode={setMode} extra={extra} onExtra={setExtra} />
+          )}
           {create.isError ? <Banner tone="error">{create.error.message}</Banner> : null}
           <Button type="submit" disabled={create.isPending}>
             {create.isPending ? 'Starting…' : 'Start'}

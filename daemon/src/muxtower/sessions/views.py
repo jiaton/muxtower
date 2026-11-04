@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 from muxtower.runtimes.models import ATTENTION_STATES
 from muxtower.sessions.interrupted import interrupted_view
+from muxtower.sessions.launch import mode_of
 from muxtower.sessions.models import Capabilities, Session
 from muxtower.sessions.naming import chosen
 from muxtower.sessions.ports import SessionRecord, SessionSource
@@ -25,6 +26,7 @@ def session_view(svc: "SessionService", record: SessionRecord) -> Session:
         id=record.id,
         name=chosen(record, live.title, live.title_origin)[0],
         agent_name=live.title,
+        permission_mode=mode_of(record.launch_args, runtime.config) if runtime else None,
         runtime=record.runtime,
         cwd=record.cwd,
         source=record.source,

@@ -96,7 +96,8 @@ class McpTools:
             Tool("deny", "Decline a session's pending prompt.", SessionArg, self.deny),
             Tool("interrupt", "Stop what a session is doing (Escape).", SessionArg, self.interrupt),
         ]  # fmt: skip
-        tools += SessionTools(directory, launcher, hub, machines, teams, archiver).tools()
+        self.session_tools = SessionTools(directory, launcher, hub, machines, teams, archiver)
+        tools += self.session_tools.tools()
         if concierge is not None:
             tools += [
                 Tool("watch_session", "Be told (a [muxtower event #N · time] line with its id, state and where its "

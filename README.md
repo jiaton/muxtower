@@ -144,6 +144,18 @@ The daemon also serves a glasses app at `/g2/` (`glasses/`, an Even Hub app): wh
 
 `/v1/mcp` offers muxtower's sessions as MCP tools (list, read, message, approve, deny, interrupt, start, watch) to any MCP client with a device token, e.g. `claude mcp add --transport http muxtower https://<daemon>/v1/mcp --header "Authorization: Bearer <token>"`. With `concierge.enabled`, muxtower keeps its own Claude Code session wired to these tools: talk to it (from the glasses, the apps, or Remote Control) and it relays to, reports on and answers for your other sessions.
 
+## Permission modes
+
+muxtower adds no permission flag of its own: a session asks you, or not, as its agent's own settings say (Claude Code's `defaultMode` in `~/.claude/settings.json`, Codex's `config.toml`). To start one otherwise, pick its **Permission mode** in the New session dialog (each runtime lists its own: plan, ask, accept edits, auto, bypass for Claude Code; untrusted, on request, full auto, full access for Codex), or set a default per runtime, with extra arguments, in the app's Settings (*New sessions*) or the config file:
+
+```toml
+[launch]
+claude_code_mode = "acceptEdits"   # or "agent": its own settings decide
+claude_code_args = ["--model", "opus"]
+```
+
+The mode is kept when a session is started again after a restart. An agent starting a session over MCP (`start_session`) can ask for a mode only up to that default, and never bypass or full access, unless you turn `launch.agents_may_escalate` on. In an asking mode, team members stop at every permission prompt and tasks sent to them wait meanwhile: turn on auto-approve for such a session, or start it in auto or accept-edits mode.
+
 ## Agents and screen rules
 
 | agent | state from | approve from the phone |
@@ -185,6 +197,7 @@ Sessions that muxtower did not start (found in your own tmux) can be watched, an
 | `state_dir` | `MUXTOWER_STATE_DIR` | `~/.local/state/muxtower` | database, keys |
 | `serve_ui` | `MUXTOWER_SERVE_UI` | `true` | serve the web app at `/` (and the glasses app at `/g2/`) |
 | `cors.extra_headers` | — | `[]` | extra request headers apps may send, e.g. a gate's own credential header |
+| `launch.<runtime>_mode` / `_args` | — | `"agent"` / `[]` | how new sessions start (permission mode, extra arguments): *Permission modes* above |
 | `remote_control.enabled` | `MUXTOWER_REMOTE_CONTROL_ENABLED` | `false` | also list the Claude Code Remote Control sessions of the Claude account logged in here (private API; may break) |
 | `remote_control.environments` | — | `{}` | `environment_id` → machine name to show (the API has no names) |
 | `codex.shared` | — | `false` | also list, answer and message the threads of the Codex app-server this machine's Codex clients share |

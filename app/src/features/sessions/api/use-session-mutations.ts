@@ -24,8 +24,15 @@ export function useCreateSession(daemonId: string) {
   const client = useDaemonClient(daemonId)
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async (body: { runtime: string; cwd: string; name?: string | null; headless?: boolean; node?: string | null }) =>
-      unwrap(await client!.POST('/v1/sessions', { body: { ...body, headless: body.headless ?? false, args: [] } })),
+    mutationFn: async (body: {
+      runtime: string
+      cwd: string
+      name?: string | null
+      headless?: boolean
+      node?: string | null
+      permission_mode?: string | null
+      args?: string[]
+    }) => unwrap(await client!.POST('/v1/sessions', { body: { ...body, headless: body.headless ?? false, args: body.args ?? [] } })),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: daemonKey(daemonId, 'sessions') }),
   })
 }

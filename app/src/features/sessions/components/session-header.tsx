@@ -24,7 +24,7 @@ export function SessionHeader({ daemonId, session, actions }: { daemonId: string
   const AgentIcon = agentIcon(agent)
   const project = projectLabel(session)
   const team = session.team_role ? `${session.team_role}${project ? ` in ${project}` : ''}` : project
-  const where = [team, agent, deviceOf(session) ?? NO_ENVIRONMENT, folderOf(session), workingIn(session), sourceOf(session)].filter(
+  const where = [team, agent, deviceOf(session) ?? NO_ENVIRONMENT, folderOf(session), workingIn(session), session.permission_mode ? `${session.permission_mode} mode` : null, sourceOf(session)].filter(
     Boolean,
   )
   return (

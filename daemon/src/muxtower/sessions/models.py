@@ -165,6 +165,7 @@ class Session(BaseModel):
         default=None, description="the name its agent gives it (Claude Code's title), offered when renaming"
     )
     project_auto: bool = Field(default=False, description="`project` was worked out by muxtower, not set")
+    permission_mode: str | None = Field(default=None, description="the permission mode it was started in, if one")
     project_anchor: str | None = Field(
         default=None,
         description="where its project sits in its device's folder tree: the main folder of the repository most "
@@ -214,6 +215,11 @@ class CreateSession(BaseModel):
         default=False, description="run it without a terminal, where the runtime can (`RuntimeInfo.headless`)"
     )
     node: str | None = Field(default=None, description="start it on this node instead of here (GET /v1/nodes)")
+    permission_mode: str | None = Field(
+        default=None,
+        description='one of its runtime\'s `permission_modes`, or "agent" (its own settings); null: the configured '
+        "default (`launch.<runtime>_mode`)",
+    )
 
 
 class HideSession(BaseModel):

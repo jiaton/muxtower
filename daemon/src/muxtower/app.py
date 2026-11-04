@@ -169,6 +169,7 @@ def create_app(
     teams = TeamService(directory, SqliteTeamRepository(db), transcript_of=directory.local.transcript_of)
     writes = WriteTracker(lambda: settings.writes.window_minutes, teams.checkouts)
     sessions.gone = writes.forget
+    sessions.launch_defaults = lambda runtime: settings.launch.of(runtime)  # read each time: settings change
     directory.writing = Writing(writes, lambda sid: r.name if (r := sessions.repo.get(sid)) else None).of
     team_tasks = TaskService(teams, directory, SqliteTaskRepository(db))
 
@@ -222,6 +223,7 @@ def create_app(
         directory, launcher, concierge, daemon_name, lambda: list(nodes.all()), teams, team_tasks, archiver,
         forward=hub.team_tool,
     )  # fmt: skip
+    mcp.session_tools.may_escalate = lambda: settings.launch.agents_may_escalate
     state = dict(
         settings=settings, daemon_name=daemon_name, tokens=tokens, origins=OriginPolicy(allowed_origins), bus=bus,
         sessions=sessions, monitor=monitor, directory=directory, remote_control=remote_control,

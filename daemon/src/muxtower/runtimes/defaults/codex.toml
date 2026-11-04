@@ -114,3 +114,27 @@ needs_answer = []
 
 [deny]
 send = [{ key = "Escape" }]
+
+# Permission modes a session can be started in, least to most permissive. Without one, Codex's own
+# config.toml decides. A headless Codex session follows `codex.sandbox` and `codex.approval_policy`.
+[[permission_modes]]
+id = "untrusted"
+label = "Ask for all but safe reads"
+args = ["--ask-for-approval", "untrusted"]
+
+[[permission_modes]]
+id = "on-request"
+label = "Ask when it wants to"
+args = ["--ask-for-approval", "on-request"]
+usual = true
+
+[[permission_modes]]
+id = "full-auto"
+label = "Sandboxed, never ask"
+args = ["--full-auto"]
+
+[[permission_modes]]
+id = "full-access"
+label = "Full access, no sandbox"
+args = ["--dangerously-bypass-approvals-and-sandbox"]
+dangerous = true

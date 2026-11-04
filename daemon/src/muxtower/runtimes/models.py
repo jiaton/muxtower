@@ -48,9 +48,17 @@ class PendingQuestion(BaseModel):
     options: list[QuestionOption]
 
 
+class ModeInfo(BaseModel):
+    id: str
+    label: str
+    dangerous: bool = False
+
+
 class RuntimeInfo(BaseModel):
     name: str
     binary: str
     available: bool
     has_hooks: bool
     headless: bool = False  # can also run without a terminal (Codex in muxtower's app-server)
+    permission_modes: list[ModeInfo] = Field(default_factory=list, description="least to most permissive")
+    default_mode: str = Field(default="agent", description='new sessions\' mode unless asked: "agent" adds none')
