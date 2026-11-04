@@ -9,6 +9,7 @@ from muxtower.errors import Conflict, Invalid, Unavailable
 from muxtower.mcp.tool import Tool
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.directory import SessionDirectory
+from muxtower.sessions.launch import agent_may_ask
 from muxtower.sessions.launcher import Launcher
 from muxtower.sessions.models import CreateSession, UpdateSession
 from muxtower.teams.service import TeamService
@@ -31,6 +32,11 @@ class StartArgs(BaseModel):
     )
     role: str | None = Field(default=None, description="its role in its team (free text)")
     project: str | None = Field(default=None, description="its project; default: worked out from its folder")
+    permission_mode: str | None = Field(
+        default=None,
+        description="one of the runtime's permission modes (list_runtimes… see the app); never above the owner's "
+        "default, nor one that asks nothing or has no sandbox; default: the owner's",
+    )
 
 
 class RenameArgs(BaseModel):
@@ -53,6 +59,7 @@ class SessionTools:
         self.machines = machines  # the names of the nodes joined to this hub
         self.teams = teams
         self.archiver = archiver
+        self.may_escalate: Callable[[], bool] = lambda: False  # `launch.agents_may_escalate`, set by the app
 
     def tools(self) -> list[Tool]:
         found = [
@@ -88,7 +95,16 @@ class SessionTools:
             if resume is None:
                 raise Invalid(f"{args.runtime} sessions cannot be resumed from here")
             agent_args = [*resume, args.resume, *agent_args]
-        request = CreateSession(runtime=args.runtime, cwd=args.cwd, name=args.name, args=agent_args, node=node)
+        if args.permission_mode:  # never above what the owner set up (`sessions/launch.py`)
+            local = self.directory.local
+            runtime = local.resolve_runtime(args.runtime)
+            agent_may_ask(
+                runtime.config, args.permission_mode, local.launch_defaults(runtime.name)[0], self.may_escalate()
+            )
+        request = CreateSession(
+            runtime=args.runtime, cwd=args.cwd, name=args.name, args=agent_args, node=node,
+            permission_mode=args.permission_mode,
+        )  # fmt: skip
         try:
             created = self.launcher.create(request)
             if args.name:  # a name an agent chose for a teammate: kept like a rename (`sessions/naming.py`)

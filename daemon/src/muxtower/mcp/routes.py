@@ -70,7 +70,9 @@ async def _call(tools: McpTools, params: dict[str, Any], caller: Caller, audit: 
         text, is_error = await asyncio.to_thread(tool.run, args), False
     except TOOL_ERRORS as exc:
         text, is_error = str(exc) or type(exc).__name__, True
-    await asyncio.to_thread(audit.record, caller.actor, f"mcp:{tool.name}", session_id, "error" if is_error else None)
+    mode = getattr(args, "permission_mode", None)  # the mode an agent started a session in is audited
+    detail = ", ".join(d for d in ("error" if is_error else None, f"mode={mode}" if mode else None) if d) or None
+    await asyncio.to_thread(audit.record, caller.actor, f"mcp:{tool.name}", session_id, detail)
     return {"content": [{"type": "text", "text": text}], "isError": is_error}
 
 

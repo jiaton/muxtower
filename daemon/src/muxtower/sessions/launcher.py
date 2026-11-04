@@ -6,7 +6,7 @@ import shutil
 from typing import Protocol
 
 from muxtower.errors import Conflict, Invalid
-from muxtower.runtimes.models import RuntimeInfo
+from muxtower.runtimes.models import ModeInfo, RuntimeInfo
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.models import CreateSession, Session
 from muxtower.sessions.ports import HeadlessStarter
@@ -35,6 +35,10 @@ class Launcher:
                 available=shutil.which(rt.config.binary) is not None,
                 has_hooks=rt.config.hooks is not None,
                 headless=rt.name in self.starters,
+                permission_modes=[
+                    ModeInfo(id=m.id, label=m.label, dangerous=m.dangerous) for m in rt.config.permission_modes
+                ],
+                default_mode=self.directory.local.launch_defaults(rt.name)[0],
             )  # fmt: skip
             for rt in self.directory.local.runtimes.values()
         ]

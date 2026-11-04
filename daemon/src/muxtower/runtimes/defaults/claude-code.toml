@@ -52,6 +52,13 @@ pattern = '\A(?=.*MCP\s+server).*Enter\s+to\s+confirm[^\n]*\Z'
 last_lines = 40
 
 [[rules]]
+# The first start in bypass mode asks to accept it: the owner's to answer, as a trust prompt.
+name = "bypass-mode-confirm"
+state = "needs_trust"
+pattern = '\A(?=.*Bypass\s+Permissions\s+mode).*Yes,\s+I\s+accept'
+last_lines = 30
+
+[[rules]]
 name = "workspace-trust"
 state = "needs_trust"
 pattern = '\A(?=.*trust\s+this\s+folder).*Enter\s+to\s+confirm[^\n]*\Z'
@@ -114,3 +121,32 @@ needs_answer = []
 
 [deny]
 send = [{ key = "Escape" }]
+
+# Permission modes a session can be started in, least to most permissive (`--permission-mode`). Without
+# one, Claude Code's own settings decide (`defaultMode` in ~/.claude/settings.json).
+[[permission_modes]]
+id = "plan"
+label = "Plan first"
+args = ["--permission-mode", "plan"]
+
+[[permission_modes]]
+id = "default"
+label = "Ask before acting"
+args = ["--permission-mode", "default"]
+usual = true
+
+[[permission_modes]]
+id = "acceptEdits"
+label = "Accept edits"
+args = ["--permission-mode", "acceptEdits"]
+
+[[permission_modes]]
+id = "auto"
+label = "Auto"
+args = ["--permission-mode", "auto"]
+
+[[permission_modes]]
+id = "bypassPermissions"
+label = "Bypass permissions"
+args = ["--permission-mode", "bypassPermissions"]
+dangerous = true

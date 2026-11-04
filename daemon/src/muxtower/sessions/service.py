@@ -17,6 +17,7 @@ from muxtower.hooks.ports import MCP_SERVER, MCP_TOKEN_ENV, HookLaunch
 from muxtower.runtimes.models import ATTENTION_STATES, AgentState
 from muxtower.runtimes.spec import Runtime
 from muxtower.sessions.interrupted import agent_id_of, launch_options
+from muxtower.sessions.launch import launch_args
 from muxtower.sessions.live import Effective, HookState, LiveSession, merge
 from muxtower.sessions.models import CreateSession, Session, UpdateSession
 from muxtower.sessions.ports import SessionRecord, SessionRepository, SessionSource
@@ -56,6 +57,8 @@ class SessionService:
         self.config = config
         self.live: dict[str, LiveSession] = {}
         self.gone: Callable[[str], None] = lambda _: None  # it ended or was interrupted (writes/)
+        # A runtime's default permission mode and arguments (`[launch]`), set by the app.
+        self.launch_defaults: Callable[[str], tuple[str, list[str]]] = lambda _: ("agent", [])
 
     # --- views ---------------------------------------------------------------------------------
 
@@ -118,7 +121,10 @@ class SessionService:
         cwd = os.path.abspath(os.path.expanduser(request.cwd))
         if not os.path.isdir(cwd):
             raise Invalid(f"not a directory: {cwd}")
-        return self.launch(runtime, cwd, request.args, request.name, hooks=True)
+        default_mode, default_args = self.launch_defaults(runtime.name)
+        mode = request.permission_mode or default_mode
+        args = launch_args(runtime.config, mode, default_args, request.args)
+        return self.launch(runtime, cwd, args, request.name, hooks=True)
 
     def launch(
         self, runtime: Runtime, cwd: str, args: Sequence[str], name: str | None, hooks: bool,

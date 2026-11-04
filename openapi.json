@@ -450,6 +450,18 @@
             "description": "start it on this node instead of here (GET /v1/nodes)",
             "title": "Node"
           },
+          "permission_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "one of its runtime's `permission_modes`, or \"agent\" (its own settings); null: the configured default (`launch.<runtime>_mode`)",
+            "title": "Permission Mode"
+          },
           "runtime": {
             "title": "Runtime",
             "type": "string"
@@ -1034,6 +1046,29 @@
         "title": "Me",
         "type": "object"
       },
+      "ModeInfo": {
+        "properties": {
+          "dangerous": {
+            "default": false,
+            "title": "Dangerous",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "ModeInfo",
+        "type": "object"
+      },
       "NextStepAction": {
         "properties": {
           "label": {
@@ -1545,6 +1580,12 @@
             "title": "Binary",
             "type": "string"
           },
+          "default_mode": {
+            "default": "agent",
+            "description": "new sessions' mode unless asked: \"agent\" adds none",
+            "title": "Default Mode",
+            "type": "string"
+          },
           "has_hooks": {
             "title": "Has Hooks",
             "type": "boolean"
@@ -1557,6 +1598,14 @@
           "name": {
             "title": "Name",
             "type": "string"
+          },
+          "permission_modes": {
+            "description": "least to most permissive",
+            "items": {
+              "$ref": "#/components/schemas/ModeInfo"
+            },
+            "title": "Permission Modes",
+            "type": "array"
           }
         },
         "required": [
@@ -1892,6 +1941,18 @@
               }
             ]
           },
+          "permission_mode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the permission mode it was started in, if one",
+            "title": "Permission Mode"
+          },
           "pinned": {
             "default": false,
             "description": "the owner pinned it: listed above the others",
@@ -2216,7 +2277,8 @@
               "choice",
               "bool",
               "number",
-              "text"
+              "text",
+              "args"
             ],
             "title": "Kind",
             "type": "string"

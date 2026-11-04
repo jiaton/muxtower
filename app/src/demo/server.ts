@@ -22,8 +22,25 @@ const ME: Me = {
   claude_login_expired: false,
 }
 const RUNTIMES: RuntimeInfo[] = [
-  { name: 'claude-code', binary: 'claude', available: true, has_hooks: true, headless: false },
-  { name: 'codex', binary: 'codex', available: true, has_hooks: true, headless: false },
+  {
+    name: 'claude-code', binary: 'claude', available: true, has_hooks: true, headless: false, default_mode: 'agent',
+    permission_modes: [
+      { id: 'plan', label: 'Plan first', dangerous: false },
+      { id: 'default', label: 'Ask before acting', dangerous: false },
+      { id: 'acceptEdits', label: 'Accept edits', dangerous: false },
+      { id: 'auto', label: 'Auto', dangerous: false },
+      { id: 'bypassPermissions', label: 'Bypass permissions', dangerous: true },
+    ],
+  }, // prettier-ignore
+  {
+    name: 'codex', binary: 'codex', available: true, has_hooks: true, headless: false, default_mode: 'agent',
+    permission_modes: [
+      { id: 'untrusted', label: 'Ask for all but safe reads', dangerous: false },
+      { id: 'on-request', label: 'Ask when it wants to', dangerous: false },
+      { id: 'full-auto', label: 'Sandboxed, never ask', dangerous: false },
+      { id: 'full-access', label: 'Full access, no sandbox', dangerous: true },
+    ],
+  }, // prettier-ignore
 ]
 const NODES: NodeInfo[] = [
   {

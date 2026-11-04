@@ -203,3 +203,10 @@ def test_only_the_error_a_turn_ended_on_is_an_error() -> None:
     idle = rt.classify(screens.ERROR_SCROLLED_UP)
     assert idle.state == AgentState.IDLE and idle.rule is None
     assert rt.classify(screens.LONG_IDLE.rsplit(">", 1)[0] + screens.API_ERROR).state == AgentState.ERROR
+
+
+def test_the_first_bypass_start_waits_for_the_owner_not_idle() -> None:
+    rt = load_runtimes(None)["claude-code"]
+    result = rt.classify(screens.BYPASS_CONFIRM)
+    assert (result.state, result.rule) == (AgentState.NEEDS_TRUST, "bypass-mode-confirm")
+    assert rt.choose_option(result.state, result.options) is not None  # approving accepts it

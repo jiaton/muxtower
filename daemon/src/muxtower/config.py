@@ -134,6 +134,22 @@ class ArchiveSettings(BaseModel):
     hide_after_days: int = Field(default=30, ge=0)  # no longer listed after this (kept); 0: always listed
 
 
+class LaunchSettings(BaseModel):
+    """`[launch]`: how new sessions start, per runtime (`sessions/launch.py`). A mode is one of the runtime's
+    `permission_modes` ids, or "agent": nothing added, the agent's own settings decide."""
+
+    claude_code_mode: str = "agent"
+    claude_code_args: list[str] = Field(default_factory=list)
+    codex_mode: str = "agent"
+    codex_args: list[str] = Field(default_factory=list)
+    agents_may_escalate: bool = False  # an agent's start_session may ask for more than the default mode
+
+    def of(self, runtime: str) -> tuple[str, list[str]]:
+        """(default mode, default arguments) for a runtime (none for one this table does not name)."""
+        key = runtime.replace("-", "_")
+        return str(getattr(self, f"{key}_mode", "agent")), list(getattr(self, f"{key}_args", []))
+
+
 class WritesSettings(BaseModel):
     """`[writes]`: telling two sessions apart that write in one worktree at once (`writes/`)."""
 
@@ -178,6 +194,7 @@ class Settings(BaseModel):
     recovery: RecoverySettings = Field(default_factory=RecoverySettings)
     archive: ArchiveSettings = Field(default_factory=ArchiveSettings)
     writes: WritesSettings = Field(default_factory=WritesSettings)
+    launch: LaunchSettings = Field(default_factory=LaunchSettings)
     hub: HubSettings = Field(default_factory=HubSettings)
     # What the config file, the environment or an override set (dotted keys): the settings page shows
     # those as set there, and does not change them.

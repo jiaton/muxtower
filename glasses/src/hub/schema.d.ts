@@ -1038,6 +1038,11 @@ export interface components {
              * @description start it on this node instead of here (GET /v1/nodes)
              */
             node?: string | null;
+            /**
+             * Permission Mode
+             * @description one of its runtime's `permission_modes`, or "agent" (its own settings); null: the configured default (`launch.<runtime>_mode`)
+             */
+            permission_mode?: string | null;
             /** Runtime */
             runtime: string;
         };
@@ -1307,6 +1312,18 @@ export interface components {
             /** Token Name */
             token_name: string;
         };
+        /** ModeInfo */
+        ModeInfo: {
+            /**
+             * Dangerous
+             * @default false
+             */
+            dangerous: boolean;
+            /** Id */
+            id: string;
+            /** Label */
+            label: string;
+        };
         /** NextStepAction */
         NextStepAction: {
             /** Label */
@@ -1547,6 +1564,12 @@ export interface components {
             available: boolean;
             /** Binary */
             binary: string;
+            /**
+             * Default Mode
+             * @description new sessions' mode unless asked: "agent" adds none
+             * @default agent
+             */
+            default_mode: string;
             /** Has Hooks */
             has_hooks: boolean;
             /**
@@ -1556,6 +1579,11 @@ export interface components {
             headless: boolean;
             /** Name */
             name: string;
+            /**
+             * Permission Modes
+             * @description least to most permissive
+             */
+            permission_modes?: components["schemas"]["ModeInfo"][];
         };
         /** Screen */
         Screen: {
@@ -1709,6 +1737,11 @@ export interface components {
             origin?: string | null;
             pending: components["schemas"]["PendingAction"] | null;
             /**
+             * Permission Mode
+             * @description the permission mode it was started in, if one
+             */
+            permission_mode?: string | null;
+            /**
              * Pinned
              * @description the owner pinned it: listed above the others
              * @default false
@@ -1851,7 +1884,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "choice" | "bool" | "number" | "text";
+            kind: "choice" | "bool" | "number" | "text" | "args";
             /** Label */
             label: string;
             /**

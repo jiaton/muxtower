@@ -68,6 +68,16 @@ class DenyConfig(BaseModel):
     send: list[Step] = Field(default_factory=lambda: [Step(key="Escape")])
 
 
+class PermissionMode(BaseModel):
+    """A way to start the agent with more or less asked of the owner: what it adds to the command line."""
+
+    id: str
+    label: str
+    args: list[str]
+    dangerous: bool = False  # nothing asked, or nothing sandboxed: warned about, never an agent's to pick
+    usual: bool = False  # what the agent does when its own settings say nothing (its place in the order)
+
+
 class RuntimeConfig(BaseModel):
     name: str
     binary: str
@@ -96,6 +106,8 @@ class RuntimeConfig(BaseModel):
     menu: MenuConfig = Field(default_factory=MenuConfig)
     approve: ApproveConfig = Field(default_factory=ApproveConfig)
     deny: DenyConfig = Field(default_factory=DenyConfig)
+    # The permission modes it can be started in, least to most permissive (`sessions/launch.py`).
+    permission_modes: list[PermissionMode] = Field(default_factory=list)
 
 
 @dataclass

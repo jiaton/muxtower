@@ -7,6 +7,7 @@ to a `now` setting is also put into the running daemon at once (the services rea
 a `restart` setting waits for the next start and says so (`pending`)."""
 
 import json
+import shlex
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -27,7 +28,7 @@ class SettingView(BaseModel):
     section: str
     label: str
     help: str
-    kind: Literal["choice", "bool", "number", "text"]
+    kind: Literal["choice", "bool", "number", "text", "args"]
     choices: list[str]
     value: Any = Field(description="what applies: once the daemon restarts, where `pending`")
     default: Any
@@ -78,6 +79,11 @@ class SettingsService:
                 raise Conflict(f"{key} is set in the config file; change it there")
             if BY_KEY[key].kind == "text" and isinstance(value, str) and not value.strip():
                 value = None  # an empty box: its default
+            if BY_KEY[key].kind == "args" and isinstance(value, str):
+                try:
+                    value = shlex.split(value) or None  # as a shell would split it; empty: the default
+                except ValueError as exc:
+                    raise Invalid(f"{key}: {exc}") from exc
             checked[key] = None if value is None else self._valid(key, value)
         now = datetime.now(UTC).isoformat()
         with self.db.connect() as conn:
