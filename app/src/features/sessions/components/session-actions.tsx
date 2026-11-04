@@ -4,12 +4,12 @@ import { useState, type ReactNode } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import type { Session } from '@/lib/api/types'
-import { useArchiveSession, useTerminateSession, useUpdateSession } from '../api/use-session-mutations'
+import { useArchiveSession, useTerminateSession } from '../api/use-session-mutations'
 import { useHideSession, useMarkRead, usePinSession } from '../api/use-session-marks'
 import { useRecoverSessions } from '../api/use-recovery'
 import { PlaceDialog } from './place-dialog'
+import { RenameDialog } from './rename-dialog'
 import { TeamDialog } from './team-dialog'
 
 export interface SessionAction {
@@ -95,30 +95,6 @@ export function SessionActions({
         <DeleteDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} onDone={leaving(() => {})} />
       ) : null}
     </>
-  )
-}
-
-function RenameDialog({ daemonId, session, onClose }: { daemonId: string; session: Session; onClose: () => void }) {
-  const update = useUpdateSession(daemonId, session.id)
-  const [name, setName] = useState(session.name)
-  return (
-    <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent title="Rename session">
-        <form
-          className="flex flex-col gap-3"
-          onSubmit={(e) => {
-            e.preventDefault()
-            update.mutate({ name: name.trim() }, { onSuccess: onClose })
-          }}
-        >
-          <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} required aria-label="Session name" autoFocus />
-          {update.error ? <Banner tone="error">{update.error.message}</Banner> : null}
-          <Button type="submit" disabled={update.isPending}>
-            Save
-          </Button>
-        </form>
-      </DialogContent>
-    </Dialog>
   )
 }
 

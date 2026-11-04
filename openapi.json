@@ -1611,6 +1611,18 @@
             "description": "the account its agent runs as, as far as known (an email, or \"API key\")",
             "title": "Account"
           },
+          "agent_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the name its agent gives it (Claude Code's title), offered when renaming",
+            "title": "Agent Name"
+          },
           "also_writing": {
             "description": "other running sessions here that wrote files in the same worktree within the last minutes (file-editing tools only, not Bash): a hint, nothing is held back",
             "items": {

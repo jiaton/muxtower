@@ -27,6 +27,7 @@ def merged(local: Session, remote: Session, named: bool = False) -> Session:
         update={
             "pending": with_detail(local, remote),
             "name": local.name if named else remote.name,
+            "agent_name": remote.name,
             "origin": remote.origin,
             "summary": remote.summary,
             "unread": remote.unread,
