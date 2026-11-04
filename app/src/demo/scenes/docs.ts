@@ -3,6 +3,23 @@ import { HOME, ago, demoSession } from './session'
 import { talk } from './talk'
 import { codexAnswered, codexDid, codexInput, codexSaid, codexWelcome, codexWorking } from './terminal'
 
+/** What it did before this turn, as Codex drew it. */
+const EARLIER = [
+  ...codexSaid('Read the CLI and the docs, and list what the docs are missing.'),
+  ...codexDid('Explored', 'Read README.md, docs/api.md, docs/configuration.md', 'List src/cli'),
+  ...codexDid('Ran ls docs', 'api.md  configuration.md  deploy.md'),
+  ...codexAnswered(
+    'The docs cover the API, configuration and deploying, but nothing takes a new user from installing to a first run. Also, three links in docs/configuration.md point at files that moved.',
+  ),
+  ...codexSaid('Fix those links first.'),
+  ...codexDid('Ran grep -n "](" docs/configuration.md', '12:  [deploy](../deploy.md)', '…  +13 lines'),
+  ...codexDid('Edited docs/configuration.md (+3 -3)'),
+  ...codexDid('Ran npx markdown-link-check docs/*.md', '41 links checked, 0 broken'),
+  ...codexAnswered('Fixed: the three links now point at docs/deploy.md and docs/api.md. All 41 links in docs/ resolve.'),
+  ...codexSaid('Write the getting started guide for the CLI.'),
+  ...codexDid('Explored', 'Read docs/api.md', 'Search "def main" in src/cli'),
+]
+
 const DONE = 'Wrote docs/getting-started.md: install, first run, and the three commands most people need, each with its output.'
 
 /** Codex at work in a tmux pane muxtower found on its own: the reader watches it get there. */
@@ -35,7 +52,7 @@ export function docs(): Scene {
       created_at: ago(25),
       updated_at: ago(0.1),
     }),
-    history: [...codexWelcome('~/code/shop-api-docs'), ...codexSaid('Write the getting started guide for the CLI.')],
+    history: [...codexWelcome('~/code/shop-api-docs'), ...EARLIER],
     footer: [...codexWorking(4), ...codexInput],
     items: [],
     start: [

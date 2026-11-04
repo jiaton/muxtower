@@ -10,7 +10,7 @@ describe('Controls', () => {
   it('names the current beat and says it in one sentence', () => {
     render(<Controls player={player(BEATS[2].start)} />)
     expect(screen.getByRole('button', { name: BEATS[2].title })).toHaveAttribute('aria-current', 'step')
-    expect(screen.getByText(/Reply to the exact message/)).toBeInTheDocument()
+    expect(screen.getByText(/Select the line you are answering/)).toBeInTheDocument()
   })
 
   it('plays, pauses, restarts and jumps', async () => {

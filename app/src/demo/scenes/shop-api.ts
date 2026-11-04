@@ -1,12 +1,47 @@
 import type { Scene, Step } from '../world'
-import { HOME, ago, demoSession, prompt, reply, tool } from './session'
+import { HOME, ago, demoSession, reply, tool } from './session'
 import { talk } from './talk'
-import { answered, bold, call, claudeInput, claudeWelcome, gray, green, permission, ran, red, said, working } from './terminal'
+import { answered, bold, call, claudeInput, claudeWelcome, gray, green, permission, red, working } from './terminal'
+import { bash, edit, grep, read, says, transcript, you } from './transcript'
 
 const COMMAND = 'npm test -- payments'
 const OPTIONS = ['Yes', "Yes, and don't ask again for npm test commands", 'No, and tell Claude what to do differently']
 const DONE =
   'All 42 payment tests pass. A charge now retries up to 3 times with backoff (200, 400, 800 ms), and the idempotency key keeps a retried charge from being taken twice.'
+
+const TASK = 'Add retries with backoff to the payment client, then run its tests.'
+
+/** What it did before: a refund fix, committed, then the task it is on. */
+const EARLIER = transcript('claude', [
+  you('Refunds count tax twice when only part of an order is refunded. Find out why and fix it.', 62),
+  grep('taxAmount', 4),
+  read('src/payments/refunds.ts', 142),
+  read('src/orders/totals.ts', 88),
+  says(
+    'Found it: a partial refund takes the tax of the refunded lines, then adds the order-level tax on top (refunds.ts, line 57). I will take tax only from the refunded lines and add tests for one, some and all lines refunded.',
+  ),
+  edit('src/payments/refunds.ts', 6, 9),
+  edit('src/payments/refunds.test.ts', 31),
+  bash('npm test -- refunds', 'Run the refund tests', 'PASS src/payments/refunds.test.ts', 'Tests: 18 passed, 18 total'),
+  bash('git diff --stat', 'Show what changed', '2 files changed, 37 insertions(+), 9 deletions(-)'),
+  says('All 18 refund tests pass, 3 of them new. Shall I commit it?'),
+  you('Yes, commit it.', 41),
+  bash(
+    'git commit -am "Refunds: count tax once"',
+    'Commit the fix',
+    '[main 4f2a91c] Refunds: count tax once',
+    '2 files changed, 37 insertions(+), 9 deletions(-)',
+  ),
+  says('Committed as 4f2a91c on main.'),
+  you(TASK, 5),
+  read('src/payments/client.ts', 96),
+  grep('idempotencyKey', 2),
+  says("I'll wrap the charge call in a retry with backoff, keyed so a retry can't charge twice."),
+  edit('src/payments/client.ts', 14),
+  edit('src/payments/client.test.ts', 48),
+])
+/** The test run it asks to make, then its answer. */
+const RUN = EARLIER.next
 
 /** The approval story: Claude Code wants to run the tests and waits for a yes. */
 export function shopApi(): Scene {
@@ -26,7 +61,7 @@ export function shopApi(): Scene {
         gray('     Tests: 42 passed, 42 total'),
       ],
       footer: [...working('Running', 3), ...claudeInput],
-      items: [tool(4, { tool_name: 'Bash', text: COMMAND, description: 'Run the payment tests', status: 'done' })],
+      items: [tool(RUN, { tool_name: 'Bash', text: COMMAND, description: 'Run the payment tests', status: 'done' })],
     },
     { after: 1200, footer: [...working('Thinking', 5), ...claudeInput] },
     {
@@ -34,7 +69,7 @@ export function shopApi(): Scene {
       add: answered(DONE),
       footer: claudeInput,
       session: { state: 'idle', unread: true, last_message: DONE, finished_at: new Date().toISOString() },
-      items: [reply(5, { text: DONE })],
+      items: [reply(RUN + 1, { text: DONE })],
     },
   ]
   const declined = (): Step[] => [
@@ -43,7 +78,7 @@ export function shopApi(): Scene {
       session: { state: 'idle', pending: null, last_message: 'Not run. What should I do instead?' },
       add: [...call(`Bash(${COMMAND})`, red), gray('  ⎿  Not run'), ...answered('Not run. What should I do instead?')],
       footer: claudeInput,
-      items: [tool(4, { tool_name: 'Bash', text: COMMAND, description: 'Run the payment tests', status: 'cancelled' })],
+      items: [tool(RUN, { tool_name: 'Bash', text: COMMAND, description: 'Run the payment tests', status: 'cancelled' })],
     },
   ]
   return {
@@ -66,28 +101,18 @@ export function shopApi(): Scene {
       team_note: 'Implements what research agreed on',
       git: { repo: `${HOME}/code/shop-api`, worktree: `${HOME}/code/shop-api`, branch: 'main', remote: 'acme/shop-api' },
     }),
-    history: [
-      ...claudeWelcome(`~/code/shop-api`),
-      ...said('Add retries with backoff to the payment client, then run its tests.'),
-      ...answered("I'll wrap the charge call in a retry with backoff, keyed so a retry can't charge twice."),
-      ...ran('Update(src/payments/client.ts)', 'Added 14 lines to src/payments/client.ts'),
-    ],
+    history: [...claudeWelcome(`~/code/shop-api`), ...EARLIER.history],
     footer: permission(COMMAND, 'Run the payment tests', OPTIONS),
-    items: [
-      prompt(1, { text: 'Add retries with backoff to the payment client, then run its tests.', at: ago(4) }),
-      reply(2, { text: "I'll wrap the charge call in a retry with backoff, keyed so a retry can't charge twice." }),
-      tool(3, { tool_name: 'Edit', text: 'src/payments/client.ts', status: 'done' }),
-      tool(4, { tool_name: 'Bash', text: COMMAND, description: 'Run the payment tests', status: 'running' }),
-    ],
+    items: [...EARLIER.items, tool(RUN, { tool_name: 'Bash', text: COMMAND, description: 'Run the payment tests', status: 'running' })],
     tasks: [
       {
         id: 1, at: ago(5), from_id: 'release-notes', from_label: 'Release notes for 2.4 (research) · release-notes',
-        to_id: 'shop-api', text: 'Add retries with backoff to the payment client, then run its tests.', status: 'delivered',
+        to_id: 'shop-api', text: TASK, status: 'delivered',
         delivered_at: ago(5),
       },
     ], // prettier-ignore
     approve: (option) => (option === '3' ? declined() : approved()),
     deny: declined,
-    reply: talk('claude', 10),
+    reply: talk('claude', RUN + 10),
   }
 }

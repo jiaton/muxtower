@@ -1,20 +1,21 @@
 import type { ConversationItem, PendingAction, ServerFrame, Session, TeamTask } from '@/lib/api/types'
+import { type Line, WIDTH, render } from './scenes/terminal'
 
 /** One moment of a scripted story: after `after` ms, the session changes, the screen gains lines (and a
  *  new footer: the prompt box, a dialog, a spinner) and the conversation gains or updates items. */
 export interface Step {
   after: number
   session?: Partial<Session>
-  add?: string[]
-  footer?: string[]
+  add?: Line[]
+  footer?: Line[]
   items?: ConversationItem[]
 }
 
 /** A simulated session: what it starts as, and how it answers what the reader does. */
 export interface Scene {
   session: Session
-  history: string[]
-  footer: string[]
+  history: Line[]
+  footer: Line[]
   items: ConversationItem[]
   /** Played as soon as the demo opens: an agent already at work. */
   start?: Step[]
@@ -29,7 +30,10 @@ type Listener = (frame: ServerFrame) => void
 type Schedule = (run: () => void, ms: number) => void
 
 const ATTENTION = new Set(['needs_permission', 'needs_answer', 'needs_trust', 'plan_review', 'error'])
-const SCREEN_LINES = 80
+const SCREEN_LINES = 600
+/** The widths a pane can be sized to here: what a phone or a wide window asks for, within reason. */
+const MIN_COLS = 24
+const MAX_COLS = 160
 
 /**
  * The demo daemon's state: the sessions, their screens and conversations. Changes go out as the same
@@ -38,6 +42,8 @@ const SCREEN_LINES = 80
 export class World {
   private readonly scenes = new Map<string, Scene>()
   private readonly listeners = new Set<Listener>()
+  /** Each pane's width, once a screen sized it (`WIDTH` until then). */
+  private readonly widths = new Map<string, number>()
   private readonly schedule: Schedule
 
   constructor(scenes: Scene[], schedule: Schedule = (run, ms) => void setTimeout(run, ms)) {
@@ -64,7 +70,21 @@ export class World {
   screen(id: string): string | null {
     const scene = this.scenes.get(id)
     if (!scene?.session.capabilities.screen) return null
-    return [...scene.history, '', ...scene.footer].slice(-SCREEN_LINES).join('\n')
+    const width = this.widths.get(id) ?? WIDTH
+    return render([...scene.history, '', ...scene.footer], width)
+      .slice(-SCREEN_LINES)
+      .join('\n')
+  }
+
+  /** Sizes the session's pane to `cols` (null: back to the default), and the agent redraws at that width.
+   *  False for a session without a pane. */
+  resize(id: string, cols: number | null): boolean {
+    if (!this.scenes.get(id)?.session.capabilities.screen) return false
+    const width = cols === null ? WIDTH : Math.max(MIN_COLS, Math.min(MAX_COLS, Math.floor(cols)))
+    if (width === (this.widths.get(id) ?? WIDTH)) return true
+    this.widths.set(id, width)
+    this.emit({ type: 'screen', session_id: id, ansi: this.screen(id) ?? '' })
+    return true
   }
 
   items(id: string): ConversationItem[] {

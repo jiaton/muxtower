@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEVICES, deviceName, initialWorld, sessionById } from './world'
+import { DEVICES, deviceName, initialWorld, metaOf, sessionById } from './world'
 
 describe('the demo world', () => {
   it('has five machines, one of them the hub', () => {
@@ -19,10 +19,14 @@ describe('the demo world', () => {
   it('runs Claude Code and Codex, and lists sessions from tmux, Claude desktop and the Codex app', () => {
     const { sessions } = initialWorld()
     expect(new Set(sessions.map((s) => s.agent))).toEqual(new Set(['claude', 'codex']))
-    expect(new Set(sessions.map((s) => s.source))).toEqual(new Set(['tmux', 'desktop', 'codex-app']))
+    expect(new Set(sessions.map((s) => s.source))).toEqual(new Set(['muxtower', 'tmux', 'Desktop app']))
   })
 
   it('names machines', () => {
     expect(deviceName('mac')).toBe('macbook')
+  })
+
+  it('writes a session’s line as the app does', () => {
+    expect(metaOf(sessionById(initialWorld(), 'api')!)).toBe('vps · api · tmux')
   })
 })

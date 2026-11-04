@@ -12,23 +12,23 @@ describe('frameAt', () => {
   })
 
   it('is a pure function of the time, so seeking back undoes what happened', () => {
-    const later = frameAt(20000)
-    expect(sessionById(later.world, 'worker')?.task).toBe('from research')
-    expect(sessionById(frameAt(1000).world, 'worker')?.task).toBeUndefined()
-    expect(frameAt(20000)).toEqual(later)
+    const later = frameAt(22000)
+    expect(sessionById(later.world, 'worker')?.state).toBe('working')
+    expect(sessionById(frameAt(1000).world, 'worker')?.state).toBe('idle')
+    expect(frameAt(22000)).toEqual(later)
   })
 
   it('types the reply a character at a time', () => {
-    const start = frameAt(12200).world.phone.draft
-    const end = frameAt(13700).world.phone.draft
+    const start = frameAt(11800).world.phone.draft
+    const end = frameAt(12600).world.phone.draft
     expect(start.length).toBeGreaterThan(0)
     expect(end.startsWith(start)).toBe(true)
     expect(end.length).toBeGreaterThan(start.length)
   })
 
   it('lets a highlight fade after a while', () => {
-    expect(frameAt(5300).world.flash).toBe('row-api')
-    expect(frameAt(5200 + FLASH_MS + 100).world.flash).toBeNull()
+    expect(frameAt(4300).world.flash).toBe('row-api')
+    expect(frameAt(4200 + FLASH_MS + 100).world.flash).toBeNull()
   })
 
   it('clamps outside the demo and ends on the hub map', () => {
@@ -39,7 +39,12 @@ describe('frameAt', () => {
   })
 
   it('remembers the last click for the ripple', () => {
-    expect(frameAt(7400).clickAt).toBe(7300)
+    expect(frameAt(6500).clickAt).toBe(6400)
+  })
+
+  it('says where to look', () => {
+    expect(frameAt(4300).focus?.note).toBe('A push from the VPS')
+    expect(frameAt(37000).focus).toBeNull()
   })
 })
 

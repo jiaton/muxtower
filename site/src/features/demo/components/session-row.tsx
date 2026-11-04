@@ -1,9 +1,8 @@
-import { CornerDownRight, ListTodo, MessageSquareDashed } from 'lucide-react'
+import { CornerDownRight, MessageSquareText } from 'lucide-react'
 import { motion } from 'motion/react'
-import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
-import { deviceName, type Session } from '../model/world'
-import { AgentMark, SOURCE_LABEL, StateMark } from './marks'
+import { metaOf, type Session } from '../model/world'
+import { AgentMark, StateMark } from './marks'
 
 interface Props {
   session: Session
@@ -14,63 +13,50 @@ interface Props {
   compact?: boolean
 }
 
-/** One session in a list: state, name, where it runs, what it said last. A fork or side chat sits
- *  under its parent, indented. */
+const enter = { initial: { opacity: 0, y: -6 }, animate: { opacity: 1, y: 0 } }
+
+/** One session in a list, as the app lists it: state, name, role · machine · repository · source, and
+ *  what it said last. A fork sits under its parent, indented; a side chat folds into one line. */
 export function SessionRow({ session, target, flash, selected, compact }: Props) {
-  const child = Boolean(session.parent)
-  if (session.sideChat) return <SideChatLine session={session} target={target} flash={flash} />
-  const meta = [session.role, deviceName(session.device), session.project.split('/')[1], SOURCE_LABEL[session.source]]
+  if (session.sideChat) return <SideChatLine target={target} flash={flash} unread={session.state === 'unread'} />
   return (
     <motion.div
-      initial={{ opacity: 0, y: -6 }}
-      animate={{ opacity: 1, y: 0 }}
+      {...enter}
       data-demo={target}
       className={cn(
-        'relative flex gap-2.5 border-b border-border px-3 transition-colors duration-500',
-        'py-2',
-        child && 'pl-8',
+        'relative flex gap-2.5 border-b border-border px-3 py-2 transition-colors duration-500',
+        session.parent && 'pl-8',
         selected && 'bg-muted',
         flash && 'bg-state-busy-soft',
       )}
     >
-      {child && <CornerDownRight className="absolute top-3 left-3 size-3.5 text-fg-muted" />}
+      {session.parent && <CornerDownRight className="absolute top-2.5 left-3 size-3.5 text-fg-muted" />}
       <StateMark state={session.state} className="mt-0.5" />
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className={cn('truncate text-sm', session.state === 'unread' ? 'font-semibold' : 'font-medium')}>{session.title}</span>
-          {session.parent && <Badge variant="outline">fork</Badge>}
-        </div>
+        <p className={cn('truncate text-sm', session.state === 'unread' ? 'font-semibold' : 'font-medium')}>{session.name}</p>
         <p className="flex items-center gap-1 truncate text-xs text-fg-muted">
           <AgentMark agent={session.agent} />
-          {meta.filter(Boolean).join(' · ')}
+          {metaOf(session)}
         </p>
-        {!compact && <p className="mt-0.5 truncate text-xs text-fg">{session.last}</p>}
-        {session.task && (
-          <p className="mt-1 flex items-center gap-1 text-xs text-accent">
-            <ListTodo className="size-3" />
-            task {session.task}
-          </p>
-        )}
+        {!compact && <p className="mt-0.5 truncate text-xs">{session.last}</p>}
       </div>
     </motion.div>
   )
 }
 
-/** Side chats fold into one line under their parent ("1 side chat"), as the app lists them. */
-function SideChatLine({ session, target, flash }: Pick<Props, 'session' | 'target' | 'flash'>) {
+/** Side chats fold into one line under their parent ("1 side chat · 1 unread"), as the app lists them. */
+function SideChatLine({ target, flash, unread }: { target: string; flash: boolean; unread: boolean }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: -6 }}
-      animate={{ opacity: 1, y: 0 }}
+      {...enter}
       data-demo={target}
       className={cn(
-        'flex items-center gap-2 border-b border-border py-1.5 pr-3 pl-8 text-xs text-fg-muted transition-colors duration-500',
+        'flex items-center gap-1.5 border-b border-border py-1.5 pr-3 pl-9 text-xs text-fg-muted transition-colors duration-500',
         flash && 'bg-state-busy-soft',
       )}
     >
-      <MessageSquareDashed className="size-3.5 shrink-0" />
-      <span className="shrink-0">1 side chat</span>
-      <span className="truncate text-fg">· {session.title}</span>
+      <MessageSquareText className="size-3.5 shrink-0" />1 side chat
+      {unread && <span className="font-medium text-accent">· 1 unread</span>}
     </motion.div>
   )
 }

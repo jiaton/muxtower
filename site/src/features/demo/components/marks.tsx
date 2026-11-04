@@ -1,6 +1,6 @@
 import { Asterisk, Circle, CircleCheck, Hexagon, LoaderCircle, ShieldAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { Agent, SessionState, Source } from '../model/world'
+import type { Agent, SessionState } from '../model/world'
 
 const STATE = {
   working: { icon: LoaderCircle, label: 'Working', className: 'animate-spin text-state-busy' },
@@ -22,5 +22,3 @@ export function AgentMark({ agent, className }: { agent: Agent; className?: stri
   const Icon = agent === 'claude' ? Asterisk : Hexagon
   return <Icon role="img" aria-label={agent === 'claude' ? 'Claude Code' : 'Codex'} className={cn('size-3 shrink-0', className)} />
 }
-
-export const SOURCE_LABEL: Record<Source, string> = { tmux: 'tmux', desktop: 'Claude desktop', 'codex-app': 'Codex app' }

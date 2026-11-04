@@ -14,13 +14,13 @@ describe('lists', () => {
     sessionById(world, 'fork')!.hidden = false
     sessionById(world, 'side')!.hidden = false
     const mac = groupsByDevice(world).find((g) => g.device.id === 'mac')!
-    expect(mac.sessions.map((s) => s.id)).toEqual(['research', 'fork', 'side'])
+    expect(mac.sessions.map((s) => s.id)).toEqual(['research', 'notes', 'fork', 'side'])
   })
 
   it('counts what needs the owner', () => {
     const world = initialWorld()
     sessionById(world, 'worker')!.state = 'permission'
-    expect(counts(world)).toMatchObject({ all: 5, needs: 1, working: 2 })
+    expect(counts(world)).toMatchObject({ all: 6, needs: 1, working: 2 })
     expect(sessionsOn(world, 'vps').map((s) => s.id)).toEqual(['api'])
   })
 })

@@ -16,6 +16,8 @@ const buttonVariants = cva(
         secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
         ghost: 'hover:bg-muted hover:text-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
+        // The option muxtower recommends, as the app draws it.
+        success: 'bg-success text-success-fg hover:bg-success-hover',
         // A step of a sequence (the demo's beats): text over a progress bar, the current one bright.
         step: 'flex-col items-stretch rounded-sm text-left text-muted-foreground hover:text-foreground aria-[current=step]:text-foreground',
       },

@@ -3,11 +3,13 @@ import { useMemo, useRef } from 'react'
 import { cn } from '@/lib/utils'
 import { frameAt } from '../model/player'
 import { useWidth } from '../hooks/use-width'
+import { useTargetBox } from '../hooks/use-target-box'
 import { Cursor } from './cursor'
 import { DesktopWindow } from './desktop-window'
 import { HubMap } from './hub-map'
 import { MachineStrip } from './machine-strip'
 import { Phone } from './phone'
+import { Spotlight } from './spotlight'
 
 /** The stage is drawn at one fixed size per layout and scaled to fit: what the cursor points at stays
  *  where the script expects it, at any width. */
@@ -19,6 +21,8 @@ const LAYOUTS = {
 const WIDE_FROM = 720
 /** The frame is recomputed this often, not on every animation frame. */
 const STEP_MS = 40
+/** How often the cursor's and the spotlight's targets are measured again. */
+const REMEASURE_MS = 200
 
 export function Stage({ t, className }: { t: number; className?: string }) {
   const container = useRef<HTMLDivElement>(null)
@@ -30,9 +34,22 @@ export function Stage({ t, className }: { t: number; className?: string }) {
   const tick = Math.floor(t / STEP_MS)
   const frame = useMemo(() => frameAt(tick * STEP_MS), [tick])
   const { world } = frame
-  const target = frame.cursor?.[layout] ?? null
   const pressed = frame.clickAt !== null && frame.t - frame.clickAt < 280
-  const revision = `${layout}|${target}|${world.phone.screen}|${world.sessions.filter((s) => !s.hidden).length}|${world.phone.quote}`
+  // Anything that moves what the cursor or the spotlight point at, and a few times a second besides:
+  // a screen that animates in (the phone's) is in place only after its entrance.
+  const revision = [
+    Math.floor(t / REMEASURE_MS),
+    layout,
+    world.open,
+    world.phone.screen,
+    world.phone.session,
+    world.phone.quote,
+    world.phone.selection?.text,
+    world.sessions.filter((s) => !s.hidden).length,
+    Object.values(world.messages).reduce((n, list) => n + list.length, 0),
+  ].join('|')
+  const cursor = useTargetBox(stage, frame.cursor?.[layout] ?? null, scale, revision)
+  const focus = useTargetBox(stage, frame.focus?.[layout] ?? null, scale, revision)
 
   return (
     <div
@@ -42,7 +59,7 @@ export function Stage({ t, className }: { t: number; className?: string }) {
     >
       <div
         ref={stage}
-        className="absolute top-0 left-0 origin-top-left"
+        className="absolute top-0 left-0 origin-top-left overflow-hidden"
         style={{ width: size.width, height: size.height, transform: `scale(${scale || 1})` }}
       >
         {layout === 'wide' ? (
@@ -57,7 +74,8 @@ export function Stage({ t, className }: { t: number; className?: string }) {
           </>
         )}
         <AnimatePresence>{world.map && <HubMap key="map" world={world} />}</AnimatePresence>
-        <Cursor stage={stage} target={target} scale={scale} revision={revision} pressed={pressed} />
+        <Spotlight box={focus} note={frame.focus?.note} />
+        <Cursor box={cursor} pressed={pressed} />
       </div>
     </div>
   )

@@ -54,7 +54,7 @@ No cross-feature imports. Split a file before 250 lines.
 ## Styling — token discipline
 
 - Colors, type scale and radii come from the app (`../app/src/styles/tokens.css`, imported by `src/styles/site.css`). `site.css` maps shadcn's names onto them and adds what only the site needs: the phone's and window's radii and shadows, the cursor, the glow, the hero's type size.
-- The page is dark only: `index.html` sets `data-theme="dark"`.
+- The page is light only: `index.html` sets `data-theme="light"`. Terminal transcripts keep the app's dark terminal colors.
 - Enforced by `scripts/check-tokens.mjs` (part of `npm run lint`). It forbids raw hex and color functions and Tailwind palette classes outside `site.css`, and arbitrary visual values (`text-[…]`, `rounded-[…]`, …) outside `components/ui/`. Layout utilities, including arbitrary sizes and positions on the demo's fixed stage, are not covered.
 
 ## Component decoupling
