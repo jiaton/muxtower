@@ -31,7 +31,8 @@ export function align(prev: string[], next: string[]): Alignment {
 }
 
 /** Whether a line of HTML shows nothing but spaces: tags skipped, stopping at the first character shown
- *  (a full line of output is told at once, without copying it). */
+ *  (a full line of output is told at once, without copying it). An entity (`&amp;`, `&lt;`…: what
+ *  `lib/ansi.ts` escapes) shows a character. */
 function blank(html: string): boolean {
   for (let i = 0; i < html.length; i++) {
     const c = html.charCodeAt(i)
@@ -39,10 +40,6 @@ function blank(html: string): boolean {
       const end = html.indexOf('>', i) // '<': a tag, shows nothing
       if (end < 0) return false
       i = end
-    } else if (c === 38) {
-      if (html.startsWith('&nbsp;', i)) i += 5
-      else if (html.startsWith('&#160;', i)) i += 5
-      else return false // another entity shows a character
     } else if (c !== 32 && c !== 9 && c !== 10 && c !== 13 && c !== 160) return false
   }
   return true
