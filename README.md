@@ -103,7 +103,14 @@ Claude sessions started outside tmux (the desktop app, an IDE, `claude remote-co
 - *Cloudflare Workers*: fork this repository, then in the Cloudflare dashboard **Workers & Pages → Create → Import a repository**, root directory `app`, build command `npm run build`, deploy command `npx wrangler deploy`.
 - *GitHub Pages*: fork, set **Settings → Pages → Source** to *GitHub Actions*, add the repository variable `DEPLOY_PAGES=true`, and run the `pages` workflow.
 
-Daemons accept requests from any origin by default. That is safe because every request needs a token and no cookies are involved; set `cors.allowed_origins` to limit it to your app's origin.
+**A public hosted copy.** The project's site links to a copy of the app hosted on its own origin, to try without hosting one. Your pairings stay in your browser, and the host never sees your traffic (the app talks to your daemons directly), but the code it serves runs with your tokens: if that host were compromised, so would be the daemons paired there. The one your daemon serves comes first, your own hosting second; use the public copy knowing that.
+
+Daemons accept requests from any origin by default. That is safe because every request needs a token and no cookies are involved, but it lets any app origin you paired from use your tokens. To trust only the app origins you choose, list them in `cors.allowed_origins`: your daemon's own origin is always allowed, so name the others, such as your self-hosted app (a node also allows its hub's, for when the hub is down):
+
+```toml
+[cors]
+allowed_origins = ["https://muxtower-app.example.com"]
+```
 
 **Where the app keeps daemons.** The daemons a browser paired with (address, name, token, push subscription) are in that browser's localStorage (`muxtower.daemons`), per browser and per origin; a daemon keeps only each token's hash. So:
 
