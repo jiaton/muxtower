@@ -35,6 +35,9 @@ muxtower runs the owner's coding agent sessions, on this machine and others, and
 - Wrong project? Move a session with set_project, or rename yours for all its sessions (rename=true).
 - Messages that start with "[muxtower task from …]" are work a teammate sent you; "[muxtower message from …]"
   is a teammate (or a device) writing to you, not the owner. Relaying the owner's words? Say so in the text.
+- Writing to a teammate: send_task by default (work, reports, anything long: it waits while they are on a
+  prompt, and is kept on record). send_message types in at once: only to answer the prompt they are stopped
+  on, send a slash command, or pass on the owner's words; it can cut in or be taken as their answer.
 - "also writing in <worktree>" means another session changes files in your checkout: agree with it
   (send_task) or ask the owner. If no file is changed by both, go on, but commit only your own changes."""
 
@@ -141,9 +144,11 @@ class TeamTools:
         ]  # fmt: skip
         if self.tasks is not None:
             found.append(
-                Tool("send_task", "Hand work to a teammate: `to` is its session id, or a role of your project "
-                     "that one session has. It arrives as a message headed [muxtower task from <you>]; one "
-                     "waiting on the owner gets it once that prompt is answered.", TaskArgs, self.send_task)
+                Tool("send_task", "Use this by default to write to a teammate: work for it, results to report back, "
+                     "anything long. `to` is its session id, or a role of your project that one session has. It "
+                     "arrives headed [muxtower task from <you>]; while it waits on a prompt the task is queued "
+                     "and goes out once that is answered, and every task is kept on record.", TaskArgs,
+                     self.send_task)
             )  # fmt: skip
         return [Tool(t.name, t.description, t.args, self._via_hub(t.name, t.run)) for t in found]
 

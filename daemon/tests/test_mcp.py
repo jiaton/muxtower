@@ -24,7 +24,7 @@ def test_mcp_lists_and_calls_tools(app: FastAPI, tmux: FakeTmux) -> None:
     assert note.status_code == 202
     names = {t["name"] for t in _rpc(client, auth, "tools/list")["result"]["tools"]}
     assert {"list_sessions", "read_session", "send_message", "approve", "start_session"} <= names
-    assert "watch_session" not in names  # only with the concierge on
+    assert "watch_session" in names  # any session watches for itself
 
     created = app.state.sessions.create(CreateSession(runtime="claude", cwd="/tmp"))  # noqa: S108
     listed = _rpc(client, auth, "tools/call", {"name": "list_sessions", "arguments": {}})["result"]
@@ -38,7 +38,7 @@ def test_mcp_lists_and_calls_tools(app: FastAPI, tmux: FakeTmux) -> None:
     sent = _rpc(
         client, auth, "tools/call", {"name": "send_message", "arguments": {"session_id": created.id, "text": "hi"}}
     )
-    assert sent["result"]["content"][0]["text"].startswith("Sent to")
+    assert sent["result"]["content"][0]["text"].startswith("Typed into")
     pane = next(p for p in tmux.panes.values() if p.info.session_name.startswith("mxt-"))
     assert ("paste", "[muxtower message from assistant (a device, not a session)]\nhi") in pane.sent
     missing = _rpc(client, auth, "tools/call", {"name": "read_session", "arguments": {"session_id": "nope"}})

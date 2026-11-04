@@ -2,6 +2,7 @@
 token) needs to look after the owner's other sessions. Output is plain text, short enough to relay."""
 
 from collections.abc import Callable
+from dataclasses import replace
 
 from pydantic import BaseModel, Field
 
@@ -9,14 +10,18 @@ from muxtower.concierge.service import ConciergeService
 from muxtower.errors import Invalid
 from muxtower.mcp.caller import CALLER
 from muxtower.mcp.describe import line
+from muxtower.mcp.reach import reaching
 from muxtower.mcp.sender import headed, sender_label
 from muxtower.mcp.session_tools import SessionTools
 from muxtower.mcp.team_tools import Forward, TeamTools
 from muxtower.mcp.tool import Tool
+from muxtower.mcp.watch_tools import WatchTools, watch_tools
+from muxtower.nodes.protocol import REACH_TOOLS
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.launcher import Launcher
 from muxtower.sessions.models import ConversationItemKind, ItemStatus, Session
+from muxtower.sessions.watches import SessionWatches
 from muxtower.teams.service import TeamService
 from muxtower.teams.tasks import TaskService
 from muxtower.terminal.models import SendInput
@@ -69,11 +74,15 @@ def _clip(text: str, chars: int) -> str:
     return text if len(text) <= chars else f"{text[:chars]}… ({len(text) - chars} more characters)"
 
 
+LOOKS_LIKE_AN_ANSWER = 80  # characters: a longer text to a session on a prompt is likely no answer to it
+
+
 class McpTools:
     def __init__(
         self, directory: SessionDirectory, launcher: Launcher, concierge: ConciergeService | None, hub: str,
         machines: Callable[[], list[str]] = list, teams: TeamService | None = None,
         team_tasks: TaskService | None = None, archiver: Archiver | None = None, forward: Forward | None = None,
+        watches: SessionWatches | None = None,
     ) -> None:  # fmt: skip
         self.directory = directory
         self.concierge = concierge
@@ -87,10 +96,11 @@ class McpTools:
             Tool("read_session", "A session's pending prompt (with option keys), the next step it offers (replies "
                  "to pick, sent with send_message), latest reply and recent conversation (or its terminal screen).",
                  ReadArgs, self.read_session),
-            Tool("send_message", "Type a message into a session, at once: it arrives headed "
-                 "\"[muxtower message from <you>]\" (not as the owner's words), except an answer to what it asks "
-                 "now (a prompt, or a reply its next step offers) or a slash command, which arrive as they are. "
-                 "Relaying the owner? Say so in the text (\"the owner says: …\").", MessageArgs, self.send_message),
+            Tool("send_message", "Type into a session at once, only to answer the prompt it is stopped on, send a "
+                 "slash command, or pass on the owner's own words (say so: \"the owner says: …\"). It can cut in on "
+                 "what the session does, or be taken as the answer to its prompt; for work, reports and anything "
+                 "long use send_task. Arrives headed \"[muxtower message from <you>]\", except an answer or a "
+                 "slash command, which arrive as they are.", MessageArgs, self.send_message),
             Tool("approve", "Answer a session's pending permission prompt or question with an option.",
                  ApproveArgs, self.approve),
             Tool("deny", "Decline a session's pending prompt.", SessionArg, self.deny),
@@ -98,19 +108,12 @@ class McpTools:
         ]  # fmt: skip
         self.session_tools = SessionTools(directory, launcher, hub, machines, teams, archiver)
         tools += self.session_tools.tools()
-        if concierge is not None:
-            tools += [
-                Tool("watch_session", "Be told (a [muxtower event #N · time] line with its id, state and where its "
-                     "new items start) when this session finishes a turn or needs the owner.",
-                     SessionArg, self.watch),
-                Tool("unwatch_session", "Stop being told about this session.", SessionArg, self.unwatch),
-                Tool("list_events", "The [muxtower event] lines muxtower recorded after an event number (it "
-                     "keeps the latest few hundred), to catch up after a restart or when one may be missed.",
-                     EventsArgs, self.list_events),
-            ]  # fmt: skip
+        tools += watch_tools(WatchTools(concierge, watches), SessionArg, EventsArgs)
         if teams is not None:
             self.team_tools = TeamTools(teams, team_tasks, forward)
             tools += self.team_tools.tools()
+        # A session another machine runs is reached through the hub (`reach.py`).
+        tools = [replace(t, run=reaching(t.name, t.run, forward)) if t.name in REACH_TOOLS else t for t in tools]
         self.tools = {t.name: t for t in tools}
 
     def _target(self, session_id: str) -> Session:
@@ -182,9 +185,15 @@ class McpTools:
         label = sender_label(name, role, caller.session_id, caller.actor)
         text = headed(args.text, label, s.needs_attention, self._offered(s))
         self.directory.send_input(s.id, SendInput(text=text, enter=True))
-        return f"Sent to {s.name}" + (
+        said = f"Typed into {s.name} directly" + (
             "." if text != args.text else ", as it is (it answers what it asks, or is a command)."
         )
+        if s.needs_attention and ("\n" in args.text.strip() or len(args.text) > LOOKS_LIKE_AN_ANSWER):
+            said += (
+                f" Note: {s.name} is stopped on a prompt, and this may be taken as its answer: for reports and "
+                "work, send_task is safer (it waits until the prompt is answered)."
+            )
+        return said
 
     def _offered(self, s: Session) -> list[str]:
         """The replies its next step offers now (`read_session` lists them), if it has one."""
@@ -208,23 +217,3 @@ class McpTools:
         s = self._target(args.session_id)
         self.directory.send_input(s.id, SendInput(key="Escape"))
         return f"{s.name}: interrupted."
-
-    def watch(self, args: SessionArg) -> str:
-        assert self.concierge is not None
-        s = self.concierge.watch(args.session_id)
-        return f"Watching {s.name}."
-
-    def unwatch(self, args: SessionArg) -> str:
-        assert self.concierge is not None
-        self.concierge.unwatch(args.session_id)
-        return "Stopped watching."
-
-    def list_events(self, args: EventsArgs) -> str:
-        assert self.concierge is not None
-        events = self.concierge.recorded(args.after)
-        if not events:
-            return f"No events after #{args.after}."
-        out = [e.line + ("" if e.delivered else " (not sent to you yet)") for e in events]
-        if len(events) == 50:
-            out.append(f"More: list_events(after={events[-1].number})")
-        return "\n".join(out)

@@ -192,11 +192,24 @@ def test_a_node_s_sessions_see_the_whole_team_through_the_hub(hub: tuple[FastAPI
         )
         assert any(f"[muxtower task from worker (worker) · mac~{worker.id}]" in text for _, text in pane.sent)
 
+        # A session on another machine: reached through the hub, as the node's own session.
+        typed = tool(node_mcp, token, "send_message", session_id=research.id, text="Look at the spec")
+        assert typed.startswith("Typed into research directly")
+        assert any(
+            text == f"[muxtower message from worker (worker) · mac~{worker.id}]\nLook at the spec"
+            for _, text in pane.sent
+        )
+        assert tool(node_mcp, token, "read_session", session_id=research.id).startswith(research.id)
+        assert tool(node_mcp, token, "watch_session", session_id=research.id).startswith("Watching research")
+        assert hub_app.state.mcp.tools["watch_session"] is not None
+
         # Without its hub, the node answers for itself and says so.
         link.stop()
         _until(lambda: not node.state.hub.status().connected)
         alone = tool(node_mcp, token, "my_team")
         assert alone.startswith("(this machine is not linked to its hub right now: only this machine's sessions")
+        away = tool(node_mcp, token, "send_message", session_id=research.id, text="hi")
+        assert away.startswith(f"ERROR {research.id} is not on this machine, and its hub cannot be asked now")
     finally:
         link.stop()
 
