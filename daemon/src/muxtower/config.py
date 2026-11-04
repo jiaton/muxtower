@@ -165,6 +165,9 @@ class Settings(BaseModel):
     usage: UsageSettings = Field(default_factory=UsageSettings)
     recovery: RecoverySettings = Field(default_factory=RecoverySettings)
     hub: HubSettings = Field(default_factory=HubSettings)
+    # What the config file, the environment or an override set (dotted keys): the settings page shows
+    # those as set there, and does not change them.
+    set_by_file: set[str] = Field(default_factory=set, exclude=True)
 
     @property
     def db_path(self) -> Path:
@@ -237,4 +240,17 @@ def load_settings(
         if value is not None:
             _set_nested(data, tuple(dotted.split(".")), value)
 
-    return Settings.model_validate(data)
+    settings = Settings.model_validate(data)
+    settings.set_by_file = set(_dotted(data))
+    return settings
+
+
+def _dotted(data: dict[str, Any], prefix: str = "") -> list[str]:
+    """Every key the file, the environment or an override set, dotted (`recovery.mode`), and each table above it."""
+    keys = []
+    for key, value in data.items():
+        path = f"{prefix}{key}"
+        keys.append(path)
+        if isinstance(value, dict):
+            keys += _dotted(value, f"{path}.")
+    return keys

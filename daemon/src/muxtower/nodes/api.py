@@ -16,6 +16,7 @@ from muxtower.sessions.launcher import Launcher
 from muxtower.sessions.models import CreateSession, Session, UpdateSession
 from muxtower.sessions.placement import Placements
 from muxtower.sessions.ports import ClaudeProcessPort
+from muxtower.settings.service import SettingsService
 from muxtower.terminal.models import Resize, SendInput
 from muxtower.usage.models import MachineUsage
 
@@ -38,6 +39,7 @@ class NodeApi:
         self.processes = processes
         self.usage_now: Callable[[], MachineUsage] | None = None  # set once the usage sampler runs
         self.recover: Callable[[list[str]], list[Session]] | None = None  # set by the recovery service
+        self.settings: SettingsService | None = None  # its feature settings, which the hub may change
         self.directory = directory
         self.launcher = launcher
         self.archiver = archiver
@@ -89,6 +91,15 @@ class NodeApi:
                     raise Invalid("this node cannot start sessions again")
                 started = self.recover([sid])
                 return _json(started[0]) if started else None
+            case "settings" | "set_settings":
+                if self.settings is None:
+                    raise Invalid(f"unknown method {method}")
+                if method == "settings":
+                    return [_json(s) for s in self.settings.views()]
+                changes = params.get("values")
+                if not isinstance(changes, dict):
+                    raise Invalid("values: a table of settings")
+                return [_json(s) for s in self.settings.change(changes, f"hub ({params.get('actor') or 'owner'})")]
             case "mark_read":
                 d.mark_read(sid, True)
             case "detect_folder":

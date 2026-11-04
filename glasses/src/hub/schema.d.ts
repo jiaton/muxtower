@@ -722,6 +722,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Settings
+         * @description The features the app may change, with where each value comes from and when a change applies.
+         */
+        get: operations["get_settings_v1_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change Settings
+         * @description Changes some (all or none); a key the config file sets is refused. Each change is audited.
+         */
+        patch: operations["change_settings_v1_settings_patch"];
+        trace?: never;
+    };
     "/v1/stream/cookie": {
         parameters: {
             query?: never;
@@ -857,6 +881,16 @@ export interface components {
              * @description it can be stopped (DELETE); for an archived one: deleted from the archive
              */
             terminate: boolean;
+        };
+        /** ChangeSettings */
+        ChangeSettings: {
+            /**
+             * Values
+             * @description dotted key → value; null puts it back to its default
+             */
+            values: {
+                [key: string]: unknown;
+            };
         };
         /** ClaimRequest */
         ClaimRequest: {
@@ -1134,6 +1168,13 @@ export interface components {
              * @description the page to sign in at, read off the session's screen; none if it showed none in time (the session then says why)
              */
             url: string | null;
+        };
+        /** MachineSettings */
+        MachineSettings: {
+            /** Machine */
+            machine: string;
+            /** Settings */
+            settings: components["schemas"]["SettingView"][];
         };
         /**
          * MachineUsage
@@ -1681,6 +1722,50 @@ export interface components {
              * @enum {string}
              */
             type: "sessions";
+        };
+        /** SettingView */
+        SettingView: {
+            /**
+             * Applies
+             * @enum {string}
+             */
+            applies: "now" | "restart";
+            /** Choices */
+            choices: string[];
+            /** Default */
+            default: unknown;
+            /** Help */
+            help: string;
+            /**
+             * Key
+             * @description dotted, as in the config file: `recovery.mode` is `[recovery] mode`
+             */
+            key: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "choice" | "bool" | "number" | "text";
+            /** Label */
+            label: string;
+            /**
+             * Pending
+             * @description changed since the daemon started: applies when it restarts
+             */
+            pending: boolean;
+            /** Section */
+            section: string;
+            /**
+             * Source
+             * @description config_file: set there, and not changed from the app
+             * @enum {string}
+             */
+            source: "default" | "app" | "config_file";
+            /**
+             * Value
+             * @description what applies: once the daemon restarts, where `pending`
+             */
+            value: unknown;
         };
         /**
          * SlowRule
@@ -3182,6 +3267,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Session"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_settings_v1_settings_get: {
+        parameters: {
+            query?: {
+                /** @description a node of this hub: its settings, over the link, instead of this daemon's */
+                node?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MachineSettings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_settings_v1_settings_patch: {
+        parameters: {
+            query?: {
+                /** @description a node of this hub: its settings, over the link, instead of this daemon's */
+                node?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MachineSettings"];
                 };
             };
             /** @description Validation Error */

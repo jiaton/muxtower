@@ -76,6 +76,8 @@ from muxtower.sessions.routes import router as sessions_router
 from muxtower.sessions.service import SessionConfig, SessionService
 from muxtower.sessions.transcripts import Transcripts
 from muxtower.sessions.turns import TurnWatcher
+from muxtower.settings.routes import router as settings_router
+from muxtower.settings.service import SettingsService
 from muxtower.sources.codex.service import CodexSource
 from muxtower.sources.codex.shared import SharedCodexSource
 from muxtower.sources.remote_control.service import RemoteControlSource
@@ -110,7 +112,8 @@ def create_app(
     codex_shared: SharedCodexSource | None = None,
 ) -> FastAPI:
     db = Database(settings.db_path)
-    tokens = build_token_service(settings, db)
+    tokens = build_token_service(settings, db)  # migrates the database first
+    feature_settings = SettingsService(settings, db)  # the app's changes, before anything reads them
     daemon_name = settings.name or socket.gethostname()
     bus = EventBus()
     sessions = SessionService(
@@ -157,6 +160,7 @@ def create_app(
     node_api = NodeApi(directory, launcher, archiver, placements, audit, processes)
     node_api.usage_now = lambda: usage.current
     node_api.recover = recovery.recover
+    node_api.settings = feature_settings
     hub = HubClient(
         HubStore(settings.state_dir / "hub.json"), settings.hub.headers, node_api, monitor, bus,
         lambda: node_protocol.Hello(
@@ -238,6 +242,7 @@ def create_app(
     app.state.teams, app.state.team_tasks = teams, team_tasks
     app.state.usage = usage
     app.state.recovery = recovery
+    app.state.feature_settings, app.state.node_sessions = feature_settings, node_sessions
     teams.changed = lambda: bus.publish("sessions", None)
     app.state.mcp = McpTools(
         directory,
@@ -281,7 +286,8 @@ def create_app(
         app.add_exception_handler(error, handler)
 
     routers = (system_router, auth_router, sessions_router, summaries_router, asr_router, mcp_router, stream_router,
-               push_router, hooks_router, nodes_router, teams_router, usage_router, recovery_router)  # fmt: skip
+               push_router, hooks_router, nodes_router, teams_router, usage_router, recovery_router,
+               settings_router)  # fmt: skip
     for router in routers:
         app.include_router(router)
 
