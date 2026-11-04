@@ -141,6 +141,11 @@ class Monitor(Reconciler):
             if transcript != live.transcript and named and transcript != named:
                 logger.info("session %s: following %s, written to since %s", record.id, transcript, named)
             title = self.processes.name(pid, text) if self.processes and pid else None
+            ask = getattr(self.processes, "name_origin", None)  # Claude Code's says where its name came from
+            origin = ask(pid, text) if ask and pid and title else None
+            if origin != live.title_origin:
+                live.title_origin = origin
+                result.sessions_changed = True
             alt_screen, attached = bool(pane and pane.alternate), bool(pane and pane.attached)
             if transcript:
                 svc.know_agent(record, transcript)

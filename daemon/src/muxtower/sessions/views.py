@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from muxtower.runtimes.models import ATTENTION_STATES
 from muxtower.sessions.interrupted import interrupted_view
 from muxtower.sessions.models import Capabilities, Session
+from muxtower.sessions.naming import chosen
 from muxtower.sessions.ports import SessionRecord, SessionSource
 
 if TYPE_CHECKING:
@@ -22,7 +23,7 @@ def session_view(svc: "SessionService", record: SessionRecord) -> Session:
         eff.pending.recommended = runtime.choose_option(eff.state, eff.pending.options)
     return Session(
         id=record.id,
-        name=record.name if record.named else (live.title or record.name),  # else its tmux session's
+        name=chosen(record, live.title, live.title_origin)[0],
         agent_name=live.title,
         runtime=record.runtime,
         cwd=record.cwd,

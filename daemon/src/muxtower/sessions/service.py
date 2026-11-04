@@ -161,7 +161,8 @@ class SessionService:
             hook_token_hash=_hash(hook_token),
             auto_approve=again.auto_approve if again else False,
             created_at=again.created_at if again else datetime.now(UTC),
-            named=again.named if again else bool(name),
+            named=again.named if again else False,  # a name given at launch is no rename (`naming.py`)
+            named_at=again.named_at if again else (datetime.now(UTC) if name else None),
             launch_args=again.launch_args if again else launch_options(list(args), runtime.config),
             agent_id=again.agent_id if again else None,
             server_id=self.tmux.server_id(self.config.socket),
@@ -176,7 +177,7 @@ class SessionService:
         record = self.record(session_id)
         if patch.name is not None:
             record.name = patch.name
-            record.named = True
+            record.named, record.named_at = True, datetime.now(UTC)
         if patch.auto_approve is not None:
             runtime = self.runtime_of(record)
             if patch.auto_approve and not (runtime and runtime.config.auto_approve_states):
