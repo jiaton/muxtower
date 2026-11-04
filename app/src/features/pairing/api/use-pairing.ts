@@ -1,7 +1,8 @@
 import { useMutation } from '@tanstack/react-query'
-import { createDaemonClient, unwrap } from '@/lib/api/client'
+import { ApiError, createDaemonClient, unwrap } from '@/lib/api/client'
 import { useDaemonsStore, usePairedDaemons } from '@/lib/daemons/store'
 import type { PairTarget } from '../pair-link'
+import { blockedBeforeTrying, whyUnreachable, withScheme } from '@/lib/reach'
 
 export interface ClaimOutcome {
   target: PairTarget
@@ -15,14 +16,17 @@ export function useClaim() {
     mutationFn: async ({ targets, deviceName }: { targets: PairTarget[]; deviceName: string }) =>
       Promise.all(
         targets.map(async (target): Promise<ClaimOutcome> => {
+          const url = withScheme(target.url)
+          const blocked = blockedBeforeTrying(url, location)
+          if (blocked) return { target, ok: false, message: blocked }
           try {
-            const client = createDaemonClient({ url: target.url, token: null })
+            const client = createDaemonClient({ url, token: null })
             const result = unwrap(await client.POST('/v1/pair/claim', { body: { code: target.code, device_name: deviceName } }))
-            useDaemonsStore.getState().add({ name: target.name || result.daemon_name, url: target.url, token: result.token })
+            useDaemonsStore.getState().add({ name: target.name || result.daemon_name, url, token: result.token })
             return { target, ok: true, message: `paired as ${result.device_name}` }
           } catch (error) {
-            const message = error instanceof Error ? error.message : 'failed'
-            return { target, ok: false, message: message === 'Failed to fetch' ? 'cannot reach this daemon' : message }
+            if (error instanceof ApiError) return { target, ok: false, message: error.message }
+            return { target, ok: false, message: whyUnreachable(url, error, location) } // no answer at all
           }
         }),
       ),

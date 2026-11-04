@@ -94,7 +94,7 @@ export function AddDaemonDialog({
                   setTargets([{ url: url.trim(), code: code.trim() }])
                 }}
               >
-                <Input type="url" required placeholder="https://daemon.example" value={url} onChange={(e) => setUrl(e.target.value)} aria-label="Daemon URL" />
+                <Input type="text" inputMode="url" autoCapitalize="off" spellCheck={false} required placeholder="https://daemon.example" value={url} onChange={(e) => setUrl(e.target.value)} aria-label="Daemon URL" />
                 <Input
                   required
                   placeholder="K7QM-3XPA"
