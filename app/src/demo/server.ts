@@ -35,6 +35,8 @@ const NODES: NodeInfo[] = [
     version: null,
     update: null,
     runtimes: RUNTIMES,
+    reported_url: 'https://laptop.demo.invalid',
+    direct_url: null,
   },
 ]
 
@@ -108,6 +110,7 @@ const ROUTES: Record<string, (world: World, body: Record<string, unknown>, url: 
     const refused = SETTINGS.change((body.values ?? {}) as Record<string, unknown>)
     return refused ? refuse(409, refused) : json(SETTINGS.list(url.searchParams.get('node') || DEMO_DAEMON.name))
   },
+  'POST /v1/nodes/direct': () => json([{ node: NODE, url: 'https://laptop.demo.invalid', token: 'demo-direct' }]),
   'GET /v1/recovery': (world) => json({ mode: 'ask', sessions: world.sessions().filter((s) => s.interrupted_at) }),
   'POST /v1/recovery': (world, body) =>
     json(world.recover(Array.isArray(body.session_ids) ? body.session_ids.filter((id) => typeof id === 'string') : [])),

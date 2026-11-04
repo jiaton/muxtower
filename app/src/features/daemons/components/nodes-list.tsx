@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { StatusDot } from '@/components/ui/status-dot'
 import { useNodes } from '@/lib/daemons/use-nodes'
 import { useJoinCode, useRemoveNode } from '../api/use-nodes'
+import { NodeAddress } from './node-address'
 
 const when = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString() : 'never')
 
@@ -33,6 +34,7 @@ export function NodesList({ daemonId, url }: { daemonId: string; url: string }) 
                 <span className="truncate text-xs text-fg-muted">
                   {n.online ? 'online' : `offline since ${when(n.last_seen)}`} · {n.sessions} session{n.sessions === 1 ? '' : 's'}
                 </span>
+                <NodeAddress daemonId={daemonId} node={n} />
                 {n.update ? (
                   <span className="text-xs text-state-permission">
                     Runs {n.version}; update it to {n.update}: <code className="font-mono break-all">pipx install --force muxtower=={n.update}</code>

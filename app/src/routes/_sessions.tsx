@@ -133,7 +133,7 @@ function SessionsLayout() {
                   hideDevice: Boolean(query.device),
                   hideFolder: Boolean(query.folder),
                   hideSource: Boolean(query.source),
-                  showDaemon: daemons.length > 1,
+                  showDaemon: daemons.filter((d) => !d.daemon.via).length > 1, // a hub's node reached directly is no daemon of its own
                   showAccount: facets.accounts.length > 0 && !query.account,
                   showAgent: agentsDiffer([...visible, ...kept].map((e) => e.session)),
                 }}

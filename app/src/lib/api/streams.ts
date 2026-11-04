@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { markRejected, useDaemonsStore } from '@/lib/daemons/store'
+import { markRejected, useDaemonsStore, usePairedDaemons } from '@/lib/daemons/store'
 import { daemonKey, queryClient } from '@/lib/query'
 import { DaemonStream } from './stream'
 import { setStreamStatus } from './stream-status'
@@ -12,9 +12,9 @@ export { useStreamStatus } from './stream-status'
 
 /** Keeps one stream per paired daemon (mounted once, in the root layout). */
 export function useDaemonStreams() {
-  const daemons = useDaemonsStore((s) => s.daemons)
+  const daemons = usePairedDaemons() // a hub's node only while the hub is down
   useEffect(() => {
-    const wanted = new Map(daemons.filter((d) => d.token && !d.rejected).map((d) => [d.id, d]))
+    const wanted = new Map(daemons.map((d) => [d.id, d]))
     for (const [id, entry] of streams) {
       const daemon = wanted.get(id)
       if (!daemon || entry.signature !== `${daemon.url} ${daemon.token}`) {
