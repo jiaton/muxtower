@@ -1,9 +1,22 @@
-import { ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight, MousePointerClick } from 'lucide-react'
 import { CommandPill } from '@/components/shared/command-pill'
 import { Button } from '@/components/ui/button'
 import { demoUrl } from '@/config'
 import { hero } from '@/content/page'
 import { DemoShow } from '@/features/demo'
+
+/** The way into the real app (its demo build), the page's main call to action. */
+function TryApp() {
+  return (
+    <Button asChild size="xl">
+      <a href={demoUrl} target="_blank" rel="noreferrer">
+        <MousePointerClick />
+        {hero.tryApp}
+        <ArrowUpRight />
+      </a>
+    </Button>
+  )
+}
 
 /** The first screen: what muxtower is in one sentence, how to install it, and the demo playing. */
 export function Hero() {
@@ -15,18 +28,19 @@ export function Hero() {
           <p className="font-mono text-sm text-primary">{hero.eyebrow}</p>
           <h1 className="text-hero font-semibold text-balance">{hero.title}</h1>
           <p className="text-lg leading-relaxed text-muted-foreground sm:text-xl">{hero.lead}</p>
-          <div className="flex flex-wrap items-center gap-3">
-            <CommandPill command={hero.install} />
-            <Button asChild variant="outline">
-              <a href={demoUrl} target="_blank" rel="noreferrer">
-                {hero.tryApp}
-                <ArrowUpRight />
-              </a>
-            </Button>
-            <span className="text-sm text-muted-foreground">{hero.tryAppNote}</span>
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-3">
+              <TryApp />
+              <CommandPill command={hero.install} />
+            </div>
+            <p className="text-sm text-muted-foreground">{hero.tryAppNote}</p>
           </div>
         </div>
         <DemoShow />
+        <div className="flex flex-col items-start gap-4 rounded-xl border border-primary bg-state-busy-soft p-5 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-lg leading-snug text-balance">{hero.afterDemo}</p>
+          <TryApp />
+        </div>
       </div>
     </section>
   )

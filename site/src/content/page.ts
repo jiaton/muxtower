@@ -16,8 +16,10 @@ export const hero = {
   title: 'Every machine. Every agent. One list.',
   lead: 'muxtower watches the Claude Code and Codex sessions on all your computers and lists them on a hub you host. When one needs you, your phone says so, and you answer from there.',
   install: 'pipx install muxtower',
-  tryApp: 'Open the real app',
-  tryAppNote: 'against a simulated daemon',
+  tryApp: 'Try the real app',
+  tryAppNote: 'The actual muxtower app in your browser, against a simulated daemon. Nothing to install.',
+  /** Under the demo: the animation is drawn, the app is real. */
+  afterDemo: 'That was an animation. The real app is one click away: every button works, on six made-up sessions.',
 }
 
 export const hub = {
