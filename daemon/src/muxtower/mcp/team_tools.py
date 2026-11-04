@@ -35,6 +35,8 @@ muxtower runs the owner's coding agent sessions, on this machine and others, and
 - Wrong project? Move a session with set_project, or rename yours for all its sessions (rename=true).
 - Messages that start with "[muxtower task from …]" are work a teammate sent you; "[muxtower message from …]"
   is a teammate (or a device) writing to you, not the owner. Relaying the owner's words? Say so in the text.
+- Another project's session: send_task to role@project, or to its id; list_sessions shows each session's
+  role and project.
 - Writing to a teammate: send_task by default (work, reports, anything long: it waits while they are on a
   prompt, and is kept on record). send_message types in at once: only to answer the prompt they are stopped
   on, send a slash command, or pass on the owner's words; it can cut in or be taken as their answer.
@@ -53,7 +55,11 @@ class RoleArgs(BaseModel):
 
 
 class TaskArgs(BaseModel):
-    to: str = Field(min_length=1, description="a session id, or a role in your project (when one session has it)")
+    to: str = Field(
+        min_length=1,
+        description="a session id; a role in your project (when one session has it); or role@project for another "
+        "project (split at the last @)",
+    )
     text: str = Field(min_length=1, max_length=20000, description="the work, as you would ask a colleague")
 
 
@@ -145,7 +151,8 @@ class TeamTools:
         if self.tasks is not None:
             found.append(
                 Tool("send_task", "Use this by default to write to a teammate: work for it, results to report back, "
-                     "anything long. `to` is its session id, or a role of your project that one session has. It "
+                     "anything long. `to` is a role in your project, role@project for another one, or a session id "
+                     "(list_sessions shows who is in which project). It "
                      "arrives headed [muxtower task from <you>]; while it waits on a prompt the task is queued "
                      "and goes out once that is answered, and every task is kept on record.", TaskArgs,
                      self.send_task)

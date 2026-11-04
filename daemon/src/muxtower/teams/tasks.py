@@ -60,22 +60,35 @@ class TaskService:
         self._lock = threading.Lock()
 
     def receiver(self, to: str, sender: Member | None) -> Member:
-        """Blocking. A session id, else a role among the sender's project (every project's, for a device)."""
+        """Blocking. A session id; else `role@project` (split at the last @, both without regard to case); else
+        a role among the sender's project (every project's, for a device). A role with an @ in it, whose last
+        part names no project, is still found in the sender's own."""
         if session := self.directory.find(to):
             return self.teams.member(session)
-        wanted = " ".join(to.split()).lower()
-        members = [m for m in self.teams.members() if sender is None or m.project == sender.project]
+        everyone = self.teams.members()
+        role, at, named = to.rpartition("@")
+        projects = {m.project.lower(): m.project for m in everyone}
+        project = projects.get(" ".join(named.split()).lower()) if at else None
+        if at and project is None and not any(" ".join(to.split()).lower() == (m.role or "").lower() for m in everyone):
+            raise NotFound(
+                f"no project {named.strip()!r}: projects are {', '.join(sorted(projects.values())) or 'none yet'}"
+            )
+        if project is None:
+            role = to
+        wanted = " ".join(role.split()).lower()
+        members = [m for m in everyone if (project is not None and m.project == project) or (
+            project is None and (sender is None or m.project == sender.project))]  # fmt: skip
         members = [m for m in members if sender is None or m.session.id != sender.session.id]
         found = [m for m in members if (m.role or "").lower() == wanted]
         if len(found) == 1:
             return found[0]
-        where = f"project {sender.project}" if sender else "any project"
+        where = f"project {project}" if project else (f"project {sender.project}" if sender else "any project")
         if found:
             options = "; ".join(f"{m.session.id} ({m.session.name}, {m.session.state.value})" for m in found)
-            raise Conflict(f"{len(found)} sessions have role {to!r} in {where}: send to one of {options}")
+            raise Conflict(f"{len(found)} sessions have role {role.strip()!r} in {where}: send to one of {options}")
         roles = sorted({m.role for m in members if m.role})
         known = f"roles there: {', '.join(roles)}" if roles else "nobody there has a role yet"
-        raise NotFound(f"no session {to!r} and no role {to!r} in {where} ({known})")
+        raise NotFound(f"no session {to!r} and no role {role.strip()!r} in {where} ({known})")
 
     def send(self, sender_id: str | None, device: str, to: str, text: str) -> tuple[Task, Member, str]:
         """Blocking. Queues the task for the delivery loop and waits a moment for what became of it:
