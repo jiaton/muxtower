@@ -38,7 +38,7 @@ From the frontend template (dotfiles `projects/claude_templates/AGENTS.frontend.
 4. `sections/`: one component per band of the page, composed by `app.tsx`. Layout and wiring only.
 5. `content/`: all copy, as data, in English. Sections render it and hold no sentences of their own. `code` is written in backticks and rendered by `RichText`.
 6. `lib/`: `cn`, clipboard.
-7. `config.ts`: build-time settings (`MUXTOWER_SITE_REPO`) and the demo build's URL.
+7. `config.ts`: build-time settings and the demo build's URL. `MUXTOWER_SITE_REPO`: the GitHub repository (links to it, the README and SECURITY.md are left out when unset). `MUXTOWER_SITE_APP_URL`: the public hosted app (`../app/deploy/`, its own origin); its entry is left out when unset.
 
 No cross-feature imports. Split a file before 250 lines.
 

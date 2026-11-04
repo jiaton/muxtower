@@ -23,6 +23,10 @@ export const questions = [
     a: 'Claude Code and Codex fully: state from their hooks, approvals and questions from your phone. Any other terminal agent can be watched and typed into, and taught its dialogs with screen rules.',
   },
   {
+    q: 'Is the hosted app safe to pair with my daemons?',
+    a: 'It keeps your pairings only in your browser, and talks to your daemons directly. But the host’s code runs with your tokens, so the app your daemon serves itself, or a copy you host, is the most conservative choice. On a daemon, `cors.allowed_origins` limits which app origins it accepts.',
+  },
+  {
     q: 'Is there an app to install from a store?',
     a: 'No store. The daemon serves a web app that installs on your home screen and receives notifications on Android, iOS and desktop.',
   },

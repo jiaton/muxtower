@@ -1,4 +1,4 @@
-.PHONY: contract contract-check check wheel site
+.PHONY: contract contract-check check wheel site public-app
 
 contract:
 	cd daemon && poetry run python -c "from muxtower.cli.serve import print_openapi; print_openapi()" > ../openapi.json
@@ -26,3 +26,11 @@ wheel:
 site:
 	cd app && npm ci
 	cd site && npm ci && npm run build
+
+# The public hosted copy of the web app (app/deploy/): tagged releases only, and no preset daemons, since
+# anyone can load it. Its hostname comes from MUXTOWER_APP_DOMAIN at deploy time (unset: workers.dev).
+public-app:
+	@git describe --exact-match --tags HEAD >/dev/null 2>&1 || { echo "public-app deploys tagged releases only: check out a vX.Y.Z tag"; exit 1; }
+	@test -z "$$MUXTOWER_APP_CONFIG" || { echo "the public app ships no preset daemons: unset MUXTOWER_APP_CONFIG"; exit 1; }
+	cd app && npm ci && npm run build
+	cd app/deploy && npm ci && npx cf deploy

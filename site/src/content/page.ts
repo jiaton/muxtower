@@ -74,6 +74,13 @@ export const install = {
   lead: 'Python 3.11+ and tmux on the machine your agents run on. The daemon serves the app itself.',
 }
 
+/** The public hosted app: the real one, for your own daemons, apart from the demo. */
+export const hostedApp = {
+  title: 'Open the app',
+  text: 'Pair it with your own daemons. Your daemon serves this same app itself; using that one means trusting no one else’s hosting.',
+  action: 'Open the app',
+}
+
 export const footer = {
   tagline: 'A control tower for the coding agents on your machines.',
   status: 'Early: version 0.1. Interfaces may change.',
