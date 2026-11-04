@@ -43,6 +43,7 @@ export function demoSession(fields: Pick<Session, 'id' | 'name' | 'cwd'> & Parti
     notify: 'all',
     placement: null,
     archived_at: null,
+    project_auto: false,
     node: null,
     fork_of: null,
     side_chat: false,

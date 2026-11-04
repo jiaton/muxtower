@@ -8,6 +8,7 @@ import { Pane, PaneBody, PaneHeader } from '@/components/ui/pane'
 import { QuickApproval } from '@/features/approval/components/quick-approval'
 import { PairCodeForm } from '@/features/pairing/components/pair-code-form'
 import { DaemonAlerts } from '@/features/sessions/components/daemon-alerts'
+import { ArchiveTools } from '@/features/sessions/components/archive-tools'
 import { InterruptedBanner } from '@/features/sessions/components/interrupted'
 import { ExpiredLogins } from '@/features/daemons/components/expired-logins'
 import { ListChips } from '@/features/sessions/components/list-chips'
@@ -118,13 +119,15 @@ function SessionsLayout() {
           <PaneBody ref={listRef}>
             <DaemonAlerts daemons={daemons} />
             <InterruptedBanner entries={entries} />
+            {query.view === 'archived' ? <ArchiveTools entries={visible} /> : null}
             <ExpiredLogins />
             {groups.length ? (
               <SessionList
                 groups={groups}
                 held={{ sideChats, forks }}
                 selectedKey={selectedKey}
-                foldScope={query.group}
+                foldScope={query.view === 'archived' ? `archived:${query.group}` : query.group}
+                foldedFirst={query.view === 'archived'}
                 unfolded={Boolean(query.q?.trim())}
                 context={{
                   hideDevice: Boolean(query.device),

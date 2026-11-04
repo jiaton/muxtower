@@ -27,6 +27,7 @@ const named = entry('named', {
   cwd: '/home/me/projects/shop-teams',
   git: git('/home/me/projects/shop-teams', 'teams'),
   project: 'Payments',
+  project_source: 'set',
 })
 
 describe('where a session is listed', () => {
@@ -66,6 +67,16 @@ describe('where a session is listed', () => {
     const ids = (folder: string) => filterEntries(all, { view: 'all', group: 'status', folder }).map((e) => e.session.id)
     expect(ids('~/projects/shop')).toEqual(['main', 'sub', 'inside', 'outside'])
     expect(ids('~/projects/shop-teams')).toEqual(['outside'])
+  })
+
+  it('goes by the project my_team says, wherever its agent works now, and not by a folder’s name', () => {
+    const auto = { project: 'acme/shop', project_auto: true, project_source: 'git remote' as const }
+    const kept = entry('kept', { ...auto, git: git(SHOP), working_dir: '/home/me/projects/other' })
+    const tree = entry('tree', { ...auto, cwd: '/home/me/projects/shop-teams', git: git('/home/me/projects/shop-teams', 'teams') })
+    const loose = entry('loose', { cwd: '/home/me/notes', project: 'notes', project_auto: true, project_source: 'folder' })
+    expect([homeOf(kept.session), homeKind(kept.session)]).toEqual(['acme/shop', 'project']) // as my_team says
+    expect(worktreeOf(tree.session)).toMatchObject({ under: 'acme/shop', name: 'teams' }) // its worktree under it
+    expect([homeOf(loose.session), homeKind(loose.session)]).toEqual(['~/notes', 'folder']) // the folder tree says
   })
 
   it('makes a repository whose sessions are all in other worktrees, to hold them', () => {

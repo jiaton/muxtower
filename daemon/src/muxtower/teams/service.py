@@ -98,7 +98,10 @@ class TeamService:
         found = self._checkout(session)
         if record is None or record.project is None:
             if found is not None:  # worked out once from git here, then kept as it is
-                record = replace(record or TeamRecord(session.id), project=found.project, project_auto=True)
+                record = replace(
+                    record or TeamRecord(session.id), project=found.project, project_auto=True,
+                    project_source=found.source,
+                )  # fmt: skip
                 self._save(record)
                 source = found.source
             else:  # elsewhere: its folder, until something better says otherwise
@@ -144,13 +147,13 @@ class TeamService:
         if not rename:
             with self._lock:
                 record = self._records.get(session.id) or TeamRecord(session.id)
-            self._save(replace(record, project=name, project_auto=False))
+            self._save(replace(record, project=name, project_auto=False, project_source=None))
             return self.member(session), 1
         moved = [m for m in self.members() if m.project == current.project]
         for m in moved:  # kept for each: one only worked out from its folder is kept from now on too
             with self._lock:
                 record = self._records.get(m.session.id) or TeamRecord(m.session.id)
-            self._save(replace(record, project=name, project_auto=False))
+            self._save(replace(record, project=name, project_auto=False, project_source=None))
         self.repo.rename_project(current.project, name)  # also the archived ones
         with self._lock:
             for record in self._records.values():

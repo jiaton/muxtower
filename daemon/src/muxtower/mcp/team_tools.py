@@ -30,6 +30,8 @@ muxtower runs the owner's coding agent sessions, on this machine and others, and
   without one can be given one the same way (set_role with its session_id).
 - A role is free text and means what the owner and the agents make of it; muxtower only keeps it. Decide
   yourself whom to ask for what, by their roles and what they are doing.
+- Your team is every session of your project; it has no name of its own. Your project and role stay as
+  they are when you cd elsewhere or edit files in another repository.
 - Wrong project? Move a session with set_project, or rename yours for all its sessions (rename=true).
 - Messages that start with "[muxtower task from …]" are work a teammate sent you."""
 

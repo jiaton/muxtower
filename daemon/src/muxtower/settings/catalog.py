@@ -25,6 +25,8 @@ class Field:
 FIELDS: tuple[Field, ...] = (
     Field("recovery.mode", "After a restart", "Interrupted sessions", "choice", "now",
           "ask: listed to start again; auto: started again at once; off: let go", ("ask", "auto", "off")),
+    Field("archive.hide_after_days", "Archive", "List archived sessions for (days)", "number", "now",
+          "older ones are kept, just not listed; 0: always listed"),
     Field("concierge.enabled", "Concierge", "Concierge", "bool", "restart",
           "a session that watches the others for you"),
     Field("concierge.name", "Concierge", "Name", "text", "restart"),
