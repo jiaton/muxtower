@@ -41,7 +41,7 @@ export function SessionHeader({ daemonId, session, actions }: { daemonId: string
       title={
         <>
           <h1 className="min-w-0 truncate">{session.name}</h1>
-          {session.archived_at ? <Badge>Archived</Badge> : session.offline ? <Badge>Offline</Badge> : <StateBadge state={session.state} />}
+          {session.interrupted_at ? <Badge>Interrupted</Badge> : session.archived_at ? <Badge>Archived</Badge> : session.offline ? <Badge>Offline</Badge> : <StateBadge state={session.state} />}
           <StreamMark daemonId={daemonId} />
         </>
       }

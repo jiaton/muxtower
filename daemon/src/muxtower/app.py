@@ -59,6 +59,8 @@ from muxtower.notify.routes import router as push_router
 from muxtower.notify.service import PushService
 from muxtower.notify.webpush_sender import WebPushSender, subject
 from muxtower.origins import OriginPolicy
+from muxtower.recovery.routes import router as recovery_router
+from muxtower.recovery.service import RecoveryService
 from muxtower.runtimes.spec import load_runtimes
 from muxtower.sessions.archive import SessionArchive
 from muxtower.sessions.archive_repository import SqliteArchiveRepository
@@ -144,12 +146,17 @@ def create_app(
     archiver = Archiver(directory, archive)
     placements = Placements(directory, marks)
     # This daemon as a node of a hub, once it joined one (`muxtower pair --join`).
+    recovery = RecoveryService(
+        sessions, settings.recovery, lambda sid: isinstance(directory.source_of(sid), NodeSource),
+        node_sessions.recover,
+    )  # fmt: skip
     usage = UsageSampler(
         daemon_name, settings.usage, lambda: list(monitor.timings),
         lambda sid: session.name if (session := directory.find(sid)) else None,
     )  # fmt: skip
     node_api = NodeApi(directory, launcher, archiver, placements, audit, processes)
     node_api.usage_now = lambda: usage.current
+    node_api.recover = recovery.recover
     hub = HubClient(
         HubStore(settings.state_dir / "hub.json"), settings.hub.headers, node_api, monitor, bus,
         lambda: node_protocol.Hello(
@@ -182,6 +189,7 @@ def create_app(
                 "auto-approve": AutoApprover(approvals, audit).run_loop(bus),
                 "team-tasks": team_tasks.run_loop(bus),
                 "usage": usage.run_loop(),
+                "recovery": recovery.run_loop(bus),
             }
             if summaries.available:
 
@@ -229,6 +237,7 @@ def create_app(
     app.state.concierge = concierge
     app.state.teams, app.state.team_tasks = teams, team_tasks
     app.state.usage = usage
+    app.state.recovery = recovery
     teams.changed = lambda: bus.publish("sessions", None)
     app.state.mcp = McpTools(
         directory,
@@ -272,7 +281,7 @@ def create_app(
         app.add_exception_handler(error, handler)
 
     routers = (system_router, auth_router, sessions_router, summaries_router, asr_router, mcp_router, stream_router,
-               push_router, hooks_router, nodes_router, teams_router, usage_router)  # fmt: skip
+               push_router, hooks_router, nodes_router, teams_router, usage_router, recovery_router)  # fmt: skip
     for router in routers:
         app.include_router(router)
 

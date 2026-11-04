@@ -3,7 +3,6 @@ gone, adopts agents found running elsewhere), captures each pane once, classifie
 changed. Every consumer (API, stream, push, auto-approve) reads the results instead of calling tmux."""
 
 import asyncio
-import hashlib
 import logging
 import os
 import time
@@ -15,9 +14,10 @@ from muxtower.infra.bus import EventBus
 from muxtower.runtimes.models import AgentState
 from muxtower.runtimes.spec import Classification
 from muxtower.sessions.live import ScreenState
-from muxtower.sessions.ports import ClaudeProcessPort, SessionRecord, SessionSource
+from muxtower.sessions.ports import ClaudeProcessPort
+from muxtower.sessions.reconcile import Reconciler
 from muxtower.sessions.service import SessionService
-from muxtower.terminal.ports import PaneInfo, PaneRef
+from muxtower.terminal.ports import PaneInfo
 
 logger = logging.getLogger("muxtower.monitor")
 
@@ -32,13 +32,6 @@ class TickResult:
     sessions_changed: bool = False
     screens: dict[str, str] = field(default_factory=dict)  # session id -> new ansi screen
     attention: list[str] = field(default_factory=list)  # session ids that entered an attention state
-
-
-def display_name(pane: PaneInfo) -> str:
-    """tmux names unnamed sessions 0, 1, 2…; the working directory says more than that."""
-    if pane.session_name.isdigit():
-        return os.path.basename(pane.cwd.rstrip("/")) or pane.cwd or f"tmux {pane.session_name}"
-    return pane.session_name
 
 
 def newest(*paths: str | None) -> str | None:
@@ -62,7 +55,7 @@ class TickTiming:
     slowest: tuple[str, str, float] | None
 
 
-class Monitor:
+class Monitor(Reconciler):
     def __init__(self, service: SessionService, processes: ClaudeProcessPort | None = None) -> None:
         self.service = service
         self.processes = processes
@@ -70,6 +63,7 @@ class Monitor:
         self._viewers: dict[str, list[int]] = defaultdict(list)  # session id -> history lines wanted
         self.timings: deque[TickTiming] = deque(maxlen=TIMINGS_KEPT)  # the latest ticks, for `usage/`
         self._captured: dict[str, tuple[float, float]] = {}  # session id -> when last read (wall, monotonic)
+        self._seen_servers: dict[str, str] = {}  # socket -> the tmux server seen alive there this run
         self._loop: asyncio.AbstractEventLoop | None = None
         self._woken: asyncio.Event | None = None
 
@@ -94,63 +88,6 @@ class Monitor:
         live = self.service.live.get(session_id)
         return live.screen if live else None
 
-    # --- reconcile -----------------------------------------------------------------------------
-
-    def _adopted_record(self, pane: PaneInfo, runtime: str) -> SessionRecord:
-        # Keyed by pane, not session name: renaming the tmux session must not make it a new session.
-        digest = hashlib.sha256(f"{pane.socket}:{pane.pane_id}:{pane.pid}".encode()).hexdigest()
-        return SessionRecord(
-            id="a" + digest[:11],
-            name=display_name(pane),
-            runtime=runtime,
-            cwd=pane.cwd,
-            source=SessionSource.ADOPTED,
-            pane=PaneRef(pane.socket, pane.pane_id),
-            tmux_session=pane.session_name,
-            hook_token_hash=None,
-            auto_approve=False,
-            created_at=datetime.now(UTC),
-        )
-
-    def reconcile(self) -> bool:
-        svc = self.service
-        # Records first, panes second: a session created while this runs is not in `records`, so its
-        # pane cannot be missing from `panes` and it is never dropped as gone.
-        records = svc.repo.list()
-        sockets = dict.fromkeys([svc.config.socket, *svc.config.adopt_sockets])
-        panes: list[PaneInfo] = []
-        seen: set[tuple[str, str]] = set()
-        for pane in (p for socket in sockets for p in svc.tmux.list_panes(socket)):
-            key = (pane.server or pane.socket, pane.pane_id)
-            if key not in seen:  # the same server reached under two names is scanned once
-                seen.add(key)
-                panes.append(pane)
-        alive = {(p.socket, p.pane_id) for p in panes}
-        self._panes = {(p.socket, p.pane_id): p for p in panes}
-        changed = False
-
-        known: set[tuple[str, str]] = set()
-        for record in records:
-            key = (record.pane.socket, record.pane.pane_id)
-            if key not in alive:
-                logger.info("session %s (%s) is gone", record.id, record.name)
-                svc.forget(record.id)
-                self._captured.pop(record.id, None)
-                changed = True
-            else:
-                known.add(key)
-
-        binaries = {rt.config.binary: rt.name for rt in svc.runtimes.values()}
-        # Re-read before adopting: a session started meanwhile owns its pane already.
-        known |= {(r.pane.socket, r.pane.pane_id) for r in svc.repo.list()}
-        for pane in panes:
-            runtime = binaries.get(pane.command)
-            if runtime and (pane.socket, pane.pane_id) not in known:
-                logger.info("adopting %s pane %s in %s", runtime, pane.pane_id, pane.session_name)
-                svc.repo.upsert(self._adopted_record(pane, runtime))
-                changed = True
-        return changed
-
     # --- capture -------------------------------------------------------------------------------
 
     def _unchanged(self, session_id: str, pane: PaneInfo | None, now: float) -> bool:
@@ -171,6 +108,8 @@ class Monitor:
         now = time.monotonic()
         wall = time.time()
         for record in svc.repo.list():
+            if record.interrupted_at:
+                continue
             pane = self._panes.get((record.pane.socket, record.pane.pane_id))
             if self._unchanged(record.id, pane, now):
                 continue
@@ -203,6 +142,8 @@ class Monitor:
                 logger.info("session %s: following %s, written to since %s", record.id, transcript, named)
             title = self.processes.name(pid, text) if self.processes and pid else None
             alt_screen, attached = bool(pane and pane.alternate), bool(pane and pane.attached)
+            if transcript:
+                svc.know_agent(record, transcript)
             seen = (remote_id, transcript, title, alt_screen, attached)
             if seen != (live.remote_id, live.transcript, live.title, live.alt_screen, live.attached):
                 live.remote_id, live.transcript, live.title, live.alt_screen, live.attached = seen

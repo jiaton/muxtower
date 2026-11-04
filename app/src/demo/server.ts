@@ -93,7 +93,7 @@ const SESSION_ROUTES: Record<string, Handler> = {
   'POST resize/release': () => empty(),
 }
 
-const ROUTES: Record<string, (world: World) => Response> = {
+const ROUTES: Record<string, (world: World, body: Record<string, unknown>) => Response> = {
   'GET /v1/me': () => json(ME),
   'GET /v1/health': () => json({ status: 'ok', version: 'demo' }),
   'GET /v1/sessions': (world) => json(world.sessions()),
@@ -101,6 +101,9 @@ const ROUTES: Record<string, (world: World) => Response> = {
   'GET /v1/nodes': () => json(NODES),
   'GET /v1/devices': () => json([{ name: 'This browser', created_at: new Date().toISOString(), last_used_at: null, current: true }]),
   'GET /v1/usage': () => json(USAGE()),
+  'GET /v1/recovery': (world) => json({ mode: 'ask', sessions: world.sessions().filter((s) => s.interrupted_at) }),
+  'POST /v1/recovery': (world, body) =>
+    json(world.recover(Array.isArray(body.session_ids) ? body.session_ids.filter((id) => typeof id === 'string') : [])),
 }
 
 /** What the demo's two machines use: little, as a daemon should. */
@@ -119,10 +122,9 @@ export async function respond(world: World, request: Request): Promise<Response>
   const { pathname } = new URL(request.url)
   const method = request.method.toUpperCase()
   const fixed = ROUTES[`${method} ${pathname}`]
-  if (fixed) return fixed(world)
   const match = /^\/v1\/sessions\/([^/]+)(?:\/(.+))?$/.exec(pathname)
   const handler = match && SESSION_ROUTES[`${method} ${match[2] ?? ''}`]
-  if (!match || !handler) return refuse(409, NOT_IN_DEMO)
+  if (!fixed && (!match || !handler)) return refuse(409, NOT_IN_DEMO)
   const text = method === 'GET' ? '' : await request.text()
   let body: Record<string, unknown> = {}
   try {
@@ -130,5 +132,5 @@ export async function respond(world: World, request: Request): Promise<Response>
   } catch {
     return refuse(422, 'not JSON')
   }
-  return handler(world, decodeURIComponent(match[1]), body)
+  return fixed ? fixed(world, body) : handler!(world, decodeURIComponent(match![1]), body)
 }

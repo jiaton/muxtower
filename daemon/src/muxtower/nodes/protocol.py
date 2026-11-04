@@ -37,7 +37,7 @@ CLOSE_INCOMPATIBLE = 4400
 # What the hub may ask of a node.
 METHODS = frozenset({
     "conversation", "screen", "watch_screen", "unwatch_screen", "input", "approve", "deny", "resize",
-    "release_size", "update", "terminate", "archive", "mark_read", "detect_folder", "create", "image",
+    "release_size", "update", "terminate", "archive", "mark_read", "detect_folder", "create", "image", "recover",
 })  # fmt: skip
 
 # What a node may ask of its hub (protocol 2): one of its sessions calls a team tool.

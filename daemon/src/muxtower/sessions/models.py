@@ -141,6 +141,9 @@ class Session(BaseModel):
     side_chat: bool = Field(
         default=False, description="something asked on the side of `fork_of` (Claude desktop's side chat)"
     )
+    interrupted_at: datetime | None = Field(
+        default=None, description="its machine restarted under it: kept to be resumed or removed (`/v1/recovery`)"
+    )
     team_role: str | None = Field(default=None, description="what it is for in its team (free text; `teams/`)")
     team_note: str | None = Field(default=None, description="one more line about its team role")
     project: str | None = Field(

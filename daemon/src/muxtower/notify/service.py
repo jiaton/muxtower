@@ -9,7 +9,7 @@ from typing import Any, Literal
 from muxtower.infra.bus import EventBus
 from muxtower.notify.models import PushPayload, Subscribe, Subscription
 from muxtower.notify.ports import PushSender, StoredSubscription, SubscriptionRepository
-from muxtower.notify.text import attention_text, done_text, login_expired_text
+from muxtower.notify.text import attention_text, done_text, interrupted_text, login_expired_text
 from muxtower.runtimes.models import AgentState
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.models import NotifyLevel, Session, SessionRole, TurnSummary
@@ -81,20 +81,28 @@ class PushService:
         needs_only = view.notify == NotifyLevel.NEEDS
         return self._send(view, "done", title, body, lambda sub: sub.done or needs_only)
 
-    def notify_login_expired(self) -> int:
-        """The Claude login this daemon reads Remote Control with stopped working: to every device, once
-        (`RemoteControlSource` says so when it breaks, not on every poll)."""
-        title, body = login_expired_text(self.daemon_name)
+    def notify_interrupted(self, count: int) -> int:
+        """A restart interrupted sessions here (`recovery/`): to every device, once per restart."""
+        title, body = interrupted_text(self.daemon_name, count)
+        return self._to_all("recovery", title, body)
+
+    def _to_all(self, kind: Literal["login", "recovery"], title: str, body: str) -> int:
         sent = 0
         for sub in self._paired():
             payload = PushPayload(
-                client_ref=sub.client_ref, daemon_name=self.daemon_name, kind="login", title=title, body=body
+                client_ref=sub.client_ref, daemon_name=self.daemon_name, kind=kind, title=title, body=body
             )
             if self.sender.send(sub, payload.model_dump_json()):
                 sent += 1
             else:
                 self.repo.delete(sub.id)
         return sent
+
+    def notify_login_expired(self) -> int:
+        """The Claude login this daemon reads Remote Control with stopped working: to every device, once
+        (`RemoteControlSource` says so when it breaks, not on every poll)."""
+        title, body = login_expired_text(self.daemon_name)
+        return self._to_all("login", title, body)
 
     def _paired(self) -> list[StoredSubscription]:
         """Subscriptions of devices still paired; the others' are dropped."""
@@ -173,10 +181,17 @@ class PushService:
         bus.subscribe("attention:*", queue)
         bus.subscribe("done:*", queue)
         bus.subscribe("claude-login:*", queue)
+        bus.subscribe("recovery:*", queue)
         waiting: set[asyncio.Task[None]] = set()  # finished turns waiting for their summary
         while True:
-            topic, _ = await queue.get()
+            topic, payload = await queue.get()
             kind, session_id = topic.split(":", 1)
+            if kind == "recovery":
+                try:
+                    await asyncio.to_thread(self.notify_interrupted, int(payload or 0))
+                except Exception:
+                    logger.exception("push dispatch failed")
+                continue
             if kind == "claude-login":
                 try:
                     await asyncio.to_thread(self.notify_login_expired)

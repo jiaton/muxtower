@@ -59,6 +59,7 @@ describe('the demo daemon over HTTP', () => {
       'laptop~infra',
       'release-notes',
       'release-notes-fork',
+      'laptop~migrations',
     ])
     const screen = await (await call(w, 'GET', '/v1/sessions/shop-api/screen')).json()
     expect(screen.text).toContain('Do you want to proceed?')
@@ -73,6 +74,11 @@ describe('the demo daemon over HTTP', () => {
     expect((await (await call(w, 'GET', '/v1/sessions/shop-api/tasks')).json())[0].from_id).toBe('release-notes')
     const team = await (await call(w, 'PUT', '/v1/sessions/docs/team', { role: 'writer', note: '', rename_project: false })).json()
     expect([team.team_role, team.team_note]).toEqual(['writer', null])
+    const asked = await (await call(w, 'GET', '/v1/recovery')).json()
+    expect(asked.sessions.map((s: { id: string }) => s.id)).toEqual(['laptop~migrations'])
+    const [started] = await (await call(w, 'POST', '/v1/recovery', { session_ids: ['laptop~migrations', 'docs'] })).json()
+    expect([started.id, started.interrupted_at, started.capabilities.screen]).toEqual(['laptop~migrations', null, true])
+    expect(await (await call(w, 'POST', '/v1/recovery', { session_ids: ['laptop~migrations'] })).json()).toEqual([])
   })
 })
 

@@ -161,6 +161,14 @@ class NodeSource:
     def release_size(self, session_id: str) -> None:
         self._call(session_id, "release_size")
 
+    def recover(self, session_id: str) -> Session:
+        """Starts again, on its node, a session a restart interrupted there (`recovery/`)."""
+        node, _ = self._require(session_id)
+        result = self._call(session_id, "recover", timeout=CREATE_SECONDS)
+        if result is None:
+            raise Conflict(f"{session_id} is not interrupted")
+        return self.view(node, Session.model_validate(result))
+
     def update(self, session_id: str, patch: UpdateSession) -> Session:
         node, _ = self._require(session_id)
         result = Session.model_validate(self._call(session_id, "update", {"patch": patch.model_dump(mode="json")}))

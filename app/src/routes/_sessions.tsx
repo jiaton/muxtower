@@ -1,5 +1,5 @@
 import { Link, Outlet, createFileRoute, useMatch } from '@tanstack/react-router'
-import { Archive, BellOff, CheckCheck, EyeOff, Plus, SearchX, Server } from 'lucide-react'
+import { Archive, BellOff, CheckCheck, EyeOff, Plus, RotateCcw, SearchX, Server } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Drawer } from '@/components/ui/drawer'
@@ -8,6 +8,7 @@ import { Pane, PaneBody, PaneHeader } from '@/components/ui/pane'
 import { QuickApproval } from '@/features/approval/components/quick-approval'
 import { PairCodeForm } from '@/features/pairing/components/pair-code-form'
 import { DaemonAlerts } from '@/features/sessions/components/daemon-alerts'
+import { InterruptedBanner } from '@/features/sessions/components/interrupted'
 import { ExpiredLogins } from '@/features/daemons/components/expired-logins'
 import { ListChips } from '@/features/sessions/components/list-chips'
 import { FilterMenu, ListMenu, ScopeChip, SearchField } from '@/features/sessions/components/list-controls'
@@ -116,6 +117,7 @@ function SessionsLayout() {
           </PaneHeader>
           <PaneBody ref={listRef}>
             <DaemonAlerts daemons={daemons} />
+            <InterruptedBanner entries={entries} />
             <ExpiredLogins />
             {groups.length ? (
               <SessionList
@@ -149,6 +151,10 @@ function SessionsLayout() {
                 ) : query.view === 'hidden' ? (
                   <EmptyState icon={<EyeOff />} title="Nothing hidden">
                     Swipe a session right, or use its menu, to hide it.
+                  </EmptyState>
+                ) : query.view === 'interrupted' ? (
+                  <EmptyState icon={<RotateCcw />} title="Nothing interrupted">
+                    Sessions a restart cut short wait here to be started again.
                   </EmptyState>
                 ) : query.view === 'archived' ? (
                   <EmptyState icon={<Archive />} title="Nothing archived">

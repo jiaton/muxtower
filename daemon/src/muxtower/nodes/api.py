@@ -13,7 +13,7 @@ from muxtower.nodes.processes import report
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.launcher import Launcher
-from muxtower.sessions.models import CreateSession, UpdateSession
+from muxtower.sessions.models import CreateSession, Session, UpdateSession
 from muxtower.sessions.placement import Placements
 from muxtower.sessions.ports import ClaudeProcessPort
 from muxtower.terminal.models import Resize, SendInput
@@ -25,7 +25,7 @@ def _json(value: Any) -> Any:
 
 
 # What changes something here: audited as done by the hub, like a device's actions.
-MUTATING = frozenset({"input", "approve", "deny", "update", "terminate", "archive", "create"})
+MUTATING = frozenset({"input", "approve", "deny", "update", "terminate", "archive", "create", "recover"})
 # What changes the list here (as the same routes say for a device): the hub hears of it at once.
 CHANGES_LIST = MUTATING | {"mark_read"}
 
@@ -37,6 +37,7 @@ class NodeApi:
     ) -> None:  # fmt: skip
         self.processes = processes
         self.usage_now: Callable[[], MachineUsage] | None = None  # set once the usage sampler runs
+        self.recover: Callable[[list[str]], list[Session]] | None = None  # set by the recovery service
         self.directory = directory
         self.launcher = launcher
         self.archiver = archiver
@@ -83,6 +84,11 @@ class NodeApi:
                 d.terminate(sid)
             case "archive":
                 self.archiver.archive(sid)
+            case "recover":
+                if self.recover is None:
+                    raise Invalid("this node cannot start sessions again")
+                started = self.recover([sid])
+                return _json(started[0]) if started else None
             case "mark_read":
                 d.mark_read(sid, True)
             case "detect_folder":

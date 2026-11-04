@@ -29,9 +29,9 @@ Detach with the usual tmux keys (`Ctrl-b d`); the agent keeps running. Agents yo
 
 | | |
 |---|---|
-| `muxtower` | status: is the daemon running, which sessions need you |
+| `muxtower` | status: is the daemon running, which sessions need you; sessions a restart interrupted are listed below, to start again (all, some, or not now) |
 | `muxtower run AGENT [ARGS…]` | start an agent (`claude`, `codex`, …) in a managed tmux session; `-d` to stay detached, `-n` to name it |
-| `muxtower attach [NAME]` | open a session in this terminal |
+| `muxtower attach [NAME]` | open a session in this terminal (one a restart interrupted is started again first) |
 | `muxtower pair` | add a device with a one-time code (and a QR code when the address is known: `--url` or `public_url`). `--revoke NAME` removes one. `--join HUB --code CODE` joins this daemon to another as a node; `--leave` stops |
 | `muxtower expose tailscale` | serve the daemon over HTTPS on your tailnet (`tailscale serve`) and set `public_url` to that address; `--off` undoes it |
 | `muxtower serve` | run the daemon in the foreground (systemd, Docker). `muxtower run` starts it for you otherwise |
