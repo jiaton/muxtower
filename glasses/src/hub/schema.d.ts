@@ -180,6 +180,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/nodes/direct": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Direct Tokens
+         * @description For this device: each connected node's address and a device token of its own, to reach it directly
+         *     while the hub is down (made anew each time; revoking this device here revokes them).
+         */
+        post: operations["direct_tokens_v1_nodes_direct_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/nodes/{name}": {
         parameters: {
             query?: never;
@@ -197,7 +218,11 @@ export interface paths {
         delete: operations["remove_node_v1_nodes__name__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Set Direct Url
+         * @description The owner's address for reaching a node itself while the hub is down, over the one it reports.
+         */
+        patch: operations["set_direct_url_v1_nodes__name__patch"];
         trace?: never;
     };
     "/v1/pair/claim": {
@@ -1041,6 +1066,29 @@ export interface components {
             /** Name */
             name: string;
         };
+        /** DirectNode */
+        DirectNode: {
+            /** Node */
+            node: string;
+            /**
+             * Token
+             * @description a device token of that node, for this device
+             */
+            token: string;
+            /**
+             * Url
+             * @description https: where the app reaches it itself
+             */
+            url: string;
+        };
+        /** DirectUrl */
+        DirectUrl: {
+            /**
+             * Direct Url
+             * @description https; null: the address the node reports
+             */
+            direct_url: string | null;
+        };
         /** ErrorFrame */
         ErrorFrame: {
             /** Message */
@@ -1303,6 +1351,11 @@ export interface components {
          */
         NodeInfo: {
             /**
+             * Direct Url
+             * @description the owner's address for it, used over the reported one
+             */
+            direct_url?: string | null;
+            /**
              * Joined At
              * Format: date-time
              */
@@ -1316,6 +1369,11 @@ export interface components {
             name: string;
             /** Online */
             online: boolean;
+            /**
+             * Reported Url
+             * @description where it says the app can reach it itself
+             */
+            reported_url?: string | null;
             /**
              * Runtimes
              * @description what can be started there
@@ -2354,6 +2412,26 @@ export interface operations {
             };
         };
     };
+    direct_tokens_v1_nodes_direct_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectNode"][];
+                };
+            };
+        };
+    };
     remove_node_v1_nodes__name__delete: {
         parameters: {
             query?: never;
@@ -2364,6 +2442,39 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_direct_url_v1_nodes__name__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DirectUrl"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {

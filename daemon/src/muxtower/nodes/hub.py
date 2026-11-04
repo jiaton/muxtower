@@ -131,6 +131,8 @@ class Nodes:
                     last_seen=None if node.online else node.record.last_seen,
                     sessions=len(node.sessions),
                     runtimes=[RuntimeInfo.model_validate(r) for r in node.record.runtimes],
+                    reported_url=node.record.reported_url,
+                    direct_url=node.record.direct_url,
                 )  # fmt: skip
                 for name, node in sorted(self.nodes.items())
             ]
@@ -181,6 +183,7 @@ class Nodes:
             node.record.version = hello.version
             node.record.runtimes = [r.model_dump(mode="json") for r in hello.runtimes]
             node.record.platform = hello.platform or node.record.platform
+            node.record.reported_url = hello.url
             node.record.last_seen = datetime.now(UTC)
             watched = {sid: list(h) for sid, h in node.screens.items()}
         if old is not None:
@@ -189,6 +192,14 @@ class Nodes:
         for session_id, histories in watched.items():
             for history in histories:
                 await link.notify("watch_screen", {"session_id": session_id, "history": history})
+        for token_name in self.repo.revocations(name):  # devices revoked while it was away (`direct.py`)
+            try:
+                await link.call("revoke_token", {"name": token_name}, 20)
+            except Exception as exc:  # noqa: BLE001 - an older node made none; tried again next time otherwise
+                if "unknown method" not in str(exc):
+                    logger.warning("could not revoke %s on %s yet: %s", token_name, name, exc)
+                    continue
+            self.repo.revoked(name, token_name)
         logger.info("node %s connected (%s)", name, hello.version)
         self.bus.publish("sessions", None)
 

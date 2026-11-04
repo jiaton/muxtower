@@ -7,8 +7,10 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from muxtower.auth.service import TokenService
 from muxtower.errors import Invalid
 from muxtower.infra.audit import AuditLog
+from muxtower.nodes.direct import TOKEN_PREFIX
 from muxtower.nodes.processes import report
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.directory import SessionDirectory
@@ -40,6 +42,7 @@ class NodeApi:
         self.usage_now: Callable[[], MachineUsage] | None = None  # set once the usage sampler runs
         self.recover: Callable[[list[str]], list[Session]] | None = None  # set by the recovery service
         self.settings: SettingsService | None = None  # its feature settings, which the hub may change
+        self.tokens: TokenService | None = None  # its device tokens: the hub's devices get one here (`direct.py`)
         self.directory = directory
         self.launcher = launcher
         self.archiver = archiver
@@ -91,6 +94,15 @@ class NodeApi:
                     raise Invalid("this node cannot start sessions again")
                 started = self.recover([sid])
                 return _json(started[0]) if started else None
+            case "mint_token" | "revoke_token":
+                name = str(params.get("name", ""))
+                if self.tokens is None or not name.startswith(TOKEN_PREFIX):
+                    raise Invalid("only a hub device's direct token")  # never another device's
+                self.tokens.revoke(name)  # one per hub device: a new one replaces the last
+                if method == "mint_token":
+                    self.audit.record("hub", "direct-token", detail=name)
+                    return self.tokens.create(name)[1]
+                self.audit.record("hub", "direct-token-revoked", detail=name)
             case "settings" | "set_settings":
                 if self.settings is None:
                     raise Invalid(f"unknown method {method}")
