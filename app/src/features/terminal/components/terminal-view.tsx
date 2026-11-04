@@ -3,7 +3,9 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { countRender } from '@/lib/diagnostics'
 import { Button } from '@/components/ui/button'
 import { ansiToLines } from '@/lib/ansi'
-import { align } from '../lines'
+import { MAX_ROWS } from '../hooks/use-session-terminal'
+import { align, collapseGap } from '../lines'
+import { useTerminalPrefs } from '../store'
 
 interface Props {
   ansi: string | undefined
@@ -33,10 +35,14 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
   const [behind, setBehind] = useState(false)
   const [tooWide, setTooWide] = useState(false)
   const drawing = useRef(0) // when the screen now drawn arrived (`lib/diagnostics`: how long drawing takes)
+  const [viewRows, setViewRows] = useState<number | undefined>(undefined) // measured while fitting
+  const screens = useTerminalPrefs((s) => s.screens) // a fitted pane is this many views tall
   const lines = useMemo(() => {
     drawing.current = performance.now()
-    return ansi === undefined ? null : ansiToLines(ansi.replace(/\n+$/, ''))
-  }, [ansi])
+    // A pane taller than the view: its blank middle is shortened to fit (`collapseGap`), before aligning.
+    const all = ansi === undefined ? null : ansiToLines(ansi.replace(/\n+$/, ''))
+    return all && onFit && viewRows ? collapseGap(all, viewRows, Math.min(MAX_ROWS, viewRows * screens)) : all
+  }, [ansi, viewRows, onFit, screens])
 
   useLayoutEffect(() => {
     const box = scroller.current
@@ -111,6 +117,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
         const height = box.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
         const cols = Math.max(20, Math.floor((width - 1) / (line.width / 10)))
         const rows = Math.min(200, Math.max(5, Math.floor(height / line.height)))
+        setViewRows(rows)
         if (`${cols}x${rows}` === sent) return
         sent = `${cols}x${rows}`
         onFit({ cols, rows })

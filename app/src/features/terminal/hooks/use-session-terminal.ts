@@ -6,7 +6,7 @@ import { daemonKey } from '@/lib/query'
 import { HISTORY_STEPS, usePaneSize, useScreen } from '../api/use-terminal'
 import { useTerminalPrefs } from '../store'
 
-const MAX_ROWS = 300 // the daemon's limit
+export const MAX_ROWS = 300 // the daemon's limit
 const SIZED_WAIT_MS = 1500 // a view that cannot be measured (hidden) reads the screen anyway
 
 /** Screen, history depth and pane sizing for the session page. */
