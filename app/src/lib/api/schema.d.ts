@@ -291,6 +291,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/recovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Interrupted
+         * @description The sessions a restart interrupted, waiting to be started again (POST) or removed (DELETE the session).
+         */
+        get: operations["interrupted_v1_recovery_get"];
+        put?: never;
+        /**
+         * Recover
+         * @description Starts them again, each in its folder with its options, resuming its conversation, under its own id.
+         *     Nothing is sent to them.
+         */
+        post: operations["recover_v1_recovery_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/runtimes": {
         parameters: {
             query?: never;
@@ -1375,6 +1400,24 @@ export interface components {
             /** Label */
             label: string;
         };
+        /** Recover */
+        Recover: {
+            /** Session Ids */
+            session_ids: string[];
+        };
+        /** Recovery */
+        Recovery: {
+            /**
+             * Mode
+             * @description ask | auto | off (`[recovery] mode`)
+             */
+            mode: string;
+            /**
+             * Sessions
+             * @description interrupted by a restart, here and on the nodes: to start again or remove
+             */
+            sessions: components["schemas"]["Session"][];
+        };
         /** Resize */
         Resize: {
             /** Cols */
@@ -1493,6 +1536,11 @@ export interface components {
             hidden: boolean;
             /** Id */
             id: string;
+            /**
+             * Interrupted At
+             * @description its machine restarted under it: kept to be resumed or removed (`/v1/recovery`)
+             */
+            interrupted_at?: string | null;
             /** Last Message */
             last_message: string | null;
             /**
@@ -2325,6 +2373,59 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    interrupted_v1_recovery_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Recovery"];
+                };
+            };
+        };
+    };
+    recover_v1_recovery_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Recover"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"][];
+                };
             };
             /** @description Validation Error */
             422: {

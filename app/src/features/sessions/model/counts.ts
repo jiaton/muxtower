@@ -70,6 +70,7 @@ export function facetsOf(entries: SessionEntry[]): Facets {
       working: counted.filter((e) => statusOf(e.session) === 'working').length,
       hidden: entries.filter((e) => placeOf(e.session) === 'hidden').length,
       archived: entries.filter((e) => placeOf(e.session) === 'archived').length,
+      interrupted: entries.filter((e) => placeOf(e.session) === 'interrupted').length,
     },
     devices: facet(counted, deviceLabel, NO_ENVIRONMENT).map((device) => {
       const here = counted.filter((e) => deviceLabel(e) === device.label)

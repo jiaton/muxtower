@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Archive, Eye, EyeOff, FolderInput, Mail, MailOpen, Pencil, Pin, PinOff, Power, Trash2, Users, type LucideIcon } from 'lucide-react'
+import { Archive, Eye, EyeOff, FolderInput, Mail, MailOpen, Pencil, Pin, PinOff, Power, RotateCcw, Trash2, Users, type LucideIcon } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -8,11 +8,12 @@ import { Input } from '@/components/ui/input'
 import type { Session } from '@/lib/api/types'
 import { useArchiveSession, useTerminateSession, useUpdateSession } from '../api/use-session-mutations'
 import { useHideSession, useMarkRead, usePinSession } from '../api/use-session-marks'
+import { useRecoverSessions } from '../api/use-recovery'
 import { PlaceDialog } from './place-dialog'
 import { TeamDialog } from './team-dialog'
 
 export interface SessionAction {
-  id: 'read' | 'pin' | 'rename' | 'place' | 'team' | 'hide' | 'archive' | 'stop' | 'delete'
+  id: 'read' | 'pin' | 'rename' | 'place' | 'team' | 'hide' | 'archive' | 'stop' | 'delete' | 'resume'
   label: string
   icon: LucideIcon
   tone?: 'accent' | 'neutral' | 'danger'
@@ -23,7 +24,8 @@ export interface SessionAction {
 
 /** What the owner can do to a session from anywhere it is shown (a list row's swipe tray or menu, the
  *  session's own menu): mark read or unread, pin or unpin, rename, move (say where it runs), hide or show, archive, stop;
- *  rename, move, archive and stop only where its capabilities allow. An archived session can only be deleted from the archive. Renders
+ *  rename, move, archive and stop only where its capabilities allow. An archived session can only be deleted from the archive;
+ *  one a restart interrupted can be started again or deleted. Renders
  *  `children(actions)` plus the dialogs they open (archive, stop and delete ask first). `open`: the session
  *  is the page being shown, so marking it unread, hiding or deleting it goes back to the list first (an
  *  open session is read, and a hidden one has no place beside the list); an archived one stays, read-only. */
@@ -42,13 +44,17 @@ export function SessionActions({
   const markRead = useMarkRead()
   const hide = useHideSession()
   const pin = usePinSession()
+  const recover = useRecoverSessions(daemonId)
   const [dialog, setDialog] = useState<'rename' | 'place' | 'team' | 'archive' | 'stop' | 'delete' | null>(null)
   const ids = { daemonId, sessionId: session.id }
   const leaving = (then: () => void) => (open ? () => void navigate({ to: '/', search: true }).then(then) : then)
 
-  const actions: SessionAction[] = session.archived_at
-    ? [{ id: 'delete', label: 'Delete', icon: Trash2, tone: 'danger', run: () => setDialog('delete') }]
-    : liveActions()
+  const remove: SessionAction = { id: 'delete', label: 'Delete', icon: Trash2, tone: 'danger', run: () => setDialog('delete') }
+  const actions: SessionAction[] = session.interrupted_at
+    ? [{ id: 'resume', label: 'Start again', icon: RotateCcw, tone: 'accent', run: () => recover.mutate([session.id]) }, remove]
+    : session.archived_at
+      ? [remove]
+      : liveActions()
 
   function liveActions(): SessionAction[] {
     const live: SessionAction[] = [
@@ -221,7 +227,11 @@ function DeleteDialog({ daemonId, session, ...rest }: DialogProps) {
   return (
     <ConfirmDialog
       title={`Delete ${session.name}?`}
-      description="It leaves the archive, and its conversation is no longer shown here."
+      description={
+        session.interrupted_at
+          ? 'It is not started again, and muxtower forgets it. Its conversation stays with its agent.'
+          : 'It leaves the archive, and its conversation is no longer shown here.'
+      }
       confirm={
         <>
           <Trash2 /> Delete

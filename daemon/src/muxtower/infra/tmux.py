@@ -82,6 +82,11 @@ class TmuxCli:
         )  # fmt: skip
         return PaneRef(socket=socket, pane_id=result.stdout.strip())
 
+    def server_id(self, socket: str) -> str | None:
+        shown = self._run(socket, "display-message", "-p", "#{pid}:#{start_time}", check=False)
+        told = shown.stdout.strip() if shown.returncode == 0 else ""
+        return told if ":" in told and told.split(":")[0].isdigit() else None
+
     def installed(self) -> bool:
         return shutil.which(self.binary, path=_ENV.get("PATH")) is not None
 

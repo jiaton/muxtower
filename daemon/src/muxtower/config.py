@@ -121,6 +121,13 @@ class HubSettings(BaseModel):
     update: Literal["always", "incompatible", "never"] = "incompatible"
 
 
+class RecoverySettings(BaseModel):
+    """Sessions whose machine restarted under them (`recovery/`): ask the owner which to start again
+    (default), start them all again (auto), or let them go (off)."""
+
+    mode: Literal["ask", "auto", "off"] = "ask"
+
+
 class UsageSettings(BaseModel):
     """When what the daemon uses is worth showing (an alert by the machine's name in the app)."""
 
@@ -156,6 +163,7 @@ class Settings(BaseModel):
     asr: AsrSettings = Field(default_factory=AsrSettings)
     concierge: ConciergeSettings = Field(default_factory=ConciergeSettings)
     usage: UsageSettings = Field(default_factory=UsageSettings)
+    recovery: RecoverySettings = Field(default_factory=RecoverySettings)
     hub: HubSettings = Field(default_factory=HubSettings)
 
     @property

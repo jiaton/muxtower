@@ -25,7 +25,7 @@ import {
 } from './facets'
 
 /** What the list shows; hidden and archived sessions are only in their own view, and counted nowhere else. */
-export const VIEWS = ['all', 'needs', 'unread', 'working', 'hidden', 'archived'] as const
+export const VIEWS = ['all', 'needs', 'unread', 'working', 'hidden', 'archived', 'interrupted'] as const
 export const GROUPINGS = ['status', 'device', 'agent', 'source', 'account', 'none'] as const
 export type View = (typeof VIEWS)[number]
 export type GroupBy = (typeof GROUPINGS)[number]
@@ -53,13 +53,15 @@ export const VIEW_LABEL: Record<View, string> = {
   working: 'Working',
   hidden: 'Hidden',
   archived: 'Archived',
+  interrupted: 'Interrupted',
 }
 
 /** Views of sessions set aside (`Place`), reached from a menu rather than the tabs. */
-export const ASIDE_VIEWS: readonly View[] = ['hidden', 'archived']
+export const ASIDE_VIEWS: readonly View[] = ['hidden', 'archived', 'interrupted']
 
 /** Where the sessions a view shows are listed. */
-export const placeIn = (view: View): Place => (view === 'hidden' || view === 'archived' ? view : 'listed')
+export const placeIn = (view: View): Place =>
+  view === 'hidden' || view === 'archived' || view === 'interrupted' ? view : 'listed'
 export const GROUP_LABEL: Record<GroupBy, string> = {
   status: 'Status',
   device: 'Device and folder',

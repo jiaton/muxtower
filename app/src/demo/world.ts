@@ -23,6 +23,8 @@ export interface Scene {
   reply?: (text: string) => Step[]
   /** Work teammates sent it, or it sent them (the Team dialog). */
   tasks?: TeamTask[]
+  /** What it is once started again, for one a restart interrupted (`session.interrupted_at`). */
+  resumed?: Partial<Session>
 }
 
 type Listener = (frame: ServerFrame) => void
@@ -105,6 +107,13 @@ export class World {
     if (!this.scenes.has(id)) return false
     this.apply(id, { after: 0, session: patch }, false)
     return true
+  }
+
+  /** Starts interrupted sessions again (`POST /v1/recovery`); those that are not are skipped. */
+  recover(ids: string[]): Session[] {
+    const started = ids.filter((id) => this.scenes.get(id)?.session.interrupted_at)
+    for (const id of started) this.apply(id, { after: 0, session: this.scenes.get(id)!.resumed ?? { interrupted_at: null } }, false)
+    return started.map((id) => this.scenes.get(id)!.session)
   }
 
   remove(id: string) {

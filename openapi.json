@@ -1332,6 +1332,47 @@
         "title": "QuestionOption",
         "type": "object"
       },
+      "Recover": {
+        "properties": {
+          "session_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Session Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "session_ids"
+        ],
+        "title": "Recover",
+        "type": "object"
+      },
+      "Recovery": {
+        "properties": {
+          "mode": {
+            "description": "ask | auto | off (`[recovery] mode`)",
+            "title": "Mode",
+            "type": "string"
+          },
+          "sessions": {
+            "description": "interrupted by a restart, here and on the nodes: to start again or remove",
+            "items": {
+              "$ref": "#/components/schemas/Session"
+            },
+            "title": "Sessions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "mode",
+          "sessions"
+        ],
+        "title": "Recovery",
+        "type": "object"
+      },
       "Resize": {
         "properties": {
           "cols": {
@@ -1584,6 +1625,19 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "interrupted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "its machine restarted under it: kept to be resumed or removed (`/v1/recovery`)",
+            "title": "Interrupted At"
           },
           "last_message": {
             "anyOf": [
@@ -3132,6 +3186,72 @@
         "summary": "Unsubscribe",
         "tags": [
           "push"
+        ]
+      }
+    },
+    "/v1/recovery": {
+      "get": {
+        "description": "The sessions a restart interrupted, waiting to be started again (POST) or removed (DELETE the session).",
+        "operationId": "interrupted_v1_recovery_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recovery"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Interrupted",
+        "tags": [
+          "recovery"
+        ]
+      },
+      "post": {
+        "description": "Starts them again, each in its folder with its options, resuming its conversation, under its own id.\nNothing is sent to them.",
+        "operationId": "recover_v1_recovery_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Recover"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Session"
+                  },
+                  "title": "Response Recover V1 Recovery Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recover",
+        "tags": [
+          "recovery"
         ]
       }
     },

@@ -6,19 +6,17 @@ A session's project is worked out once, when it is first seen, from git on this 
 its origin remote, else its repository, else its folder. An agent or the owner can move it, or rename a
 project for all its sessions. Kept on the hub, which sees every session."""
 
-import os
-import re
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 
 from muxtower.errors import Invalid, NotFound
 from muxtower.sessions.directory import SessionDirectory
+from muxtower.sessions.interrupted import agent_id_of
 from muxtower.sessions.models import Session
 from muxtower.teams.checkout import CheckoutCache, checkout
 from muxtower.teams.ports import Checkout, TeamRecord, TeamRepository
 
-UUID_AT_END = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 ROLE_CHARS = 60
 NOTE_CHARS = 300
 PROJECT_CHARS = 120
@@ -39,13 +37,6 @@ def _text(value: str | None, limit: int, what: str) -> str | None:
     if len(text) > limit:
         raise Invalid(f"{what} is longer than {limit} characters")
     return text or None
-
-
-def agent_id_of(transcript: str | None) -> str | None:
-    """The agent's own id for a session, from its transcript's name (Claude Code: `<id>.jsonl`; Codex:
-    `rollout-<time>-<thread id>.jsonl`)."""
-    found = UUID_AT_END.search(os.path.basename(transcript or "").removesuffix(".jsonl"))
-    return found.group(0) if found else None
 
 
 class TeamService:

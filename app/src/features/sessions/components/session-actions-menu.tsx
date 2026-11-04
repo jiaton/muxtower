@@ -23,7 +23,8 @@ const MENU_LABEL: Record<SessionAction['id'], (session: Session) => string> = {
   hide: (s) => (s.hidden ? 'Show in the list' : 'Hide from the list'),
   archive: () => 'Archive',
   stop: () => 'Stop session',
-  delete: () => 'Delete from the archive',
+  delete: (s) => (s.interrupted_at ? 'Delete' : 'Delete from the archive'),
+  resume: () => 'Start again',
 }
 
 /** The session actions as menu items (a row's hover menu, the session page's menu). */

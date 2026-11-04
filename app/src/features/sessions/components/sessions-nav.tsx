@@ -1,5 +1,5 @@
 import { Link, useSearch } from '@tanstack/react-router'
-import { Archive, ChevronRight, CircleAlert, CircleCheck, EyeOff, Layers, LoaderCircle, Monitor, UserRound } from 'lucide-react'
+import { Archive, ChevronRight, CircleAlert, CircleCheck, EyeOff, Layers, LoaderCircle, Monitor, RotateCcw, UserRound } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { NavCount, NavSection, navItemClass, navSubItemClass } from '@/components/ui/nav'
 import { cn } from '@/lib/cn'
@@ -58,6 +58,7 @@ const VIEW_ICONS: Record<View, typeof Layers> = {
   working: LoaderCircle,
   hidden: EyeOff,
   archived: Archive,
+  interrupted: RotateCcw,
 }
 const FOLDERS_SHOWN = 5
 
@@ -134,7 +135,7 @@ export function SessionsNav() {
   return (
     <nav aria-label="Sessions" className="flex flex-col gap-4">
       <NavSection title="Sessions">
-        {VIEWS.map((view) => {
+        {VIEWS.filter((view) => view !== 'interrupted' || facets.views.interrupted).map((view) => {
           const Icon = VIEW_ICONS[view]
           return (
             <ScopeLink key={view} search={search} scope={{ view }} className={navItemClass}>

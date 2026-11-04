@@ -16,6 +16,7 @@ import { ConversationView } from '@/features/conversation/components/conversatio
 import { useSession } from '@/features/sessions/api/use-sessions'
 import { SessionActionsMenu } from '@/features/sessions/components/session-actions-menu'
 import { SessionHeader } from '@/features/sessions/components/session-header'
+import { InterruptedState } from '@/features/sessions/components/interrupted'
 import { useSeenWhileOpen } from '@/features/sessions/hooks/use-seen-while-open'
 import { useSessionDrawer, useSessionViews, type SessionView as View } from '@/features/sessions/store'
 import { useSendInput } from '@/features/terminal/api/use-terminal'
@@ -87,7 +88,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
     const typed = useDrafts.getState().drafts[key]?.trimEnd()
     setDraft(key, typed ? `${typed} ${said}` : said)
   })
-  const writable = !session.archived_at && !session.offline
+  const writable = !session.archived_at && !session.offline && !session.interrupted_at
   const fill = useDrafts((s) => s.fill)
   // Claude Code in a terminal runs a message that starts with "!" in its shell: a code block can be put in
   // the message box as one, to read and send (or not). Not where nothing types into a terminal (Remote
@@ -143,6 +144,8 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
         </div>
       ) : null}
 
+      {session.interrupted_at ? <InterruptedState daemonId={daemonId} session={session} /> : null}
+
       {session.offline ? (
         <div className="flex-1 p-4">
           <EmptyState icon={<Unplug />} title={`${session.node ?? 'Its computer'} is offline`}>
@@ -154,7 +157,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
       <div ref={views} className="contents">
         <CodeActionContext.Provider value={runAsCommand}>
           <Pager
-            className={session.offline ? 'hidden' : 'flex-1'}
+            className={session.offline || session.interrupted_at ? 'hidden' : 'flex-1'}
             label="Session views"
             index={both && view === 'conversation' ? 1 : 0}
             onIndexChange={(page) => both && setView(page === 1 ? 'conversation' : 'terminal')}

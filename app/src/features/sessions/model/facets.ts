@@ -37,9 +37,10 @@ export function statusOf(session: Session): Status {
 }
 
 /** Where a session is listed: with the others, or set aside under Hidden or Archived (each only there). */
-export type Place = 'listed' | 'hidden' | 'archived'
+export type Place = 'listed' | 'hidden' | 'archived' | 'interrupted'
 
-export const placeOf = (session: Session): Place => (session.archived_at ? 'archived' : session.hidden ? 'hidden' : 'listed')
+export const placeOf = (session: Session): Place =>
+  session.interrupted_at ? 'interrupted' : session.archived_at ? 'archived' : session.hidden ? 'hidden' : 'listed'
 
 // --- device -------------------------------------------------------------------------------------
 
