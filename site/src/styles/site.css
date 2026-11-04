@@ -4,7 +4,8 @@
    shadcn's own `accent` (a hover background) is not mapped: the app's accent is its brand blue, so the
    generated components use `muted` for hovers instead (see AGENTS.md). */
 @import '../../../app/src/styles/tokens.css';
-@import '@fontsource-variable/inter';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
 
 @source '../';
 
@@ -27,7 +28,19 @@
 }
 
 @theme static {
-  --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'Geist Mono Variable', ui-monospace, 'SFMono-Regular', monospace;
+  /* The beams between machines and the hub (components/ui/animated-beam.tsx, border-beam.tsx). */
+  --color-beam-from: oklch(0.62 0.17 255);
+  --color-beam-to: oklch(0.6 0.16 300);
+  /* The one dark band of the page (Built to cost little) and the final call to action. */
+  --color-ink: oklch(0.17 0.012 260);
+  --color-ink-raised: oklch(0.22 0.012 260);
+  --color-ink-fg: oklch(0.96 0.004 260);
+  --color-ink-muted: oklch(0.7 0.012 260);
+  --color-ink-border: oklch(0.3 0.012 260);
+  --color-ink-accent: oklch(0.72 0.14 250);
+  --shadow-card-soft: 0 1px 2px oklch(0.25 0.02 260 / 0.05), 0 8px 24px -12px oklch(0.25 0.02 260 / 0.12);
   --radius-xl: 1.25rem;
   /* The demo stage: a window and a phone drawn by the site (src/features/demo/). */
   --radius-device: 2.5rem;
@@ -43,12 +56,18 @@
   --color-device-frame: oklch(0.2 0.01 260);
   --color-scrim: oklch(0.985 0.002 260 / 0.9);
   --text-code: 0.85em;
-  --text-hero: clamp(2.25rem, 5vw, 4rem);
-  --text-hero--line-height: 1.02;
-  --text-hero--letter-spacing: -0.035em;
+  --text-hero: clamp(2.6rem, 6.2vw, 5rem);
+  --text-hero--line-height: 1;
+  --text-hero--letter-spacing: -0.045em;
 }
 
 @layer base {
+  /* shadcn/ui expects every border to default to the border token, not the text color. */
+  *,
+  ::before,
+  ::after {
+    border-color: var(--color-border);
+  }
   html {
     scroll-behavior: smooth;
     scroll-padding-top: 5rem;

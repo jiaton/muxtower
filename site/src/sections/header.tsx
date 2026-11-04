@@ -5,15 +5,15 @@ import { nav } from '@/content/page'
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-md">
-      <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-5 sm:px-8">
-        <a href="#top" className="flex items-center gap-2 font-mono font-semibold" aria-label="muxtower, back to the top">
+    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/70 backdrop-blur-xl">
+      <div className="mx-auto flex h-14 max-w-6xl items-center gap-8 px-5 sm:px-8">
+        <a href="#top" className="flex items-center gap-2 font-mono text-sm font-semibold" aria-label="muxtower, back to the top">
           <img src="/icon.svg" alt="" className="size-6" />
           muxtower
         </a>
-        <nav aria-label="Sections" className="hidden gap-5 text-sm text-muted-foreground md:flex">
+        <nav aria-label="Sections" className="hidden gap-6 text-sm text-muted-foreground md:flex">
           {nav.map((item) => (
-            <a key={item.href} href={item.href} className="hover:text-foreground">
+            <a key={item.href} href={item.href} className="transition-colors hover:text-foreground">
               {item.label}
             </a>
           ))}

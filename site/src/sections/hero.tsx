@@ -1,12 +1,15 @@
 import { ArrowUpRight, MousePointerClick } from 'lucide-react'
 import { CommandPill } from '@/components/shared/command-pill'
+import { Badge } from '@/components/ui/badge'
+import { BorderBeam } from '@/components/ui/border-beam'
 import { Button } from '@/components/ui/button'
+import { DotPattern } from '@/components/ui/dot-pattern'
 import { demoUrl } from '@/config'
 import { hero } from '@/content/page'
 import { DemoShow } from '@/features/demo'
 
 /** The way into the live demo (the real app on a simulated daemon), the page's main call to action. */
-function TryApp() {
+export function TryApp() {
   return (
     <Button asChild size="xl">
       <a href={demoUrl} target="_blank" rel="noreferrer">
@@ -18,25 +21,32 @@ function TryApp() {
   )
 }
 
-/** The first screen: what muxtower is in one sentence, how to install it, and the demo playing. */
+/** The first screen: what muxtower is in one sentence, the way in, and the demo playing. */
 export function Hero() {
   return (
     <section id="demo" className="relative overflow-hidden">
-      <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-40 h-96 bg-glow blur-3xl" />
-      <div className="relative mx-auto flex max-w-6xl flex-col gap-10 px-5 pt-12 pb-16 sm:px-8 lg:pt-16">
-        <div className="flex max-w-3xl flex-col gap-6">
-          <p className="font-mono text-sm text-primary">{hero.eyebrow}</p>
+      <DotPattern width={22} height={22} cr={1} className="mask-radial-from-0% mask-radial-to-70% mask-radial-at-top opacity-70" />
+      <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-48 h-112 bg-glow blur-3xl" />
+      <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-14 px-5 pt-20 pb-20 sm:px-8 lg:pt-28">
+        <div className="flex max-w-4xl flex-col items-center gap-7 text-center">
+          <Badge variant="outline" className="gap-2 rounded-full bg-background/80 px-3 py-1 font-mono text-xs font-normal">
+            <span className="size-1.5 rounded-full bg-success" aria-hidden />
+            {hero.eyebrow}
+          </Badge>
           <h1 className="text-hero font-semibold text-balance">{hero.title}</h1>
-          <p className="text-lg leading-relaxed text-muted-foreground sm:text-xl">{hero.lead}</p>
-          <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap items-center gap-3">
+          <p className="max-w-2xl text-lg leading-relaxed text-pretty text-muted-foreground sm:text-xl">{hero.lead}</p>
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-3">
               <TryApp />
               <CommandPill command={hero.install} className="h-12 text-base" />
             </div>
             <p className="text-sm text-muted-foreground">{hero.tryAppNote}</p>
           </div>
         </div>
-        <DemoShow />
+        <div className="relative w-full rounded-2xl border border-border bg-card/70 p-3 shadow-card-soft backdrop-blur sm:p-5">
+          <DemoShow />
+          <BorderBeam size={140} duration={9} />
+        </div>
       </div>
     </section>
   )

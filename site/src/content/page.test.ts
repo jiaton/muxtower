@@ -1,20 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { api } from './api'
-import { assistant } from './assistant'
 import * as page from './page'
-import { updates } from './updates'
-import { usage } from './usage'
 
 const text = JSON.stringify(page)
 
 describe('page copy', () => {
   it('links every nav entry to a section the page has', () => {
-    expect(page.nav.map((n) => n.href)).toEqual(['#demo', '#hub', '#team', '#assistant', '#api', '#install', '#faq'])
+    expect(page.nav.map((n) => n.href)).toEqual(['#hub', '#team', '#features', '#install', '#faq'])
   })
 
-  it('numbers its sections in order', () => {
-    const labels = [page.hub, page.team, assistant, page.sources, page.reach, api, usage, updates, page.security, page.install]
-    expect(labels.map((s) => s.label)).toEqual(['01', '02', '03', '04', '05', '06', '07', '08', '09', '10'])
+  it('keeps each lead to a sentence or two', () => {
+    for (const s of [page.hero, page.hub, page.team, page.security, page.install]) expect(s.lead.length).toBeLessThanOrEqual(200)
   })
 
   it('names nobody and no real host (root AGENTS.md)', () => {

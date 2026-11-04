@@ -7,7 +7,7 @@ import { Faq } from './faq'
 describe('Faq', () => {
   it('opens an answer', async () => {
     render(<Faq />)
-    await userEvent.click(screen.getByRole('button', { name: questions[2].q }))
+    await userEvent.click(screen.getByRole('button', { name: questions.find((q) => q.q.startsWith('Why not just SSH'))!.q }))
     expect(screen.getByText(/one machine at a time/)).toBeVisible()
   })
 })

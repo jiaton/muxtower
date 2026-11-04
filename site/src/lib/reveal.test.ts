@@ -1,18 +1,7 @@
-import { render } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { useReveal } from './use-reveal'
+import { startReveal } from './reveal'
 
 type Callback = (entries: Partial<IntersectionObserverEntry>[]) => void
-
-function Page() {
-  useReveal()
-  return (
-    <>
-      <section data-reveal id="a" />
-      <section data-reveal id="b" />
-    </>
-  )
-}
 
 function stubObserver() {
   let callback: Callback = () => {}
@@ -31,31 +20,30 @@ function stubObserver() {
   return { observed, fire: (target: Element) => callback([{ isIntersecting: true, target }]) }
 }
 
-function stubReducedMotion(matches: boolean) {
-  vi.spyOn(window, 'matchMedia').mockReturnValue({ matches } as MediaQueryList)
-}
+const reduced = (matches: boolean) => vi.spyOn(window, 'matchMedia').mockReturnValue({ matches } as MediaQueryList)
 
 afterEach(() => {
   vi.restoreAllMocks()
   document.documentElement.classList.remove('reveal')
+  document.body.innerHTML = ''
 })
 
-describe('useReveal', () => {
+describe('startReveal', () => {
   it('hides the bands and shows each one as it comes into view', () => {
-    stubReducedMotion(false)
+    reduced(false)
+    document.body.innerHTML = '<div data-reveal id="a"></div><div data-reveal id="b"></div>'
     const io = stubObserver()
-    const { container } = render(<Page />)
+    startReveal()
     expect(document.documentElement).toHaveClass('reveal')
     expect(io.observed).toHaveLength(2)
-    const a = container.querySelector('#a')!
-    io.fire(a)
-    expect(a).toHaveAttribute('data-shown')
-    expect(container.querySelector('#b')).not.toHaveAttribute('data-shown')
+    io.fire(document.getElementById('a')!)
+    expect(document.getElementById('a')).toHaveAttribute('data-shown')
+    expect(document.getElementById('b')).not.toHaveAttribute('data-shown')
   })
 
   it('hides nothing when the visitor asks for reduced motion', () => {
-    stubReducedMotion(true)
-    render(<Page />)
+    reduced(true)
+    startReveal()
     expect(document.documentElement).not.toHaveClass('reveal')
   })
 })

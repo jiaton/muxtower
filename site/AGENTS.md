@@ -8,7 +8,8 @@ From the frontend template (dotfiles `projects/claude_templates/AGENTS.frontend.
 
 ## Stack
 
-- Vite + React 19 + TypeScript (strict), prerendered at build time (`src/entry-server.tsx`, `scripts/prerender.mjs`) and hydrated by `src/main.tsx`.
+- Astro 7 (static output) + React 19 + TypeScript (strict). `src/pages/index.astro` composes the sections; a section without a `client:` directive is plain HTML, one that moves or takes input (the hero with the demo, the hub drawing, tabs, the FAQ, copy buttons) is a React island (`client:load` / `client:visible`). `src/layouts/base.astro` holds the document: meta, link-preview tags, the scroll reveal (`src/lib/reveal.ts`).
+- Magic UI components (animated beam, border beam, dot pattern), added with the shadcn CLI into `components/ui/` and recolored with tokens. Geist and Geist Mono.
 - UI component framework: **shadcn/ui** (style `new-york`, `components.json`), on Radix (`radix-ui`). Add primitives with `npm run ui:add <name>`. The shadcn CLI is pinned as a devDependency.
 - Styling: Tailwind CSS v4. Tokens live in `src/styles/site.css` (see below).
 - Animation: `motion` (the demo only).
@@ -63,7 +64,7 @@ Composition over props, one job per component. Before writing a styled element i
 
 ## Modern React conventions
 
-Function components and hooks. Effects only for the outside world: the animation clock, the IntersectionObserver, the ResizeObserver, measuring the cursor's target. Nothing reads `window` during render, because the page is prerendered and hydrated and both must render the same.
+Function components and hooks. Effects only for the outside world: the animation clock, the IntersectionObserver, the ResizeObserver, measuring the cursor's target. Nothing reads `window` during render, because Astro renders every component to HTML at build time and islands hydrate over it.
 
 ## State management
 
@@ -97,7 +98,7 @@ None. The site calls no API (see Stack). If it ever shows live data, it uses `op
 - Install: `npm ci` here and in `../app` (the demo build and the tokens come from it).
 - Dev server: `npm run dev`. `/demo/` needs a build.
 - The one gate, run before every commit and by `make check` in CI: `npm run check`. It runs lint (oxlint and the token check), `prettier --check`, the colocated-test check, `tsc` and the tests.
-- Build: `npm run build`. That is the app's demo build at base `/demo/`, plus `build:site`: client build, SSR build, prerender into `dist/index.html`, and `scripts/copy-demo.mjs` copying `../app/dist-demo` into `dist/demo/`.
+- Build: `npm run build`. That is the app's demo build at base `/demo/` (given `MUXTOWER_SITE_APP_URL` as `MUXTOWER_DEMO_APP_URL`, for its "Connect your own daemon" card), plus `build:site`: `astro build` into `dist/`, and `scripts/copy-demo.mjs` copying `../app/dist-demo` into `dist/demo/`. `npm run typecheck` is `astro check` and `tsc`.
 - Preview: `npm run preview`.
-- Deploy: `npm run deploy`, to Cloudflare Workers static assets via the `cf` CLI. The config is in `deploy/`. The project's domain is muxtower.dev: `MUXTOWER_SITE_DOMAIN=muxtower.dev MUXTOWER_SITE_APP_URL=https://app.muxtower.dev npm run deploy` binds it as the Worker's custom domain (unset, only workers.dev), and `scripts/prerender.mjs` writes the link-preview tags (`og:image` = `public/og.png`, 1200×630) for it. `deploy/www/` is a Worker of its own on www.muxtower.dev that only 301s to the apex (`npm ci && npx cf deploy` there). No personal domains or account handles, ever; the workers.dev addresses stay off (a domain bound turns them off).
+- Deploy: `npm run deploy`, to Cloudflare Workers static assets via the `cf` CLI. The config is in `deploy/`. The project's domain is muxtower.dev: `MUXTOWER_SITE_DOMAIN=muxtower.dev MUXTOWER_SITE_APP_URL=https://app.muxtower.dev npm run deploy` binds it as the Worker's custom domain (unset, only workers.dev), and `src/layouts/base.astro` writes the link-preview tags (`og:image` = `public/og.png`, 1200×630) for it. `deploy/www/` is a Worker of its own on www.muxtower.dev that only 301s to the apex (`npm ci && npx cf deploy` there). No personal domains or account handles, ever; the workers.dev addresses stay off (a domain bound turns them off).
 - Add a primitive: `npm run ui:add <name>`. If the CLI writes it under a literal `@/` folder, move it to `src/components/ui/`. Then make the two token edits above.

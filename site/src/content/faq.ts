@@ -19,6 +19,10 @@ export const questions = [
     a: 'Its sessions stay listed, marked offline, and come back when it does. The agents keep running in tmux whatever the phone or the hub does.',
   },
   {
+    q: 'What if the hub goes down?',
+    a: 'The app talks to each machine at its own HTTPS address until the hub answers again. Give a machine one with `muxtower expose tailscale`, or a Cloudflare Tunnel and `public_url` in its config.',
+  },
+  {
     q: 'Which agents does it support?',
     a: 'Claude Code and Codex fully: state from their hooks, approvals and questions from your phone. Any other terminal agent can be watched and typed into, and taught its dialogs with screen rules.',
   },
