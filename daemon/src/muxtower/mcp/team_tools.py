@@ -33,7 +33,8 @@ muxtower runs the owner's coding agent sessions, on this machine and others, and
 - Your team is every session of your project; it has no name of its own. Your project and role stay as
   they are when you cd elsewhere or edit files in another repository.
 - Wrong project? Move a session with set_project, or rename yours for all its sessions (rename=true).
-- Messages that start with "[muxtower task from …]" are work a teammate sent you.
+- Messages that start with "[muxtower task from …]" are work a teammate sent you; "[muxtower message from …]"
+  is a teammate (or a device) writing to you, not the owner. Relaying the owner's words? Say so in the text.
 - "also writing in <worktree>" means another session changes files in your checkout: agree with it
   (send_task) or ask the owner. If no file is changed by both, go on, but commit only your own changes."""
 
@@ -101,6 +102,9 @@ def _tasks(tasks: list[Task]) -> str:
 Forward = Callable[[str, dict[str, Any], str | None], str | None]
 
 
+READS = frozenset({"my_team"})  # what this machine may answer itself while its hub is away
+
+
 class TeamTools:
     def __init__(self, teams: TeamService, tasks: TaskService | None = None, forward: Forward | None = None) -> None:
         self.teams = teams
@@ -116,6 +120,10 @@ class TeamTools:
             try:
                 answered = self.forward(name, args.model_dump(), CALLER.get().session_id)
             except Unavailable as exc:
+                if name not in READS:  # the hub keeps team data: written here, the two would part ways
+                    raise Unavailable(
+                        f"the hub is unreachable now ({exc}): try again when it is back; nothing was changed"
+                    ) from exc
                 return f"({exc}: only this machine's sessions below.)\n{here(args)}"
             return here(args) if answered is None else answered
 
