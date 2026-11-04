@@ -1,32 +1,21 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="color-scheme" content="light dark" />
-    <title>muxtower — your coding agents, from your phone</title>
+    <meta name="color-scheme" content="dark" />
+    <title>muxtower — every machine, every agent, one list</title>
     <meta
       name="description"
-      content="Approve, answer and steer Claude Code and Codex from your phone, in the terminals they already run in. Self-hosted, open source, no account."
+      content="One self-hosted hub for the Claude Code and Codex sessions on all your machines: notified on your phone, answered from anywhere, agents that hand each other work. Open source."
     />
     <meta property="og:title" content="muxtower" />
     <meta
       property="og:description"
-      content="Your coding agents, from your phone. Approve, answer and steer Claude Code and Codex where they already run."
+      content="Every machine, every agent, one list. Self-hosted, open source, over HTTPS."
     />
     <meta property="og:type" content="website" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <script>
-      // The app's tokens switch on data-theme; follow the system's choice from the first paint.
-      ;(function () {
-        var dark = window.matchMedia('(prefers-color-scheme: dark)')
-        var apply = function () {
-          document.documentElement.dataset.theme = dark.matches ? 'dark' : 'light'
-        }
-        apply()
-        dark.addEventListener('change', apply)
-      })()
-    </script>
   </head>
   <body>
     <div id="root"><!--app--></div>

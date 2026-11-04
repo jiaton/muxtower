@@ -1,42 +1,64 @@
+import * as React from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
-import type { AnchorHTMLAttributes, ButtonHTMLAttributes } from 'react'
-import { cn } from '@/lib/cn'
+import { cn } from '@/lib/utils'
+import { Slot } from 'radix-ui'
 
 const buttonVariants = cva(
-  'inline-flex shrink-0 items-center justify-center gap-2 rounded-md font-medium whitespace-nowrap transition-colors select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus [&_svg]:size-4 [&_svg]:shrink-0',
+  "inline-flex shrink-0 items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       variant: {
-        primary: 'bg-accent text-accent-fg hover:bg-accent-hover',
-        outline: 'border border-border bg-surface text-fg hover:bg-surface-muted',
-        ghost: 'text-fg-muted hover:bg-surface-muted hover:text-fg',
+        default: 'bg-primary text-primary-foreground hover:bg-primary/90',
+        destructive:
+          'bg-destructive text-danger-fg hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:bg-destructive/60 dark:focus-visible:ring-destructive/40',
+        outline:
+          'border bg-background shadow-xs hover:bg-muted hover:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80',
+        ghost: 'hover:bg-muted hover:text-foreground',
+        link: 'text-primary underline-offset-4 hover:underline',
+        // A step of a sequence (the demo's beats): text over a progress bar, the current one bright.
+        step: 'flex-col items-stretch rounded-sm text-left text-muted-foreground hover:text-foreground aria-[current=step]:text-foreground',
       },
       size: {
-        sm: 'h-8 px-3 text-sm',
-        md: 'h-10 px-4 text-sm',
-        lg: 'h-12 px-5 text-base',
+        default: 'h-9 px-4 py-2 has-[>svg]:px-3',
+        xs: "h-6 gap-1 rounded-md px-2 text-xs has-[>svg]:px-1.5 [&_svg:not([class*='size-'])]:size-3",
+        sm: 'h-8 gap-1.5 rounded-md px-3 has-[>svg]:px-2.5',
+        lg: 'h-10 rounded-md px-6 has-[>svg]:px-4',
         icon: 'size-9',
+        'icon-xs': "size-6 rounded-md [&_svg:not([class*='size-'])]:size-3",
+        'icon-sm': 'size-8',
+        'icon-lg': 'size-10',
+        step: 'h-auto w-full gap-1.5 px-0 py-1 text-xs',
       },
     },
-    defaultVariants: { variant: 'primary', size: 'md' },
+    defaultVariants: {
+      variant: 'default',
+      size: 'default',
+    },
   },
 )
 
-type Variants = VariantProps<typeof buttonVariants>
+function Button({
+  className,
+  variant = 'default',
+  size = 'default',
+  asChild = false,
+  ...props
+}: React.ComponentProps<'button'> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean
+  }) {
+  const Comp = asChild ? Slot.Root : 'button'
 
-export function Button({ className, variant, size, type = 'button', ...props }: ButtonHTMLAttributes<HTMLButtonElement> & Variants) {
-  return <button type={type} className={cn(buttonVariants({ variant, size }), className)} {...props} />
-}
-
-/** A link that looks like a button; one to another site opens in a new tab. */
-export function ButtonLink({ className, variant, size, href, ...props }: AnchorHTMLAttributes<HTMLAnchorElement> & Variants) {
-  const external = href?.startsWith('http')
   return (
-    <a
-      href={href}
-      className={cn(buttonVariants({ variant, size }), className)}
-      {...(external ? { target: '_blank', rel: 'noreferrer' } : {})}
+    <Comp
+      data-slot="button"
+      data-variant={variant}
+      data-size={size}
+      className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />
   )
 }
+
+export { Button, buttonVariants }

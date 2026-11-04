@@ -1,33 +1,23 @@
-import { ArrowRight } from 'lucide-react'
-import { Section, SectionHeading } from '@/components/ui/section'
+import { ArrowUpRight } from 'lucide-react'
+import { Section, SectionHeading } from '@/components/shared/section'
+import { TermGrid } from '@/components/shared/term-grid'
+import { Button } from '@/components/ui/button'
 import { config } from '@/config'
-import { security } from '@/content/features'
+import { securityList } from '@/content/lists'
+import { security } from '@/content/page'
 
 export function Security() {
   return (
-    <div className="border-y border-border bg-surface-muted">
-      <Section id="security">
-        <SectionHeading eyebrow={security.eyebrow} title={security.title} lead={security.lead} />
-        <dl className="grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
-          {security.points.map((point) => (
-            <div key={point.title} className="flex flex-col gap-1.5 border-l-2 border-accent pl-4">
-              <dt className="font-semibold">{point.title}</dt>
-              <dd className="text-sm leading-relaxed text-fg-muted">{point.text}</dd>
-            </div>
-          ))}
-        </dl>
-        {config.securityUrl && (
-          <a
-            href={config.securityUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-10 inline-flex items-center gap-1.5 text-sm font-medium text-accent hover:text-accent-hover [&_svg]:size-4"
-          >
-            {security.policy}
-            <ArrowRight />
+    <Section id="security">
+      <SectionHeading label={security.label} title={security.title} lead={security.lead} />
+      <TermGrid items={securityList} />
+      {config.securityUrl && (
+        <Button asChild variant="link" className="mt-8 px-0">
+          <a href={config.securityUrl}>
+            The security model in full <ArrowUpRight />
           </a>
-        )}
-      </Section>
-    </div>
+        </Button>
+      )}
+    </Section>
   )
 }

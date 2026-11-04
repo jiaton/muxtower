@@ -11,26 +11,41 @@
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",
     "lint": "oxlint src && node scripts/check-tokens.mjs",
-    "deploy": "npm run build && cd deploy && npm ci && cf deploy"
+    "deploy": "npm run build && cd deploy && npm ci && cf deploy",
+    "test": "vitest run",
+    "format": "prettier --write src scripts",
+    "ui:add": "shadcn add",
+    "check": "npm run lint && prettier --check src scripts && node scripts/check-tests.mjs && npm run typecheck && npm test"
   },
   "dependencies": {
+    "@fontsource-variable/inter": "5.2.8",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cn": "^0.5.2",
     "lucide-react": "^1.52.0",
+    "motion": "14.9.0",
+    "radix-ui": "^1.8.1",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "tailwind-merge": "^3.7.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@testing-library/jest-dom": "7.0.1",
+    "@testing-library/react": "16.3.3",
+    "@testing-library/user-event": "14.6.8",
     "@types/node": "^24.13.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
+    "jsdom": "30.1.3",
     "oxlint": "^1.81.0",
+    "prettier": "3.9.10",
+    "shadcn": "4.23.0",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
-    "vite": "^8.3.0"
+    "vite": "^8.3.0",
+    "vitest": "5.1.0"
   },
   "license": "Apache-2.0"
 }

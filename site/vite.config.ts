@@ -1,7 +1,7 @@
 import { fileURLToPath, URL } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -10,4 +10,5 @@ export default defineConfig({
   envPrefix: ['VITE_', 'MUXTOWER_SITE_'],
   // The design tokens and the shipped font live in the app (`app/src/styles/tokens.css`).
   server: { fs: { allow: ['..'] } },
+  test: { environment: 'jsdom', setupFiles: ['./src/test/setup.ts'], css: false },
 })
