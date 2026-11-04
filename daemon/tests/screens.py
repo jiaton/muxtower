@@ -43,23 +43,25 @@ TRUST = """\
  Enter to confirm · Esc to cancel
 """
 
-# Claude Code's confirmation on its first start in bypass mode (without skipDangerousModePermissionPrompt).
+# Claude Code's confirmation on its first start in bypass mode (without skipDangerousModePermissionPrompt),
+# captured from Claude Code 2.1.318 at 120x40.
 BYPASS_CONFIRM = """\
- WARNING: Claude Code running in Bypass Permissions mode
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  WARNING: Claude Code running in Bypass Permissions mode
 
- In Bypass Permissions mode, Claude Code will not ask for your approval before running potentially dangerous
- commands.
- This mode should only be used in a sandboxed container/VM that has restricted internet access and can easily
- be restored if damaged.
+  In Bypass Permissions mode, Claude Code will not ask for your approval before running potentially dangerous
+  commands.
+  This mode should only be used in a sandboxed container/VM that has restricted internet access and can easily be
+  restored if damaged.
 
- By proceeding, you accept all responsibility for actions taken while running in Bypass Permissions mode.
+  By proceeding, you accept all responsibility for actions taken while running in Bypass Permissions mode.
 
- https://docs.claude.com/s/claude-code-security
+  https://code.claude.com/docs/en/security
 
- ❯ 1. No, exit
-   2. Yes, I accept
+  ❯ No, exit
+    Yes, I accept
 
- Enter to confirm · Esc to cancel
+  Enter to confirm · Esc to cancel
 """
 
 AUTO_MODE_TIP = """\
