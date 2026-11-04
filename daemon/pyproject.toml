@@ -17,6 +17,10 @@ dependencies = [
     "websockets>=14",  # Codex's app-server, a node's link to its hub
 ]
 
+[project.urls]
+Homepage = "https://muxtower.dev"
+Source = "https://github.com/jiaton/muxtower"
+
 [project.scripts]
 muxtower = "muxtower.cli.main:main"
 

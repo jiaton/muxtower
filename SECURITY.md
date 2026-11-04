@@ -2,6 +2,10 @@
 
 muxtower lets whoever holds a device token type into terminals and approve what coding agents run, so a flaw in it can amount to running commands on the machine. Please report one privately.
 
+## Official addresses
+
+The only official domains are **muxtower.dev** (the site and its demo) and **app.muxtower.dev** (the public copy of the app). Anything else asking for your daemon's address or a pairing code is not us. muxtower itself never asks for a token: a pairing code is entered only in an app you chose, and is good once.
+
 ## Reporting
 
 Use GitHub's private reporting: **Security → Report a vulnerability** on this repository. Please do not open a public issue, discussion or pull request for it.
