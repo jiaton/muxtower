@@ -1,7 +1,7 @@
 import { ArrowUpRight, MousePointerClick } from 'lucide-react'
 import { CommandPill } from '@/components/shared/command-pill'
 import { Button } from '@/components/ui/button'
-import { config, demoUrl } from '@/config'
+import { demoUrl } from '@/config'
 import { hero } from '@/content/page'
 import { DemoShow } from '@/features/demo'
 
@@ -18,19 +18,6 @@ function TryApp() {
   )
 }
 
-/** The hosted app, for your own daemon; left out when the build names none. */
-function OpenApp() {
-  if (!config.appUrl) return null
-  return (
-    <Button asChild size="xl" variant="outline">
-      <a href={config.appUrl} target="_blank" rel="noreferrer">
-        {hero.openApp}
-        <ArrowUpRight />
-      </a>
-    </Button>
-  )
-}
-
 /** The first screen: what muxtower is in one sentence, how to install it, and the demo playing. */
 export function Hero() {
   return (
@@ -41,25 +28,15 @@ export function Hero() {
           <p className="font-mono text-sm text-primary">{hero.eyebrow}</p>
           <h1 className="text-hero font-semibold text-balance">{hero.title}</h1>
           <p className="text-lg leading-relaxed text-muted-foreground sm:text-xl">{hero.lead}</p>
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2">
             <div className="flex flex-wrap items-center gap-3">
               <TryApp />
-              <OpenApp />
+              <CommandPill command={hero.install} className="h-12 text-base" />
             </div>
-            <p className="text-sm text-muted-foreground">
-              {hero.tryAppNote}
-              {config.appUrl && ` ${hero.openAppNote}`}
-            </p>
-            <div className="flex">
-              <CommandPill command={hero.install} />
-            </div>
+            <p className="text-sm text-muted-foreground">{hero.tryAppNote}</p>
           </div>
         </div>
         <DemoShow />
-        <div className="flex flex-col items-start gap-4 rounded-xl border border-primary bg-state-busy-soft p-5 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-lg leading-snug text-balance">{hero.afterDemo}</p>
-          <TryApp />
-        </div>
       </div>
     </section>
   )
