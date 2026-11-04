@@ -99,5 +99,5 @@ None. The site calls no API (see Stack). If it ever shows live data, it uses `op
 - The one gate, run before every commit and by `make check` in CI: `npm run check`. It runs lint (oxlint and the token check), `prettier --check`, the colocated-test check, `tsc` and the tests.
 - Build: `npm run build`. That is the app's demo build at base `/demo/`, plus `build:site`: client build, SSR build, prerender into `dist/index.html`, and `scripts/copy-demo.mjs` copying `../app/dist-demo` into `dist/demo/`.
 - Preview: `npm run preview`.
-- Deploy: `npm run deploy`, to Cloudflare Workers static assets via the `cf` CLI. The config is in `deploy/`. The hostname is never in the repo: `MUXTOWER_SITE_DOMAIN=<host> npm run deploy` binds it as the Worker's custom domain (unset, only workers.dev).
+- Deploy: `npm run deploy`, to Cloudflare Workers static assets via the `cf` CLI. The config is in `deploy/`. The hostname is never in the repo: `MUXTOWER_SITE_DOMAIN=<host> npm run deploy` binds it as the Worker's custom domain (unset, only workers.dev), and `scripts/prerender.mjs` writes the link-preview tags (`og:image` = `public/og.png`, 1200×630) for it.
 - Add a primitive: `npm run ui:add <name>`. If the CLI writes it under a literal `@/` folder, move it to `src/components/ui/`. Then make the two token edits above.
