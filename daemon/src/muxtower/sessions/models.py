@@ -153,6 +153,11 @@ class Session(BaseModel):
         "owner, else worked out once from git when it was first seen (`project_auto`); null until then",
     )
     project_auto: bool = Field(default=False, description="`project` was worked out by muxtower, not set")
+    project_anchor: str | None = Field(
+        default=None,
+        description="where its project sits in its device's folder tree: the main folder of the repository most "
+        "of the project's sessions there run in, else their folder (`sessions/anchors.py`); null: at the top",
+    )
     project_source: Literal["set", "git remote", "git root", "folder"] | None = Field(
         default=None,
         description="where `project` came from: set by an agent or the owner, or worked out from its git remote, "

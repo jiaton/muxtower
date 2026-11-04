@@ -14,7 +14,7 @@ import {
   type SessionEntry,
 } from './facets'
 import { withRepositories } from './folders'
-import { homeKind, worktreeOf, type PlaceKind } from './places'
+import { anchorOf, homeKind, worktreeOf, type PlaceKind } from './places'
 import { SOURCE_ORDER, accountLabel, agentLabel, deviceLabel, folderLabel, orderBy, sourceLabel, type View } from './query'
 
 export interface Facet {
@@ -27,6 +27,8 @@ export interface Facet {
   name?: string
   title?: string
   kind?: PlaceKind
+  /** A project: the folder it sits in (`anchorOf`). */
+  at?: string
 }
 
 export interface DeviceFacet extends Facet {
@@ -86,7 +88,10 @@ export function facetsOf(entries: SessionEntry[]): Facets {
         here.filter((e) => !worktreeOf(e.session)),
         folderLabel,
         UNKNOWN_FOLDER,
-      ).map((f) => ({ ...f, kind: homeKind(here.find((e) => folderLabel(e) === f.label)!.session) }))
+      ).map((f) => {
+        const session = here.find((e) => folderLabel(e) === f.label)!.session
+        return { ...f, kind: homeKind(session), at: anchorOf(session) }
+      })
       const folders = withRepositories<Facet>([...homes, ...worktrees], (label) => ({
         label,
         count: 0,

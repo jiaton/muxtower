@@ -79,6 +79,29 @@ describe('where a session is listed', () => {
     expect([homeOf(loose.session), homeKind(loose.session)]).toEqual(['~/notes', 'folder']) // the folder tree says
   })
 
+  it('nests a project where most of its sessions are, on each device, like any repository', () => {
+    const MUX = '/home/me/projects/mux'
+    const set = { project: 'mux', project_source: 'set' as const }
+    const projects = entry('projects', { cwd: '/home/me/projects' }) // a plain folder holding the repositories
+    const lyric = entry('lyric', { cwd: '/home/me/projects/lyric', git: git('/home/me/projects/lyric', 'main', '/home/me/projects/lyric') })
+    const m1 = entry('m1', { ...set, cwd: MUX, git: git(MUX, 'main', MUX), project_anchor: MUX })
+    const m2 = entry('m2', { ...set, cwd: `${MUX}-teams`, git: git(`${MUX}-teams`, 'teams', MUX), project_anchor: MUX })
+    const stray = entry('stray', { ...set, cwd: '/srv/elsewhere', project_anchor: MUX }) // listed inside, as it is
+    const loose = entry('loose', { project: 'loose', project_source: 'set', cwd: '' }) // no folder known
+    const mac = { ...entry('mac', { ...set, machine: 'mac', cwd: '/Users/me/mux', project_anchor: '/Users/me/mux' }) }
+    const macHome = entry('mac-home', { machine: 'mac', cwd: '/Users/me' })
+    const [nas, onMac] = groupEntries([projects, lyric, m1, m2, stray, loose, mac, macHome], 'device')
+    const tree = nas.sections!.map((s) => [s.label, s.depth, s.parent ?? null, s.name, s.entries.map((e) => e.session.id)])
+    // Its name, nested where it is; a set project holds its worktrees and strays as its own rows.
+    expect(tree).toContainEqual(['mux', 1, '~/projects', 'mux', ['m1', 'm2', 'stray']])
+    expect(nas.sections!.find((s) => s.label === '~/projects')?.total).toBe(5) // 1 + its repositories' 4
+    expect(tree).toContainEqual(['~/projects/lyric', 1, '~/projects', 'lyric', ['lyric']]) // beside a plain repository
+    expect(tree).toContainEqual(['loose', 0, null, 'loose', ['loose']]) // nowhere known: at the top
+    const folders = facetsOf([projects, lyric, m1, m2, stray]).devices[0].folders
+    expect(folders.find((f) => f.label === 'mux')?.at).toBe('~/projects/mux')
+    expect(onMac.sections!.map((s) => [s.label, s.parent ?? null])).toContainEqual(['mux', '~']) // its own, on the Mac
+  })
+
   it('makes a repository whose sessions are all in other worktrees, to hold them', () => {
     const [device] = groupEntries([outside, plain], 'device')
     expect(device.sections!.map((s) => [s.label, s.depth, s.entries.length])).toEqual([

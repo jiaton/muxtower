@@ -59,6 +59,7 @@ describe('the demo daemon over HTTP', () => {
       'laptop~infra',
       'release-notes',
       'release-notes-fork',
+      'tidy-up',
       'laptop~migrations',
       'old-1',
       'old-2',

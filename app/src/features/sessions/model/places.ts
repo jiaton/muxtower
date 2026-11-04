@@ -52,3 +52,8 @@ export const projectLabel = (session: Session): string | null =>
 /** Where its agent works now, when deeper than where it started (and is listed): said, never moving it. */
 export const workingIn = (session: Session): string | null =>
   session.working_dir ? `working in ${folderOf({ ...session, cwd: session.working_dir })?.split('/').pop()}` : null
+
+/** Where its project sits in the device's folder tree (`session.project_anchor`, as `folderOf` shows a
+ *  folder), when it is listed by its project: the project is nested there like a repository. */
+export const anchorOf = (session: Session): string | undefined =>
+  projectOf(session) && session.project_anchor ? (folderOf({ ...session, cwd: session.project_anchor }) ?? undefined) : undefined

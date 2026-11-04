@@ -1,5 +1,5 @@
 import type { Scene } from '../world'
-import { NODE, ago, demoSession, prompt, reply, tool } from './session'
+import { HOME, NODE, ago, demoSession, prompt, reply, tool } from './session'
 import { talk } from './talk'
 import { answered, claudeInput, claudeWelcome, ran, said } from './terminal'
 
@@ -83,6 +83,7 @@ export function releaseNotes(): Scene {
       project: 'acme/shop-api',
       project_auto: true,
       project_source: 'git remote',
+      project_anchor: `${HOME}/code/shop-api`,
       created_at: ago(180),
       updated_at: ago(30),
     }),
@@ -120,5 +121,15 @@ export function releaseNotesFork(): Scene {
       prompt(4, { text: 'Now a one-line version for the changelog.', at: ago(14) }),
       reply(5, { text: SHORTER, at: ago(12) }),
     ],
+  }
+}
+
+/** A session in the folder that holds the repositories: a plain folder, which nests them. */
+export function tidyUp(): Scene {
+  return {
+    session: demoSession({ id: 'tidy-up', name: 'tidy up', cwd: `${HOME}/code`, created_at: ago(300), updated_at: ago(40) }),
+    history: [...claudeWelcome('~/code'), ...said('Which repositories here have no README?'), ...answered('Only web-app.')],
+    footer: claudeInput,
+    items: [prompt(1, { text: 'Which repositories here have no README?', at: ago(41) }), reply(2, { text: 'Only web-app.' })],
   }
 }
