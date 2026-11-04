@@ -42,9 +42,15 @@ describe('frameAt', () => {
     expect(frameAt(6500).clickAt).toBe(6400)
   })
 
+  it('takes the hub down and brings it back', () => {
+    expect(frameAt(35000).world.hubDown).toBe(false)
+    expect(frameAt(38000).world.hubDown).toBe(true)
+    expect(frameAt(42000).world.hubDown).toBe(false)
+  })
+
   it('says where to look', () => {
     expect(frameAt(4300).focus?.note).toBe('A push from the VPS')
-    expect(frameAt(37000).focus).toBeNull()
+    expect(frameAt(44000).focus).toBeNull()
   })
 })
 

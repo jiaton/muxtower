@@ -30,7 +30,12 @@ export const hub = {
     'A joined machine dials out to the hub, so a laptop needs no address and no open port.',
     'The hub reaches your phone over HTTPS: `muxtower expose tailscale`, or your own domain behind any proxy. No SSH to expose.',
     'A sleeping laptop’s sessions stay listed, marked offline, and come back when it wakes.',
+    'Hub down, its machine restarting? The app reaches each machine directly at its own HTTPS address, and goes back to the hub once it answers. Viewing, approving and sending go on; push and team changes wait for the hub. Not a second hub: nothing is copied.',
   ],
+  direct: {
+    title: 'Give a machine its own address',
+    lead: 'For the hub-down fallback the phone must reach each machine itself, over HTTPS. muxtower opens nothing: pick one per machine, or set an address for it on the hub’s Daemons page.',
+  },
 }
 
 export const team = {

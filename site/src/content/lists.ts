@@ -103,3 +103,31 @@ export const installTabs = [
     ] satisfies TerminalLine[],
   },
 ]
+
+/** Two ways to give a machine joined to the hub an HTTPS address of its own (the direct fallback). */
+export const directTabs = [
+  {
+    id: 'tailscale',
+    label: 'Tailscale',
+    note: 'Nothing public: only your devices on the tailnet reach it. The node finds the address itself.',
+    lines: [
+      { kind: 'comment', text: '# on the machine, with Tailscale signed in there and on the phone' },
+      { kind: 'command', text: 'muxtower expose tailscale' },
+      { kind: 'comment', text: '# serves it at https://<machine>.<tailnet>.ts.net and writes that to the config as public_url' },
+    ] satisfies TerminalLine[],
+  },
+  {
+    id: 'tunnel',
+    label: 'Cloudflare Tunnel',
+    note: 'Where a VPN is not allowed, a company laptop say. Put an access gate in front if you like: sign in once in each browser.',
+    lines: [
+      { kind: 'comment', text: '# on the machine: a tunnel of its own, no open port' },
+      { kind: 'command', text: 'cloudflared tunnel login' },
+      { kind: 'command', text: 'cloudflared tunnel create laptop' },
+      { kind: 'command', text: 'cloudflared tunnel route dns laptop laptop.example.com' },
+      { kind: 'command', text: 'cloudflared tunnel run --url http://127.0.0.1:8731 laptop' },
+      { kind: 'comment', text: '# then, in ~/.config/muxtower/config.toml on that machine' },
+      { kind: 'output', text: 'public_url = "https://laptop.example.com"' },
+    ] satisfies TerminalLine[],
+  },
+]

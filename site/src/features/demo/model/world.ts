@@ -89,6 +89,8 @@ export interface World {
   flash: string | null
   /** The machines drawn as a map around the hub. */
   map: boolean
+  /** The hub is down (its machine restarting): the app reaches the other machines directly. */
+  hubDown: boolean
 }
 
 export const DEVICES: Device[] = [
@@ -111,6 +113,7 @@ export function initialWorld(): World {
     phone: { screen: 'lock', session: 'api', notification: null, selection: null, quote: null, draft: '' },
     flash: null,
     map: false,
+    hubDown: false,
   }
 }
 
@@ -118,3 +121,10 @@ export const sessionById = (world: World, id: string) => world.sessions.find((s)
 
 /** The line under a session's name, as the app writes it: role · machine · repository · source. */
 export const metaOf = (s: Session) => [s.role, deviceName(s.device), s.home, s.source].filter(Boolean).join(' · ')
+
+/** The app's banner while the hub is down, as it words it. */
+export const hubDownText = () => {
+  const hub = DEVICES.find((d) => d.hub)?.name ?? 'hub'
+  const direct = DEVICES.filter((d) => !d.hub).map((d) => d.name)
+  return `${hub} unreachable · direct to ${direct.join(', ')}. It switches back when ${hub} answers again.`
+}

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 import { groupsByDevice } from '../model/lists'
 import { deviceName, sessionById, type World } from '../model/world'
 import { ApprovalCard } from './approval-card'
+import { HubDownBanner } from './hub-down-banner'
 import { AgentMark, StateMark } from './marks'
 import { MessageItem } from './message'
 import { SessionRow } from './session-row'
@@ -19,6 +20,7 @@ export function Phone({ world, className }: { world: World; className?: string }
           <span className="h-5 w-20 rounded-full bg-device-frame" aria-hidden />
           <span className="text-fg-muted">5G</span>
         </div>
+        {world.hubDown && world.phone.screen !== 'lock' && <HubDownBanner target="phone-banner" />}
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={`${world.phone.screen}:${world.phone.session}`}
@@ -76,8 +78,16 @@ function ListScreen({ world }: { world: World }) {
       <p className="px-4 pt-2 pb-2 text-lg font-semibold">All sessions</p>
       <div className="min-h-0 flex-1 overflow-hidden">
         {groupsByDevice(world).map(({ device, sessions }) => (
-          <section key={device.id} aria-label={device.name} data-demo={`phone-group-${device.id}`}>
-            <p className="bg-muted px-3 py-0.5 text-xs font-medium text-fg-muted">{device.name}</p>
+          <section
+            key={device.id}
+            aria-label={device.name}
+            data-demo={`phone-group-${device.id}`}
+            className={cn('transition-opacity', device.hub && world.hubDown && 'opacity-40')}
+          >
+            <p className="bg-muted px-3 py-0.5 text-xs font-medium text-fg-muted">
+              {device.name}
+              {device.hub && world.hubDown && ' · unreachable'}
+            </p>
             {sessions.map((s) => (
               <SessionRow key={s.id} session={s} target={`phone-row-${s.id}`} flash={world.flash === `row-${s.id}`} compact />
             ))}

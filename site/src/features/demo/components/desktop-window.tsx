@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { counts, groupsByDevice, sessionsOn } from '../model/lists'
 import { DEVICES, deviceName, sessionById, type World } from '../model/world'
 import { ApprovalCard } from './approval-card'
+import { HubDownBanner } from './hub-down-banner'
 import { AgentMark, StateMark } from './marks'
 import { MessageItem } from './message'
 import { SessionRow } from './session-row'
@@ -31,6 +32,7 @@ export function DesktopWindow({ world, className }: { world: World; className?: 
           <Lock className="size-3" /> https://hub.example
         </div>
       </div>
+      {world.hubDown && <HubDownBanner target="banner" className="border-b border-border" />}
       <div className="grid min-h-0 flex-1 grid-cols-[9.5rem_17rem_minmax(0,1fr)]">
         <nav aria-label="Demo sidebar" className="flex flex-col gap-4 border-r border-border bg-surface p-3 text-sm">
           <div className="flex flex-col gap-0.5">
@@ -55,9 +57,14 @@ export function DesktopWindow({ world, className }: { world: World; className?: 
         </nav>
         <div data-demo="list" className="min-h-0 overflow-hidden border-r border-border">
           {groupsByDevice(world).map(({ device, sessions }) => (
-            <section key={device.id} aria-label={device.name} data-demo={`group-${device.id}`}>
+            <section
+              key={device.id}
+              aria-label={device.name}
+              data-demo={`group-${device.id}`}
+              className={cn('transition-opacity', device.hub && world.hubDown && 'opacity-40')}
+            >
               <p className="bg-muted px-3 py-1 text-xs font-medium text-fg-muted">
-                {device.name} · {device.kind}
+                {device.name} · {device.hub && world.hubDown ? 'unreachable' : device.kind}
               </p>
               {sessions.map((s) => (
                 <SessionRow
