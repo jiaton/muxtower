@@ -1,16 +1,56 @@
+import asyncio
 import json
 import os
 import subprocess
-from collections.abc import Callable
+import threading
+import time
+from collections.abc import Callable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from muxtower.sessions.models import CreateSession
 from muxtower.teams.checkout import checkout, remote_name
 from tests.fakes import FakeTmux
+
+
+@contextmanager
+def delivering(app: FastAPI) -> Iterator[None]:
+    """The delivery loop running, as in the daemon (`TaskService.run_loop`), on a loop of its own."""
+    loop = asyncio.new_event_loop()
+    runs: list[asyncio.Task[None]] = []
+
+    def run() -> None:
+        asyncio.set_event_loop(loop)
+        runs.append(loop.create_task(app.state.team_tasks.run_loop(app.state.bus)))
+        try:
+            loop.run_until_complete(runs[0])
+        except asyncio.CancelledError:
+            pass
+
+    thread = threading.Thread(target=run, daemon=True)
+    thread.start()
+    while app.state.team_tasks._wake is None:
+        time.sleep(0.01)
+    try:
+        yield
+    finally:
+        loop.call_soon_threadsafe(runs[0].cancel)
+        thread.join(5)
+        app.state.team_tasks._loop = app.state.team_tasks._wake = None
+
+
+def until(check: Callable[[], Any], seconds: float = 5) -> Any:
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        if found := check():
+            return found
+        time.sleep(0.02)
+    raise AssertionError("timed out")
 
 
 def _git(cwd: Path, *args: str) -> None:
@@ -150,8 +190,6 @@ def test_a_session_on_another_machine_goes_by_its_folder_until_set() -> None:
 def test_a_task_goes_to_a_role_now_or_once_the_receiver_stops_waiting(
     make_app: Callable[..., FastAPI], tmux: FakeTmux, tmp_path: Path
 ) -> None:
-    import time
-
     from muxtower.runtimes.models import AgentState
     from muxtower.sessions.live import HookState
 
@@ -173,22 +211,28 @@ def test_a_task_goes_to_a_role_now_or_once_the_receiver_stops_waiting(
     _tool(client, token, "set_role", role="research")
     assert "no role 'worker' in project" in _tool(client, token, "send_task", to="worker", text="x")
     _tool(client, token, "set_role", role="Worker", session_id=worker.id)
-    done = _tool(client, token, "send_task", to="worker", text="Add retries to the payment client.")
-    assert done.startswith(f"Delivered to worker (Worker, {worker.id})")
-    assert sent_to(worker) == [
-        f"[muxtower task from research (research) · {research.id}] Add retries to the payment client."
-    ]
+    queued = _tool(client, token, "send_task", to="worker", text="Add retries to the payment client.")
+    assert queued.startswith("Queued for worker") and sent_to(worker) == []  # no loop runs: none sends
+    app.state.team_tasks.deliver()
+    assert len(sent_to(worker)) == 1
+    with delivering(app):
+        done = _tool(client, token, "send_task", to="worker", text="And its tests.")
+        assert done.startswith(f"Delivered to worker (Worker, {worker.id})")
+        assert sent_to(worker) == [
+            f"[muxtower task from research (research) · {research.id}] Add retries to the payment client.",
+            f"[muxtower task from research (research) · {research.id}] And its tests.",
+        ]
 
-    # Waiting on the owner: held, then sent once the prompt is answered.
-    live = app.state.sessions.live_of(worker.id)
-    live.hook, live.effective = HookState(AgentState.NEEDS_PERMISSION, at=time.monotonic()), None
-    held = _tool(client, token, "send_task", to=worker.id, text="Then update the docs.")
-    assert "is waiting on the owner" in held and len(sent_to(worker)) == 1
-    app.state.team_tasks.retry()
-    assert len(sent_to(worker)) == 1  # still waiting
-    live.hook, live.effective = None, None
-    app.state.team_tasks.retry()
-    assert sent_to(worker)[-1].endswith("] Then update the docs.")
+        # Waiting on the owner: held, the later behind the earlier, then sent in order once it is answered.
+        live = app.state.sessions.live_of(worker.id)
+        live.hook, live.effective = HookState(AgentState.NEEDS_PERMISSION, at=time.monotonic()), None
+        held = _tool(client, token, "send_task", to=worker.id, text="Then update the docs.")
+        assert "is waiting on the owner" in held and len(sent_to(worker)) == 2
+        _tool(client, token, "send_task", to=worker.id, text="Then the changelog.")
+        live.hook, live.effective = None, None
+        app.state.team_tasks.wake()
+        until(lambda: len(sent_to(worker)) == 4)
+        assert [t.split("] ", 1)[1] for t in sent_to(worker)[2:]] == ["Then update the docs.", "Then the changelog."]
     assert "recent tasks:" in _tool(client, token, "my_team") and "(delivered)" in _tool(client, token, "my_team")
 
     # Two sessions with the role: the sender picks one.
@@ -273,6 +317,7 @@ def test_the_owner_sets_roles_from_the_app_and_reads_the_tasks(
     assert kept["team_note"] == "talks it through"  # only what is given changes
     pane = next(p for p in tmux.panes.values() if p.info.session_name == a.tmux_session)
     _tool(client, pane.env["MUXTOWER_MCP_TOKEN"], "send_task", to="worker", text="Build it.")
+    app.state.team_tasks.deliver()  # what the delivery loop does
     (task,) = client.get(f"/v1/sessions/{b.id}/tasks", headers=auth).json()
     assert (task["from_id"], task["to_id"], task["text"], task["status"]) == (a.id, b.id, "Build it.", "delivered")
     assert client.get(f"/v1/sessions/{a.id}/tasks", headers=auth).json()[0]["id"] == task["id"]  # sent ones too
@@ -340,3 +385,50 @@ def test_sessions_say_where_they_sit_in_git_and_only_a_project_someone_set(
     assert (
         next(s for s in client.get("/v1/sessions", headers=auth).json() if s["id"] == fix.id)["project"] == "Payments"
     )
+
+
+def test_one_loop_sends_each_task_once_and_goes_on_after_a_restart(
+    make_app: Callable[..., FastAPI], tmux: FakeTmux, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Sending over Remote Control takes a while; when the request thread sent too, a retry woken
+    meanwhile found the task still held and sent it again. Now only the delivery loop sends."""
+    app = make_app()
+    research = app.state.sessions.create(CreateSession(runtime="claude", cwd=str(tmp_path), name="research"))
+    worker = app.state.sessions.create(CreateSession(runtime="claude", cwd=str(tmp_path), name="worker"))
+    tasks = app.state.team_tasks
+    directory = app.state.directory
+    real = directory.send_input
+    sent: list[str] = []
+
+    def slow(session_id: str, body: Any) -> None:
+        sent.append(body.text)
+        time.sleep(0.3)  # an HTTP call to Remote Control
+        real(session_id, body)
+
+    monkeypatch.setattr(directory, "send_input", slow)
+    with delivering(app):
+        sender = threading.Thread(target=tasks.send, args=(research.id, "research", worker.id, "Build it."))
+        sender.start()
+        for _ in range(5):  # changes of state wake it again and again meanwhile
+            time.sleep(0.03)
+            tasks.wake()
+        sender.join()
+        until(lambda: tasks.recent([worker.id]).get(worker.id, [None])[0].status == "delivered")
+        assert [t.split("] ", 1)[1] for t in sent] == ["Build it."]
+
+        # A send that fails stays held for the next round.
+        def failing(session_id: str, body: Any) -> None:
+            raise RuntimeError("Remote Control went away")
+
+        monkeypatch.setattr(directory, "send_input", failing)
+        assert tasks.send(research.id, "research", worker.id, "Then the docs.")[2] == "failed"
+        assert [t.text for t in tasks.repo.held()] == ["Then the docs."]
+
+    # Stopped with it held: the daemon starts again, and its loop sends it.
+    monkeypatch.setattr(directory, "send_input", slow)
+    from muxtower.teams.tasks import TaskService
+
+    app.state.team_tasks = TaskService(app.state.teams, directory, tasks.repo)
+    with delivering(app):
+        until(lambda: tasks.repo.held() == [])
+    assert [t.split("] ", 1)[1] for t in sent] == ["Build it.", "Then the docs."]
