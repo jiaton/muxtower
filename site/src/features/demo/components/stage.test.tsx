@@ -10,7 +10,7 @@ describe('Stage', () => {
   })
 
   it('shows the hub map at the end', () => {
-    const { getByText } = render(<Stage t={33000} />)
+    const { getByText } = render(<Stage t={38000} />)
     expect(getByText(/lists all/)).toBeInTheDocument()
   })
 })

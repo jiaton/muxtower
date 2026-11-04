@@ -89,8 +89,11 @@ const SESSION_ROUTES: Record<string, Handler> = {
   },
   'GET tasks': (world, id) => (world.session(id) ? json(world.tasks(id)) : refuse(404, 'no such session')),
   'DELETE ': (world, id) => (world.remove(id) ? empty() : refuse(404, 'no such session')),
-  'POST resize': () => empty(),
-  'POST resize/release': () => empty(),
+  'POST resize': (world, id, body) => {
+    if (typeof body.cols !== 'number' || !Number.isFinite(body.cols)) return refuse(422, 'cols must be a number')
+    return world.resize(id, body.cols) ? empty() : refuse(409, 'this session has no screen')
+  },
+  'POST resize/release': (world, id) => (world.resize(id, null) ? empty() : refuse(409, 'this session has no screen')),
 }
 
 const ROUTES: Record<string, (world: World) => Response> = {

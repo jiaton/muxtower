@@ -32,14 +32,16 @@
   /* The demo stage: a window and a phone drawn by the site (src/features/demo/). */
   --radius-device: 2.5rem;
   --radius-screen: 1.75rem;
-  --shadow-device: 0 30px 80px -24px oklch(0 0 0 / 0.7), 0 0 0 1px oklch(1 0 0 / 0.08);
-  --shadow-window: 0 30px 80px -30px oklch(0 0 0 / 0.75), 0 0 0 1px oklch(1 0 0 / 0.07);
-  --shadow-glow: 0 0 0 4px oklch(0.68 0.15 255 / 0.25);
-  --color-glow: oklch(0.68 0.15 255 / 0.18);
-  --color-cursor: oklch(0.99 0 0);
-  --color-cursor-edge: oklch(0.15 0 0);
-  --color-device-frame: oklch(0.12 0.005 260);
-  --color-scrim: oklch(0.17 0.008 260 / 0.82);
+  --shadow-device: 0 30px 70px -28px oklch(0.25 0.02 260 / 0.45), 0 0 0 1px oklch(0.2 0.01 260 / 0.12);
+  --shadow-window: 0 30px 70px -34px oklch(0.25 0.02 260 / 0.4), 0 0 0 1px oklch(0.2 0.01 260 / 0.1);
+  /* The spotlight: everything around what to look at, dimmed. */
+  --shadow-spotlight: 0 0 0 9999px oklch(0.25 0.02 260 / 0.38);
+  --shadow-glow: 0 0 0 4px oklch(0.55 0.17 255 / 0.2);
+  --color-glow: oklch(0.55 0.17 255 / 0.18);
+  --color-cursor: oklch(0.15 0.01 260);
+  --color-cursor-edge: oklch(0.99 0 0);
+  --color-device-frame: oklch(0.2 0.01 260);
+  --color-scrim: oklch(0.985 0.002 260 / 0.9);
   --text-code: 0.85em;
   --text-hero: clamp(2.25rem, 5vw, 4rem);
   --text-hero--line-height: 1.02;

@@ -4,29 +4,33 @@ import { frameAt } from '../model/player'
 import { Phone } from './phone'
 
 describe('Phone', () => {
-  it('shows the notification on the lock screen', () => {
-    render(<Phone world={frameAt(5600).world} />)
-    expect(screen.getByText('api migrations · vps')).toBeInTheDocument()
+  it('shows a notification the way the daemon writes it', () => {
+    render(<Phone world={frameAt(4500).world} />)
+    expect(screen.getByText(/^Done: Migration 0042/)).toBeInTheDocument()
+    expect(screen.getByText('vps · ~/code/api')).toBeInTheDocument()
   })
 
-  it('offers Reply on a long press and shows what is being typed', () => {
-    const menu = render(<Phone world={frameAt(11000).world} />)
+  it('offers Copy and Reply on selected text, then quotes it above the message box', () => {
+    const selected = render(<Phone world={frameAt(9600).world} />)
     expect(screen.getByRole('button', { name: /Reply/ })).toBeInTheDocument()
-    menu.unmount()
-    render(<Phone world={frameAt(13800).world} />)
-    expect(screen.getByText(/Reply to: Migration 0042/)).toBeInTheDocument()
+    selected.unmount()
+    render(<Phone world={frameAt(12600).world} />)
+    expect(screen.getAllByText('Run it on staging first?').length).toBeGreaterThan(0)
     expect(screen.getByText(/Yes, staging first/)).toBeInTheDocument()
   })
 
-  it('approves from the lock screen', () => {
-    render(<Phone world={frameAt(21500).world} />)
-    expect(screen.getByRole('button', { name: 'Approve' })).toBeInTheDocument()
-    expect(screen.getByText('Bash: npm test -- payments')).toBeInTheDocument()
+  it('approves inside the session, not on the lock screen', () => {
+    const lock = render(<Phone world={frameAt(25500).world} />)
+    expect(screen.getByText('Approve Bash: npm test -- payments')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Yes/ })).toBeNull()
+    lock.unmount()
+    render(<Phone world={frameAt(27000).world} />)
+    expect(screen.getByRole('button', { name: /don't ask again/ })).toBeInTheDocument()
   })
 
-  it('lists sessions, a side chat folded under its parent', () => {
-    render(<Phone world={frameAt(28000).world} />)
-    expect(screen.getByText('1 side chat')).toBeInTheDocument()
-    expect(screen.getByText('fork')).toBeInTheDocument()
+  it('lists a fork under its parent and folds its side chat', () => {
+    render(<Phone world={frameAt(34000).world} />)
+    expect(screen.getByText(/1 side chat/)).toBeInTheDocument()
+    expect(screen.getAllByText('Release notes 2.4')).toHaveLength(2)
   })
 })

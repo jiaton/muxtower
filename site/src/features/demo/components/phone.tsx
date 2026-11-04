@@ -1,9 +1,10 @@
-import { ArrowUp, Bell, ChevronLeft, Copy, Reply, ShieldAlert } from 'lucide-react'
+import { ArrowUp, ChevronLeft, Copy, Quote, Reply, X } from 'lucide-react'
 import { AnimatePresence, motion } from 'motion/react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { groupsByDevice } from '../model/lists'
 import { deviceName, sessionById, type World } from '../model/world'
+import { ApprovalCard } from './approval-card'
 import { AgentMark, StateMark } from './marks'
 import { MessageItem } from './message'
 import { SessionRow } from './session-row'
@@ -20,11 +21,11 @@ export function Phone({ world, className }: { world: World; className?: string }
         </div>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={world.phone.screen}
+            key={`${world.phone.screen}:${world.phone.session}`}
             initial={{ opacity: 0, x: 16 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -16 }}
-            transition={{ duration: 0.25 }}
+            transition={{ duration: 0.2 }}
             className="flex min-h-0 flex-1 flex-col"
           >
             {world.phone.screen === 'lock' && <LockScreen world={world} />}
@@ -38,7 +39,7 @@ export function Phone({ world, className }: { world: World; className?: string }
 }
 
 function LockScreen({ world }: { world: World }) {
-  const { notification, approval } = world.phone
+  const { notification } = world.phone
   return (
     <div className="flex flex-1 flex-col gap-3 px-3 pt-10">
       <p className="text-center text-6xl font-light tracking-tight">9:41</p>
@@ -46,44 +47,21 @@ function LockScreen({ world }: { world: World }) {
       <AnimatePresence>
         {notification && (
           <motion.div
-            key="n"
+            key={notification.session}
             data-demo="phone-notification"
             initial={{ opacity: 0, y: -20, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0 }}
-            className="rounded-lg bg-muted p-3"
+            className="flex gap-2.5 rounded-lg bg-muted p-3"
           >
-            <p className="flex items-center gap-1.5 text-xs text-fg-muted">
-              <Bell className="size-3" /> muxtower · now
-            </p>
-            <p className="mt-1 text-sm font-semibold">{notification.title}</p>
-            <p className="text-sm">{notification.text}</p>
-          </motion.div>
-        )}
-        {approval && (
-          <motion.div
-            key="a"
-            initial={{ opacity: 0, y: -20, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col gap-2 rounded-lg bg-muted p-3"
-          >
-            <p className="flex items-center gap-1.5 text-xs text-fg-muted">
-              <ShieldAlert className="size-3 text-state-permission" /> muxtower · now
-            </p>
-            <p className="text-sm font-semibold">
-              {sessionById(world, approval.session)?.title} · {deviceName(sessionById(world, approval.session)?.device ?? 'nas')}
-            </p>
-            <p className="rounded-sm bg-background px-2 py-1 font-mono text-xs">
-              {approval.tool}: {approval.command}
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              <Button size="sm" variant="outline" tabIndex={-1}>
-                Deny
-              </Button>
-              <Button size="sm" data-demo="phone-approve" tabIndex={-1}>
-                Approve
-              </Button>
+            <img src="/icon.svg" alt="" className="mt-0.5 size-8 rounded-md" />
+            <div className="min-w-0 text-sm">
+              <p className="flex justify-between gap-2">
+                <span className="font-semibold">{notification.title}</span>
+                <span className="text-xs text-fg-muted">now</span>
+              </p>
+              <p className="line-clamp-3">{notification.body}</p>
+              <p className="text-fg-muted">{notification.where}</p>
             </div>
           </motion.div>
         )}
@@ -98,7 +76,7 @@ function ListScreen({ world }: { world: World }) {
       <p className="px-4 pt-2 pb-2 text-lg font-semibold">All sessions</p>
       <div className="min-h-0 flex-1 overflow-hidden">
         {groupsByDevice(world).map(({ device, sessions }) => (
-          <section key={device.id} aria-label={device.name}>
+          <section key={device.id} aria-label={device.name} data-demo={`phone-group-${device.id}`}>
             <p className="bg-muted px-3 py-0.5 text-xs font-medium text-fg-muted">{device.name}</p>
             {sessions.map((s) => (
               <SessionRow key={s.id} session={s} target={`phone-row-${s.id}`} flash={world.flash === `row-${s.id}`} compact />
@@ -110,19 +88,19 @@ function ListScreen({ world }: { world: World }) {
   )
 }
 
-/** What a long press on a message offers, as the app does. */
-function MessageMenu() {
+/** What selecting part of a reply offers, as the app does. */
+function SelectionBar() {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       className="flex gap-1 self-start rounded-md border border-border bg-popover p-1 shadow-card"
     >
-      <Button size="xs" variant="ghost" data-demo="phone-reply" tabIndex={-1}>
-        <Reply /> Reply
-      </Button>
       <Button size="xs" variant="ghost" tabIndex={-1}>
         <Copy /> Copy
+      </Button>
+      <Button size="xs" variant="ghost" data-demo="phone-reply" tabIndex={-1}>
+        <Reply /> Reply
       </Button>
     </motion.div>
   )
@@ -130,33 +108,35 @@ function MessageMenu() {
 
 function SessionScreen({ world }: { world: World }) {
   const session = sessionById(world, world.phone.session)
-  const { quote, draft } = world.phone
+  const { quote, draft, selection } = world.phone
   if (!session) return null
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div data-demo="phone-screen" className="flex min-h-0 flex-1 flex-col">
       <div className="flex items-center gap-2 border-b border-border px-3 py-2">
         <ChevronLeft className="size-4 text-fg-muted" />
         <StateMark state={session.state} />
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{session.title}</p>
-          <p className="flex items-center gap-1 text-xs text-fg-muted">
-            <AgentMark agent={session.agent} /> {deviceName(session.device)} · {session.project}
+          <p className="truncate text-sm font-semibold">{session.name}</p>
+          <p className="flex items-center gap-1 truncate text-xs text-fg-muted">
+            <AgentMark agent={session.agent} /> {deviceName(session.device)} · {session.folder}
           </p>
         </div>
       </div>
+      {session.pending && <ApprovalCard pending={session.pending} target="phone-approval" />}
       <div className="flex min-h-0 flex-1 flex-col justify-end gap-2.5 overflow-hidden p-3">
         {(world.messages[session.id] ?? []).map((m) => (
           <div key={m.id} className="flex flex-col gap-1.5">
-            <MessageItem message={m} target={`phone-msg-${m.id}`} flash={quote === m.text || world.phone.menu === m.id} />
-            {world.phone.menu === m.id && <MessageMenu />}
+            <MessageItem message={m} target={`phone-msg-${m.id}`} selected={selection?.message === m.id ? selection.text : undefined} />
+            {selection?.message === m.id && <SelectionBar />}
           </div>
         ))}
       </div>
       <div data-demo="phone-composer" className="flex flex-col gap-1.5 border-t border-border p-2.5">
         {quote && (
-          <p data-demo="phone-quote" className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1 text-xs text-fg-muted">
-            <Reply className="size-3 shrink-0" />
-            <span className="truncate">Reply to: {quote}</span>
+          <p className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1.5 text-xs">
+            <Quote className="size-3 shrink-0 text-fg-muted" />
+            <span className="flex-1 truncate">{quote}</span>
+            <X className="size-3 shrink-0 text-fg-muted" />
           </p>
         )}
         <div className="flex items-end gap-2">

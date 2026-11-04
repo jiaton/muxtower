@@ -1,9 +1,13 @@
-/** The demo's world: five machines joined to one hub, seven agents on four projects. Everything the
- *  stage draws is read from a `World`; the script (`script.ts`) changes it over time. */
+/** The demo's world: five machines joined to one hub, seven agents on four projects, each already some
+ *  way into its work. Everything the stage draws is read from a `World`; the script (`script.ts`)
+ *  changes it over time. What it shows follows the app (labels, row lines, how a fork or a side chat
+ *  is listed) and the daemon (notification text, what `my_team` and `send_task` return). */
+import { sessionsSeed } from './seed'
 
 export type DeviceId = 'nas' | 'server' | 'vps' | 'mac' | 'pc'
 export type Agent = 'claude' | 'codex'
-export type Source = 'tmux' | 'desktop' | 'codex-app'
+/** As the app names how a session was started: by muxtower, found in tmux, or a desktop app's. */
+export type Source = 'muxtower' | 'tmux' | 'Desktop app'
 export type SessionState = 'working' | 'idle' | 'unread' | 'permission'
 
 export interface Device {
@@ -14,11 +18,22 @@ export interface Device {
   hub?: boolean
 }
 
+export interface Pending {
+  tool: string
+  command: string
+  options: string[]
+  /** The option muxtower recommends (0-based). */
+  recommended: number
+}
+
 export interface Session {
   id: string
-  title: string
+  name: string
   device: DeviceId
-  project: string
+  /** The folder it runs in, as the app shows it. */
+  folder: string
+  /** Its repository's name, as the list groups and labels it. */
+  home: string
   agent: Agent
   source: Source
   role?: string
@@ -27,9 +42,8 @@ export interface Session {
   /** Listed under this session: a fork of it, or (with `sideChat`) a side chat. */
   parent?: string
   sideChat?: boolean
-  /** The latest task it was sent, shown on its row. */
-  task?: string
-  /** Not yet seen by the hub: appears when the script reveals it. */
+  pending?: Pending | null
+  /** Not yet found by the hub: appears when the script reveals it. */
   hidden?: boolean
 }
 
@@ -39,22 +53,19 @@ export interface Message {
   id: string
   kind: MessageKind
   text: string
-  /** A message of the agent's the owner replied to. */
+  /** A tool call's name (`Bash`, `muxtower · my_team`), its output under it. */
+  tool?: string
+  output?: string[]
+  /** The part of an agent's reply the owner quoted. */
   quote?: string
-  /** A tool call's or task's status line. */
-  status?: string
 }
 
 export interface Notification {
   session: string
+  /** As the daemon writes them: the title is the session, the body what happened, then where. */
   title: string
-  text: string
-}
-
-export interface Approval {
-  session: string
-  tool: string
-  command: string
+  body: string
+  where: string
 }
 
 export type PhoneScreen = 'lock' | 'list' | 'session'
@@ -68,12 +79,11 @@ export interface World {
     screen: PhoneScreen
     session: string
     notification: Notification | null
-    approval: Approval | null
-    /** The message being replied to, and what is typed (`typing` reveals it over time). */
+    /** Text selected in a reply (its message id and the text), with Copy and Reply over it. */
+    selection: { message: string; text: string } | null
+    /** The quote waiting above the message box, and what is typed (`typing` reveals it over time). */
     quote: string | null
     draft: string
-    /** The message whose menu (Reply, Copy) is open, after a long press. */
-    menu: string | null
   }
   /** A row or control drawn as just changed. */
   flash: string | null
@@ -91,59 +101,20 @@ export const DEVICES: Device[] = [
 
 export const deviceName = (id: DeviceId) => DEVICES.find((d) => d.id === id)?.name ?? id
 
-const SESSIONS: Session[] = [
-  {
-    id: 'research', title: 'Payment retries', device: 'mac', project: 'acme/shop', agent: 'claude', source: 'desktop',
-    role: 'research', state: 'idle', last: 'Agreed: retry a charge 3 times, keyed so it is never taken twice.',
-  },
-  {
-    id: 'worker', title: 'shop', device: 'server', project: 'acme/shop', agent: 'claude', source: 'tmux',
-    role: 'worker', state: 'idle', last: 'Ready for the next task.',
-  },
-  {
-    id: 'api', title: 'api migrations', device: 'vps', project: 'acme/api', agent: 'codex', source: 'tmux',
-    state: 'working', last: 'Writing 0042_add_retry_columns.sql',
-  },
-  {
-    id: 'web', title: 'web', device: 'pc', project: 'acme/web', agent: 'codex', source: 'codex-app',
-    state: 'working', last: 'Rebuilding the usage chart with the new API',
-  },
-  {
-    id: 'infra', title: 'infra', device: 'nas', project: 'acme/infra', agent: 'claude', source: 'tmux',
-    state: 'idle', last: 'Backups verified: 14 of 14 restored cleanly.',
-  },
-  {
-    id: 'fork', title: 'Payment retries (fork)', device: 'mac', project: 'acme/shop', agent: 'claude', source: 'desktop',
-    state: 'unread', parent: 'research', hidden: true, last: 'Same plan, with a circuit breaker instead.',
-  },
-  {
-    id: 'side', title: 'Why 3 retries?', device: 'mac', project: 'acme/shop', agent: 'claude', source: 'desktop',
-    state: 'idle', parent: 'research', sideChat: true, hidden: true, last: 'Most declines that recover do so by the second retry.',
-  },
-] // prettier-ignore
-
-const MESSAGES: Record<string, Message[]> = {
-  api: [
-    { id: 'a1', kind: 'you', text: 'Add the retry columns to payments, with a migration.' },
-    { id: 'a2', kind: 'tool', text: 'apply_patch migrations/0042_add_retry_columns.sql', status: 'done' },
-  ],
-  research: [
-    { id: 'r1', kind: 'you', text: 'How should the payment client retry?' },
-    { id: 'r2', kind: 'agent', text: 'Retry a charge up to 3 times with backoff, keyed so a retry is never taken twice.' },
-  ],
-  worker: [{ id: 'w1', kind: 'agent', text: 'Ready for the next task.' }],
-}
-
 /** The world as the demo opens: a fresh copy each time, so replaying starts clean. */
 export function initialWorld(): World {
+  const { sessions, messages } = sessionsSeed()
   return {
-    sessions: SESSIONS.map((s) => ({ ...s })),
-    messages: Object.fromEntries(Object.entries(MESSAGES).map(([k, v]) => [k, v.map((m) => ({ ...m }))])),
+    sessions,
+    messages,
     open: 'research',
-    phone: { screen: 'lock', session: 'api', notification: null, approval: null, quote: null, draft: '', menu: null },
+    phone: { screen: 'lock', session: 'api', notification: null, selection: null, quote: null, draft: '' },
     flash: null,
     map: false,
   }
 }
 
 export const sessionById = (world: World, id: string) => world.sessions.find((s) => s.id === id)
+
+/** The line under a session's name, as the app writes it: role · machine · repository · source. */
+export const metaOf = (s: Session) => [s.role, deviceName(s.device), s.home, s.source].filter(Boolean).join(' · ')

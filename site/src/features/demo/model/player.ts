@@ -1,4 +1,4 @@
-import { BEATS, type Beat, DURATION, STEPS, type Step, type Target } from './script'
+import { BEATS, type Beat, DURATION, type Focus, STEPS, type Step, type Target } from './script'
 import { initialWorld, type World } from './world'
 
 /** How long a changed row or control stays highlighted. */
@@ -10,6 +10,8 @@ export interface Frame {
   t: number
   world: World
   cursor: Target | null
+  /** Where to look, with the rest of the stage dimmed. */
+  focus: Focus | null
   /** When the cursor last clicked, for the ripple. */
   clickAt: number | null
   beat: Beat
@@ -21,6 +23,7 @@ export function frameAt(t: number, steps: Step[] = STEPS, beats: Beat[] = BEATS,
   const time = Math.min(Math.max(t, 0), duration)
   const world = initialWorld()
   let cursor: Target | null = null
+  let focus: Focus | null = null
   let clickAt: number | null = null
   let flashAt = 0
   for (const step of steps) {
@@ -29,6 +32,7 @@ export function frameAt(t: number, steps: Step[] = STEPS, beats: Beat[] = BEATS,
     step.do?.(world)
     if (world.flash !== before) flashAt = step.at
     if (step.cursor !== undefined) cursor = step.cursor
+    if (step.focus !== undefined) focus = step.focus
     if (step.click) clickAt = step.at
     if (step.type) {
       const typed = Math.floor(((time - step.at) / step.type.ms) * step.type.text.length)
@@ -40,7 +44,7 @@ export function frameAt(t: number, steps: Step[] = STEPS, beats: Beat[] = BEATS,
   const index = beatIndexAt(time, beats)
   const beat = beats[index]
   const end = beats[index + 1]?.start ?? duration
-  return { t: time, world, cursor, clickAt, beat, beatProgress: (time - beat.start) / (end - beat.start) }
+  return { t: time, world, cursor, focus, clickAt, beat, beatProgress: (time - beat.start) / (end - beat.start) }
 }
 
 export function beatIndexAt(t: number, beats: Beat[] = BEATS): number {

@@ -1,9 +1,43 @@
 import type { Scene } from '../world'
-import { NODE, ago, demoSession, prompt, reply, tool } from './session'
+import { NODE, ago, demoSession, prompt, reply } from './session'
 import { talk } from './talk'
-import { answered, claudeInput, claudeWelcome, ran, said } from './terminal'
+import { claudeInput, claudeWelcome } from './terminal'
+import { bash, edit, read, says, transcript, you } from './transcript'
 
 const PLAN = 'Plan is clean: 3 to add, 0 to change, 0 to destroy. The new replica starts empty and catches up from the primary. Apply it?'
+
+/** A provider upgrade, committed, then the plan it finished with. */
+const INFRA = transcript('claude', [
+  you('Upgrade the Terraform AWS provider to 5.x and fix whatever breaks.', 66),
+  read('versions.tf', 18),
+  edit('versions.tf', 1, 1),
+  bash(
+    'terraform init -upgrade',
+    'Upgrade the providers',
+    '- Installing hashicorp/aws v5.62.0...',
+    'Terraform has been successfully initialized!',
+  ),
+  bash('terraform validate', 'Check the configuration', 'Error: Unsupported block type', '  on modules/network/main.tf line 41'),
+  read('modules/network/main.tf', 77),
+  edit('modules/network/main.tf', 14, 9),
+  bash('terraform validate', 'Check the configuration', 'Success! The configuration is valid.'),
+  says(
+    'Upgraded to provider 5.62. The one break: inline ingress blocks in modules/network are gone in 5.x, so each rule is now its own aws_vpc_security_group_ingress_rule. The configuration validates.',
+  ),
+  you('Commit it.', 31),
+  bash(
+    'git commit -am "AWS provider 5.x"',
+    'Commit the upgrade',
+    '[main 9c1d0e7] AWS provider 5.x',
+    '3 files changed, 16 insertions(+), 11 deletions(-)',
+  ),
+  says('Committed as 9c1d0e7 on main.'),
+  you('Plan moving the staging database to the new region.', 9),
+  read('envs/staging/db.tf', 64),
+  edit('envs/staging/db.tf', 11, 2),
+  bash('terraform plan -out staging.plan', 'Plan the move', 'Plan: 3 to add, 0 to change, 0 to destroy.'),
+  says(PLAN),
+])
 
 /** A session on the second computer, joined to this daemon: finished while nobody looked. */
 export function infra(): Scene {
@@ -21,19 +55,10 @@ export function infra(): Scene {
       created_at: ago(70),
       updated_at: ago(6),
     }),
-    history: [
-      ...claudeWelcome('~/code/infra'),
-      ...said('Plan moving the staging database to the new region.'),
-      ...ran('Bash(terraform plan -out staging.plan)', 'Plan: 3 to add, 0 to change, 0 to destroy.'),
-      ...answered(PLAN),
-    ],
+    history: [...claudeWelcome('~/code/infra'), ...INFRA.history],
     footer: claudeInput,
-    items: [
-      prompt(1, { text: 'Plan moving the staging database to the new region.', at: ago(9) }),
-      tool(2, { tool_name: 'Bash', text: 'terraform plan -out staging.plan', status: 'done' }),
-      reply(3, { text: PLAN }),
-    ],
-    reply: talk('claude', 10),
+    items: INFRA.items,
+    reply: talk('claude', INFRA.next + 10),
   }
 }
 
@@ -51,6 +76,22 @@ Tag it when you're ready:
 \`\`\`sh
 git tag v2.4.0 && git push origin v2.4.0
 \`\`\``
+
+/** Its conversation before the notes: what is in 2.4, a check, then the draft (no screen to draw). */
+const NOTES_EARLIER = transcript('claude', [
+  you('Which pull requests are merged for 2.4, and which are still open?', 74),
+  bash('gh pr list --state merged --search "milestone:2.4"', 'List the merged pull requests', '4 pull requests'),
+  bash('gh pr list --state open --search "milestone:2.4"', 'List the open pull requests', '1 pull request'),
+  says(
+    'Merged: PR 212, the usage chart on the billing page; PR 215, refunds count tax once; PRs 218 and 219, dependency updates. Open: PR 221, payment retries with backoff, which shop-api is finishing.',
+  ),
+  you('Does the refund fix have a test?', 52),
+  bash('gh pr diff 215 --name-only', 'List the files PR 215 changed', 'src/payments/refunds.ts', 'src/payments/refunds.test.ts'),
+  read('src/payments/refunds.test.ts', 164),
+  says('It does: three new tests cover one, some and all lines of an order refunded, each checking the tax returned.'),
+  you('Draft the release notes for 2.4 from the merged pull requests.', 33),
+  bash('gh pr list --state merged --search "milestone:2.4"', 'List the merged pull requests', '4 pull requests'),
+])
 
 /** A Claude Code session started outside tmux (the desktop app, Remote Control): no terminal, only its
  *  conversation. */
@@ -85,12 +126,8 @@ export function releaseNotes(): Scene {
     }),
     history: [],
     footer: [],
-    items: [
-      prompt(1, { text: 'Draft the release notes for 2.4 from the merged pull requests.', at: ago(33) }),
-      tool(2, { tool_name: 'Bash', text: 'gh pr list --state merged --search "milestone:2.4"', status: 'done' }),
-      reply(3, { text: NOTES, at: ago(30) }),
-    ],
-    reply: talk(null, 10),
+    items: [...NOTES_EARLIER.items, reply(NOTES_EARLIER.next, { text: NOTES, at: ago(30) })],
+    reply: talk(null, NOTES_EARLIER.next + 10),
   }
 }
 
@@ -114,8 +151,8 @@ export function releaseNotesFork(): Scene {
     },
     items: [
       ...scene.items,
-      prompt(4, { text: 'Now a one-line version for the changelog.', at: ago(14) }),
-      reply(5, { text: SHORTER, at: ago(12) }),
+      prompt(NOTES_EARLIER.next + 1, { text: 'Now a one-line version for the changelog.', at: ago(14) }),
+      reply(NOTES_EARLIER.next + 2, { text: SHORTER, at: ago(12) }),
     ],
   }
 }

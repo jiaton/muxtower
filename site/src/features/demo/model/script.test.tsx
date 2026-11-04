@@ -22,8 +22,9 @@ describe('the script', () => {
     }
   })
 
-  // The cursor aims at elements by id: each one must be on screen when the cursor goes there, in both layouts.
-  it.each(STEPS.filter((s) => s.cursor).map((s) => [s.at, s.cursor!] as const))('at %i ms its target is drawn', (at, cursor) => {
+  // The cursor and the spotlight aim at elements by id: each must be on screen when they go there, in both layouts.
+  const aimed = STEPS.flatMap((s) => [s.cursor, s.focus].filter(Boolean).map((t) => [s.at, t!] as const))
+  it.each(aimed)('at %i ms its target is drawn', (at, target) => {
     const { world } = frameAt(at + 1)
     const wide = render(
       <>
@@ -31,7 +32,7 @@ describe('the script', () => {
         <Phone world={world} />
       </>,
     )
-    if (cursor.wide) expect(wide.container.querySelector(`[data-demo="${cursor.wide}"]`)).not.toBeNull()
+    if (target.wide) expect(wide.container.querySelector(`[data-demo="${target.wide}"]`)).not.toBeNull()
     wide.unmount()
     const tall = render(
       <>
@@ -39,7 +40,7 @@ describe('the script', () => {
         <Phone world={world} />
       </>,
     )
-    if (cursor.tall) expect(tall.container.querySelector(`[data-demo="${cursor.tall}"]`)).not.toBeNull()
+    if (target.tall) expect(tall.container.querySelector(`[data-demo="${target.tall}"]`)).not.toBeNull()
     tall.unmount()
   })
 })
