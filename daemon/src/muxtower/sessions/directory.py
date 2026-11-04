@@ -11,6 +11,7 @@ from typing import Literal
 from muxtower.approval.models import Answers, ApprovalResult
 from muxtower.approval.service import ApprovalService
 from muxtower.errors import Conflict, NotFound
+from muxtower.sessions.anchors import ProjectAnchors
 from muxtower.sessions.archive import SessionArchive
 from muxtower.sessions.decorate import decorate
 from muxtower.sessions.images import ImageFile, read_shown
@@ -66,6 +67,7 @@ class SessionDirectory(OwnerMarks):
         self.marks = marks
         self.transcripts = transcripts
         self.archive_store = archive
+        self.anchors = ProjectAnchors()
         self.accounts = accounts  # the account a session here runs as (`agents/accounts.py`)
         self.concierge_id: str | None = None  # set by the concierge service once its session runs
         self.team: Callable[[str], TeamRecord | None] | None = None  # set by the team service: a session's role
@@ -106,9 +108,8 @@ class SessionDirectory(OwnerMarks):
         kept = [v for source, v in remotes if v.id not in merged_into and self.source_of(v.id) is source]
         archived = self.archive_store.views() if self.archive_store else []
         listed_as = {s.remote_id: s.id for s in locals_ if s.remote_id}
-        return [self._decorate(_as_listed(s, listed_as)) for s in locals_ + kept] + [
-            _as_listed(s, listed_as) for s in archived
-        ]
+        live = self.anchors.apply(self._decorate(_as_listed(s, listed_as)) for s in locals_ + kept)
+        return live + [_as_listed(s, listed_as) for s in archived]
 
     def get(self, session_id: str) -> Session:
         found = self._get(session_id)

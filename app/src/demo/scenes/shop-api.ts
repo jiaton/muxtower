@@ -68,6 +68,7 @@ export function shopApi(): Scene {
       project: 'acme/shop-api',
       project_auto: true,
       project_source: 'git remote',
+      project_anchor: `${HOME}/code/shop-api`,
       working_dir: `${HOME}/code/shop-api/services/payments`,
     }),
     history: [

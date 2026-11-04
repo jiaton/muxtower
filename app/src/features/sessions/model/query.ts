@@ -5,7 +5,7 @@
  * or by source. Lives in the URL, so back, reload and links keep it.
  */
 import { nestFolders, withRepositories } from './folders'
-import { homeKind, homeOf, worktreeOf, type PlaceKind } from './places'
+import { anchorOf, homeKind, homeOf, worktreeOf, type PlaceKind } from './places'
 import {
   NO_ENVIRONMENT,
   SOURCES,
@@ -177,12 +177,22 @@ const bySize = (byKey: Map<string, SessionEntry[]>, last: string) =>
 function folderSections(entries: SessionEntry[]): Section[] | undefined {
   const byFolder = bucket(entries, (e) => worktreeOf(e.session)?.label ?? folderLabel(e))
   if (byFolder.size === 1 && byFolder.has(UNKNOWN_FOLDER)) return undefined
-  type Item = { label: string; count: number; entries: SessionEntry[]; under?: string; name?: string; title?: string; kind: PlaceKind }
+  type Item = {
+    label: string
+    count: number
+    entries: SessionEntry[]
+    under?: string
+    name?: string
+    title?: string
+    kind: PlaceKind
+    at?: string
+  }
   const folders = withRepositories<Item>(
     [...byFolder].map(([label, entries]) => {
       const worktree = worktreeOf(entries[0].session)
       const kind = worktree ? 'worktree' : homeKind(entries[0].session)
-      return { label, count: entries.length, entries, under: worktree?.under, name: worktree?.name, title: worktree?.path, kind }
+      const at = worktree ? undefined : anchorOf(entries[0].session)
+      return { label, count: entries.length, entries, under: worktree?.under, name: worktree?.name, title: worktree?.path, kind, at }
     }),
     (label) => ({ label, count: 0, entries: [], kind: 'repository' }),
   )

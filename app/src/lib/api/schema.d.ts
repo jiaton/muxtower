@@ -1637,6 +1637,11 @@ export interface components {
              */
             project?: string | null;
             /**
+             * Project Anchor
+             * @description where its project sits in its device's folder tree: the main folder of the repository most of the project's sessions there run in, else their folder (`sessions/anchors.py`); null: at the top
+             */
+            project_anchor?: string | null;
+            /**
              * Project Auto
              * @description `project` was worked out by muxtower, not set
              * @default false

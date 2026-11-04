@@ -17,6 +17,7 @@ export function docs(): Scene {
       project: 'acme/shop-api',
       project_auto: true,
       project_source: 'git remote',
+      project_anchor: `${HOME}/code/shop-api`,
       runtime: 'codex',
       source: 'adopted',
       tmux_socket: 'default',
