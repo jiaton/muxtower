@@ -1,0 +1,35 @@
+---
+/** The one page. Sections without an island directive are plain HTML; the ones that move or take input
+ *  hydrate when they come into view (the hero, with the demo, at once). */
+import Base from '@/layouts/base.astro'
+import { Faq } from '@/sections/faq'
+import { Features } from '@/sections/features'
+import { Footer } from '@/sections/footer'
+import { Header } from '@/sections/header'
+import { Hero } from '@/sections/hero'
+import { Hub } from '@/sections/hub'
+import { Install } from '@/sections/install'
+import { Security } from '@/sections/security'
+import { Team } from '@/sections/team'
+import { Usage } from '@/sections/usage'
+---
+
+<Base
+  title="muxtower — every machine, every agent, one list"
+  description="One self-hosted hub for the Claude Code and Codex sessions on all your machines: notified on your phone, answered from anywhere, agents that hand each other work. Open source."
+>
+  <div id="top" class="min-h-dvh bg-background text-foreground">
+    <Header />
+    <main>
+      <Hero client:load />
+      <Hub client:visible />
+      <Team client:visible />
+      <Features />
+      <Usage />
+      <Security />
+      <Install client:visible />
+      <Faq client:visible />
+    </main>
+    <Footer client:visible />
+  </div>
+</Base>

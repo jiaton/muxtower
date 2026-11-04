@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest'
 import { Team } from './team'
 
 describe('Team', () => {
-  it('shows my_team and send_task as an agent sees them', () => {
+  it('says what a team is, beside a real one at work', () => {
     render(<Team />)
     expect(screen.getByRole('heading', { name: /team/ })).toBeInTheDocument()
-    expect(screen.getByText(/Your team \(1 other session/)).toBeInTheDocument()
-    expect(screen.getByText(/^Delivered to shop/)).toBeInTheDocument()
+    expect(screen.getByText('A role is plain text: pm, worker, reviewer.')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'acme/shop' })).toBeInTheDocument()
   })
 })

@@ -25,3 +25,11 @@ describe('Install', () => {
     expect(screen.getByText(/Your daemon serves the same app itself/)).toBeInTheDocument()
   })
 })
+
+describe('Install, joining', () => {
+  it('shows how another machine joins the hub', async () => {
+    render(<Install />)
+    await userEvent.click(screen.getByRole('tab', { name: 'Join another machine' }))
+    expect(screen.getByText('muxtower pair --join https://hub.example --code K7QM-3XPA')).toBeInTheDocument()
+  })
+})

@@ -6,11 +6,21 @@ describe('Section', () => {
   it('is an anchored band with a heading', () => {
     const { container } = render(
       <Section id="x">
-        <SectionHeading label="01" title="Title" lead="Lead with `code`." />
+        <SectionHeading eyebrow="Hub" title="Title" lead="Lead with `code`." />
       </Section>,
     )
-    expect(container.querySelector('section#x')).not.toBeNull()
+    expect(container.querySelector('section#x [data-reveal]')).not.toBeNull()
     expect(screen.getByRole('heading', { level: 2, name: 'Title' })).toBeInTheDocument()
+    expect(screen.getByText('Hub')).toBeInTheDocument()
     expect(screen.getByText('code').tagName).toBe('CODE')
+  })
+
+  it('has a dark tone for the one ink band', () => {
+    const { container } = render(
+      <Section id="y" tone="ink">
+        x
+      </Section>,
+    )
+    expect(container.querySelector('section#y')).toHaveClass('bg-ink')
   })
 })

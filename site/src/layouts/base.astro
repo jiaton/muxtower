@@ -1,0 +1,44 @@
+---
+/** Every page's document: meta, link previews, the font and the theme. */
+import '@/styles/site.css'
+
+interface Props {
+  title: string
+  description: string
+}
+const { title, description } = Astro.props
+// Link previews (LinkedIn, Slack, X) want the share image at an absolute URL, which only the deployment
+// knows: MUXTOWER_SITE_DOMAIN (the same variable that binds the domain in deploy/). Unset, none.
+const domain = process.env.MUXTOWER_SITE_DOMAIN?.trim()
+---
+
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="color-scheme" content="light" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content="muxtower" />
+    <meta property="og:description" content="Every machine, every agent, one list. Self-hosted, open source, over HTTPS." />
+    <meta property="og:type" content="website" />
+    {domain && (
+      <>
+        <meta property="og:url" content={`https://${domain}/`} />
+        <meta property="og:image" content={`https://${domain}/og.png`} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta name="twitter:card" content="summary_large_image" />
+      </>
+    )}
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  </head>
+  <body>
+    <slot />
+    <script>
+      import { startReveal } from '@/lib/reveal'
+      startReveal()
+    </script>
+  </body>
+</html>

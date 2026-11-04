@@ -1,5 +1,5 @@
 export const usage = {
-  label: '07',
+  eyebrow: 'Performance',
   title: 'Built to cost little.',
   lead: 'It runs all day on every machine, so it stays light.',
 }
