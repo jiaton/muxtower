@@ -103,7 +103,8 @@ class LinkSession:
                     protocol.event("conversation", {"session_id": topic.split(":", 1)[1], "items": items})
                 )
             elif topic.startswith("screen:"):
-                await self.ws.send(protocol.event("screen", {"session_id": topic.split(":", 1)[1], "ansi": payload}))
+                ansi = payload.ansi  # a ScreenUpdate: the hub works out its own patches (`terminal/patches.py`)
+                await self.ws.send(protocol.event("screen", {"session_id": topic.split(":", 1)[1], "ansi": ansi}))
 
     async def read(self) -> None:
         async for raw in self.ws:

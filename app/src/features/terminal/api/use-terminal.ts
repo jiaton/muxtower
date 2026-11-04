@@ -13,7 +13,11 @@ export const HISTORY_STEPS = [300, 1500, 5000] as const
 export function useScreen(daemonId: string, sessionId: string, history: number, enabled = true) {
   const client = useDaemonClient(daemonId)
   const status = useStreamStatus((s) => s.status[daemonId])
-  useStreamSubscription(daemonId, enabled ? { type: 'subscribe', topic: 'screen', session_id: sessionId, history } : null)
+  // `lines`: a whole screen, then patches (a daemon too old for them sends whole screens, as always).
+  useStreamSubscription(
+    daemonId,
+    enabled ? { type: 'subscribe', topic: 'screen', session_id: sessionId, history, encoding: 'lines' } : null,
+  )
   return useQuery({
     queryKey: daemonKey(daemonId, 'screen', sessionId),
     enabled: enabled && client !== null,

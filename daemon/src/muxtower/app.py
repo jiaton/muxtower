@@ -169,6 +169,7 @@ def create_app(
 
     teams = TeamService(directory, SqliteTeamRepository(db), transcript_of=directory.local.transcript_of)
     writes = WriteTracker(lambda: settings.writes.window_minutes, teams.checkouts)
+    nodes.screen_feed = monitor.screen_feed  # one numbering of screens, for the stream's patches
     watches = SessionWatches(directory)  # sessions watching sessions (MCP watch_session)
 
     def gone(session_id: str) -> None:

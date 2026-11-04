@@ -16,7 +16,8 @@ export type RuntimeInfo = Schemas['RuntimeInfo']
 export type NodeInfo = Schemas['NodeInfo']
 export type Device = Schemas['Device']
 export type ClaimResult = Schemas['ClaimResult']
-export type StreamSubscribe = Schemas['StreamSubscribe']
+/** What the app sends: `encoding` may be left out (the daemon then sends whole screens). */
+export type StreamSubscribe = Omit<Schemas['StreamSubscribe'], 'encoding'> & { encoding?: Schemas['StreamSubscribe']['encoding'] }
 export type StreamPing = Schemas['StreamPing']
 export type ConversationItem = Schemas['ConversationItem']
 export type Conversation = Schemas['Conversation']

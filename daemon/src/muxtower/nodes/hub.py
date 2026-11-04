@@ -31,6 +31,7 @@ from muxtower.nodes.repository import NodeRecord, NodeRepository
 from muxtower.nodes.update import newer
 from muxtower.runtimes.models import RuntimeInfo
 from muxtower.sessions.models import ConversationItem, Session
+from muxtower.terminal.patches import ScreenFeed
 from muxtower.usage.models import MachineUsage
 
 logger = logging.getLogger("muxtower.nodes")
@@ -85,7 +86,8 @@ class Nodes:
         # (`NodeSource.listed_as`): its events go out under the id clients know, or not at all.
         self.listed_as: Callable[[str, Session], str | None] = lambda node, s: f"{node}~{s.id}"
 
-    # --- membership ---------------------------------------------------------------------------
+        # --- membership ---------------------------------------------------------------------------
+        self.screen_feed = ScreenFeed()  # the monitor's, set by the app
 
     def claim(self, wanted: str) -> tuple[str, str]:
         """A new node named after `wanted` (made unique): (its name, its token, shown once)."""
@@ -279,7 +281,7 @@ class Nodes:
             return
         topic = f"{kind}:{listed}"
         if kind == "screen":
-            self.bus.publish(topic, str(data.get("ansi", "")))
+            self.screen_feed.publish(self.bus, listed, str(data.get("ansi", "")))  # patches worked out here
             return
         try:
             items = [ConversationItem.model_validate(i) for i in data.get("items") or []]

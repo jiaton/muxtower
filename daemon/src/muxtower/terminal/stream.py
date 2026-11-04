@@ -16,8 +16,10 @@ from muxtower.auth.stream_cookie import COOKIE_NAME, COOKIE_PATH, MAX_AGE_SECOND
 from muxtower.errors import Conflict, NotFound, Unavailable
 from muxtower.infra.tmux import TmuxError
 from muxtower.sessions.models import ConversationItem, Session
+from muxtower.terminal.patches import ScreenUpdate
 
 logger = logging.getLogger("muxtower.stream")
+FULL_EVERY = 200  # patches in a row before a whole screen again, to set right whatever went wrong
 QUERY_TOKEN = "access_token"  # noqa: S105 - a parameter name, not a secret
 router = APIRouter(prefix="/v1", tags=["stream"])
 
@@ -27,6 +29,11 @@ class StreamSubscribe(BaseModel):
     topic: Literal["sessions", "screen", "conversation"]
     session_id: str | None = None
     history: int = Field(default=200, ge=0, le=5000)
+    encoding: Literal["full", "lines"] = Field(
+        default="full",
+        description='screen: "lines" sends a full screen (with its `seq`), then `screen_patch` frames; a client '
+        "of its own may ignore it",
+    )
 
 
 class StreamPing(BaseModel):
@@ -49,6 +56,19 @@ class ScreenFrame(BaseModel):
     type: Literal["screen"] = "screen"
     session_id: str
     ansi: str
+    seq: int | None = Field(default=None, description='with encoding "lines": the number the next patch builds on')
+
+
+class ScreenPatchFrame(BaseModel):
+    """The next screen as ops on the screen numbered `base` (`terminal/patches.py`): `[start, count]` copies
+    those lines of it, a string is a new line; joined with newlines, the screen numbered `seq`. A client
+    whose last screen is not `base` subscribes again for a full one."""
+
+    type: Literal["screen_patch"] = "screen_patch"
+    session_id: str
+    base: int
+    seq: int
+    ops: list[list[int] | str]
 
 
 class ConversationFrame(BaseModel):
@@ -69,7 +89,8 @@ class PongFrame(BaseModel):
 
 
 ServerFrame = Annotated[
-    SessionsFrame | ScreenFrame | ConversationFrame | ErrorFrame | PongFrame, Field(discriminator="type")
+    SessionsFrame | ScreenFrame | ScreenPatchFrame | ConversationFrame | ErrorFrame | PongFrame,
+    Field(discriminator="type"),
 ]
 
 
@@ -123,6 +144,8 @@ class _Connection:
         self.app = ws.app
         self.queue: asyncio.Queue[tuple[str, Any]] = asyncio.Queue()
         self.screens: dict[str, int] = {}  # session id -> history
+        self.patched: dict[str, int | None] = {}  # session id -> the screen it last got, when it takes patches
+        self.patches_since_full: dict[str, int] = {}
 
     async def send(self, frame: BaseModel) -> None:
         await self.ws.send_text(frame.model_dump_json())
@@ -148,6 +171,7 @@ class _Connection:
             if session_id in self.screens:
                 bus.unsubscribe(f"screen:{session_id}", self.queue)
                 directory.watch_screen(session_id, self.screens.pop(session_id), False)
+                self.patched.pop(session_id, None)
             return
         try:
             screen = await asyncio.to_thread(self.app.state.directory.screen, session_id, message.history)
@@ -162,6 +186,10 @@ class _Connection:
         if session_id in self.screens:
             directory.watch_screen(session_id, self.screens[session_id], False)
         self.screens[session_id] = message.history
+        if message.encoding == "lines":
+            self.patched[session_id] = None  # the next screen comes whole, numbered; patches follow it
+        else:
+            self.patched.pop(session_id, None)
         directory.watch_screen(session_id, message.history, True)
         bus.subscribe(f"screen:{session_id}", self.queue)
         await self.send(ScreenFrame(session_id=session_id, ansi=screen.ansi or screen.text))
@@ -201,9 +229,27 @@ class _Connection:
             if topic == "sessions":
                 await self.send_sessions()
             elif topic.startswith("screen:"):
-                await self.send(ScreenFrame(session_id=topic.split(":", 1)[1], ansi=payload))
+                await self.send(self.screen_frame(topic.split(":", 1)[1], payload))
             elif topic.startswith("conversation:"):
                 await self.send(ConversationFrame(session_id=topic.split(":", 1)[1], items=payload))
+
+    def screen_frame(self, session_id: str, update: ScreenUpdate) -> BaseModel:
+        """A patch where this connection takes them and has the screen it builds on; else the whole screen."""
+        if session_id not in self.patched:
+            return ScreenFrame(session_id=session_id, ansi=update.ansi)
+        sent = self.patches_since_full.get(session_id, 0)
+        if (
+            update.ops is not None
+            and update.base is not None
+            and self.patched[session_id] == update.base
+            and sent < FULL_EVERY
+        ):
+            self.patched[session_id] = update.seq
+            self.patches_since_full[session_id] = sent + 1
+            return ScreenPatchFrame(session_id=session_id, base=update.base, seq=update.seq, ops=update.ops)
+        self.patched[session_id] = update.seq
+        self.patches_since_full[session_id] = 0
+        return ScreenFrame(session_id=session_id, ansi=update.ansi, seq=update.seq)
 
     def close(self) -> None:
         self.app.state.bus.unsubscribe_all(self.queue)

@@ -116,6 +116,12 @@ export class DaemonStream {
     }
   }
 
+  /** Asks for a topic again (a screen whose patch did not fit: a whole one comes back). */
+  resubscribe(message: StreamSubscribe) {
+    const sub = this.subs.get(keyOf(message))
+    if (sub) this.send(sub.message)
+  }
+
   private send(message: StreamSubscribe | StreamPing) {
     if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(message))
   }

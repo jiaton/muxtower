@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { markRejected, useDaemonsStore, usePairedDaemons } from '@/lib/daemons/store'
 import { daemonKey, queryClient } from '@/lib/query'
+import { ScreenBases } from './screen-patch'
 import { DaemonStream } from './stream'
 import { setStreamStatus } from './stream-status'
 import { mergeItems } from './conversation'
@@ -24,6 +25,7 @@ export function useDaemonStreams() {
     }
     for (const daemon of wanted.values()) {
       if (streams.has(daemon.id)) continue
+      const bases = new ScreenBases() // what screen patches build on (`screen-patch.ts`)
       const stream = new DaemonStream(daemon, {
         onStatus: (status) => setStreamStatus(daemon.id, status),
         onRejected: () => markRejected(daemon.id),
@@ -32,8 +34,14 @@ export function useDaemonStreams() {
         },
         onFrame: (frame) => {
           if (frame.type === 'sessions') queryClient.setQueryData(daemonKey(daemon.id, 'sessions'), frame.sessions)
-          else if (frame.type === 'screen')
+          else if (frame.type === 'screen') {
+            bases.whole(frame.session_id, frame.ansi, frame.seq)
             queryClient.setQueryData(daemonKey(daemon.id, 'screen', frame.session_id), frame.ansi)
+          } else if (frame.type === 'screen_patch') {
+            const ansi = bases.patch(frame.session_id, frame.base, frame.seq, frame.ops)
+            if (ansi === null) stream.resubscribe({ type: 'subscribe', topic: 'screen', session_id: frame.session_id, history: 0 })
+            else queryClient.setQueryData(daemonKey(daemon.id, 'screen', frame.session_id), ansi)
+          }
           else if (frame.type === 'conversation')
             queryClient.setQueryData<ConversationItem[]>(daemonKey(daemon.id, 'conversation', frame.session_id), (shown) =>
               mergeItems(shown, frame.items),

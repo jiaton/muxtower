@@ -18,6 +18,7 @@ from muxtower.sessions.naming import seen as seen_name
 from muxtower.sessions.ports import ClaudeProcessPort
 from muxtower.sessions.reconcile import Reconciler
 from muxtower.sessions.service import SessionService
+from muxtower.terminal.patches import ScreenFeed
 from muxtower.terminal.ports import PaneInfo
 
 logger = logging.getLogger("muxtower.monitor")
@@ -67,6 +68,7 @@ class Monitor(Reconciler):
         self._seen_servers: dict[str, str] = {}  # socket -> the tmux server seen alive there this run
         self._loop: asyncio.AbstractEventLoop | None = None
         self._woken: asyncio.Event | None = None
+        self.screen_feed = ScreenFeed()  # shared with the hub's node screens (app.py)
 
     def wake(self) -> None:
         """From any thread: look again soon instead of at the next interval (input was just sent, a hook
@@ -189,7 +191,7 @@ class Monitor(Reconciler):
                 if result.sessions_changed:
                     bus.publish("sessions", None)
                 for session_id, ansi in result.screens.items():
-                    bus.publish(f"screen:{session_id}", ansi)
+                    self.screen_feed.publish(bus, session_id, ansi)  # numbered, with its patch (`patches.py`)
                 for session_id in result.attention:
                     bus.publish(f"attention:{session_id}", None)
             try:
