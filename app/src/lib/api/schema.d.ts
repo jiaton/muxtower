@@ -180,6 +180,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/nodes/direct": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Direct Tokens
+         * @description For this device: each connected node's address and a device token of its own, to reach it directly
+         *     while the hub is down (made anew each time; revoking this device here revokes them).
+         */
+        post: operations["direct_tokens_v1_nodes_direct_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/nodes/{name}": {
         parameters: {
             query?: never;
@@ -197,7 +218,11 @@ export interface paths {
         delete: operations["remove_node_v1_nodes__name__delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Set Direct Url
+         * @description The owner's address for reaching a node itself while the hub is down, over the one it reports.
+         */
+        patch: operations["set_direct_url_v1_nodes__name__patch"];
         trace?: never;
     };
     "/v1/pair/claim": {
@@ -286,6 +311,31 @@ export interface paths {
         post?: never;
         /** Unsubscribe */
         delete: operations["unsubscribe_v1_push_subscriptions__subscription_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/recovery": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Interrupted
+         * @description The sessions a restart interrupted, waiting to be started again (POST) or removed (DELETE the session).
+         */
+        get: operations["interrupted_v1_recovery_get"];
+        put?: never;
+        /**
+         * Recover
+         * @description Starts them again, each in its folder with its options, resuming its conversation, under its own id.
+         *     Nothing is sent to them.
+         */
+        post: operations["recover_v1_recovery_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -697,6 +747,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Settings
+         * @description The features the app may change, with where each value comes from and when a change applies.
+         */
+        get: operations["get_settings_v1_settings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Change Settings
+         * @description Changes some (all or none); a key the config file sets is refused. Each change is audited.
+         */
+        patch: operations["change_settings_v1_settings_patch"];
+        trace?: never;
+    };
     "/v1/stream/cookie": {
         parameters: {
             query?: never;
@@ -764,6 +838,23 @@ export interface components {
          * @enum {string}
          */
         AgentState: "needs_permission" | "needs_answer" | "needs_trust" | "plan_review" | "error" | "busy" | "idle" | "unknown";
+        /**
+         * AlsoWriting
+         * @description Another session of this machine that wrote in the same git worktree lately (`writes/`).
+         */
+        AlsoWriting: {
+            /**
+             * Files
+             * @description written by both, relative to the worktree
+             */
+            files: string[];
+            /** Name */
+            name: string;
+            /** Session Id */
+            session_id: string;
+            /** Worktree */
+            worktree: string;
+        };
         /** ApprovalResult */
         ApprovalResult: {
             /** Option */
@@ -832,6 +923,16 @@ export interface components {
              * @description it can be stopped (DELETE); for an archived one: deleted from the archive
              */
             terminate: boolean;
+        };
+        /** ChangeSettings */
+        ChangeSettings: {
+            /**
+             * Values
+             * @description dotted key → value; null puts it back to its default
+             */
+            values: {
+                [key: string]: unknown;
+            };
         };
         /** ClaimRequest */
         ClaimRequest: {
@@ -964,6 +1065,29 @@ export interface components {
             last_used_at: string | null;
             /** Name */
             name: string;
+        };
+        /** DirectNode */
+        DirectNode: {
+            /** Node */
+            node: string;
+            /**
+             * Token
+             * @description a device token of that node, for this device
+             */
+            token: string;
+            /**
+             * Url
+             * @description https: where the app reaches it itself
+             */
+            url: string;
+        };
+        /** DirectUrl */
+        DirectUrl: {
+            /**
+             * Direct Url
+             * @description https; null: the address the node reports
+             */
+            direct_url: string | null;
         };
         /** ErrorFrame */
         ErrorFrame: {
@@ -1110,6 +1234,13 @@ export interface components {
              */
             url: string | null;
         };
+        /** MachineSettings */
+        MachineSettings: {
+            /** Machine */
+            machine: string;
+            /** Settings */
+            settings: components["schemas"]["SettingView"][];
+        };
         /**
          * MachineUsage
          * @description What the daemon on one machine uses, sampled every few seconds. A value it cannot read there is null
@@ -1220,6 +1351,11 @@ export interface components {
          */
         NodeInfo: {
             /**
+             * Direct Url
+             * @description the owner's address for it, used over the reported one
+             */
+            direct_url?: string | null;
+            /**
              * Joined At
              * Format: date-time
              */
@@ -1233,6 +1369,11 @@ export interface components {
             name: string;
             /** Online */
             online: boolean;
+            /**
+             * Reported Url
+             * @description where it says the app can reach it itself
+             */
+            reported_url?: string | null;
             /**
              * Runtimes
              * @description what can be started there
@@ -1375,6 +1516,24 @@ export interface components {
             /** Label */
             label: string;
         };
+        /** Recover */
+        Recover: {
+            /** Session Ids */
+            session_ids: string[];
+        };
+        /** Recovery */
+        Recovery: {
+            /**
+             * Mode
+             * @description ask | auto | off (`[recovery] mode`)
+             */
+            mode: string;
+            /**
+             * Sessions
+             * @description interrupted by a restart, here and on the nodes: to start again or remove
+             */
+            sessions: components["schemas"]["Session"][];
+        };
         /** Resize */
         Resize: {
             /** Cols */
@@ -1451,6 +1610,16 @@ export interface components {
              */
             account?: string | null;
             /**
+             * Agent Name
+             * @description the name its agent gives it (Claude Code's title), offered when renaming
+             */
+            agent_name?: string | null;
+            /**
+             * Also Writing
+             * @description other running sessions here that wrote files in the same worktree within the last minutes (file-editing tools only, not Bash): a hint, nothing is held back
+             */
+            also_writing?: components["schemas"]["AlsoWriting"][];
+            /**
              * Alt Screen
              * @description draws full screen (alternate screen): tmux keeps no scrollback, see the conversation
              * @default false
@@ -1493,6 +1662,11 @@ export interface components {
             hidden: boolean;
             /** Id */
             id: string;
+            /**
+             * Interrupted At
+             * @description its machine restarted under it: kept to be resumed or removed (`/v1/recovery`)
+             */
+            interrupted_at?: string | null;
             /** Last Message */
             last_message: string | null;
             /**
@@ -1544,9 +1718,25 @@ export interface components {
             placement?: components["schemas"]["Placement"] | null;
             /**
              * Project
-             * @description the project an agent or the owner put it in (null: its repository says)
+             * @description its project, as its team record keeps it (`my_team` says the same): set by an agent or the owner, else worked out once from git when it was first seen (`project_auto`); null until then
              */
             project?: string | null;
+            /**
+             * Project Anchor
+             * @description where its project sits in its device's folder tree: the main folder of the repository most of the project's sessions there run in, else their folder (`sessions/anchors.py`); null: at the top
+             */
+            project_anchor?: string | null;
+            /**
+             * Project Auto
+             * @description `project` was worked out by muxtower, not set
+             * @default false
+             */
+            project_auto: boolean;
+            /**
+             * Project Source
+             * @description where `project` came from: set by an agent or the owner, or worked out from its git remote, its repository's folder, or (outside git) its folder; the lists place it by its folder in that last case
+             */
+            project_source?: ("set" | "git remote" | "git root" | "folder") | null;
             /**
              * Remote Id
              * @description the controller session of this agent (Claude Code's Remote Control session, a Codex thread of the shared app-server), when it has one; listed once, under this id
@@ -1609,6 +1799,11 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /**
+             * Working Dir
+             * @description where the agent works now, when that is inside `cwd` and not it (where it started, which is where it is listed)
+             */
+            working_dir?: string | null;
         };
         /** SessionNotify */
         SessionNotify: {
@@ -1633,6 +1828,50 @@ export interface components {
              * @enum {string}
              */
             type: "sessions";
+        };
+        /** SettingView */
+        SettingView: {
+            /**
+             * Applies
+             * @enum {string}
+             */
+            applies: "now" | "restart";
+            /** Choices */
+            choices: string[];
+            /** Default */
+            default: unknown;
+            /** Help */
+            help: string;
+            /**
+             * Key
+             * @description dotted, as in the config file: `recovery.mode` is `[recovery] mode`
+             */
+            key: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "choice" | "bool" | "number" | "text";
+            /** Label */
+            label: string;
+            /**
+             * Pending
+             * @description changed since the daemon started: applies when it restarts
+             */
+            pending: boolean;
+            /** Section */
+            section: string;
+            /**
+             * Source
+             * @description config_file: set there, and not changed from the app
+             * @enum {string}
+             */
+            source: "default" | "app" | "config_file";
+            /**
+             * Value
+             * @description what applies: once the daemon restarts, where `pending`
+             */
+            value: unknown;
         };
         /**
          * SlowRule
@@ -2173,6 +2412,26 @@ export interface operations {
             };
         };
     };
+    direct_tokens_v1_nodes_direct_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectNode"][];
+                };
+            };
+        };
+    };
     remove_node_v1_nodes__name__delete: {
         parameters: {
             query?: never;
@@ -2183,6 +2442,39 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_direct_url_v1_nodes__name__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DirectUrl"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {
@@ -2325,6 +2617,59 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    interrupted_v1_recovery_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Recovery"];
+                };
+            };
+        };
+    };
+    recover_v1_recovery_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Recover"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"][];
+                };
             };
             /** @description Validation Error */
             422: {
@@ -3081,6 +3426,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Session"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_settings_v1_settings_get: {
+        parameters: {
+            query?: {
+                /** @description a node of this hub: its settings, over the link, instead of this daemon's */
+                node?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MachineSettings"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    change_settings_v1_settings_patch: {
+        parameters: {
+            query?: {
+                /** @description a node of this hub: its settings, over the link, instead of this daemon's */
+                node?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChangeSettings"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MachineSettings"];
                 };
             };
             /** @description Validation Error */

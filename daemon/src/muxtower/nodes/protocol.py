@@ -37,7 +37,8 @@ CLOSE_INCOMPATIBLE = 4400
 # What the hub may ask of a node.
 METHODS = frozenset({
     "conversation", "screen", "watch_screen", "unwatch_screen", "input", "approve", "deny", "resize",
-    "release_size", "update", "terminate", "archive", "mark_read", "detect_folder", "create", "image",
+    "release_size", "update", "terminate", "archive", "mark_read", "detect_folder", "create", "image", "recover",
+    "settings", "set_settings", "mint_token", "revoke_token",
 })  # fmt: skip
 
 # What a node may ask of its hub (protocol 2): one of its sessions calls a team tool.
@@ -57,6 +58,7 @@ class Hello(BaseModel):
     runtimes: list[RuntimeInfo] = Field(default_factory=list)
     platform: str | None = Field(default=None, description="sys.platform there: darwin, linux, win32")
     oldest: int | None = Field(default=None, description="the oldest protocol it still speaks (else just `protocol`)")
+    url: str | None = Field(default=None, description="where the app can reach it itself (https), if anywhere")
 
 
 def agree(protocol: int, oldest: int | None) -> int | None:

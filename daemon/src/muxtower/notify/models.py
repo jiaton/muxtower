@@ -37,8 +37,9 @@ class PushPayload(BaseModel):
     session_id: str | None = Field(default=None, description="none for news of the daemon itself")
     session_name: str | None = None
     state: AgentState | None = None
-    kind: Literal["attention", "done", "login"] = Field(
-        description="a session needs the owner, or finished a turn; the daemon's Claude login expired"
+    kind: Literal["attention", "done", "login", "recovery"] = Field(
+        description="a session needs the owner, or finished a turn; the daemon's Claude login expired; a "
+        "restart interrupted sessions there"
     )
     title: str
     body: str

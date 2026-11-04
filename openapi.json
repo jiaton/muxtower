@@ -15,6 +15,39 @@
         "title": "AgentState",
         "type": "string"
       },
+      "AlsoWriting": {
+        "description": "Another session of this machine that wrote in the same git worktree lately (`writes/`).",
+        "properties": {
+          "files": {
+            "description": "written by both, relative to the worktree",
+            "items": {
+              "type": "string"
+            },
+            "title": "Files",
+            "type": "array"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "worktree": {
+            "title": "Worktree",
+            "type": "string"
+          }
+        },
+        "required": [
+          "worktree",
+          "session_id",
+          "name",
+          "files"
+        ],
+        "title": "AlsoWriting",
+        "type": "object"
+      },
       "ApprovalResult": {
         "properties": {
           "option": {
@@ -142,6 +175,22 @@
           "rename"
         ],
         "title": "Capabilities",
+        "type": "object"
+      },
+      "ChangeSettings": {
+        "properties": {
+          "values": {
+            "additionalProperties": true,
+            "description": "dotted key \u2192 value; null puts it back to its default",
+            "minProperties": 1,
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "values"
+        ],
+        "title": "ChangeSettings",
         "type": "object"
       },
       "ClaimRequest": {
@@ -472,6 +521,52 @@
         "title": "Device",
         "type": "object"
       },
+      "DirectNode": {
+        "properties": {
+          "node": {
+            "title": "Node",
+            "type": "string"
+          },
+          "token": {
+            "description": "a device token of that node, for this device",
+            "title": "Token",
+            "type": "string"
+          },
+          "url": {
+            "description": "https: where the app reaches it itself",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "node",
+          "url",
+          "token"
+        ],
+        "title": "DirectNode",
+        "type": "object"
+      },
+      "DirectUrl": {
+        "properties": {
+          "direct_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "https; null: the address the node reports",
+            "title": "Direct Url"
+          }
+        },
+        "required": [
+          "direct_url"
+        ],
+        "title": "DirectUrl",
+        "type": "object"
+      },
       "ErrorFrame": {
         "properties": {
           "message": {
@@ -760,6 +855,27 @@
         "title": "LoginStart",
         "type": "object"
       },
+      "MachineSettings": {
+        "properties": {
+          "machine": {
+            "title": "Machine",
+            "type": "string"
+          },
+          "settings": {
+            "items": {
+              "$ref": "#/components/schemas/SettingView"
+            },
+            "title": "Settings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "machine",
+          "settings"
+        ],
+        "title": "MachineSettings",
+        "type": "object"
+      },
       "MachineUsage": {
         "description": "What the daemon on one machine uses, sampled every few seconds. A value it cannot read there is null\n(unknown), never 0.",
         "properties": {
@@ -989,6 +1105,18 @@
       "NodeInfo": {
         "description": "A daemon joined to this one: its sessions are listed here, as from any other source.",
         "properties": {
+          "direct_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the owner's address for it, used over the reported one",
+            "title": "Direct Url"
+          },
           "joined_at": {
             "format": "date-time",
             "title": "Joined At",
@@ -1014,6 +1142,18 @@
           "online": {
             "title": "Online",
             "type": "boolean"
+          },
+          "reported_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where it says the app can reach it itself",
+            "title": "Reported Url"
           },
           "runtimes": {
             "description": "what can be started there",
@@ -1332,6 +1472,47 @@
         "title": "QuestionOption",
         "type": "object"
       },
+      "Recover": {
+        "properties": {
+          "session_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "minItems": 1,
+            "title": "Session Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "session_ids"
+        ],
+        "title": "Recover",
+        "type": "object"
+      },
+      "Recovery": {
+        "properties": {
+          "mode": {
+            "description": "ask | auto | off (`[recovery] mode`)",
+            "title": "Mode",
+            "type": "string"
+          },
+          "sessions": {
+            "description": "interrupted by a restart, here and on the nodes: to start again or remove",
+            "items": {
+              "$ref": "#/components/schemas/Session"
+            },
+            "title": "Sessions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "mode",
+          "sessions"
+        ],
+        "title": "Recovery",
+        "type": "object"
+      },
       "Resize": {
         "properties": {
           "cols": {
@@ -1500,6 +1681,26 @@
             "description": "the account its agent runs as, as far as known (an email, or \"API key\")",
             "title": "Account"
           },
+          "agent_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the name its agent gives it (Claude Code's title), offered when renaming",
+            "title": "Agent Name"
+          },
+          "also_writing": {
+            "description": "other running sessions here that wrote files in the same worktree within the last minutes (file-editing tools only, not Bash): a hint, nothing is held back",
+            "items": {
+              "$ref": "#/components/schemas/AlsoWriting"
+            },
+            "title": "Also Writing",
+            "type": "array"
+          },
           "alt_screen": {
             "default": false,
             "description": "draws full screen (alternate screen): tmux keeps no scrollback, see the conversation",
@@ -1584,6 +1785,19 @@
           "id": {
             "title": "Id",
             "type": "string"
+          },
+          "interrupted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "its machine restarted under it: kept to be resumed or removed (`/v1/recovery`)",
+            "title": "Interrupted At"
           },
           "last_message": {
             "anyOf": [
@@ -1704,8 +1918,44 @@
                 "type": "null"
               }
             ],
-            "description": "the project an agent or the owner put it in (null: its repository says)",
+            "description": "its project, as its team record keeps it (`my_team` says the same): set by an agent or the owner, else worked out once from git when it was first seen (`project_auto`); null until then",
             "title": "Project"
+          },
+          "project_anchor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where its project sits in its device's folder tree: the main folder of the repository most of the project's sessions there run in, else their folder (`sessions/anchors.py`); null: at the top",
+            "title": "Project Anchor"
+          },
+          "project_auto": {
+            "default": false,
+            "description": "`project` was worked out by muxtower, not set",
+            "title": "Project Auto",
+            "type": "boolean"
+          },
+          "project_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "set",
+                  "git remote",
+                  "git root",
+                  "folder"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where `project` came from: set by an agent or the owner, or worked out from its git remote, its repository's folder, or (outside git) its folder; the lists place it by its folder in that last case",
+            "title": "Project Source"
           },
           "remote_id": {
             "anyOf": [
@@ -1845,6 +2095,18 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "working_dir": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where the agent works now, when that is inside `cwd` and not it (where it started, which is where it is listed)",
+            "title": "Working Dir"
           }
         },
         "required": [
@@ -1918,6 +2180,89 @@
           "sessions"
         ],
         "title": "SessionsFrame",
+        "type": "object"
+      },
+      "SettingView": {
+        "properties": {
+          "applies": {
+            "enum": [
+              "now",
+              "restart"
+            ],
+            "title": "Applies",
+            "type": "string"
+          },
+          "choices": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Choices",
+            "type": "array"
+          },
+          "default": {
+            "title": "Default"
+          },
+          "help": {
+            "title": "Help",
+            "type": "string"
+          },
+          "key": {
+            "description": "dotted, as in the config file: `recovery.mode` is `[recovery] mode`",
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "choice",
+              "bool",
+              "number",
+              "text"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "pending": {
+            "description": "changed since the daemon started: applies when it restarts",
+            "title": "Pending",
+            "type": "boolean"
+          },
+          "section": {
+            "title": "Section",
+            "type": "string"
+          },
+          "source": {
+            "description": "config_file: set there, and not changed from the app",
+            "enum": [
+              "default",
+              "app",
+              "config_file"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "value": {
+            "description": "what applies: once the daemon restarts, where `pending`",
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key",
+          "section",
+          "label",
+          "help",
+          "kind",
+          "choices",
+          "value",
+          "default",
+          "source",
+          "applies",
+          "pending"
+        ],
+        "title": "SettingView",
         "type": "object"
       },
       "SlowRule": {
@@ -2938,6 +3283,32 @@
         ]
       }
     },
+    "/v1/nodes/direct": {
+      "post": {
+        "description": "For this device: each connected node's address and a device token of its own, to reach it directly\nwhile the hub is down (made anew each time; revoking this device here revokes them).",
+        "operationId": "direct_tokens_v1_nodes_direct_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DirectNode"
+                  },
+                  "title": "Response Direct Tokens V1 Nodes Direct Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Direct Tokens",
+        "tags": [
+          "nodes"
+        ]
+      }
+    },
     "/v1/nodes/{name}": {
       "delete": {
         "description": "Forgets a node: its link closes, its sessions leave the lists, and it can no longer link.",
@@ -2969,6 +3340,50 @@
           }
         },
         "summary": "Remove Node",
+        "tags": [
+          "nodes"
+        ]
+      },
+      "patch": {
+        "description": "The owner's address for reaching a node itself while the hub is down, over the one it reports.",
+        "operationId": "set_direct_url_v1_nodes__name__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DirectUrl"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Direct Url",
         "tags": [
           "nodes"
         ]
@@ -3132,6 +3547,72 @@
         "summary": "Unsubscribe",
         "tags": [
           "push"
+        ]
+      }
+    },
+    "/v1/recovery": {
+      "get": {
+        "description": "The sessions a restart interrupted, waiting to be started again (POST) or removed (DELETE the session).",
+        "operationId": "interrupted_v1_recovery_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Recovery"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Interrupted",
+        "tags": [
+          "recovery"
+        ]
+      },
+      "post": {
+        "description": "Starts them again, each in its folder with its options, resuming its conversation, under its own id.\nNothing is sent to them.",
+        "operationId": "recover_v1_recovery_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Recover"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Session"
+                  },
+                  "title": "Response Recover V1 Recovery Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Recover",
+        "tags": [
+          "recovery"
         ]
       }
     },
@@ -4207,6 +4688,118 @@
         "summary": "Update Team",
         "tags": [
           "teams"
+        ]
+      }
+    },
+    "/v1/settings": {
+      "get": {
+        "description": "The features the app may change, with where each value comes from and when a change applies.",
+        "operationId": "get_settings_v1_settings_get",
+        "parameters": [
+          {
+            "description": "a node of this hub: its settings, over the link, instead of this daemon's",
+            "in": "query",
+            "name": "node",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a node of this hub: its settings, over the link, instead of this daemon's",
+              "title": "Node"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MachineSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Settings",
+        "tags": [
+          "settings"
+        ]
+      },
+      "patch": {
+        "description": "Changes some (all or none); a key the config file sets is refused. Each change is audited.",
+        "operationId": "change_settings_v1_settings_patch",
+        "parameters": [
+          {
+            "description": "a node of this hub: its settings, over the link, instead of this daemon's",
+            "in": "query",
+            "name": "node",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a node of this hub: its settings, over the link, instead of this daemon's",
+              "title": "Node"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MachineSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change Settings",
+        "tags": [
+          "settings"
         ]
       }
     },

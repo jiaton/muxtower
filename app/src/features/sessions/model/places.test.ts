@@ -27,6 +27,7 @@ const named = entry('named', {
   cwd: '/home/me/projects/shop-teams',
   git: git('/home/me/projects/shop-teams', 'teams'),
   project: 'Payments',
+  project_source: 'set',
 })
 
 describe('where a session is listed', () => {
@@ -66,6 +67,41 @@ describe('where a session is listed', () => {
     const ids = (folder: string) => filterEntries(all, { view: 'all', group: 'status', folder }).map((e) => e.session.id)
     expect(ids('~/projects/shop')).toEqual(['main', 'sub', 'inside', 'outside'])
     expect(ids('~/projects/shop-teams')).toEqual(['outside'])
+  })
+
+  it('goes by the project my_team says, wherever its agent works now, and not by a folder’s name', () => {
+    const auto = { project: 'acme/shop', project_auto: true, project_source: 'git remote' as const }
+    const kept = entry('kept', { ...auto, git: git(SHOP), working_dir: '/home/me/projects/other' })
+    const tree = entry('tree', { ...auto, cwd: '/home/me/projects/shop-teams', git: git('/home/me/projects/shop-teams', 'teams') })
+    const loose = entry('loose', { cwd: '/home/me/notes', project: 'notes', project_auto: true, project_source: 'folder' })
+    expect([homeOf(kept.session), homeKind(kept.session)]).toEqual(['acme/shop', 'project']) // as my_team says
+    expect(worktreeOf(tree.session)).toMatchObject({ under: 'acme/shop', name: 'teams' }) // its worktree under it
+    expect([homeOf(loose.session), homeKind(loose.session)]).toEqual(['~/notes', 'folder']) // the folder tree says
+  })
+
+  it('nests a project where most of its sessions are, on each device, like any repository', () => {
+    const MUX = '/home/me/projects/mux'
+    const set = { project: 'mux', project_source: 'set' as const }
+    const projects = entry('projects', { cwd: '/home/me/projects' }) // a plain folder holding the repositories
+    const lyric = entry('lyric', { cwd: '/home/me/projects/lyric', git: git('/home/me/projects/lyric', 'main', '/home/me/projects/lyric') })
+    const m1 = entry('m1', { ...set, cwd: MUX, git: git(MUX, 'main', MUX), project_anchor: MUX })
+    const m2 = entry('m2', { ...set, cwd: `${MUX}-teams`, git: git(`${MUX}-teams`, 'teams', MUX), project_anchor: MUX })
+    const stray = entry('stray', { ...set, cwd: '/srv/elsewhere', project_anchor: MUX }) // listed inside, as it is
+    const loose = entry('loose', { project: 'loose', project_source: 'set', cwd: '' }) // no folder known
+    const gate = entry('gate', { project: 'gate', project_source: 'set', cwd: '/home/me/projects', project_anchor: '/home/me/projects' })
+    const mac = { ...entry('mac', { ...set, machine: 'mac', cwd: '/Users/me/mux', project_anchor: '/Users/me/mux' }) }
+    const macHome = entry('mac-home', { machine: 'mac', cwd: '/Users/me' })
+    const [nas, onMac] = groupEntries([projects, lyric, m1, m2, stray, loose, gate, mac, macHome], 'device')
+    const tree = nas.sections!.map((s) => [s.label, s.depth, s.parent ?? null, s.name, s.entries.map((e) => e.session.id)])
+    // Its name, nested where it is; a set project holds its worktrees and strays as its own rows.
+    expect(tree).toContainEqual(['mux', 1, '~/projects', 'mux', ['m1', 'm2', 'stray']])
+    expect(nas.sections!.find((s) => s.label === '~/projects')?.total).toBe(6) // 1 + its repositories' and projects' 5
+    expect(tree).toContainEqual(['~/projects/lyric', 1, '~/projects', 'lyric', ['lyric']]) // beside a plain repository
+    expect(tree).toContainEqual(['loose', 0, null, 'loose', ['loose']]) // nowhere known: at the top
+    expect(tree).toContainEqual(['gate', 1, '~/projects', 'gate', ['gate']]) // at a listed folder: in it
+    const folders = facetsOf([projects, lyric, m1, m2, stray]).devices[0].folders
+    expect(folders.find((f) => f.label === 'mux')?.at).toBe('~/projects/mux')
+    expect(onMac.sections!.map((s) => [s.label, s.parent ?? null])).toContainEqual(['mux', '~']) // its own, on the Mac
   })
 
   it('makes a repository whose sessions are all in other worktrees, to hold them', () => {

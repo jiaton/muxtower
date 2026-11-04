@@ -11,12 +11,13 @@ from typing import Literal
 from muxtower.approval.models import Answers, ApprovalResult
 from muxtower.approval.service import ApprovalService
 from muxtower.errors import Conflict, NotFound
+from muxtower.sessions.anchors import ProjectAnchors
 from muxtower.sessions.archive import SessionArchive
 from muxtower.sessions.decorate import decorate
 from muxtower.sessions.images import ImageFile, read_shown
 from muxtower.sessions.marks import SessionMarks
 from muxtower.sessions.merged import merged
-from muxtower.sessions.models import Conversation, Session, UpdateSession
+from muxtower.sessions.models import AlsoWriting, Conversation, Session, UpdateSession
 from muxtower.sessions.owner_marks import OwnerMarks
 from muxtower.sessions.ports import ClaudeProcessPort, SessionSourcePort
 from muxtower.sessions.service import SessionService
@@ -66,10 +67,12 @@ class SessionDirectory(OwnerMarks):
         self.marks = marks
         self.transcripts = transcripts
         self.archive_store = archive
+        self.anchors = ProjectAnchors()
         self.accounts = accounts  # the account a session here runs as (`agents/accounts.py`)
         self.concierge_id: str | None = None  # set by the concierge service once its session runs
         self.team: Callable[[str], TeamRecord | None] | None = None  # set by the team service: a session's role
         self.checkout: Callable[[str], Checkout] | None = None  # set by the team service: git, per folder here
+        self.writing: Callable[[str], list[AlsoWriting]] | None = None  # set by the app: `writes/`
 
     # --- reading ------------------------------------------------------------------------------
 
@@ -85,7 +88,8 @@ class SessionDirectory(OwnerMarks):
         if source is None or local.remote_id is None:
             return local
         try:
-            return merged(local, source.get(local.remote_id))
+            record = self.local.repo.get(local.id)
+            return merged(local, source.get(local.remote_id), named=bool(record and record.named))
         except NotFound:
             return local
 
@@ -106,9 +110,8 @@ class SessionDirectory(OwnerMarks):
         kept = [v for source, v in remotes if v.id not in merged_into and self.source_of(v.id) is source]
         archived = self.archive_store.views() if self.archive_store else []
         listed_as = {s.remote_id: s.id for s in locals_ if s.remote_id}
-        return [self._decorate(_as_listed(s, listed_as)) for s in locals_ + kept] + [
-            _as_listed(s, listed_as) for s in archived
-        ]
+        live = self.anchors.apply(self._decorate(_as_listed(s, listed_as)) for s in locals_ + kept)
+        return live + [_as_listed(s, listed_as) for s in archived]
 
     def get(self, session_id: str) -> Session:
         found = self._get(session_id)

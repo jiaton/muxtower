@@ -35,6 +35,10 @@ class SessionRecord:
     auto_approve: bool
     created_at: datetime
     named: bool = False  # the owner named it in muxtower: kept over the name its agent gives itself
+    launch_args: list[str] | None = None  # the agent's options it was started with (no prompt): to start it again
+    agent_id: str | None = None  # the agent's own id for its conversation (Claude Code's session, Codex's thread)
+    server_id: str | None = None  # the tmux server it ran in (`TmuxPort.server_id`)
+    interrupted_at: datetime | None = None  # its machine restarted under it: kept to be resumed (`recovery/`)
 
 
 class SessionRepository(Protocol):

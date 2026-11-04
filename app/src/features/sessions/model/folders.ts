@@ -2,7 +2,9 @@
  * A device's folders as a tree: a folder that lies inside another listed folder sits under it
  * (~/projects/shop and ~/projects/blog under ~/projects), named by the part below it. Only
  * folders that are listed become parents; none is made up to hold others. An item may name its parent
- * (`under`) and its name there instead: a worktree under its repository, wherever its folder is.
+ * (`under`) and its name there instead: a worktree under its repository, wherever its folder is. One
+ * whose label is no folder (a project) may say where it sits (`at`): it goes under the listed folder
+ * that holds that, keeping its own name.
  */
 
 export interface Nested<T> {
@@ -26,9 +28,12 @@ export function foldersAround(folder: string, folders: string[]): string[] {
 /** The folder of `folders` that `folder` lies in most closely, if any. */
 const parentOf = (folder: string, folders: string[]): string | undefined => foldersAround(folder, folders)[0]
 
+/** Where an item that sits at a folder (`at`) goes: in that folder when it is listed, else as `parentOf`. */
+const holderOf = (at: string, folders: string[]): string | undefined => (folders.includes(at) ? at : parentOf(at, folders))
+
 /** Folders in tree order: each followed by the ones inside it, the most sessions first at every level;
  *  `last` (the unknown folder) at the end, at the top level. */
-export function nestFolders<T extends { label: string; count: number; under?: string; name?: string }>(
+export function nestFolders<T extends { label: string; count: number; under?: string; name?: string; at?: string }>(
   items: T[],
   last?: string,
 ): Nested<T>[] {
@@ -40,9 +45,9 @@ export function nestFolders<T extends { label: string; count: number; under?: st
       i.label,
       i.under && listed.has(i.under)
         ? i.under
-        : parentOf(
-            i.label,
-            labels.filter((l) => !known.find((k) => k.label === l)?.under),
+        : (i.at ? holderOf : parentOf)(
+            i.at ?? i.label,
+            labels.filter((l) => l !== i.label && !known.find((k) => k.label === l)?.under),
           ),
     ]),
   )
@@ -54,7 +59,7 @@ export function nestFolders<T extends { label: string; count: number; under?: st
   const out: Nested<T>[] = []
   const walk = (item: T, depth: number) => {
     const parent = parents.get(item.label)
-    const name = item.name ?? (parent ? item.label.slice(parent === '/' ? 1 : parent.length + 1) : item.label)
+    const name = item.name ?? (parent && !item.at ? item.label.slice(parent === '/' ? 1 : parent.length + 1) : item.label)
     out.push({ item, depth, parent, name, total: total(item) })
     for (const child of order(children.get(item.label) ?? [])) walk(child, depth + 1)
   }

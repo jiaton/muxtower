@@ -19,6 +19,7 @@ class FakeTmux:
         self.panes: dict[tuple[str, str], FakePane] = {}
         self._next = 0
         self.missing: set[str] = set()  # binaries not installed
+        self.servers: dict[str, str | None] = {}  # socket -> server identity (`server_id`)
 
     def add_pane(self, socket: str, session: str, command: str, cwd: str = "/tmp") -> FakePane:  # noqa: S108
         self._next += 1
@@ -35,6 +36,10 @@ class FakeTmux:
         pane = self.add_pane(socket, name, argv[0], cwd)
         pane.argv, pane.env = argv, env
         return PaneRef(socket, pane.info.pane_id)
+
+    def server_id(self, socket: str) -> str | None:
+        """The fake server's identity: set `servers[socket]` (None: no server answers) to change it."""
+        return self.servers.get(socket, "4242:1700000000")
 
     def installed(self) -> bool:
         return "tmux" not in self.missing

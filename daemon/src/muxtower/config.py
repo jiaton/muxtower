@@ -121,6 +121,25 @@ class HubSettings(BaseModel):
     update: Literal["always", "incompatible", "never"] = "incompatible"
 
 
+class RecoverySettings(BaseModel):
+    """Sessions whose machine restarted under them (`recovery/`): ask the owner which to start again
+    (default), start them all again (auto), or let them go (off)."""
+
+    mode: Literal["ask", "auto", "off"] = "ask"
+
+
+class ArchiveSettings(BaseModel):
+    """`[archive]`: archived sessions, kept to read."""
+
+    hide_after_days: int = Field(default=30, ge=0)  # no longer listed after this (kept); 0: always listed
+
+
+class WritesSettings(BaseModel):
+    """`[writes]`: telling two sessions apart that write in one worktree at once (`writes/`)."""
+
+    window_minutes: float = Field(default=30, gt=0)  # writes older than this no longer count
+
+
 class UsageSettings(BaseModel):
     """When what the daemon uses is worth showing (an alert by the machine's name in the app)."""
 
@@ -156,7 +175,13 @@ class Settings(BaseModel):
     asr: AsrSettings = Field(default_factory=AsrSettings)
     concierge: ConciergeSettings = Field(default_factory=ConciergeSettings)
     usage: UsageSettings = Field(default_factory=UsageSettings)
+    recovery: RecoverySettings = Field(default_factory=RecoverySettings)
+    archive: ArchiveSettings = Field(default_factory=ArchiveSettings)
+    writes: WritesSettings = Field(default_factory=WritesSettings)
     hub: HubSettings = Field(default_factory=HubSettings)
+    # What the config file, the environment or an override set (dotted keys): the settings page shows
+    # those as set there, and does not change them.
+    set_by_file: set[str] = Field(default_factory=set, exclude=True)
 
     @property
     def db_path(self) -> Path:
@@ -229,4 +254,17 @@ def load_settings(
         if value is not None:
             _set_nested(data, tuple(dotted.split(".")), value)
 
-    return Settings.model_validate(data)
+    settings = Settings.model_validate(data)
+    settings.set_by_file = set(_dotted(data))
+    return settings
+
+
+def _dotted(data: dict[str, Any], prefix: str = "") -> list[str]:
+    """Every key the file, the environment or an override set, dotted (`recovery.mode`), and each table above it."""
+    keys = []
+    for key, value in data.items():
+        path = f"{prefix}{key}"
+        keys.append(path)
+        if isinstance(value, dict):
+            keys += _dotted(value, f"{path}.")
+    return keys

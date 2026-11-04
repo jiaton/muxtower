@@ -3,12 +3,12 @@
 from muxtower.sessions.models import PendingAction, Session
 
 
-def deeper(start: str, working: str) -> str:
-    """Where an agent works: the folder it started in, or the folder it works in when that lies inside
-    (an agent started in ~/projects that works in ~/projects/web belongs to web)."""
+def deeper(start: str, working: str) -> str | None:
+    """Where an agent works now, when that lies inside the folder it started in (an agent started in
+    ~/projects that works in ~/projects/web): shown, but it stays listed where it started."""
     if start and working.startswith(start.rstrip("/") + "/"):
         return working
-    return start or working
+    return None
 
 
 def with_detail(local: Session, remote: Session) -> PendingAction | None:
@@ -20,20 +20,22 @@ def with_detail(local: Session, remote: Session) -> PendingAction | None:
     return pending.model_copy(update={"tool_name": pending.tool_name or asked.tool_name, "detail": asked.detail})
 
 
-def merged(local: Session, remote: Session) -> Session:
-    """The tmux entry, with the remote side's name, conversation, summary, origin and where it came from
-    (a fork, a side chat)."""
+def merged(local: Session, remote: Session, named: bool = False) -> Session:
+    """The tmux entry, with the remote side's name (unless the owner named it in muxtower: `named`),
+    conversation, summary, origin and where it came from (a fork, a side chat)."""
     return local.model_copy(
         update={
             "pending": with_detail(local, remote),
-            "name": remote.name,
+            "name": local.name if named else remote.name,
+            "agent_name": remote.name,
             "origin": remote.origin,
             "summary": remote.summary,
             "unread": remote.unread,
             # The remote log knows when the agent last did something; the local clock restarts with
             # the daemon.
             "updated_at": remote.updated_at,
-            "cwd": deeper(local.cwd, remote.cwd),
+            "cwd": local.cwd or remote.cwd,
+            "working_dir": deeper(local.cwd, remote.cwd) or local.working_dir,
             "last_message": local.last_message or remote.last_message,
             "capabilities": local.capabilities.model_copy(update={"conversation": True}),
             "fork_of": local.fork_of or remote.fork_of,

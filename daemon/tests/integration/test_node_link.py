@@ -199,3 +199,32 @@ def test_a_node_s_sessions_see_the_whole_team_through_the_hub(hub: tuple[FastAPI
         assert alone.startswith("(this machine is not linked to its hub right now: only this machine's sessions")
     finally:
         link.stop()
+
+
+def test_the_hub_starts_again_what_a_restart_interrupted_on_a_node(hub: tuple[FastAPI, str], tmp_path: Path) -> None:
+    from muxtower.sessions.models import CreateSession
+
+    hub_app, hub_url = hub
+    _, device = hub_app.state.tokens.create("phone")
+    phone = httpx.Client(base_url=hub_url, headers={"Authorization": f"Bearer {device}"}, timeout=10)
+    node_tmux = FakeTmux()
+    work = tmp_path / "work"
+    work.mkdir()
+    before = create_app(_settings(tmp_path, "mac", _free_port()), tmux=node_tmux, run_loops=False)
+    started = before.state.sessions.create(CreateSession(runtime="claude", cwd=str(work), name="w", args=["--verbose"]))
+    node_tmux.panes.clear()  # the Mac restarted: its tmux server and the daemon with it
+    node_tmux.servers["muxtower"] = None
+    node = create_app(_settings(tmp_path, "mac", _free_port()), tmux=node_tmux, run_loops=False)
+    node.state.monitor.tick()
+    assert node.state.sessions.repo.get(started.id).interrupted_at is not None
+    link = Running(node.state.hub.run_loop())
+    try:
+        assert node.state.hub.join(hub_url, hub_app.state.pairing.create_code("phone").code).name == "mac"
+        listed = _until(lambda: phone.get("/v1/recovery").json()["sessions"])
+        assert [s["id"] for s in listed] == [f"mac~{started.id}"]
+        (again,) = phone.post("/v1/recovery", json={"session_ids": [f"mac~{started.id}"]}).json()
+        assert again["id"] == f"mac~{started.id}" and again["interrupted_at"] is None
+        pane = next(p for p in node_tmux.panes.values() if "--verbose" in p.argv)
+        assert pane.info.session_name == f"mxt-{started.id[:8]}"
+    finally:
+        link.stop()

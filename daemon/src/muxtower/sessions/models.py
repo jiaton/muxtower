@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -89,6 +90,15 @@ class GitPlace(BaseModel):
     remote: str | None = Field(default=None, description="its origin as owner/repo")
 
 
+class AlsoWriting(BaseModel):
+    """Another session of this machine that wrote in the same git worktree lately (`writes/`)."""
+
+    worktree: str
+    session_id: str
+    name: str
+    files: list[str] = Field(description="written by both, relative to the worktree")
+
+
 class Session(BaseModel):
     id: str
     name: str
@@ -141,10 +151,39 @@ class Session(BaseModel):
     side_chat: bool = Field(
         default=False, description="something asked on the side of `fork_of` (Claude desktop's side chat)"
     )
+    interrupted_at: datetime | None = Field(
+        default=None, description="its machine restarted under it: kept to be resumed or removed (`/v1/recovery`)"
+    )
     team_role: str | None = Field(default=None, description="what it is for in its team (free text; `teams/`)")
     team_note: str | None = Field(default=None, description="one more line about its team role")
     project: str | None = Field(
-        default=None, description="the project an agent or the owner put it in (null: its repository says)"
+        default=None,
+        description="its project, as its team record keeps it (`my_team` says the same): set by an agent or the "
+        "owner, else worked out once from git when it was first seen (`project_auto`); null until then",
+    )
+    agent_name: str | None = Field(
+        default=None, description="the name its agent gives it (Claude Code's title), offered when renaming"
+    )
+    project_auto: bool = Field(default=False, description="`project` was worked out by muxtower, not set")
+    project_anchor: str | None = Field(
+        default=None,
+        description="where its project sits in its device's folder tree: the main folder of the repository most "
+        "of the project's sessions there run in, else their folder (`sessions/anchors.py`); null: at the top",
+    )
+    project_source: Literal["set", "git remote", "git root", "folder"] | None = Field(
+        default=None,
+        description="where `project` came from: set by an agent or the owner, or worked out from its git remote, "
+        "its repository's folder, or (outside git) its folder; the lists place it by its folder in that last case",
+    )
+    also_writing: list[AlsoWriting] = Field(
+        default_factory=list,
+        description="other running sessions here that wrote files in the same worktree within the last minutes "
+        "(file-editing tools only, not Bash): a hint, nothing is held back",
+    )
+    working_dir: str | None = Field(
+        default=None,
+        description="where the agent works now, when that is inside `cwd` and not it (where it started, which "
+        "is where it is listed)",
     )
     git: GitPlace | None = Field(default=None, description="its folder's repository; null outside one, or elsewhere")
     on_host: bool = Field(default=False, description="its agent runs on the daemon that lists it")

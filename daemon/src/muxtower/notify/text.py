@@ -65,3 +65,8 @@ def login_expired_text(daemon_name: str) -> tuple[str, str]:
         f"{daemon_name}: sessions from Claude Desktop and the Claude app stop updating here "
         "until you log in again there (claude /login)."
     )
+
+
+def interrupted_text(daemon_name: str, count: int) -> tuple[str, str]:
+    sessions = f"{count} session{'s' if count != 1 else ''}"
+    return f"{sessions} interrupted", f"{daemon_name} restarted under them. Open muxtower to start them again."

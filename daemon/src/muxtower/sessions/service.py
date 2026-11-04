@@ -5,7 +5,7 @@ import os
 import secrets
 import time
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -16,9 +16,11 @@ from muxtower.hooks.harnesses import harness
 from muxtower.hooks.ports import MCP_SERVER, MCP_TOKEN_ENV, HookLaunch
 from muxtower.runtimes.models import ATTENTION_STATES, AgentState
 from muxtower.runtimes.spec import Runtime
+from muxtower.sessions.interrupted import agent_id_of, launch_options
 from muxtower.sessions.live import Effective, HookState, LiveSession, merge
-from muxtower.sessions.models import Capabilities, CreateSession, Session, UpdateSession
+from muxtower.sessions.models import CreateSession, Session, UpdateSession
 from muxtower.sessions.ports import SessionRecord, SessionRepository, SessionSource
+from muxtower.sessions.views import session_view
 from muxtower.terminal.ports import TmuxPort
 
 DEFAULT_COLS, DEFAULT_ROWS = 120, 40
@@ -53,6 +55,7 @@ class SessionService:
         self.runtimes = runtimes
         self.config = config
         self.live: dict[str, LiveSession] = {}
+        self.gone: Callable[[str], None] = lambda _: None  # it ended or was interrupted (writes/)
 
     # --- views ---------------------------------------------------------------------------------
 
@@ -90,44 +93,7 @@ class SessionService:
         return merge(live.hook, live.screen, time.monotonic(), stale)
 
     def view(self, record: SessionRecord) -> Session:
-        live = self.live_of(record.id)
-        eff = self.effective(record)
-        runtime = self.runtime_of(record)
-        if eff.pending is not None and runtime is not None and eff.pending.options:
-            eff.pending.recommended = runtime.choose_option(eff.state, eff.pending.options)
-        return Session(
-            id=record.id,
-            name=record.name if record.named else (live.title or record.name),  # else its tmux session's
-            runtime=record.runtime,
-            cwd=record.cwd,
-            source=record.source,
-            tmux_socket=record.pane.socket,
-            tmux_session=record.tmux_session,
-            tmux_pane=record.pane.pane_id,
-            remote_id=live.remote_id,
-            alt_screen=live.alt_screen,
-            terminal_attached=live.attached,
-            capabilities=Capabilities(
-                screen=True,
-                conversation=live.transcript is not None,  # read from its transcript
-                keys=[],
-                resize=True,
-                rename=True,
-                terminate=record.source == SessionSource.LAUNCHED,
-                archive=True,
-                images=True,  # saved here and pasted in as their paths
-            ),  # fmt: skip
-            state=eff.state,
-            state_source=eff.source,
-            matched_rule=eff.matched_rule,
-            needs_attention=eff.state in ATTENTION_STATES,
-            pending=eff.pending,
-            last_message=live.last_message,
-            auto_approve=record.auto_approve,
-            can_auto_approve=bool(runtime and runtime.config.auto_approve_states),
-            created_at=record.created_at,
-            updated_at=live.updated_at,
-        )
+        return session_view(self, record)
 
     def list(self) -> list[Session]:
         return [self.view(r) for r in self.repo.list()]
@@ -154,9 +120,13 @@ class SessionService:
             raise Invalid(f"not a directory: {cwd}")
         return self.launch(runtime, cwd, request.args, request.name, hooks=True)
 
-    def launch(self, runtime: Runtime, cwd: str, args: Sequence[str], name: str | None, hooks: bool) -> Session:
+    def launch(
+        self, runtime: Runtime, cwd: str, args: Sequence[str], name: str | None, hooks: bool,
+        again: SessionRecord | None = None,
+    ) -> Session:  # fmt: skip
         """Starts the runtime's binary with `args` in a tmux session of its own; with its hooks, if it has
-        them, reporting to this daemon."""
+        them, reporting to this daemon. `again`: an interrupted session started again under its own id
+        (its name, marks and team stay with it)."""
         if not self.tmux.installed():
             raise Conflict(
                 "tmux is not installed here (not on the PATH muxtower runs with): install it, "
@@ -164,7 +134,7 @@ class SessionService:
             )
         if not self.tmux.finds(self.config.socket, runtime.config.binary):
             raise Conflict(f"{runtime.config.binary} is not installed here (not on the PATH tmux runs agents with)")
-        session_id = uuid.uuid4().hex[:12]
+        session_id = again.id if again else uuid.uuid4().hex[:12]
         hook_token = secrets.token_urlsafe(24)
         argv = [runtime.config.binary]
         env = {"MUXTOWER_SESSION_ID": session_id, "MUXTOWER_HOOK_TOKEN": hook_token}
@@ -182,18 +152,24 @@ class SessionService:
         pane = self.tmux.new_session(self.config.socket, tmux_session, cwd, argv, env, DEFAULT_COLS, DEFAULT_ROWS)
         record = SessionRecord(
             id=session_id,
-            name=name or os.path.basename(cwd.rstrip("/")) or cwd,
+            name=again.name if again else name or os.path.basename(cwd.rstrip("/")) or cwd,
             runtime=runtime.name,
             cwd=cwd,
             source=SessionSource.LAUNCHED,
             pane=pane,
             tmux_session=tmux_session,
             hook_token_hash=_hash(hook_token),
-            auto_approve=False,
-            created_at=datetime.now(UTC),
-            named=bool(name),
+            auto_approve=again.auto_approve if again else False,
+            created_at=again.created_at if again else datetime.now(UTC),
+            named=again.named if again else bool(name),
+            launch_args=again.launch_args if again else launch_options(list(args), runtime.config),
+            agent_id=again.agent_id if again else None,
+            server_id=self.tmux.server_id(self.config.socket),
         )
         self.repo.upsert(record)
+        if again:  # what it was before it was interrupted is no more
+            self.repo.save_hook_state(session_id, None)
+            self.live.pop(session_id, None)
         return self.view(record)
 
     def update(self, session_id: str, patch: UpdateSession) -> Session:
@@ -210,6 +186,9 @@ class SessionService:
         return self.view(record)
 
     def terminate(self, session_id: str) -> None:
+        if self.record(session_id).interrupted_at:  # nothing runs: only its record goes
+            self.forget(session_id)
+            return
         if self.record(session_id).source != SessionSource.LAUNCHED:
             raise Conflict("this session was not started by muxtower; stop it from its own terminal")
         self.close(session_id)
@@ -223,9 +202,23 @@ class SessionService:
             self.tmux.kill_pane(record.pane)
         self.forget(record.id)
 
+    def interrupt(self, record: SessionRecord) -> None:
+        """Its machine restarted under it: kept, with what starts it again, until resumed or removed."""
+        record.interrupted_at = datetime.now(UTC)
+        self.repo.upsert(record)
+        self.live.pop(record.id, None)
+        self.gone(record.id)
+
+    def know_agent(self, record: SessionRecord, transcript: str | None) -> None:
+        """The agent's own id for its conversation, from its transcript's name: what resumes it."""
+        if (agent := agent_id_of(transcript)) and agent != record.agent_id:
+            record.agent_id = agent
+            self.repo.upsert(record)
+
     def forget(self, session_id: str) -> None:
         self.repo.delete(session_id)
         self.live.pop(session_id, None)
+        self.gone(session_id)
         for hook_file in self.hook_files.glob(f"{session_id}.*"):
             hook_file.unlink(missing_ok=True)
 

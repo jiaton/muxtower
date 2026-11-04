@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Archive, CheckCheck, EyeOff, Folder, ListFilter, Monitor, Rows3, Search, UserRound, X } from 'lucide-react'
+import { Archive, CheckCheck, EyeOff, Folder, ListFilter, Monitor, RotateCcw, Rows3, Search, UserRound, X } from 'lucide-react'
 import { Fragment, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
@@ -231,6 +231,13 @@ export function FilterMenu({
           <span className="min-w-0 flex-1 truncate">Archived sessions</span>
           {count(facets.views.archived)}
         </DropdownMenuItem>
+        {facets.views.interrupted ? (
+          <DropdownMenuItem onSelect={() => void navigate({ to: '/', search: scopeSearch(search, { view: 'interrupted' }) })}>
+            <RotateCcw className="text-fg-muted" aria-hidden />
+            <span className="min-w-0 flex-1 truncate">Interrupted sessions</span>
+            {count(facets.views.interrupted)}
+          </DropdownMenuItem>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   )

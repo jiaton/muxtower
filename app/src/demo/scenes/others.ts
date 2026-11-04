@@ -1,7 +1,7 @@
 import type { Scene } from '../world'
-import { NODE, ago, demoSession, prompt, reply } from './session'
+import { HOME, NODE, ago, demoSession, prompt, reply } from './session'
 import { talk } from './talk'
-import { claudeInput, claudeWelcome } from './terminal'
+import { answered, claudeInput, claudeWelcome, said } from './terminal'
 import { bash, edit, read, says, transcript, you } from './transcript'
 
 const PLAN = 'Plan is clean: 3 to add, 0 to change, 0 to destroy. The new replica starts empty and catches up from the primary. Apply it?'
@@ -121,6 +121,10 @@ export function releaseNotes(): Scene {
       last_message: 'Release notes for 2.4 are ready.',
       team_role: 'research',
       git: { repo: '/home/dev/code/shop-api', worktree: '/home/dev/code/shop-api', branch: 'main', remote: 'acme/shop-api' },
+      project: 'acme/shop-api',
+      project_auto: true,
+      project_source: 'git remote',
+      project_anchor: `${HOME}/code/shop-api`,
       created_at: ago(180),
       updated_at: ago(30),
     }),
@@ -154,5 +158,15 @@ export function releaseNotesFork(): Scene {
       prompt(NOTES_EARLIER.next + 1, { text: 'Now a one-line version for the changelog.', at: ago(14) }),
       reply(NOTES_EARLIER.next + 2, { text: SHORTER, at: ago(12) }),
     ],
+  }
+}
+
+/** A session in the folder that holds the repositories: a plain folder, which nests them. */
+export function tidyUp(): Scene {
+  return {
+    session: demoSession({ id: 'tidy-up', name: 'tidy up', cwd: `${HOME}/code`, created_at: ago(300), updated_at: ago(40) }),
+    history: [...claudeWelcome('~/code'), ...said('Which repositories here have no README?'), ...answered('Only web-app.')],
+    footer: claudeInput,
+    items: [prompt(1, { text: 'Which repositories here have no README?', at: ago(41) }), reply(2, { text: 'Only web-app.' })],
   }
 }

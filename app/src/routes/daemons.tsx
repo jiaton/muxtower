@@ -11,12 +11,12 @@ import { InstallApp } from '@/features/install/components/install-app'
 import { AddDaemonDialog } from '@/features/pairing/components/add-daemon-dialog'
 import { ShareDevicesDialog } from '@/features/pairing/components/share-devices-dialog'
 import { PushToggle } from '@/features/push/components/push-toggle'
-import { useDaemonsStore, usePairedDaemons } from '@/lib/daemons/store'
+import { useOwnDaemons, usePairedDaemons } from '@/lib/daemons/store'
 
 export const Route = createFileRoute('/daemons')({ component: DaemonsPage })
 
 function DaemonsPage() {
-  const daemons = useDaemonsStore((s) => s.daemons)
+  const daemons = useOwnDaemons()
   const paired = usePairedDaemons()
   const [adding, setAdding] = useState<{ url?: string } | null>(null)
 

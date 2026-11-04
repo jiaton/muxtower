@@ -7,7 +7,7 @@ import logging
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect
-from pydantic import ValidationError
+from pydantic import BaseModel, Field, ValidationError
 
 from muxtower import __version__
 from muxtower.auth.deps import WS_BEARER_PREFIX, WS_SUBPROTOCOL, CurrentDevice
@@ -15,6 +15,7 @@ from muxtower.auth.routes import Audit
 from muxtower.mcp.service import McpTools
 from muxtower.nodes import asked, protocol
 from muxtower.nodes.client import HubClient
+from muxtower.nodes.direct import DirectNode
 from muxtower.nodes.hub import Nodes
 from muxtower.nodes.link import NodeLink, parse
 from muxtower.nodes.models import HubStatus, JoinHub, NodeClaim, NodeClaimResult, NodeInfo
@@ -128,3 +129,23 @@ async def node_link(ws: WebSocket) -> None:
         pass
     finally:
         nodes.detach(name, link)
+
+
+class DirectUrl(BaseModel):
+    direct_url: str | None = Field(description="https; null: the address the node reports")
+
+
+@router.patch("/nodes/{name}", status_code=204)
+def set_direct_url(name: str, body: DirectUrl, request: Request, device: CurrentDevice, audit: Audit) -> None:
+    """The owner's address for reaching a node itself while the hub is down, over the one it reports."""
+    request.app.state.direct.set_url(name, body.direct_url)
+    audit.record(device.name, "node-address", detail=f"{name}={body.direct_url}")
+
+
+@router.post("/nodes/direct")
+def direct_tokens(request: Request, device: CurrentDevice, audit: Audit) -> list[DirectNode]:
+    """For this device: each connected node's address and a device token of its own, to reach it directly
+    while the hub is down (made anew each time; revoking this device here revokes them)."""
+    found: list[DirectNode] = request.app.state.direct.tokens(device.name)
+    audit.record(device.name, "direct-tokens", detail=", ".join(d.node for d in found) or "none")
+    return found

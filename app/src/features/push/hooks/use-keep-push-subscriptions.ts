@@ -13,7 +13,7 @@ export function useKeepPushSubscriptions() {
   useEffect(() => {
     if (pushSupport() !== 'ok') return
     for (const daemon of daemons) {
-      if (!daemon.token || daemon.rejected || renewed.has(daemon.id)) continue
+      if (!daemon.token || daemon.rejected || daemon.via || renewed.has(daemon.id)) continue // push is the hub's
       renewed.add(daemon.id)
       void renewSubscription(createDaemonClient({ url: daemon.url, token: daemon.token }), daemon.id).catch(() => {
         renewed.delete(daemon.id) // try again on the next change

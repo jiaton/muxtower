@@ -51,7 +51,8 @@ def list_devices(device: CurrentDevice, tokens: Tokens) -> list[Device]:
 
 
 @router.delete("/devices/{name}", status_code=204)
-def revoke_device(name: str, device: CurrentDevice, tokens: Tokens, audit: Audit) -> None:
+def revoke_device(name: str, request: Request, device: CurrentDevice, tokens: Tokens, audit: Audit) -> None:
     if not tokens.revoke(name):
         raise NotFound(f"no device named {name!r}")
     audit.record(device.name, "revoke-device", detail=name)
+    request.app.state.direct.revoke(name)  # its tokens on the nodes too (`nodes/direct.py`)

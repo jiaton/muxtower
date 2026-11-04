@@ -7,15 +7,18 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from muxtower.auth.service import TokenService
 from muxtower.errors import Invalid
 from muxtower.infra.audit import AuditLog
+from muxtower.nodes.direct import TOKEN_PREFIX
 from muxtower.nodes.processes import report
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.launcher import Launcher
-from muxtower.sessions.models import CreateSession, UpdateSession
+from muxtower.sessions.models import CreateSession, Session, UpdateSession
 from muxtower.sessions.placement import Placements
 from muxtower.sessions.ports import ClaudeProcessPort
+from muxtower.settings.service import SettingsService
 from muxtower.terminal.models import Resize, SendInput
 from muxtower.usage.models import MachineUsage
 
@@ -25,7 +28,7 @@ def _json(value: Any) -> Any:
 
 
 # What changes something here: audited as done by the hub, like a device's actions.
-MUTATING = frozenset({"input", "approve", "deny", "update", "terminate", "archive", "create"})
+MUTATING = frozenset({"input", "approve", "deny", "update", "terminate", "archive", "create", "recover"})
 # What changes the list here (as the same routes say for a device): the hub hears of it at once.
 CHANGES_LIST = MUTATING | {"mark_read"}
 
@@ -37,6 +40,9 @@ class NodeApi:
     ) -> None:  # fmt: skip
         self.processes = processes
         self.usage_now: Callable[[], MachineUsage] | None = None  # set once the usage sampler runs
+        self.recover: Callable[[list[str]], list[Session]] | None = None  # set by the recovery service
+        self.settings: SettingsService | None = None  # its feature settings, which the hub may change
+        self.tokens: TokenService | None = None  # its device tokens: the hub's devices get one here (`direct.py`)
         self.directory = directory
         self.launcher = launcher
         self.archiver = archiver
@@ -83,6 +89,29 @@ class NodeApi:
                 d.terminate(sid)
             case "archive":
                 self.archiver.archive(sid)
+            case "recover":
+                if self.recover is None:
+                    raise Invalid("this node cannot start sessions again")
+                started = self.recover([sid])
+                return _json(started[0]) if started else None
+            case "mint_token" | "revoke_token":
+                name = str(params.get("name", ""))
+                if self.tokens is None or not name.startswith(TOKEN_PREFIX):
+                    raise Invalid("only a hub device's direct token")  # never another device's
+                self.tokens.revoke(name)  # one per hub device: a new one replaces the last
+                if method == "mint_token":
+                    self.audit.record("hub", "direct-token", detail=name)
+                    return self.tokens.create(name)[1]
+                self.audit.record("hub", "direct-token-revoked", detail=name)
+            case "settings" | "set_settings":
+                if self.settings is None:
+                    raise Invalid(f"unknown method {method}")
+                if method == "settings":
+                    return [_json(s) for s in self.settings.views()]
+                changes = params.get("values")
+                if not isinstance(changes, dict):
+                    raise Invalid("values: a table of settings")
+                return [_json(s) for s in self.settings.change(changes, f"hub ({params.get('actor') or 'owner'})")]
             case "mark_read":
                 d.mark_read(sid, True)
             case "detect_folder":

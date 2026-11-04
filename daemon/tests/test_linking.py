@@ -148,7 +148,8 @@ def test_sessions_on_the_hub_carry_its_name_and_their_folder(tmp_path: Path) -> 
     assert (by_name["work"].machine, by_name["work"].cwd) == ("hub", "/home/me/web")
     here = next(s for s in by_name.values() if s.id == "cse_here")
     away = next(s for s in by_name.values() if s.id == "cse_away")
-    assert (here.machine, here.cwd) == ("hub", "/srv/app/api")  # works inside the folder it started in
+    # Listed where it started; where it works now, inside that, is said beside it.
+    assert (here.machine, here.cwd, here.working_dir) == ("hub", "/srv/app", "/srv/app/api")
     assert here.origin == "claude_code_sdk_cli"  # from the process file, not the listing
     assert (away.machine, away.cwd) == (None, "/srv/other")
 
@@ -200,3 +201,12 @@ def test_a_tmux_agent_goes_by_its_own_name_until_the_owner_names_it(tmp_path: Pa
     processes.names[4242] = "Something else"
     Monitor(app.state.sessions, processes).tick()
     assert client.get(f"/v1/sessions/{listed['id']}", headers=auth).json()["name"] == "Docs"  # the owner's wins
+
+
+def test_where_an_agent_cds_to_never_moves_where_it_is_listed() -> None:
+    from muxtower.sessions.merged import deeper
+
+    assert deeper("/home/me/projects", "/home/me/projects/web") == "/home/me/projects/web"  # said beside it
+    assert deeper("/home/me/projects/app", "/home/me/projects/app-fix") is None  # another worktree: not even said
+    assert deeper("/home/me/projects/app", "/srv/other") is None
+    assert deeper("", "/srv/other") is None
