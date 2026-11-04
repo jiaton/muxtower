@@ -144,6 +144,22 @@
         "title": "Capabilities",
         "type": "object"
       },
+      "ChangeSettings": {
+        "properties": {
+          "values": {
+            "additionalProperties": true,
+            "description": "dotted key \u2192 value; null puts it back to its default",
+            "minProperties": 1,
+            "title": "Values",
+            "type": "object"
+          }
+        },
+        "required": [
+          "values"
+        ],
+        "title": "ChangeSettings",
+        "type": "object"
+      },
       "ClaimRequest": {
         "properties": {
           "code": {
@@ -758,6 +774,27 @@
           "url"
         ],
         "title": "LoginStart",
+        "type": "object"
+      },
+      "MachineSettings": {
+        "properties": {
+          "machine": {
+            "title": "Machine",
+            "type": "string"
+          },
+          "settings": {
+            "items": {
+              "$ref": "#/components/schemas/SettingView"
+            },
+            "title": "Settings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "machine",
+          "settings"
+        ],
+        "title": "MachineSettings",
         "type": "object"
       },
       "MachineUsage": {
@@ -1972,6 +2009,89 @@
           "sessions"
         ],
         "title": "SessionsFrame",
+        "type": "object"
+      },
+      "SettingView": {
+        "properties": {
+          "applies": {
+            "enum": [
+              "now",
+              "restart"
+            ],
+            "title": "Applies",
+            "type": "string"
+          },
+          "choices": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Choices",
+            "type": "array"
+          },
+          "default": {
+            "title": "Default"
+          },
+          "help": {
+            "title": "Help",
+            "type": "string"
+          },
+          "key": {
+            "description": "dotted, as in the config file: `recovery.mode` is `[recovery] mode`",
+            "title": "Key",
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "choice",
+              "bool",
+              "number",
+              "text"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "pending": {
+            "description": "changed since the daemon started: applies when it restarts",
+            "title": "Pending",
+            "type": "boolean"
+          },
+          "section": {
+            "title": "Section",
+            "type": "string"
+          },
+          "source": {
+            "description": "config_file: set there, and not changed from the app",
+            "enum": [
+              "default",
+              "app",
+              "config_file"
+            ],
+            "title": "Source",
+            "type": "string"
+          },
+          "value": {
+            "description": "what applies: once the daemon restarts, where `pending`",
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key",
+          "section",
+          "label",
+          "help",
+          "kind",
+          "choices",
+          "value",
+          "default",
+          "source",
+          "applies",
+          "pending"
+        ],
+        "title": "SettingView",
         "type": "object"
       },
       "SlowRule": {
@@ -4327,6 +4447,118 @@
         "summary": "Update Team",
         "tags": [
           "teams"
+        ]
+      }
+    },
+    "/v1/settings": {
+      "get": {
+        "description": "The features the app may change, with where each value comes from and when a change applies.",
+        "operationId": "get_settings_v1_settings_get",
+        "parameters": [
+          {
+            "description": "a node of this hub: its settings, over the link, instead of this daemon's",
+            "in": "query",
+            "name": "node",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a node of this hub: its settings, over the link, instead of this daemon's",
+              "title": "Node"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MachineSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Settings",
+        "tags": [
+          "settings"
+        ]
+      },
+      "patch": {
+        "description": "Changes some (all or none); a key the config file sets is refused. Each change is audited.",
+        "operationId": "change_settings_v1_settings_patch",
+        "parameters": [
+          {
+            "description": "a node of this hub: its settings, over the link, instead of this daemon's",
+            "in": "query",
+            "name": "node",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "a node of this hub: its settings, over the link, instead of this daemon's",
+              "title": "Node"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeSettings"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MachineSettings"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Change Settings",
+        "tags": [
+          "settings"
         ]
       }
     },

@@ -2,6 +2,7 @@ import type { components } from '@/lib/api/schema'
 import type { MachineUsage, NodeInfo, RuntimeInfo, Session } from '@/lib/api/types'
 import { DEMO_DAEMON, NODE } from './scenes/session'
 import { plain } from './scenes/terminal'
+import { DemoSettings } from './settings'
 import type { World } from './world'
 
 type Me = components['schemas']['Me']
@@ -12,6 +13,7 @@ const json = (data: unknown, status = 200) =>
 const empty = () => new Response(null, { status: 204 })
 const refuse = (status: number, detail: string) => json({ detail }, status)
 const NOT_IN_DEMO = 'Not part of the demo: on your own daemon this works.'
+const SETTINGS = new DemoSettings()
 
 const ME: Me = {
   token_name: 'This browser',
@@ -93,7 +95,7 @@ const SESSION_ROUTES: Record<string, Handler> = {
   'POST resize/release': () => empty(),
 }
 
-const ROUTES: Record<string, (world: World, body: Record<string, unknown>) => Response> = {
+const ROUTES: Record<string, (world: World, body: Record<string, unknown>, url: URL) => Response> = {
   'GET /v1/me': () => json(ME),
   'GET /v1/health': () => json({ status: 'ok', version: 'demo' }),
   'GET /v1/sessions': (world) => json(world.sessions()),
@@ -101,6 +103,11 @@ const ROUTES: Record<string, (world: World, body: Record<string, unknown>) => Re
   'GET /v1/nodes': () => json(NODES),
   'GET /v1/devices': () => json([{ name: 'This browser', created_at: new Date().toISOString(), last_used_at: null, current: true }]),
   'GET /v1/usage': () => json(USAGE()),
+  'GET /v1/settings': (_, __, url) => json(SETTINGS.list(url.searchParams.get('node') || DEMO_DAEMON.name)),
+  'PATCH /v1/settings': (_, body, url) => {
+    const refused = SETTINGS.change((body.values ?? {}) as Record<string, unknown>)
+    return refused ? refuse(409, refused) : json(SETTINGS.list(url.searchParams.get('node') || DEMO_DAEMON.name))
+  },
   'GET /v1/recovery': (world) => json({ mode: 'ask', sessions: world.sessions().filter((s) => s.interrupted_at) }),
   'POST /v1/recovery': (world, body) =>
     json(world.recover(Array.isArray(body.session_ids) ? body.session_ids.filter((id) => typeof id === 'string') : [])),
@@ -119,7 +126,8 @@ const USAGE = (): MachineUsage[] =>
 
 /** Answers a request to the demo daemon the way a daemon would, from `world`. */
 export async function respond(world: World, request: Request): Promise<Response> {
-  const { pathname } = new URL(request.url)
+  const url = new URL(request.url)
+  const { pathname } = url
   const method = request.method.toUpperCase()
   const fixed = ROUTES[`${method} ${pathname}`]
   const match = /^\/v1\/sessions\/([^/]+)(?:\/(.+))?$/.exec(pathname)
@@ -132,5 +140,5 @@ export async function respond(world: World, request: Request): Promise<Response>
   } catch {
     return refuse(422, 'not JSON')
   }
-  return fixed ? fixed(world, body) : handler!(world, decodeURIComponent(match![1]), body)
+  return fixed ? fixed(world, body, url) : handler!(world, decodeURIComponent(match![1]), body)
 }

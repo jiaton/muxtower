@@ -1,4 +1,5 @@
-import { Check, Copy, MonitorSmartphone } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { Check, Copy, MonitorSmartphone, Settings2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { StatusDot } from '@/components/ui/status-dot'
@@ -38,6 +39,13 @@ export function NodesList({ daemonId, url }: { daemonId: string; url: string }) 
                   </span>
                 ) : null}
               </span>
+              {n.online ? (
+                <Button asChild variant="ghost" size="icon-sm" aria-label={`Settings of ${n.name}`} title="Settings">
+                  <Link to="/daemons/$daemonId/settings" params={{ daemonId }} search={{ node: n.name }}>
+                    <Settings2 />
+                  </Link>
+                </Button>
+              ) : null}
               {confirm === n.name ? (
                 <Button variant="danger" size="sm" disabled={remove.isPending} onClick={() => remove.mutate(n.name)}>
                   Remove {n.name}
