@@ -10,11 +10,11 @@ export function Usage() {
     <Section id="usage">
       <SectionHeading label={usage.label} title={usage.title} lead={usage.lead} />
       <div className="mt-12 grid grid-cols-1 items-start gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,30rem)]">
-        <dl className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-[6rem_minmax(0,1fr)]">
+        <dl className="grid gap-x-5 gap-y-4 grid-cols-[5.5rem_minmax(0,1fr)] items-baseline">
           {figures.map(({ figure, text }) => (
             <div key={figure} className="contents">
-              <dt className="font-mono text-2xl font-semibold tracking-tight text-primary tabular-nums sm:text-right">{figure}</dt>
-              <dd className="leading-relaxed text-fg-muted max-sm:-mt-4">
+              <dt className="font-mono text-2xl font-semibold tracking-tight text-primary tabular-nums">{figure}</dt>
+              <dd className="leading-relaxed text-fg-muted">
                 <RichText text={text} />
               </dd>
             </div>
