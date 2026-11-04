@@ -3,7 +3,9 @@
 // <base>push/<daemonId>/) holds that daemon's push subscription, since each daemon has its own VAPID key
 // and a registration can only hold one subscription.
 import { clientsClaim } from 'workbox-core'
-import { cleanupOutdatedCaches, precacheAndRoute } from 'workbox-precaching'
+import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
+import { NavigationRoute, registerRoute } from 'workbox-routing'
+import { NOT_THE_APP } from './lib/sw-routes'
 
 declare const self: ServiceWorkerGlobalScope
 
@@ -13,6 +15,9 @@ void self.skipWaiting()
 clientsClaim()
 precacheAndRoute(self.__WB_MANIFEST)
 cleanupOutdatedCaches()
+// A reload of any page (`/d/…/s/…`) is the cached app, not the network: with the daemon's machine down,
+// the page would be its proxy's error page (`lib/sw-routes.ts`).
+registerRoute(new NavigationRoute(createHandlerBoundToURL(new URL('index.html', self.location.href).href), { denylist: NOT_THE_APP }))
 
 interface PushPayload {
   client_ref: string
