@@ -44,8 +44,15 @@ export const team = {
 
 export const sources = {
   label: '04',
-  title: 'Wherever the session started.',
-  lead: 'You do not have to start agents through muxtower. It finds them where they already run.',
+  title: 'Start at your desk. Carry on from your phone.',
+  lead: 'Sessions you start in the Claude desktop app or the Codex app are listed beside the rest, with their whole conversation, and answered from here as if you were at the desk.',
+  facts: [
+    'With `remote_control.enabled`, muxtower lists the Remote Control sessions of the Claude account logged in on the hub: the desktop app, the mobile apps, `claude remote-control`.',
+    'Approve, deny, answer a question, send a message or interrupt: it goes back to that same session, and the desktop app shows it answered.',
+    'Unread is shared with the Claude apps, so what you read on the phone is read at the desk. Archive it here and it is archived there.',
+    'With `codex.shared = true` the Codex app’s threads work the same way: an answer from here closes the dialog in the app too.',
+  ],
+  caveat: 'Remote Control is a private API: an update to Claude can break it until muxtower follows.',
 }
 
 export const reach = {
