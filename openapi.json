@@ -1655,6 +1655,18 @@
             "title": "Ansi",
             "type": "string"
           },
+          "seq": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "with encoding \"lines\": the number the next patch builds on",
+            "title": "Seq"
+          },
           "session_id": {
             "title": "Session Id",
             "type": "string"
@@ -1671,6 +1683,54 @@
           "ansi"
         ],
         "title": "ScreenFrame",
+        "type": "object"
+      },
+      "ScreenPatchFrame": {
+        "description": "The next screen as ops on the screen numbered `base` (`terminal/patches.py`): `[start, count]` copies\nthose lines of it, a string is a new line; joined with newlines, the screen numbered `seq`. A client\nwhose last screen is not `base` subscribes again for a full one.",
+        "properties": {
+          "base": {
+            "title": "Base",
+            "type": "integer"
+          },
+          "ops": {
+            "items": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "title": "Ops",
+            "type": "array"
+          },
+          "seq": {
+            "title": "Seq",
+            "type": "integer"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "type": {
+            "const": "screen_patch",
+            "default": "screen_patch",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id",
+          "base",
+          "seq",
+          "ops"
+        ],
+        "title": "ScreenPatchFrame",
         "type": "object"
       },
       "SendInput": {
@@ -2426,6 +2486,7 @@
                 "error": "#/components/schemas/ErrorFrame",
                 "pong": "#/components/schemas/PongFrame",
                 "screen": "#/components/schemas/ScreenFrame",
+                "screen_patch": "#/components/schemas/ScreenPatchFrame",
                 "sessions": "#/components/schemas/SessionsFrame"
               },
               "propertyName": "type"
@@ -2436,6 +2497,9 @@
               },
               {
                 "$ref": "#/components/schemas/ScreenFrame"
+              },
+              {
+                "$ref": "#/components/schemas/ScreenPatchFrame"
               },
               {
                 "$ref": "#/components/schemas/ConversationFrame"
@@ -2459,6 +2523,16 @@
       },
       "StreamSubscribe": {
         "properties": {
+          "encoding": {
+            "default": "full",
+            "description": "screen: \"lines\" sends a full screen (with its `seq`), then `screen_patch` frames; a client of its own may ignore it",
+            "enum": [
+              "full",
+              "lines"
+            ],
+            "title": "Encoding",
+            "type": "string"
+          },
           "history": {
             "default": 200,
             "maximum": 5000.0,

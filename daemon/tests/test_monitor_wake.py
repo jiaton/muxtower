@@ -27,7 +27,8 @@ async def test_typing_shows_without_waiting_for_the_next_tick(app: FastAPI, tmux
         pane.screen = "> hi"
         sent = time.monotonic()
         await asyncio.to_thread(app.state.terminal.send, session.id, SendInput(text="hi"))
-        _, ansi = await asyncio.wait_for(frames.get(), 2)
+        _, update = await asyncio.wait_for(frames.get(), 2)
+        ansi = update.ansi
         assert "hi" in ansi and time.monotonic() - sent < 1.0
 
         # A burst of keys is taken together, and ticks stay apart however often something wakes it.
@@ -37,7 +38,8 @@ async def test_typing_shows_without_waiting_for_the_next_tick(app: FastAPI, tmux
                 app.state.terminal.send(session.id, SendInput(key=key))
 
         await asyncio.to_thread(type_keys)
-        _, ansi = await asyncio.wait_for(frames.get(), 2)
+        _, update = await asyncio.wait_for(frames.get(), 2)
+        ansi = update.ansi
         assert ansi.endswith("abc") and frames.empty()
     finally:
         loop.cancel()

@@ -142,6 +142,8 @@ The daemon also serves a glasses app at `/g2/` (`glasses/`, an Even Hub app): wh
 
 ## The assistant and MCP
 
+The stream (`/v1/stream`) can send a screen as patches on the one before (`encoding: "lines"`, `docs/design.md` › Screens as patches); a client of your own can ignore that and gets whole screens.
+
 `/v1/mcp` offers muxtower's sessions as MCP tools (list, read, message, approve, deny, interrupt, start, watch) to any MCP client with a device token, e.g. `claude mcp add --transport http muxtower https://<daemon>/v1/mcp --header "Authorization: Bearer <token>"`. With `concierge.enabled`, muxtower keeps its own Claude Code session wired to these tools: talk to it (from the glasses, the apps, or Remote Control) and it relays to, reports on and answers for your other sessions.
 
 ## Permission modes

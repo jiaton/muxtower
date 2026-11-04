@@ -1604,6 +1604,11 @@ export interface components {
         ScreenFrame: {
             /** Ansi */
             ansi: string;
+            /**
+             * Seq
+             * @description with encoding "lines": the number the next patch builds on
+             */
+            seq?: number | null;
             /** Session Id */
             session_id: string;
             /**
@@ -1611,6 +1616,27 @@ export interface components {
              * @enum {string}
              */
             type: "screen";
+        };
+        /**
+         * ScreenPatchFrame
+         * @description The next screen as ops on the screen numbered `base` (`terminal/patches.py`): `[start, count]` copies
+         *     those lines of it, a string is a new line; joined with newlines, the screen numbered `seq`. A client
+         *     whose last screen is not `base` subscribes again for a full one.
+         */
+        ScreenPatchFrame: {
+            /** Base */
+            base: number;
+            /** Ops */
+            ops: (number[] | string)[];
+            /** Seq */
+            seq: number;
+            /** Session Id */
+            session_id: string;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "screen_patch";
         };
         /**
          * SendInput
@@ -1946,10 +1972,17 @@ export interface components {
             client: components["schemas"]["StreamSubscribe"] | components["schemas"]["StreamPing"];
             conversation?: components["schemas"]["ConversationFrame"] | null;
             /** Server */
-            server: components["schemas"]["SessionsFrame"] | components["schemas"]["ScreenFrame"] | components["schemas"]["ConversationFrame"] | components["schemas"]["ErrorFrame"] | components["schemas"]["PongFrame"];
+            server: components["schemas"]["SessionsFrame"] | components["schemas"]["ScreenFrame"] | components["schemas"]["ScreenPatchFrame"] | components["schemas"]["ConversationFrame"] | components["schemas"]["ErrorFrame"] | components["schemas"]["PongFrame"];
         };
         /** StreamSubscribe */
         StreamSubscribe: {
+            /**
+             * Encoding
+             * @description screen: "lines" sends a full screen (with its `seq`), then `screen_patch` frames; a client of its own may ignore it
+             * @default full
+             * @enum {string}
+             */
+            encoding: "full" | "lines";
             /**
              * History
              * @default 200
