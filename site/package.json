@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "npm run build:demo && npm run build:site",
-    "build:demo": "cd ../app && MUXTOWER_BASE=/demo/ npm run build:demo",
+    "build:demo": "cd ../app && MUXTOWER_BASE=/demo/ MUXTOWER_DEMO_APP_URL=$MUXTOWER_SITE_APP_URL npm run build:demo",
     "build:site": "tsc -b && vite build && vite build --ssr src/entry-server.tsx --outDir dist-ssr && node scripts/prerender.mjs && node scripts/copy-demo.mjs",
     "preview": "vite preview",
     "typecheck": "tsc -b --noEmit",

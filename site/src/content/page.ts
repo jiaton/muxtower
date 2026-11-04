@@ -17,12 +17,7 @@ export const hero = {
   lead: 'muxtower watches the Claude Code and Codex sessions on all your computers and lists them on a hub you host. When one needs you, your phone says so, and you answer from there.',
   install: 'pipx install muxtower',
   tryApp: 'Try the live demo',
-  openApp: 'Open the app',
-  /** Under the buttons: which one is which. */
-  tryAppNote: 'Live demo: the real app on made-up sessions, click anything.',
-  openAppNote: 'The app: connect your own daemon.',
-  /** Under the demo: the animation is drawn, the live demo is the app itself. */
-  afterDemo: 'That was an animation. Now click through it yourself.',
+  tryAppNote: 'The real app on made-up sessions. Click anything.',
 }
 
 export const hub = {

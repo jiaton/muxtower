@@ -12,14 +12,20 @@ const base = (process.env.MUXTOWER_BASE ?? '/').replace(/\/?$/, '/')
 
 /** The demo build (`--mode demo`, `src/demo/`): the same app, started against a daemon simulated in the
  *  page, with no service worker and kept out of search results. */
+const APP_URL = (process.env.MUXTOWER_DEMO_APP_URL ?? '').trim().replace(/"/g, '')
+
 const demoEntry = (): Plugin => ({
   name: 'muxtower-demo-entry',
   transformIndexHtml: {
     order: 'pre',
     handler: (html) =>
-      html
-        .replace('/src/main.tsx', '/src/demo/main.ts')
-        .replace('<title>muxtower</title>', '<title>muxtower demo</title>\n    <meta name="robots" content="noindex" />'),
+      html.replace('/src/main.tsx', '/src/demo/main.ts').replace(
+        '<title>muxtower</title>',
+        '<title>muxtower demo</title>\n    <meta name="robots" content="noindex" />' +
+          // Where the demo's "Connect your own daemon" goes (`src/demo/cta.tsx`): the build names it, the
+          // repository does not; without it the demo offers no way out.
+          (APP_URL ? `\n    <meta name="muxtower-app-url" content="${APP_URL}" />` : ''),
+      ),
   },
 })
 

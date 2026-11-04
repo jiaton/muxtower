@@ -27,13 +27,6 @@ export function Header() {
               </a>
             </Button>
           )}
-          {config.appUrl && (
-            <Button asChild variant="outline" size="sm">
-              <a href={config.appUrl} target="_blank" rel="noreferrer">
-                Open app
-              </a>
-            </Button>
-          )}
           <Button asChild size="sm">
             <a href="#install">Install</a>
           </Button>
