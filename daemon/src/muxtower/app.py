@@ -66,6 +66,7 @@ from muxtower.sessions.repository import SqliteSessionRepository
 from muxtower.sessions.service import SessionConfig, SessionService
 from muxtower.sessions.transcripts import Transcripts
 from muxtower.sessions.turns import TurnWatcher
+from muxtower.sessions.watches import SessionWatches
 from muxtower.settings.service import SettingsService
 from muxtower.sources.codex.service import CodexSource
 from muxtower.sources.codex.shared import SharedCodexSource
@@ -168,7 +169,13 @@ def create_app(
 
     teams = TeamService(directory, SqliteTeamRepository(db), transcript_of=directory.local.transcript_of)
     writes = WriteTracker(lambda: settings.writes.window_minutes, teams.checkouts)
-    sessions.gone = writes.forget
+    watches = SessionWatches(directory)  # sessions watching sessions (MCP watch_session)
+
+    def gone(session_id: str) -> None:
+        writes.forget(session_id)
+        watches.forget(session_id)
+
+    sessions.gone = gone
     sessions.launch_defaults = lambda runtime: settings.launch.of(runtime)  # read each time: settings change
     directory.writing = Writing(writes, lambda sid: r.name if (r := sessions.repo.get(sid)) else None).of
     team_tasks = TaskService(teams, directory, SqliteTaskRepository(db))
@@ -185,6 +192,7 @@ def create_app(
                 "auto-approve": AutoApprover(approvals, audit).run_loop(bus),
                 "team-tasks": team_tasks.run_loop(bus),
                 "team-places": placing.run_loop(teams, bus),
+                "watches": watches.run_loop(bus),
                 "usage": usage.run_loop(),
                 "recovery": recovery.run_loop(bus),
             }
@@ -221,7 +229,7 @@ def create_app(
     teams.changed = lambda: bus.publish("sessions", None)
     mcp = McpTools(
         directory, launcher, concierge, daemon_name, lambda: list(nodes.all()), teams, team_tasks, archiver,
-        forward=hub.team_tool,
+        forward=hub.team_tool, watches=watches,
     )  # fmt: skip
     mcp.session_tools.may_escalate = lambda: settings.launch.agents_may_escalate
     state = dict(
@@ -229,6 +237,7 @@ def create_app(
         sessions=sessions, monitor=monitor, directory=directory, remote_control=remote_control,
         placements=placements, archiver=archiver, launcher=launcher, nodes=nodes, hub=hub, summaries=summaries,
         concierge=concierge, teams=teams, team_tasks=team_tasks, usage=usage, recovery=recovery, writes=writes,
+        watches=watches,
         direct=DirectAccess(nodes, node_sessions.call), feature_settings=feature_settings,
         node_sessions=node_sessions, mcp=mcp, asr=build_asr(settings, lambda: [s.name for s in directory.list()]),
         terminal=terminal, approvals=approvals, audit=audit, push=push,

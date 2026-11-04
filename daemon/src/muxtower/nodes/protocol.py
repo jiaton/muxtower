@@ -44,6 +44,10 @@ METHODS = frozenset({
 # What a node may ask of its hub (protocol 2): one of its sessions calls a team tool.
 HUB_METHODS = frozenset({"team_tool"})
 TEAM_TOOLS = frozenset({"my_team", "set_role", "set_project", "send_task"})
+# Tools on a session another machine runs: a node asks its hub, which reaches every session (`mcp/reach.py`).
+REACH_TOOLS = frozenset({
+    "send_message", "approve", "deny", "interrupt", "read_session", "watch_session", "unwatch_session",
+})  # fmt: skip
 
 ERRORS: dict[int, type[Exception]] = {
     400: Invalid, 401: Unauthorized, 403: Forbidden, 404: NotFound, 409: Conflict, 429: TooManyRequests,
