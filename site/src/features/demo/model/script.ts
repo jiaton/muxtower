@@ -40,6 +40,7 @@ const both = (id: string, note?: string): Focus => ({ wide: id, tall: id, note }
 const ASK = 'Migration 0042 is written and passes on a copy of production. Run it on staging first?'
 const QUOTED = 'Run it on staging first?'
 const REPLY = 'Yes, staging first. Then show me the row counts.'
+const SHIP = 'Merge it once CI is green.'
 const TASK = 'Add retries to the payment client: 3 tries, backoff 200/400/800 ms, the order id as idempotency key. Test each path.'
 
 export const BEATS: Beat[] = [
@@ -80,14 +81,20 @@ export const BEATS: Beat[] = [
     start: 30500,
   },
   {
+    id: 'down',
+    title: 'Hub down',
+    caption: 'The NAS restarts. The app goes to each machine directly over its own HTTPS address, and back to the hub once it answers.',
+    start: 35500,
+  },
+  {
     id: 'hub',
     title: 'One hub',
-    caption: 'Each machine runs a daemon and dials out to the hub. Your phone talks only to the hub, over HTTPS. No SSH.',
-    start: 35500,
+    caption: 'Each machine runs a daemon and dials out to the hub. Your phone talks to the hub over HTTPS. No SSH.',
+    start: 42500,
   },
 ]
 
-export const DURATION = 41000
+export const DURATION = 48000
 
 export const STEPS: Step[] = [
   { at: 300, focus: { wide: 'nav-devices', tall: 'strip', note: 'Five machines, one hub' } },
@@ -260,5 +267,28 @@ export const STEPS: Step[] = [
     do: (w) => void (patch(w, 'side', { hidden: false }), (w.flash = 'row-side')),
   },
 
-  { at: 35700, focus: null, do: (w) => void ((w.map = true), (w.flash = null)) },
+  {
+    at: 35700,
+    cursor: null,
+    focus: { wide: 'banner', tall: 'phone-banner', note: 'The hub is restarting' },
+    do: (w) => void ((w.hubDown = true), (w.phone.screen = 'list'), (w.open = 'worker'), (w.flash = null)),
+  },
+  { at: 37400, cursor: both('phone-row-worker') },
+  { at: 38000, click: true, focus: both('phone-screen'), do: (w) => void (w.phone = { ...w.phone, screen: 'session', session: 'worker' }) },
+  { at: 38600, cursor: both('phone-composer'), type: { text: SHIP, ms: 1100 } },
+  { at: 39900, cursor: both('phone-send') },
+  {
+    at: 40300,
+    click: true,
+    cursor: null,
+    focus: { wide: 'pane-msg-w10', tall: 'phone-screen', note: 'Straight to the server. Push waits for the hub' },
+    do: (w) => {
+      w.messages.worker.push({ id: 'w10', kind: 'you', text: SHIP })
+      w.phone.draft = ''
+      patch(w, 'worker', { state: 'working', last: 'Waiting for CI on the payments branch' })
+    },
+  },
+  { at: 41900, focus: null, do: (w) => void (w.hubDown = false) },
+
+  { at: 42700, do: (w) => void ((w.map = true), (w.flash = null)) },
 ]

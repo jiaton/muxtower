@@ -17,6 +17,7 @@ export function MachineStrip({ world, className }: { world: World; className?: s
             'flex flex-col items-center gap-1 rounded-lg border bg-card px-1 py-2 transition-colors duration-700',
             d.hub ? 'border-accent' : 'border-border',
             world.flash === 'devices' && 'bg-state-busy-soft',
+            d.hub && world.hubDown && 'opacity-40',
           )}
         >
           {d.hub ? <Server className="size-4 text-fg-muted" /> : <Monitor className="size-4 text-fg-muted" />}

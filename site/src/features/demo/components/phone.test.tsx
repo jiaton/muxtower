@@ -33,4 +33,9 @@ describe('Phone', () => {
     expect(screen.getByText(/1 side chat/)).toBeInTheDocument()
     expect(screen.getAllByText('Release notes 2.4')).toHaveLength(2)
   })
+  it('keeps working while the hub is down, and says so', () => {
+    render(<Phone world={frameAt(41000).world} />)
+    expect(screen.getByText(/^nas unreachable · direct to/)).toBeInTheDocument()
+    expect(screen.getByText('Merge it once CI is green.')).toBeInTheDocument()
+  })
 })
