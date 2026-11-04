@@ -65,6 +65,10 @@ export function shopApi(): Scene {
       team_role: 'worker',
       team_note: 'Implements what research agreed on',
       git: { repo: `${HOME}/code/shop-api`, worktree: `${HOME}/code/shop-api`, branch: 'main', remote: 'acme/shop-api' },
+      project: 'acme/shop-api',
+      project_auto: true,
+      project_source: 'git remote',
+      working_dir: `${HOME}/code/shop-api/services/payments`,
     }),
     history: [
       ...claudeWelcome(`~/code/shop-api`),

@@ -1795,8 +1795,32 @@
                 "type": "null"
               }
             ],
-            "description": "the project an agent or the owner put it in (null: its repository says)",
+            "description": "its project, as its team record keeps it (`my_team` says the same): set by an agent or the owner, else worked out once from git when it was first seen (`project_auto`); null until then",
             "title": "Project"
+          },
+          "project_auto": {
+            "default": false,
+            "description": "`project` was worked out by muxtower, not set",
+            "title": "Project Auto",
+            "type": "boolean"
+          },
+          "project_source": {
+            "anyOf": [
+              {
+                "enum": [
+                  "set",
+                  "git remote",
+                  "git root",
+                  "folder"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where `project` came from: set by an agent or the owner, or worked out from its git remote, its repository's folder, or (outside git) its folder; the lists place it by its folder in that last case",
+            "title": "Project Source"
           },
           "remote_id": {
             "anyOf": [
@@ -1936,6 +1960,18 @@
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "working_dir": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where the agent works now, when that is inside `cwd` and not it (where it started, which is where it is listed)",
+            "title": "Working Dir"
           }
         },
         "required": [

@@ -83,6 +83,7 @@ from muxtower.sources.codex.shared import SharedCodexSource
 from muxtower.sources.remote_control.service import RemoteControlSource
 from muxtower.summaries.routes import router as summaries_router
 from muxtower.system.routes import router as system_router
+from muxtower.teams import placing
 from muxtower.teams.repository import SqliteTaskRepository, SqliteTeamRepository
 from muxtower.teams.routes import router as teams_router
 from muxtower.teams.service import TeamService
@@ -134,7 +135,7 @@ def create_app(
     summaries = build_summaries(settings, db)
     marks = SessionMarks(SqliteMarksRepository(db))
     transcripts = Transcripts()
-    archive = SessionArchive(SqliteArchiveRepository(db), transcripts)
+    archive = SessionArchive(SqliteArchiveRepository(db), transcripts, lambda: settings.archive.hide_after_days)
     audit = AuditLog(db)
     # Daemons joined to this one (nodes): their sessions are one more source.
     nodes = Nodes(SqliteNodeRepository(db), bus)
@@ -192,6 +193,7 @@ def create_app(
                 "transcripts": transcripts.run_loop(bus, directory.transcript_paths),
                 "auto-approve": AutoApprover(approvals, audit).run_loop(bus),
                 "team-tasks": team_tasks.run_loop(bus),
+                "team-places": placing.run_loop(teams, bus),
                 "usage": usage.run_loop(),
                 "recovery": recovery.run_loop(bus),
             }

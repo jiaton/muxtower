@@ -128,6 +128,12 @@ class RecoverySettings(BaseModel):
     mode: Literal["ask", "auto", "off"] = "ask"
 
 
+class ArchiveSettings(BaseModel):
+    """`[archive]`: archived sessions, kept to read."""
+
+    hide_after_days: int = Field(default=30, ge=0)  # no longer listed after this (kept); 0: always listed
+
+
 class UsageSettings(BaseModel):
     """When what the daemon uses is worth showing (an alert by the machine's name in the app)."""
 
@@ -164,6 +170,7 @@ class Settings(BaseModel):
     concierge: ConciergeSettings = Field(default_factory=ConciergeSettings)
     usage: UsageSettings = Field(default_factory=UsageSettings)
     recovery: RecoverySettings = Field(default_factory=RecoverySettings)
+    archive: ArchiveSettings = Field(default_factory=ArchiveSettings)
     hub: HubSettings = Field(default_factory=HubSettings)
     # What the config file, the environment or an override set (dotted keys): the settings page shows
     # those as set there, and does not change them.

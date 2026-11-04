@@ -39,3 +39,29 @@ export function migrations(): Scene {
     resumed: { interrupted_at: null, capabilities: live, state: 'idle', state_source: 'hook', tmux_pane: '%3' },
   }
 }
+
+/** Sessions ended and kept to read, under Archived: one from the laptop's desktop app, two from here. */
+export function archived(): Scene[] {
+  const done = (id: string, name: string, cwd: string, days: number, node?: string): Scene => ({
+    session: demoSession({
+      id,
+      name,
+      cwd,
+      source: 'remote_control',
+      capabilities: { ...STOPPED, conversation: true },
+      state: 'idle',
+      tmux_pane: null,
+      archived_at: ago(days * 24 * 60),
+      updated_at: ago(days * 24 * 60),
+      ...(node ? { node, machine: node, on_host: false } : {}),
+    }),
+    history: [],
+    footer: [],
+    items: [prompt(1, { text: `${name}.`, at: ago(days * 24 * 60 + 30) }), reply(2, { text: 'Done.' })],
+  })
+  return [
+    done('old-1', 'Rename the billing tables', '/home/dev/code/shop-api', 3),
+    done('old-2', 'Bump the Node version', '/home/dev/code/web-app', 9),
+    done(`${NODE}~old-3`, 'Draft the launch post', '/Users/dev/notes', 12, NODE),
+  ]
+}

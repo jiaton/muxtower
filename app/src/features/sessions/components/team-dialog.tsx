@@ -46,11 +46,10 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
   const [role, setRole] = useState(session.team_role ?? '')
   const [note, setNote] = useState(session.team_note ?? '')
   const [project, setProject] = useState(session.project ?? '')
+  // Sent only when changed: one muxtower worked out stays its own (and moves with git) until someone sets it.
+  const moved = project.trim() && project.trim() !== session.project
   const save = () =>
-    update.mutate(
-      { role: role.trim(), note: note.trim(), rename_project: false, ...(project.trim() ? { project: project.trim() } : {}) },
-      { onSuccess: onClose },
-    )
+    update.mutate({ role: role.trim(), note: note.trim(), rename_project: false, ...(moved ? { project: project.trim() } : {}) }, { onSuccess: onClose })
 
   return (
     <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -85,7 +84,10 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
             />
           </label>
           <label className="flex flex-col gap-1.5 text-sm font-medium">
-            Project
+            <span>
+              Project{' '}
+              {session.project_auto && !moved ? <span className="font-normal text-fg-muted">· auto, from {session.project_source}</span> : null}
+            </span>
             <SuggestInput
               placeholder="owner/repo"
               value={project}

@@ -1633,9 +1633,20 @@ export interface components {
             placement?: components["schemas"]["Placement"] | null;
             /**
              * Project
-             * @description the project an agent or the owner put it in (null: its repository says)
+             * @description its project, as its team record keeps it (`my_team` says the same): set by an agent or the owner, else worked out once from git when it was first seen (`project_auto`); null until then
              */
             project?: string | null;
+            /**
+             * Project Auto
+             * @description `project` was worked out by muxtower, not set
+             * @default false
+             */
+            project_auto: boolean;
+            /**
+             * Project Source
+             * @description where `project` came from: set by an agent or the owner, or worked out from its git remote, its repository's folder, or (outside git) its folder; the lists place it by its folder in that last case
+             */
+            project_source?: ("set" | "git remote" | "git root" | "folder") | null;
             /**
              * Remote Id
              * @description the controller session of this agent (Claude Code's Remote Control session, a Codex thread of the shared app-server), when it has one; listed once, under this id
@@ -1698,6 +1709,11 @@ export interface components {
              * Format: date-time
              */
             updated_at: string;
+            /**
+             * Working Dir
+             * @description where the agent works now, when that is inside `cwd` and not it (where it started, which is where it is listed)
+             */
+            working_dir?: string | null;
         };
         /** SessionNotify */
         SessionNotify: {

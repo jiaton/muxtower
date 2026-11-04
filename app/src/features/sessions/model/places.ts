@@ -2,17 +2,24 @@ import type { Session } from '@/lib/api/types'
 import { folderOf } from './facets'
 
 /**
- * Where a session is listed under its device, one place each, in this order: the project an agent or the
- * owner put it in; else its repository (as the daemon read it on the session's machine: `session.git`),
- * its main folder holding every worktree and subfolder of it; else its folder, in the folder tree.
+ * Where a session is listed under its device, one place each, in this order: its project as the daemon
+ * keeps it (set by an agent or the owner, or worked out once from git: the one `my_team` says), unless that
+ * is only its folder's name; else its repository (as the daemon read it on the session's machine:
+ * `session.git`), its main folder holding every worktree and subfolder of it; else its folder, in the
+ * folder tree. By the folder it started in (`cwd`), never where its agent went since (`working_dir`).
  */
 export type PlaceKind = 'project' | 'repository' | 'worktree' | 'folder'
 
+/** Its project, when that is what places it (not a folder's name, which the folder tree says better). */
+export const projectOf = (session: Session): string | null =>
+  session.project && session.project_source !== 'folder' ? session.project : null
+
 /** What kind of place `homeOf` is. */
-export const homeKind = (session: Session): PlaceKind => (session.project ? 'project' : session.git ? 'repository' : 'folder')
+export const homeKind = (session: Session): PlaceKind => (projectOf(session) ? 'project' : session.git ? 'repository' : 'folder')
 
 export function homeOf(session: Session): string | null {
-  if (session.project) return session.project
+  const project = projectOf(session)
+  if (project) return project
   if (session.git) return folderOf({ ...session, cwd: session.git.repo })
   return folderOf(session)
 }
@@ -28,11 +35,20 @@ export interface Worktree {
   path: string
 }
 
-/** The worktree a session runs in, when that is not its repository's main one (and no project says). */
+/** The worktree a session runs in, when that is not its repository's main one: under its project when git
+ *  gave it one, under its repository otherwise; not when someone set its project (that is its place). */
 export function worktreeOf(session: Session): Worktree | null {
   const git = session.git
-  if (session.project || !git || git.worktree === git.repo) return null
+  if (session.project_source === 'set' || !git || git.worktree === git.repo) return null
   const label = folderOf({ ...session, cwd: git.worktree }) ?? git.worktree
-  const under = folderOf({ ...session, cwd: git.repo }) ?? git.repo
+  const under = projectOf(session) ?? folderOf({ ...session, cwd: git.repo }) ?? git.repo
   return { label, under, name: git.branch ?? label.split('/').pop() ?? label, path: git.worktree }
 }
+
+/** Its project as said beside its name: as `my_team` says it, marked when muxtower worked it out. */
+export const projectLabel = (session: Session): string | null =>
+  session.project ? `${session.project}${session.project_auto ? ' (auto)' : ''}` : null
+
+/** Where its agent works now, when deeper than where it started (and is listed): said, never moving it. */
+export const workingIn = (session: Session): string | null =>
+  session.working_dir ? `working in ${folderOf({ ...session, cwd: session.working_dir })?.split('/').pop()}` : null

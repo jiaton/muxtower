@@ -60,6 +60,9 @@ describe('the demo daemon over HTTP', () => {
       'release-notes',
       'release-notes-fork',
       'laptop~migrations',
+      'old-1',
+      'old-2',
+      'laptop~old-3',
     ])
     const screen = await (await call(w, 'GET', '/v1/sessions/shop-api/screen')).json()
     expect(screen.text).toContain('Do you want to proceed?')
