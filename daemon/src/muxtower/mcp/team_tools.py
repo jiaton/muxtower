@@ -158,13 +158,15 @@ class TeamTools:
     def send_task(self, args: TaskArgs) -> str:
         assert self.tasks is not None
         caller = CALLER.get()
-        task, to = self.tasks.send(caller.session_id, caller.actor, args.to, args.text)
+        _, to, outcome = self.tasks.send(caller.session_id, caller.actor, args.to, args.text)
         who = f"{to.session.name} ({to.role or 'no role'}, {to.session.id})"
-        if task.status == "delivered":
+        if outcome == "delivered":
             return f"Delivered to {who}: it takes it up when it can (Claude Code queues it behind what it is doing)."
-        if task.status == "held":
+        if outcome == "waiting":
             return f"{who} is waiting on the owner (a prompt): it gets the task as soon as that is answered."
-        return f"Not delivered: {who} is gone."
+        if outcome == "undeliverable":
+            return f"Not delivered: {who} is gone."
+        return f"Queued for {who}: it goes out in order, behind any earlier task to it, as soon as it can."
 
     def set_role(self, args: RoleArgs) -> str:
         m = self.teams.set_role(self._target(args.session_id), args.role, args.note)

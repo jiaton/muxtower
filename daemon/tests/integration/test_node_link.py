@@ -182,7 +182,10 @@ def test_a_node_s_sessions_see_the_whole_team_through_the_hub(hub: tuple[FastAPI
         assert mine.startswith(f"You: mac~{worker.id} · worker · no role yet · @mac")
         assert f"- {research.id} · research · role: research" in mine
         assert tool(node_mcp, token, "set_role", role="worker").endswith("role worker.")
+        deliverer = Running(hub_app.state.team_tasks.run_loop(hub_app.state.bus))  # the hub's: it alone sends
+        _until(lambda: hub_app.state.team_tasks._wake is not None)
         sent = tool(node_mcp, token, "send_task", to="research", text="Spec is ready for review?")
+        deliverer.stop()
         assert sent.startswith(f"Delivered to research (research, {research.id})")
         pane = next(
             p for t, p in hub_app.state.sessions.tmux.panes.items() if p.info.session_name == research.tmux_session
