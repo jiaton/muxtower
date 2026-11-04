@@ -15,7 +15,7 @@ describe('Usage figures', () => {
   it('pairs every figure with the sentence that explains it', () => {
     render(<Usage />)
     expect(screen.getByText('111 B')).toBeInTheDocument()
-    expect(screen.getByText(/about 80 times less/)).toBeInTheDocument()
-    expect(screen.getAllByRole('term')).toHaveLength(7)
+    expect(screen.getByText(/not the whole 8.9 KB screen/)).toBeInTheDocument()
+    expect(screen.getAllByRole('term')).toHaveLength(5)
   })
 })

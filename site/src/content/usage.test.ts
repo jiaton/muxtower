@@ -16,7 +16,7 @@ describe('figures', () => {
     expect(new Set(shown).size).toBe(shown.length)
     for (const f of figures) {
       expect(f.figure.length).toBeLessThanOrEqual(6)
-      expect(f.text.length).toBeGreaterThan(40)
+      expect(f.text.length).toBeLessThanOrEqual(70)
     }
   })
 })

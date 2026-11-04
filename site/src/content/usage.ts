@@ -1,44 +1,21 @@
 export const usage = {
   label: '07',
   title: 'Built to cost little.',
-  lead: 'A daemon runs all day on every machine you own, so it stays cheap, and the app shows you what each one costs.',
+  lead: 'It runs all day on every machine, so it stays light.',
 }
 
-/** One engineering fact: a figure a developer can check, and the sentence that explains it. */
+/** One figure and a line on what it means. */
 export interface Figure {
   figure: string
   text: string
 }
 
 export const figures: Figure[] = [
-  {
-    figure: '111 B',
-    text: 'A busy Claude Code screen is 8.9 KB on the wire. The next one goes as a patch on it: 111 B, about 80 times less. The diff follows lines scrolling off the top, since Claude Code writes above its input box.',
-  },
-  {
-    figure: '2 ms',
-    text: 'The most a patch may take to work out. Longer, or not smaller, and the whole screen goes instead. One diff per screen serves every connection.',
-  },
-  {
-    figure: '5 s',
-    text: 'How often a pane nobody watches, with no output since its last read, is read; one that is live, every second. Keys typed in a row are read once, 40 ms after the last.',
-  },
-  {
-    figure: '0',
-    text: 'Outside commands run to measure: /proc on Linux, the kernel’s own calls on macOS, no `ps` or `lsof`. A value it cannot read shows as unknown, never as 0.',
-  },
-  {
-    figure: '20 ms',
-    text: 'A Codex hook relay, standard library only. muxtower trusts exactly the hooks it adds, for the session it starts, and writes nothing to `~/.codex`.',
-  },
-  {
-    figure: '30 s',
-    text: 'The longest a phone that changed networks sits on a dead socket: a ping after 25 s of quiet, 5 s to answer, then it reconnects at once.',
-  },
-  {
-    figure: '20%',
-    text: 'Of a core, or 200 ms a round, or 500 MB: past any limit, a mark by the machine’s name says what, how much, and which screen rule was slowest. The app measures its own frames and draw time too.',
-  },
+  { figure: '111 B', text: 'per terminal update, not the whole 8.9 KB screen.' },
+  { figure: '5 s', text: 'between reads of an idle pane nobody watches.' },
+  { figure: '0', text: 'outside commands run to measure itself.' },
+  { figure: '30 s', text: 'at most to reconnect when your phone switches networks.' },
+  { figure: '20%', text: 'of a core is its limit. Past it, the app tells you.' },
 ]
 
 export interface UsageRow {
