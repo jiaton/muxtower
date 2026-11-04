@@ -7,7 +7,9 @@ from pydantic import BaseModel, Field
 
 from muxtower.concierge.service import ConciergeService
 from muxtower.errors import Invalid
+from muxtower.mcp.caller import CALLER
 from muxtower.mcp.describe import line
+from muxtower.mcp.sender import headed, sender_label
 from muxtower.mcp.session_tools import SessionTools
 from muxtower.mcp.team_tools import Forward, TeamTools
 from muxtower.mcp.tool import Tool
@@ -49,7 +51,11 @@ class EventsArgs(BaseModel):
 
 
 class MessageArgs(SessionArg):
-    text: str = Field(min_length=1, max_length=20000, description="sent as the owner's message to that session")
+    text: str = Field(
+        min_length=1, max_length=20000,
+        description="what to type into that session; it arrives headed with who sent it (you), unless it answers "
+        "what the session asks now or is a slash command",
+    )  # fmt: skip
 
 
 class ApproveArgs(SessionArg):
@@ -72,6 +78,7 @@ class McpTools:
         self.directory = directory
         self.concierge = concierge
         self.hub = hub
+        self.teams = teams
         tools = [
             Tool("list_sessions", "Every agent session the owner has, one per line: id · name · @device it runs "
                  "on (or unknown device) · agent harness · what reaches it (muxtower on a device, through tmux or "
@@ -80,7 +87,10 @@ class McpTools:
             Tool("read_session", "A session's pending prompt (with option keys), the next step it offers (replies "
                  "to pick, sent with send_message), latest reply and recent conversation (or its terminal screen).",
                  ReadArgs, self.read_session),
-            Tool("send_message", "Send a message to a session, as the owner.", MessageArgs, self.send_message),
+            Tool("send_message", "Type a message into a session, at once: it arrives headed "
+                 "\"[muxtower message from <you>]\" (not as the owner's words), except an answer to what it asks "
+                 "now (a prompt, or a reply its next step offers) or a slash command, which arrive as they are. "
+                 "Relaying the owner? Say so in the text (\"the owner says: …\").", MessageArgs, self.send_message),
             Tool("approve", "Answer a session's pending permission prompt or question with an option.",
                  ApproveArgs, self.approve),
             Tool("deny", "Decline a session's pending prompt.", SessionArg, self.deny),
@@ -98,7 +108,8 @@ class McpTools:
                      EventsArgs, self.list_events),
             ]  # fmt: skip
         if teams is not None:
-            tools += TeamTools(teams, team_tasks, forward).tools()
+            self.team_tools = TeamTools(teams, team_tasks, forward)
+            tools += self.team_tools.tools()
         self.tools = {t.name: t for t in tools}
 
     def _target(self, session_id: str) -> Session:
@@ -160,8 +171,27 @@ class McpTools:
 
     def send_message(self, args: MessageArgs) -> str:
         s = self._target(args.session_id)
-        self.directory.send_input(s.id, SendInput(text=args.text, enter=True))
-        return f"Sent to {s.name}."
+        caller = CALLER.get()
+        name = role = None
+        if caller.session_id:
+            found = self.directory.find(caller.session_id)
+            kept = self.teams.kept(caller.session_id) if self.teams else None
+            name = found.name if found else None
+            role = kept.role if kept and kept.role else ("concierge" if found and found.role else None)
+        label = sender_label(name, role, caller.session_id, caller.actor)
+        text = headed(args.text, label, s.needs_attention, self._offered(s))
+        self.directory.send_input(s.id, SendInput(text=text, enter=True))
+        return f"Sent to {s.name}" + (
+            "." if text != args.text else ", as it is (it answers what it asks, or is a command)."
+        )
+
+    def _offered(self, s: Session) -> list[str]:
+        """The replies its next step offers now (`read_session` lists them), if it has one."""
+        if not s.capabilities.conversation:
+            return []
+        items = self.directory.conversation(s.id, 0, 20).items
+        step = next((i for i in reversed(items) if i.kind == ConversationItemKind.NEXT_STEP), None)
+        return [a.message for a in step.actions] if step and step.status == ItemStatus.PENDING else []
 
     def approve(self, args: ApproveArgs) -> str:
         s = self._target(args.session_id)

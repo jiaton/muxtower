@@ -40,7 +40,7 @@ def test_mcp_lists_and_calls_tools(app: FastAPI, tmux: FakeTmux) -> None:
     )
     assert sent["result"]["content"][0]["text"].startswith("Sent to")
     pane = next(p for p in tmux.panes.values() if p.info.session_name.startswith("mxt-"))
-    assert ("text", "hi") in pane.sent
+    assert ("paste", "[muxtower message from assistant (a device, not a session)]\nhi") in pane.sent
     missing = _rpc(client, auth, "tools/call", {"name": "read_session", "arguments": {"session_id": "nope"}})
     assert missing["result"]["isError"]
     assert _rpc(client, auth, "tools/call", {"name": "nope", "arguments": {}})["error"]["code"] == -32602
