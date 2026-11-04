@@ -81,6 +81,10 @@ class RuntimeConfig(BaseModel):
     # (0: always). For an agent whose hooks do not report every way a turn ends (Codex has no failure event).
     busy_stale_seconds: float = Field(default=0.0, ge=0)
     rules: list[RuleConfig] = Field(default_factory=list)
+    # Starting it again after its machine restarted (`sessions/interrupted.py`): what resumes a conversation
+    # (followed by its id), and which options take a value, to tell them from a first prompt (never resent).
+    resume: list[str] = Field(default_factory=list)
+    option_values: list[str] = Field(default_factory=list)
     # The agent's input box, as it shows at the bottom (a match starts at its first line). A dialog either
     # takes its place, or (`panel_rule`) sits right above it, framed by rule lines. While the box shows,
     # rules for a dialog see only that framed panel, or nothing: the words a dialog uses, quoted in a reply

@@ -6,6 +6,13 @@ binary = "claude"
 hooks = "claude-code"
 default_state = "idle"
 auto_approve_states = ["needs_permission", "needs_trust"]
+resume = ["--resume"]
+option_values = [
+  "--model", "--fallback-model", "--permission-mode", "--settings", "--setting-sources", "--mcp-config",
+  "--append-system-prompt", "--append-system-prompt-file", "--system-prompt", "--system-prompt-file",
+  "--allowedTools", "--allowed-tools", "--disallowedTools", "--disallowed-tools", "--add-dir", "--agent",
+  "--agents", "--remote-control", "--resume", "-r", "--session-id", "--plugin-dir", "--betas", "-n", "--name",
+]
 # Its input box between two rules (older versions: "> " over "? for shortcuts"). While it shows, a dialog
 # can only be the panel framed right above it (a tip like "Teach auto mode…"), whatever the conversation
 # above quotes.

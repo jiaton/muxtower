@@ -360,7 +360,7 @@ def test_every_place_a_folder_can_be_in_git(tmp_path: Path) -> None:
     assert where(tmp_path / "gone") == (None, None, None, "gone")
 
 
-def test_sessions_say_where_they_sit_in_git_and_only_a_project_someone_set(
+def test_sessions_say_where_they_sit_in_git_and_the_project_my_team_says(
     make_app: Callable[..., FastAPI], tmp_path: Path
 ) -> None:
     shop = tmp_path / "shop"
@@ -375,16 +375,25 @@ def test_sessions_say_where_they_sit_in_git_and_only_a_project_someone_set(
     main = app.state.sessions.create(CreateSession(runtime="claude", cwd=str(shop), name="main"))
     fix = app.state.sessions.create(CreateSession(runtime="claude", cwd=str(tmp_path / "shop-fix"), name="fix"))
     plain = app.state.sessions.create(CreateSession(runtime="claude", cwd=str(tmp_path), name="plain"))
-    _tool(client, device, "my_team")  # works out (and keeps) their projects
+    from muxtower.teams.placing import place_new
+
+    assert place_new(app.state.teams) == 3  # as soon as they are listed, not only when a tool asks
+    assert place_new(app.state.teams) == 0  # kept: worked out once
     listed = {s["id"]: s for s in client.get("/v1/sessions", headers=auth).json()}
     assert listed[main.id]["git"] == {"repo": str(shop), "worktree": str(shop), "branch": "main", "remote": None}
     assert listed[fix.id]["git"]["repo"] == str(shop) and listed[fix.id]["git"]["branch"] == "fix"
     assert listed[plain.id]["git"] is None
-    assert listed[main.id]["project"] is None  # worked out from git: the repository says it
+    assert (listed[main.id]["project"], listed[main.id]["project_auto"]) == ("shop", True)  # as my_team says
+    assert (listed[main.id]["project_source"], listed[fix.id]["project"]) == ("git root", "shop")
+    assert listed[plain.id]["project_source"] == "folder"  # placed by its folder in the lists
+    team = _tool(client, device, "my_team")
+    assert "shop" in team
     client.put(f"/v1/sessions/{fix.id}/team", json={"project": "Payments"}, headers=auth)
     assert (
         next(s for s in client.get("/v1/sessions", headers=auth).json() if s["id"] == fix.id)["project"] == "Payments"
     )
+    moved = next(s for s in client.get("/v1/sessions", headers=auth).json() if s["id"] == fix.id)
+    assert (moved["project_auto"], moved["project_source"]) == (False, "set")
 
 
 def test_one_loop_sends_each_task_once_and_goes_on_after_a_restart(

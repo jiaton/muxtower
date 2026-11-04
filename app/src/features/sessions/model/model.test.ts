@@ -149,6 +149,15 @@ describe('query', () => {
     expect([facets.views.all, facets.views.hidden, facets.views.archived]).toEqual([6, 1, 1])
   })
 
+  it('lists sessions a restart interrupted only under Interrupted, whatever else they are', () => {
+    const cut = entry('cut', { interrupted_at: '2026-11-03T08:00:00Z', hidden: true })
+    const ids = (view: 'all' | 'hidden' | 'interrupted') => filterEntries([...entries, cut], { view, group: 'status' }).map((e) => e.session.id)
+    expect(ids('all')).not.toContain('cut')
+    expect(ids('hidden')).not.toContain('cut')
+    expect(ids('interrupted')).toEqual(['cut'])
+    expect(facetsOf([...entries, cut]).views.interrupted).toBe(1)
+  })
+
   it('groups by source', () => {
     expect(groupEntries(entries, 'source').map((g) => g.label)).toEqual(['Assistant', 'tmux', 'Remote Control'])
   })
@@ -164,7 +173,7 @@ describe('query', () => {
 
   it('counts views, devices with their folders, and sources, without the assistant', () => {
     const facets = facetsOf(entries)
-    expect(facets.views).toEqual({ all: 6, needs: 2, unread: 0, working: 1, hidden: 0, archived: 0 })
+    expect(facets.views).toEqual({ all: 6, needs: 2, unread: 0, working: 1, hidden: 0, archived: 0, interrupted: 0 })
     expect(facets.devices.map(({ label, count, needs }) => ({ label, count, needs }))).toEqual([
       { label: 'hub', count: 5, needs: 2 },
       { label: NO_ENVIRONMENT, count: 1, needs: 0 },

@@ -29,9 +29,9 @@ Detach with the usual tmux keys (`Ctrl-b d`); the agent keeps running. Agents yo
 
 | | |
 |---|---|
-| `muxtower` | status: is the daemon running, which sessions need you |
+| `muxtower` | status: is the daemon running, which sessions need you; sessions a restart interrupted are listed below, to start again (all, some, or not now) |
 | `muxtower run AGENT [ARGS…]` | start an agent (`claude`, `codex`, …) in a managed tmux session; `-d` to stay detached, `-n` to name it |
-| `muxtower attach [NAME]` | open a session in this terminal |
+| `muxtower attach [NAME]` | open a session in this terminal (one a restart interrupted is started again first) |
 | `muxtower pair` | add a device with a one-time code (and a QR code when the address is known: `--url` or `public_url`). `--revoke NAME` removes one. `--join HUB --code CODE` joins this daemon to another as a node; `--leave` stops |
 | `muxtower expose tailscale` | serve the daemon over HTTPS on your tailnet (`tailscale serve`) and set `public_url` to that address; `--off` undoes it |
 | `muxtower serve` | run the daemon in the foreground (systemd, Docker). `muxtower run` starts it for you otherwise |
@@ -90,6 +90,8 @@ While a node is asleep its sessions stay listed, marked offline. Each daemon rep
 
 Update the hub first. A node that the hub can no longer talk to installs the hub's version from PyPI by itself (with pipx, or pip outside pipx) and starts again on it; a node that is only older is told so, in `muxtower` and on the app's Daemons page. Set `hub.update = "always"` on a node to have it follow every hub update, or `"never"` to only be told.
 
+**When the hub is down.** While the hub's machine restarts, the app reaches the nodes it knows directly, and goes back to the hub once it answers with its nodes linked again ("hub unreachable · direct to …" says so meanwhile). Viewing, approving, sending and interrupting work; push notifications and team changes wait for the hub. For this a node needs an https address of its own that the phone reaches: its `public_url`, or what `tailscale serve` serves it at (found by itself), or one you set for it on the hub's Daemons page. muxtower makes none: Tailscale serve on the node is the simplest; a tunnel on the node (Cloudflare Tunnel, say) does where a VPN is not an option. The hub hands each device an address and a token per node while it answers (revoking the device on the hub revokes those too, on a node that is away once it is back). Not a second hub: nothing is copied between machines.
+
 Claude sessions started outside tmux (the desktop app, an IDE, `claude remote-control`) are listed by the hub's own Remote Control, as that computer's when their process runs on a node: the node says which run there, from Claude Code's own files, with no login of its own. A node signed in to another Claude account lists that account's sessions itself: turn `remote_control.enabled` on for it (on macOS it reads the Claude login from the Keychain, as Claude Code does).
 
 ## The web app
@@ -101,15 +103,36 @@ Claude sessions started outside tmux (the desktop app, an IDE, `claude remote-co
 - *Cloudflare Workers*: fork this repository, then in the Cloudflare dashboard **Workers & Pages → Create → Import a repository**, root directory `app`, build command `npm run build`, deploy command `npx wrangler deploy`.
 - *GitHub Pages*: fork, set **Settings → Pages → Source** to *GitHub Actions*, add the repository variable `DEPLOY_PAGES=true`, and run the `pages` workflow.
 
-Daemons accept requests from any origin by default. That is safe because every request needs a token and no cookies are involved; set `cors.allowed_origins` to limit it to your app's origin.
+**A public hosted copy.** The project's site links to a copy of the app hosted on its own origin, to try without hosting one. Your pairings stay in your browser, and the host never sees your traffic (the app talks to your daemons directly), but the code it serves runs with your tokens: if that host were compromised, so would be the daemons paired there. The one your daemon serves comes first, your own hosting second; use the public copy knowing that.
 
-**Preset daemons (skip pairing).** A deployment can ship a default daemon list in `config.json`, generated at build time from the `MUXTOWER_APP_CONFIG` build variable or secret:
+Daemons accept requests from any origin by default. That is safe because every request needs a token and no cookies are involved, but it lets any app origin you paired from use your tokens. To trust only the app origins you choose, list them in `cors.allowed_origins`: your daemon's own origin is always allowed, so name the others, such as your self-hosted app (a node also allows its hub's, for when the hub is down):
 
-```json
-{ "daemons": [{ "name": "build box", "url": "https://muxtower.example.com" }] }
+```toml
+[cors]
+allowed_origins = ["https://muxtower-app.example.com"]
 ```
 
-Adding `"token"` to an entry skips pairing entirely, but anyone who can load the site can then read that token. The build refuses unless you also set `"acknowledge_public_tokens": true`, and the app shows a warning. Only do this behind an access gate such as Cloudflare Access or your own SSO.
+**Where the app keeps daemons.** The daemons a browser paired with (address, name, token, push subscription) are in that browser's localStorage (`muxtower.daemons`), per browser and per origin; a daemon keeps only each token's hash. So:
+
+- the app a daemon serves and one you host yourself have separate lists;
+- each browser and device pairs on its own: no sync and no account, by design;
+- on iOS, Safari and an app added to the Home Screen do not share storage: pair again in the added app;
+- clearing the site's data (or the browser evicting it) means pairing again; the daemons are not affected;
+- any script on that origin can read the tokens, which is why preset tokens need a gate (below);
+- the nodes a hub hands over for when it is down are kept in the same list, with the same limits; after a wipe the hub hands them over again once it answers.
+
+**Preset daemon addresses (recommended for a self-hosted app).** A deployment can ship a default daemon list in `config.json`, generated at build time from the `MUXTOWER_APP_CONFIG` build variable or secret. With addresses only, a new browser or device already lists your daemons and you only enter a pairing code; that is safe without a gate, since a code is still needed:
+
+```json
+{ "daemons": [
+  { "name": "hub", "url": "https://hub.example.com" },
+  { "name": "laptop", "url": "https://laptop.example.ts.net" }
+] }
+```
+
+An app hosted away from the hub's machine (Workers, Pages) also still loads while that machine and its way in are down, which the cached app cannot promise to a new device or after the cache was cleared (then open a node's own address: every daemon serves the same app).
+
+Adding `"token"` to an entry skips pairing entirely, but anyone who can load the site can then read that token. The build refuses unless you also set `"acknowledge_public_tokens": true`, and the app shows a warning. The trade-off: the gate's login becomes the only barrier (anyone past it controls those daemons), and revoking means rebuilding and deploying again. Only do this behind a gate you trust, such as Cloudflare Access, your own SSO or a password gate. A gate in front of the static app is a good extra layer either way.
 
 **Moving to another device.** On a paired phone, *Daemons → Add another device* shows one QR code that pairs the other device with every daemon at once. It carries one-time codes, not tokens: each device gets its own token, and the QR stops working after one use or five minutes.
 

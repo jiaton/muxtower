@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { PaneHeader } from '@/components/ui/pane'
+import { projectLabel, workingIn } from '../model/places'
 import type { Session } from '@/lib/api/types'
 import { useSession } from '../api/use-sessions'
 import { NO_ENVIRONMENT, agentOf, deviceOf, folderOf, sourceOf } from '../model/facets'
@@ -21,8 +22,11 @@ export function SessionHeader({ daemonId, session, actions }: { daemonId: string
   const setDrawer = useSessionDrawer((s) => s.setOpen)
   const agent = agentOf(session)
   const AgentIcon = agentIcon(agent)
-  const team = session.team_role ? `${session.team_role}${session.project ? ` in ${session.project}` : ''}` : null
-  const where = [team, agent, deviceOf(session) ?? NO_ENVIRONMENT, folderOf(session), sourceOf(session)].filter(Boolean)
+  const project = projectLabel(session)
+  const team = session.team_role ? `${session.team_role}${project ? ` in ${project}` : ''}` : project
+  const where = [team, agent, deviceOf(session) ?? NO_ENVIRONMENT, folderOf(session), workingIn(session), sourceOf(session)].filter(
+    Boolean,
+  )
   return (
     <PaneHeader
       leading={
@@ -41,7 +45,7 @@ export function SessionHeader({ daemonId, session, actions }: { daemonId: string
       title={
         <>
           <h1 className="min-w-0 truncate">{session.name}</h1>
-          {session.archived_at ? <Badge>Archived</Badge> : session.offline ? <Badge>Offline</Badge> : <StateBadge state={session.state} />}
+          {session.interrupted_at ? <Badge>Interrupted</Badge> : session.archived_at ? <Badge>Archived</Badge> : session.offline ? <Badge>Offline</Badge> : <StateBadge state={session.state} />}
           <StreamMark daemonId={daemonId} />
         </>
       }

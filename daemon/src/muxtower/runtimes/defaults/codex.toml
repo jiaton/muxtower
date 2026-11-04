@@ -13,6 +13,11 @@ enter_delay = 0.15
 busy_stale_seconds = 20
 auto_approve_states = ["needs_permission", "needs_trust"]
 
+resume = ["resume"]
+option_values = [
+  "-c", "--config", "-m", "--model", "-s", "--sandbox", "-a", "--ask-for-approval", "-p", "--profile",
+  "-C", "--cd", "-i", "--image", "--add-dir", "--enable", "--disable", "--local-provider",
+]
 # Its composer ("› " and what is typed, not a "› 1." choice). While it shows, no dialog is up.
 prompt = '^›(?!\s*\d+\.)'
 prompt_last_lines = 4

@@ -13,6 +13,7 @@ import { Route as SessionsRouteImport } from './routes/_sessions'
 import { Route as DaemonsRouteImport } from './routes/daemons'
 import { Route as PairRouteImport } from './routes/pair'
 import { Route as SessionsIndexRouteImport } from './routes/_sessions/index'
+import { Route as DaemonsDaemonIdSettingsRouteImport } from './routes/daemons_.$daemonId.settings'
 import { Route as SessionsDDaemonIdSSessionIdRouteImport } from './routes/_sessions/d.$daemonId.s.$sessionId'
 
 const SessionsRoute = SessionsRouteImport.update({
@@ -34,6 +35,11 @@ const SessionsIndexRoute = SessionsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SessionsRoute,
 } as any)
+const DaemonsDaemonIdSettingsRoute = DaemonsDaemonIdSettingsRouteImport.update({
+  id: '/daemons_/$daemonId/settings',
+  path: '/daemons/$daemonId/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SessionsDDaemonIdSSessionIdRoute =
   SessionsDDaemonIdSSessionIdRouteImport.update({
     id: '/d/$daemonId/s/$sessionId',
@@ -45,12 +51,14 @@ export interface FileRoutesByFullPath {
   '/': typeof SessionsIndexRoute
   '/daemons': typeof DaemonsRoute
   '/pair': typeof PairRoute
+  '/daemons/$daemonId/settings': typeof DaemonsDaemonIdSettingsRoute
   '/d/$daemonId/s/$sessionId': typeof SessionsDDaemonIdSSessionIdRoute
 }
 export interface FileRoutesByTo {
   '/daemons': typeof DaemonsRoute
   '/pair': typeof PairRoute
   '/': typeof SessionsIndexRoute
+  '/daemons/$daemonId/settings': typeof DaemonsDaemonIdSettingsRoute
   '/d/$daemonId/s/$sessionId': typeof SessionsDDaemonIdSSessionIdRoute
 }
 export interface FileRoutesById {
@@ -59,19 +67,31 @@ export interface FileRoutesById {
   '/daemons': typeof DaemonsRoute
   '/pair': typeof PairRoute
   '/_sessions/': typeof SessionsIndexRoute
+  '/daemons_/$daemonId/settings': typeof DaemonsDaemonIdSettingsRoute
   '/_sessions/d/$daemonId/s/$sessionId': typeof SessionsDDaemonIdSSessionIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/daemons' | '/pair' | '/d/$daemonId/s/$sessionId'
+  fullPaths:
+    | '/'
+    | '/daemons'
+    | '/pair'
+    | '/daemons/$daemonId/settings'
+    | '/d/$daemonId/s/$sessionId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/daemons' | '/pair' | '/' | '/d/$daemonId/s/$sessionId'
+  to:
+    | '/daemons'
+    | '/pair'
+    | '/'
+    | '/daemons/$daemonId/settings'
+    | '/d/$daemonId/s/$sessionId'
   id:
     | '__root__'
     | '/_sessions'
     | '/daemons'
     | '/pair'
     | '/_sessions/'
+    | '/daemons_/$daemonId/settings'
     | '/_sessions/d/$daemonId/s/$sessionId'
   fileRoutesById: FileRoutesById
 }
@@ -79,6 +99,7 @@ export interface RootRouteChildren {
   SessionsRoute: typeof SessionsRouteWithChildren
   DaemonsRoute: typeof DaemonsRoute
   PairRoute: typeof PairRoute
+  DaemonsDaemonIdSettingsRoute: typeof DaemonsDaemonIdSettingsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -111,6 +132,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SessionsIndexRouteImport
       parentRoute: typeof SessionsRoute
     }
+    '/daemons_/$daemonId/settings': {
+      id: '/daemons_/$daemonId/settings'
+      path: '/daemons/$daemonId/settings'
+      fullPath: '/daemons/$daemonId/settings'
+      preLoaderRoute: typeof DaemonsDaemonIdSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_sessions/d/$daemonId/s/$sessionId': {
       id: '/_sessions/d/$daemonId/s/$sessionId'
       path: '/d/$daemonId/s/$sessionId'
@@ -139,6 +167,7 @@ const rootRouteChildren: RootRouteChildren = {
   SessionsRoute: SessionsRouteWithChildren,
   DaemonsRoute: DaemonsRoute,
   PairRoute: PairRoute,
+  DaemonsDaemonIdSettingsRoute: DaemonsDaemonIdSettingsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

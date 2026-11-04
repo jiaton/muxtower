@@ -15,8 +15,8 @@ Kept in memory, written through to SQLite.
 import json
 import logging
 import threading
-from collections.abc import Iterable
-from datetime import UTC, datetime
+from collections.abc import Callable, Iterable
+from datetime import UTC, datetime, timedelta
 
 from muxtower.errors import Conflict
 from muxtower.runtimes.models import AgentState
@@ -57,8 +57,12 @@ def _view(record: ArchiveRecord) -> Session:
 
 
 class SessionArchive:
-    def __init__(self, repo: ArchiveRepository, transcripts: Transcripts | None = None) -> None:
+    def __init__(
+        self, repo: ArchiveRepository, transcripts: Transcripts | None = None,
+        hide_after_days: Callable[[], int] = lambda: 0,
+    ) -> None:  # fmt: skip
         self.repo = repo
+        self.hide_after_days = hide_after_days
         self.transcripts = transcripts
         self._lock = threading.Lock()
         self._records = {r.session_id: r for r in repo.list()}
@@ -83,8 +87,14 @@ class SessionArchive:
             self.delete(session_id)
 
     def views(self) -> list[Session]:
+        """What the Archived list shows: those archived within `hide_after_days` (0: all). The others are
+        kept (and open by id), just no longer listed."""
         with self._lock:
             records = list(self._records.values())
+        days = self.hide_after_days()
+        if days > 0:
+            since = datetime.now(UTC) - timedelta(days=days)
+            records = [r for r in records if r.archived_at >= since]
         return [_view(r) for r in records]
 
     def get(self, session_id: str) -> Session | None:

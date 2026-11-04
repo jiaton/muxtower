@@ -1,4 +1,5 @@
-import { ChevronDown, Trash2 } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { ChevronDown, Settings2, Trash2 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -54,6 +55,13 @@ export function DaemonCard({ daemon, actions }: { daemon: Daemon; actions?: Reac
           {daemon.token && !daemon.rejected ? <DevicesList daemonId={daemon.id} /> : null}
           {daemon.token && !daemon.rejected ? <NodesList daemonId={daemon.id} url={daemon.url} /> : null}
           {daemon.token && !daemon.rejected ? <UsageList daemonId={daemon.id} /> : null}
+          {daemon.token && !daemon.rejected ? (
+            <Button asChild variant="ghost" size="sm" className="self-start">
+              <Link to="/daemons/$daemonId/settings" params={{ daemonId: daemon.id }}>
+                <Settings2 /> Settings
+              </Link>
+            </Button>
+          ) : null}
           <Button variant="ghost" size="sm" className="self-start text-danger" onClick={() => remove(daemon.id)}>
             <Trash2 /> Forget on this device
           </Button>

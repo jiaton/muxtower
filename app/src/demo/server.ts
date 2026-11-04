@@ -2,6 +2,7 @@ import type { components } from '@/lib/api/schema'
 import type { MachineUsage, NodeInfo, RuntimeInfo, Session } from '@/lib/api/types'
 import { DEMO_DAEMON, NODE } from './scenes/session'
 import { plain } from './scenes/terminal'
+import { DemoSettings } from './settings'
 import type { World } from './world'
 
 type Me = components['schemas']['Me']
@@ -12,6 +13,7 @@ const json = (data: unknown, status = 200) =>
 const empty = () => new Response(null, { status: 204 })
 const refuse = (status: number, detail: string) => json({ detail }, status)
 const NOT_IN_DEMO = 'Not part of the demo: on your own daemon this works.'
+const SETTINGS = new DemoSettings()
 
 const ME: Me = {
   token_name: 'This browser',
@@ -33,6 +35,8 @@ const NODES: NodeInfo[] = [
     version: null,
     update: null,
     runtimes: RUNTIMES,
+    reported_url: 'https://laptop.demo.invalid',
+    direct_url: null,
   },
 ]
 
@@ -96,7 +100,7 @@ const SESSION_ROUTES: Record<string, Handler> = {
   'POST resize/release': (world, id) => (world.resize(id, null) ? empty() : refuse(409, 'this session has no screen')),
 }
 
-const ROUTES: Record<string, (world: World) => Response> = {
+const ROUTES: Record<string, (world: World, body: Record<string, unknown>, url: URL) => Response> = {
   'GET /v1/me': () => json(ME),
   'GET /v1/health': () => json({ status: 'ok', version: 'demo' }),
   'GET /v1/sessions': (world) => json(world.sessions()),
@@ -104,6 +108,15 @@ const ROUTES: Record<string, (world: World) => Response> = {
   'GET /v1/nodes': () => json(NODES),
   'GET /v1/devices': () => json([{ name: 'This browser', created_at: new Date().toISOString(), last_used_at: null, current: true }]),
   'GET /v1/usage': () => json(USAGE()),
+  'GET /v1/settings': (_, __, url) => json(SETTINGS.list(url.searchParams.get('node') || DEMO_DAEMON.name)),
+  'PATCH /v1/settings': (_, body, url) => {
+    const refused = SETTINGS.change((body.values ?? {}) as Record<string, unknown>)
+    return refused ? refuse(409, refused) : json(SETTINGS.list(url.searchParams.get('node') || DEMO_DAEMON.name))
+  },
+  'POST /v1/nodes/direct': () => json([{ node: NODE, url: 'https://laptop.demo.invalid', token: 'demo-direct' }]),
+  'GET /v1/recovery': (world) => json({ mode: 'ask', sessions: world.sessions().filter((s) => s.interrupted_at) }),
+  'POST /v1/recovery': (world, body) =>
+    json(world.recover(Array.isArray(body.session_ids) ? body.session_ids.filter((id) => typeof id === 'string') : [])),
 }
 
 /** What the demo's two machines use: little, as a daemon should. */
@@ -119,13 +132,13 @@ const USAGE = (): MachineUsage[] =>
 
 /** Answers a request to the demo daemon the way a daemon would, from `world`. */
 export async function respond(world: World, request: Request): Promise<Response> {
-  const { pathname } = new URL(request.url)
+  const url = new URL(request.url)
+  const { pathname } = url
   const method = request.method.toUpperCase()
   const fixed = ROUTES[`${method} ${pathname}`]
-  if (fixed) return fixed(world)
   const match = /^\/v1\/sessions\/([^/]+)(?:\/(.+))?$/.exec(pathname)
   const handler = match && SESSION_ROUTES[`${method} ${match[2] ?? ''}`]
-  if (!match || !handler) return refuse(409, NOT_IN_DEMO)
+  if (!fixed && (!match || !handler)) return refuse(409, NOT_IN_DEMO)
   const text = method === 'GET' ? '' : await request.text()
   let body: Record<string, unknown> = {}
   try {
@@ -133,5 +146,5 @@ export async function respond(world: World, request: Request): Promise<Response>
   } catch {
     return refuse(422, 'not JSON')
   }
-  return handler(world, decodeURIComponent(match[1]), body)
+  return fixed ? fixed(world, body, url) : handler!(world, decodeURIComponent(match![1]), body)
 }

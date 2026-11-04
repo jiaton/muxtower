@@ -1,6 +1,6 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { History, MessagesSquare, Reply, SquareTerminal, Unplug } from 'lucide-react'
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { QueryState } from '@/components/query-state'
 import { Banner } from '@/components/ui/banner'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -16,6 +16,7 @@ import { ConversationView } from '@/features/conversation/components/conversatio
 import { useSession } from '@/features/sessions/api/use-sessions'
 import { SessionActionsMenu } from '@/features/sessions/components/session-actions-menu'
 import { SessionHeader } from '@/features/sessions/components/session-header'
+import { InterruptedState } from '@/features/sessions/components/interrupted'
 import { useSeenWhileOpen } from '@/features/sessions/hooks/use-seen-while-open'
 import { useSessionDrawer, useSessionViews, type SessionView as View } from '@/features/sessions/store'
 import { useSendInput } from '@/features/terminal/api/use-terminal'
@@ -30,11 +31,31 @@ import { useDictation } from '@/features/voice/hooks/use-dictation'
 import { entryKey } from '@/features/sessions/model/facets'
 import type { Session } from '@/lib/api/types'
 import { useOutgoing } from '@/lib/use-outbox'
+import { directPlace, useFallback } from '@/lib/daemons/fallback'
+import { useDaemonsStore } from '@/lib/daemons/store'
 
 export const Route = createFileRoute('/_sessions/d/$daemonId/s/$sessionId')({ component: SessionPage })
 
+/** While a hub is down, its node's session is reached directly, and back once the hub answers: the page
+ *  follows it there, its draft and quotes with it (`lib/daemons/fallback.ts`). */
+function useFollowFallback(daemonId: string, sessionId: string) {
+  const navigate = useNavigate()
+  const down = useFallback((f) => f.down)
+  const daemons = useDaemonsStore((s) => s.daemons)
+  useEffect(() => {
+    const to = directPlace(daemons, daemonId, sessionId, down)
+    if (!to) return
+    const drafts = useDrafts.getState()
+    const [from, there] = [draftKey(daemonId, sessionId), draftKey(to.daemonId, to.sessionId)]
+    if (drafts.drafts[from] && !drafts.drafts[there]) drafts.setDraft(there, drafts.drafts[from])
+    if (drafts.quotes[from]?.length && !drafts.quotes[there]?.length) drafts.setQuotes(there, drafts.quotes[from])
+    void navigate({ to: '/d/$daemonId/s/$sessionId', params: to, search: true, replace: true })
+  }, [daemons, daemonId, sessionId, down, navigate])
+}
+
 function SessionPage() {
   const { daemonId, sessionId } = Route.useParams()
+  useFollowFallback(daemonId, sessionId)
   const query = useSession(daemonId, sessionId)
   return (
     <QueryState query={query}>
@@ -87,7 +108,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
     const typed = useDrafts.getState().drafts[key]?.trimEnd()
     setDraft(key, typed ? `${typed} ${said}` : said)
   })
-  const writable = !session.archived_at && !session.offline
+  const writable = !session.archived_at && !session.offline && !session.interrupted_at
   const fill = useDrafts((s) => s.fill)
   // Claude Code in a terminal runs a message that starts with "!" in its shell: a code block can be put in
   // the message box as one, to read and send (or not). Not where nothing types into a terminal (Remote
@@ -143,6 +164,8 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
         </div>
       ) : null}
 
+      {session.interrupted_at ? <InterruptedState daemonId={daemonId} session={session} /> : null}
+
       {session.offline ? (
         <div className="flex-1 p-4">
           <EmptyState icon={<Unplug />} title={`${session.node ?? 'Its computer'} is offline`}>
@@ -154,7 +177,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
       <div ref={views} className="contents">
         <CodeActionContext.Provider value={runAsCommand}>
           <Pager
-            className={session.offline ? 'hidden' : 'flex-1'}
+            className={session.offline || session.interrupted_at ? 'hidden' : 'flex-1'}
             label="Session views"
             index={both && view === 'conversation' ? 1 : 0}
             onIndexChange={(page) => both && setView(page === 1 ? 'conversation' : 'terminal')}

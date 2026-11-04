@@ -14,6 +14,7 @@ from muxtower import __version__
 from muxtower.auth.deps import DAEMON_AUTH_HEADER, get_token_service
 from muxtower.auth.routes import Audit
 from muxtower.auth.service import TokenService
+from muxtower.concierge.service import TOKEN_NAME as CONCIERGE_TOKEN
 from muxtower.errors import Conflict, Forbidden, Invalid, NotFound, Unavailable
 from muxtower.infra.audit import AuditLog
 from muxtower.infra.tmux import TmuxError
@@ -41,6 +42,10 @@ def require_caller(request: Request, tokens: Annotated[TokenService, Depends(get
     scheme, _, presented = request.headers.get("authorization", "").partition(" ")
     if scheme.lower() == "bearer":
         if device := tokens.verify(presented):
+            # The concierge reaches MCP with a token of its own (`concierge/`), and is its session.
+            concierge = request.app.state.concierge
+            if concierge is not None and device.name == CONCIERGE_TOKEN and concierge.session_id:
+                return Caller(device.name, concierge.session_id)
             return Caller(device.name)
         if (parsed := parse_session_token(presented)) and request.app.state.sessions.holds_token(*parsed):
             return Caller(f"session {parsed[0]}", parsed[0])

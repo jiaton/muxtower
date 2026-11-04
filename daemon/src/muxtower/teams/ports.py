@@ -11,6 +11,7 @@ class TeamRecord:
     project: str | None = None
     project_auto: bool = False  # worked out by muxtower (from git), not set by an agent or the owner
     agent_id: str | None = None  # the agent's own id for it (Claude Code's session id, Codex's thread id)
+    project_source: str | None = None  # when worked out: git remote | git root | folder
 
 
 class TeamRepository(Protocol):

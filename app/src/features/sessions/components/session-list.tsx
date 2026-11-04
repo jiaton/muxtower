@@ -109,6 +109,7 @@ export function SessionList({
   extra,
   foldScope,
   unfolded = false,
+  foldedFirst = false,
   held = {},
 }: {
   groups: Group[]
@@ -118,15 +119,17 @@ export function SessionList({
   extra?: Extra
   foldScope?: string
   unfolded?: boolean
+  /** Every header starts folded (showing its count) until opened: `collapsed` then holds the opened ones. */
+  foldedFirst?: boolean
 }) {
   const root = useRef<HTMLDivElement>(null)
   const collapsed = useListPrefs((s) => s.collapsed)
   const toggle = useListPrefs((s) => s.toggleCollapsed)
   const foldable = foldScope !== undefined && !unfolded
   const keyOf = (...parts: string[]) => foldKey(foldScope ?? '', ...parts)
-  const isFolded = (key: string) => foldable && collapsed.includes(key)
+  const isFolded = (key: string) => foldable && collapsed.includes(key) !== foldedFirst
   const onToggle = (key: string) => (foldable ? () => toggle(key) : undefined)
-  const folded = foldable ? collapsed : []
+  const folded = foldable ? groups.map((g) => keyOf(g.key)).filter(isFolded).concat(foldedFirst ? [] : collapsed) : []
   useFlip(root, membership(groups, folded))
 
   return (
@@ -164,7 +167,7 @@ export function SessionList({
                   return null
                 }
                 const sectionKey = keyOf(group.key, section.key)
-                const sectionFolded = isFolded(sectionKey)
+                const sectionFolded = foldable && collapsed.includes(sectionKey) // only groups start folded
                 if (sectionFolded) closed.add(section.key)
                 return (
                   <section key={section.key} aria-label={section.label}>

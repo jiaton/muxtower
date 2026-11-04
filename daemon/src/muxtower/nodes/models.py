@@ -20,6 +20,8 @@ class NodeInfo(BaseModel):
     last_seen: datetime | None = Field(default=None, description="when it was last connected")
     sessions: int = Field(description="sessions it lists")
     runtimes: list[RuntimeInfo] = Field(default_factory=list, description="what can be started there")
+    reported_url: str | None = Field(default=None, description="where it says the app can reach it itself")
+    direct_url: str | None = Field(default=None, description="the owner's address for it, used over the reported one")
 
 
 class NodeClaim(BaseModel):

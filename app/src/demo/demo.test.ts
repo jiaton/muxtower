@@ -49,13 +49,18 @@ describe('the demo world', () => {
     ).toEqual(['ship it', expect.stringContaining('demo')])
   })
 
-  it('joins each session mid-task: earlier work in order, the screen and conversation alike', () => {
+  // The story sessions join partway through their work; the small ones other stories add (a plain
+  // folder, an interrupted session) need no history.
+  const STORIES = ['shop-api', 'web-app', 'docs', 'laptop~infra', 'release-notes', 'release-notes-fork']
+
+  it('keeps every conversation in order, and joins each story session mid-task: earlier work in order, the screen and conversation alike', () => {
     const { w } = world()
     for (const session of w.sessions()) {
       const items = w.items(session.id)
       const seqs = items.map((i) => i.seq)
       expect(seqs).toEqual([...seqs].sort((a, b) => a - b))
       expect(new Set(seqs).size).toBe(seqs.length)
+      if (!STORIES.includes(session.id)) continue
       const screen = w.screen(session.id)
       if (session.capabilities.conversation) {
         expect(items.filter((i) => i.kind === 'prompt').length).toBeGreaterThanOrEqual(3)
@@ -101,6 +106,11 @@ describe('the demo daemon over HTTP', () => {
       'laptop~infra',
       'release-notes',
       'release-notes-fork',
+      'tidy-up',
+      'laptop~migrations',
+      'old-1',
+      'old-2',
+      'laptop~old-3',
     ])
     const screen = await (await call(w, 'GET', '/v1/sessions/shop-api/screen')).json()
     expect(screen.text).toContain('Do you want to proceed?')
@@ -119,6 +129,11 @@ describe('the demo daemon over HTTP', () => {
     expect((await call(w, 'POST', '/v1/sessions/release-notes/resize', { cols: 90, rows: 40 })).status).toBe(409)
     const team = await (await call(w, 'PUT', '/v1/sessions/docs/team', { role: 'writer', note: '', rename_project: false })).json()
     expect([team.team_role, team.team_note]).toEqual(['writer', null])
+    const asked = await (await call(w, 'GET', '/v1/recovery')).json()
+    expect(asked.sessions.map((s: { id: string }) => s.id)).toEqual(['laptop~migrations'])
+    const [started] = await (await call(w, 'POST', '/v1/recovery', { session_ids: ['laptop~migrations', 'docs'] })).json()
+    expect([started.id, started.interrupted_at, started.capabilities.screen]).toEqual(['laptop~migrations', null, true])
+    expect(await (await call(w, 'POST', '/v1/recovery', { session_ids: ['laptop~migrations'] })).json()).toEqual([])
   })
 })
 

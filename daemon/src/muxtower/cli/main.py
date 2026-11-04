@@ -1,8 +1,8 @@
 """`muxtower`: the one command.
 
-muxtower                 status: daemon, sessions
+muxtower                 status: daemon, sessions (and those a restart interrupted, to start again)
 muxtower run AGENT ...   start an agent in a managed tmux session (starts the daemon if needed)
-muxtower attach [NAME]   open a session in this terminal
+muxtower attach [NAME]   open a session in this terminal (one a restart interrupted is started again first)
 muxtower pair            add a device with a one-time code (--join HUB: join a hub as a node)
 muxtower expose tailscale HTTPS on your tailnet (tailscale serve), set as public_url
 muxtower serve           run the daemon in the foreground (for systemd, Docker)
@@ -18,6 +18,7 @@ from muxtower import __version__
 from muxtower.cli.client import DaemonError, LocalDaemon
 from muxtower.cli.expose import add_expose_parser
 from muxtower.cli.pair import cmd_pair
+from muxtower.cli.recover import offer, start_again
 from muxtower.cli.serve import add_serve_parser
 from muxtower.config import load_settings
 from muxtower.nodes.protocol import OLDEST, PROTOCOL
@@ -66,8 +67,11 @@ def cmd_status(_: argparse.Namespace, daemon: LocalDaemon) -> int:
     if not sessions:
         print("no sessions; start one with `muxtower run claude`")
     for s in sessions:
+        if s.get("interrupted_at"):
+            continue  # listed below, to start again
         flag = "!" if s["needs_attention"] else " "
         print(f" {flag} {s['name']:<24} {s['state']:<17} {s['runtime']:<12} {s['source']}")
+    offer(daemon, sessions)
     return 0
 
 
@@ -96,6 +100,9 @@ def cmd_attach(args: argparse.Namespace, daemon: LocalDaemon) -> int:
         if not choice.isdigit() or not 1 <= int(choice) <= len(sessions):
             return 1
         sessions = [sessions[int(choice) - 1]]
+    if sessions[0].get("interrupted_at"):
+        (sessions[0],) = start_again(daemon, sessions[:1]) or [sessions[0]]
+        print(f"started {sessions[0]['name']} again")
     return _attach(sessions[0])
 
 
