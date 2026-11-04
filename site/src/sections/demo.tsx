@@ -1,4 +1,4 @@
-import { Bot, ExternalLink, Laptop, MessagesSquare, ScanEye, ShieldCheck } from 'lucide-react'
+import { Bot, ExternalLink, Laptop, MessagesSquare, ScanEye, ShieldCheck, Users } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { PhoneFrame } from '@/components/ui/phone-frame'
 import { RichText } from '@/components/ui/rich-text'
@@ -11,6 +11,7 @@ const ICONS: Record<ScenarioId, ReactNode> = {
   approve: <ShieldCheck />,
   answer: <MessagesSquare />,
   watch: <ScanEye />,
+  team: <Users />,
   machines: <Laptop />,
   desktop: <Bot />,
 }

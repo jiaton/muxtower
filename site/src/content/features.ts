@@ -1,7 +1,7 @@
 /** What it does, and why it is safe to put on the internet. */
 
 export type FeatureId =
-  'asks' | 'approve' | 'machines' | 'conversation' | 'push' | 'voice' | 'mcp' | 'glasses' | 'codex' | 'desktop' | 'keys' | 'gate'
+  'asks' | 'approve' | 'team' | 'machines' | 'projects' | 'conversation' | 'push' | 'voice' | 'mcp' | 'glasses' | 'codex' | 'desktop' | 'keys' | 'usage' | 'gate'
 
 export const features = {
   eyebrow: 'Features',
@@ -20,9 +20,19 @@ export const featureList: { id: FeatureId; title: string; text: string }[] = [
     text: 'Approving re-reads the live screen and picks the option with the arrow keys. Nothing is typed blindly into a terminal that has moved on.',
   },
   {
+    id: 'team',
+    title: 'Agents that work as a team',
+    text: 'Give each session a role, research or worker or whatever you like. Sessions of a project find each other by role and hand each other tasks, delivered when the receiver is free, never typed into a prompt waiting on you.',
+  },
+  {
     id: 'machines',
     title: 'Every computer in one list',
     text: 'Join your laptop and your build box to the machine that is always on. One address, one list, sessions marked by computer.',
+  },
+  {
+    id: 'projects',
+    title: 'Listed by project',
+    text: 'Sessions sit by project and repository, the same repository on two computers counted once, each worktree by its branch, and a fork under the session it came from.',
   },
   {
     id: 'conversation',
@@ -63,6 +73,11 @@ export const featureList: { id: FeatureId; title: string; text: string }[] = [
     id: 'keys',
     title: 'The keys a terminal needs',
     text: 'Arrows, Enter, Esc, Tab and Ctrl-C on a pad above the message box, without the phone keyboard jumping in, for any prompt muxtower has no button for.',
+  },
+  {
+    id: 'usage',
+    title: 'Light, and says when it is not',
+    text: 'Each daemon measures its own CPU, memory and screen-reading time. Over a limit, a small mark by the machine’s name says what, how much and the limit.',
   },
   {
     id: 'gate',
