@@ -36,6 +36,8 @@ class SessionRecord:
     created_at: datetime
     named: bool = False  # renamed in muxtower (or started with a name by an agent): `sessions/naming.py`
     named_at: datetime | None = None  # when muxtower named it (at launch, or renamed)
+    agent_name: str | None = None  # the name a person gave it on the agent's side, as last seen (`naming.py`)
+    agent_name_at: datetime | None = None  # when muxtower saw that name change to it (None: not known)
     launch_args: list[str] | None = None  # the agent's options it was started with (no prompt): to start it again
     agent_id: str | None = None  # the agent's own id for its conversation (Claude Code's session, Codex's thread)
     server_id: str | None = None  # the tmux server it ran in (`TmuxPort.server_id`)
