@@ -22,6 +22,6 @@ describe('Install', () => {
     const { Install: WithApp } = await import('./install')
     render(<WithApp />)
     expect(screen.getByRole('link', { name: 'Open the app' })).toHaveAttribute('href', 'https://app.example')
-    expect(screen.getByText(/Your daemon serves this same app itself/)).toBeInTheDocument()
+    expect(screen.getByText(/Your daemon serves the same app itself/)).toBeInTheDocument()
   })
 })

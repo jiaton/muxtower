@@ -1,17 +1,30 @@
 import { ArrowUpRight, MousePointerClick } from 'lucide-react'
 import { CommandPill } from '@/components/shared/command-pill'
 import { Button } from '@/components/ui/button'
-import { demoUrl } from '@/config'
+import { config, demoUrl } from '@/config'
 import { hero } from '@/content/page'
 import { DemoShow } from '@/features/demo'
 
-/** The way into the real app (its demo build), the page's main call to action. */
+/** The way into the live demo (the real app on a simulated daemon), the page's main call to action. */
 function TryApp() {
   return (
     <Button asChild size="xl">
       <a href={demoUrl} target="_blank" rel="noreferrer">
         <MousePointerClick />
         {hero.tryApp}
+        <ArrowUpRight />
+      </a>
+    </Button>
+  )
+}
+
+/** The hosted app, for your own daemon; left out when the build names none. */
+function OpenApp() {
+  if (!config.appUrl) return null
+  return (
+    <Button asChild size="xl" variant="outline">
+      <a href={config.appUrl} target="_blank" rel="noreferrer">
+        {hero.openApp}
         <ArrowUpRight />
       </a>
     </Button>
@@ -28,12 +41,18 @@ export function Hero() {
           <p className="font-mono text-sm text-primary">{hero.eyebrow}</p>
           <h1 className="text-hero font-semibold text-balance">{hero.title}</h1>
           <p className="text-lg leading-relaxed text-muted-foreground sm:text-xl">{hero.lead}</p>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-3">
               <TryApp />
+              <OpenApp />
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {hero.tryAppNote}
+              {config.appUrl && ` ${hero.openAppNote}`}
+            </p>
+            <div className="flex">
               <CommandPill command={hero.install} />
             </div>
-            <p className="text-sm text-muted-foreground">{hero.tryAppNote}</p>
           </div>
         </div>
         <DemoShow />

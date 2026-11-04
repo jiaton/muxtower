@@ -16,10 +16,13 @@ export const hero = {
   title: 'Every machine. Every agent. One list.',
   lead: 'muxtower watches the Claude Code and Codex sessions on all your computers and lists them on a hub you host. When one needs you, your phone says so, and you answer from there.',
   install: 'pipx install muxtower',
-  tryApp: 'Try the real app',
-  tryAppNote: 'The actual muxtower app in your browser, against a simulated daemon. Nothing to install.',
-  /** Under the demo: the animation is drawn, the app is real. */
-  afterDemo: 'That was an animation. The real app is one click away: every button works, on six made-up sessions.',
+  tryApp: 'Try the live demo',
+  openApp: 'Open the app',
+  /** Under the buttons: which one is which. */
+  tryAppNote: 'Live demo: the real app on made-up sessions, click anything.',
+  openAppNote: 'The app: connect your own daemon.',
+  /** Under the demo: the animation is drawn, the live demo is the app itself. */
+  afterDemo: 'That was an animation. Now click through it yourself.',
 }
 
 export const hub = {
@@ -81,8 +84,8 @@ export const install = {
 
 /** The public hosted app: the real one, for your own daemons, apart from the demo. */
 export const hostedApp = {
-  title: 'Open the app',
-  text: 'Pair it with your own daemons. Your daemon serves this same app itself; using that one means trusting no one else’s hosting.',
+  title: 'Or use the hosted app',
+  text: 'Pair it with your daemon’s HTTPS address. Your daemon serves the same app itself.',
   action: 'Open the app',
 }
 
