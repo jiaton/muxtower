@@ -208,3 +208,27 @@ def test_old_archives_leave_the_list_and_deleting_one_drops_only_muxtowers_copy(
     assert client.delete(f"/v1/sessions/{sid}", headers=auth).status_code == 204
     assert archived() == [] and transcript.exists()  # Claude's transcript stays
     assert port.calls[calls:] == []  # nothing asked of Remote Control
+
+
+def test_a_name_the_owner_gave_stays_over_remote_controls_title(tmp_path: Path) -> None:
+    tmux = FakeTmux()
+    pane = tmux.add_pane("default", "work", "claude")
+    pane.info = dataclasses.replace(pane.info, pid=4242)
+    port = FakeRemoteControl()
+    port.sessions = [session("cse_1", title="Fix the build")]
+    source = RemoteControlSource(port, {})
+    source.tick()
+    app = _app(tmp_path, tmux, source)
+    Monitor(app.state.sessions, FakeProcesses({4242: "cse_1"}, {})).tick()
+    client = TestClient(app)
+    _, token = app.state.tokens.create("phone")
+    auth = {"Authorization": f"Bearer {token}"}
+    merged = next(s for s in client.get("/v1/sessions", headers=auth).json() if s["remote_id"] == "cse_1")
+    assert merged["name"] == "Fix the build"  # its title, until someone names it
+    assert (
+        client.patch(f"/v1/sessions/{merged['id']}", json={"name": "Muxtower Worker"}, headers=auth).status_code == 200
+    )
+    source.tick()
+    Monitor(app.state.sessions, FakeProcesses({4242: "cse_1"}, {})).tick()
+    again = next(s for s in client.get("/v1/sessions", headers=auth).json() if s["id"] == merged["id"])
+    assert again["name"] == "Muxtower Worker"  # after a refresh too
