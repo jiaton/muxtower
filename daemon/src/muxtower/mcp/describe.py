@@ -61,4 +61,12 @@ def line(s: Session, hub: str) -> str:
     where = f"in {s.cwd}" if s.cwd else "folder unknown"
     if s.fork_of:
         where += f" · {'side chat' if s.side_chat else 'fork'} of {s.fork_of}"
-    return f"{s.id} · {s.name} · @{device(s)} · {harness(s)} · via {reached(s, hub)} · {where} · {state} · {said}"
+    role = f"role: {s.team_role}" + (f" — {_short(s.team_note)}" if s.team_note else "") if s.team_role else "no role"
+    team = f"{role} · project {s.project}" if s.project else role
+    return (
+        f"{s.id} · {s.name} · {team} · @{device(s)} · {harness(s)} · via {reached(s, hub)} · {where} · {state} · {said}"
+    )
+
+
+def _short(text: str, limit: int = 40) -> str:
+    return text if len(text) <= limit else text[: limit - 1] + "…"

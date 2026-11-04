@@ -13,7 +13,7 @@ RC = SessionSource.REMOTE_CONTROL
 def test_each_line_says_device_reach_and_harness_apart() -> None:
     tmux = session(id="a1", machine="nas", origin="claude_code_cli", remote_id="cse_1")
     assert line(tmux, "nas").startswith(
-        "a1 · web · @nas · Claude Code (CLI) · via muxtower on nas: found in tmux, also Remote Control · "
+        "a1 · web · no role · @nas · Claude Code (CLI) · via muxtower on nas: found in tmux, also Remote Control · "
         "in /home/me/projects/web · idle · "
     )
     on_node = session(id="mac~b2", machine="mac", node="mac", source=SessionSource.LAUNCHED, runtime="codex")
@@ -40,3 +40,10 @@ def test_a_side_chat_and_a_fork_say_where_they_came_from() -> None:
     side = session(id="cse_8", machine="mac", source=RC, fork_of="cse_7", side_chat=True, cwd="/Users/me/x")
     assert "· in /Users/me/x · side chat of cse_7 ·" in line(side, "nas")
     assert "· fork of cse_7 ·" in line(session(id="cse_9", source=RC, fork_of="cse_7"), "nas")
+
+
+def test_each_line_says_its_role_and_project_too() -> None:
+    worker = session(id="a1", machine="nas", team_role="worker", team_note="x" * 80, project="acme/shop")
+    said = line(worker, "nas")
+    assert said.startswith(f"a1 · web · role: worker — {'x' * 39}… · project acme/shop · @nas ·")  # the note cut short
+    assert "· no role · @nas" in line(session(id="a2", machine="nas"), "nas")
