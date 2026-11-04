@@ -20,13 +20,13 @@ def with_detail(local: Session, remote: Session) -> PendingAction | None:
     return pending.model_copy(update={"tool_name": pending.tool_name or asked.tool_name, "detail": asked.detail})
 
 
-def merged(local: Session, remote: Session) -> Session:
-    """The tmux entry, with the remote side's name, conversation, summary, origin and where it came from
-    (a fork, a side chat)."""
+def merged(local: Session, remote: Session, named: bool = False) -> Session:
+    """The tmux entry, with the remote side's name (unless the owner named it in muxtower: `named`),
+    conversation, summary, origin and where it came from (a fork, a side chat)."""
     return local.model_copy(
         update={
             "pending": with_detail(local, remote),
-            "name": remote.name,
+            "name": local.name if named else remote.name,
             "origin": remote.origin,
             "summary": remote.summary,
             "unread": remote.unread,

@@ -88,7 +88,8 @@ class SessionDirectory(OwnerMarks):
         if source is None or local.remote_id is None:
             return local
         try:
-            return merged(local, source.get(local.remote_id))
+            record = self.local.repo.get(local.id)
+            return merged(local, source.get(local.remote_id), named=bool(record and record.named))
         except NotFound:
             return local
 
