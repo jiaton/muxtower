@@ -13,8 +13,9 @@ the demo: the website's `/demo/` runs the same code against daemons simulated in
   present.
 - **No preset daemons.** `MUXTOWER_APP_CONFIG` must be unset (the target refuses otherwise):
   `config.json` ships empty, since anyone can load the page.
-- **The hostname is the deployment's.** Unset `MUXTOWER_APP_DOMAIN` keeps the Worker on workers.dev;
-  set, it binds that custom domain. Never in the repository.
+- **Its host is app.muxtower.dev**: `MUXTOWER_APP_DOMAIN=app.muxtower.dev make public-app`. Unset, the
+  Worker stays on its workers.dev address, which carries the account's handle: keep it off (binding a
+  domain turns it off).
 - **2FA** on every account that can deploy it: the Cloudflare account, and the GitHub account whose
   tags it builds. Whoever can change this Worker's code runs with its users' daemon tokens.
 
