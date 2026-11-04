@@ -1,8 +1,10 @@
 import { Link } from '@tanstack/react-router'
+import { GitCompareArrows } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { ago } from '@/lib/time'
 import { NO_ENVIRONMENT, agentOf, deviceOf, folderName, folderOf, isAssistant, sourceOf, type SessionEntry } from '../model/facets'
+import { alsoWritingText } from '../model/writes'
 import { AgentMark } from './agent-mark'
 import { NOTIFY_LEVELS } from './notify-items'
 import { StatusIcon } from './status-icon'
@@ -63,6 +65,7 @@ export function SessionRow({
     context.showAccount && session.account ? session.account : null,
   ].filter(Boolean)
   const line = lineOf(entry)
+  const writing = alsoWritingText(session)
   const quieter = session.notify !== 'all' ? NOTIFY_LEVELS.find((l) => l.level === session.notify) : undefined
 
   return (
@@ -80,6 +83,11 @@ export function SessionRow({
             <span className={cn('min-w-0 flex-1 truncate', session.unread || session.needs_attention ? 'font-semibold' : 'font-medium')}>
               {session.name}
             </span>
+            {writing ? (
+              <span title={writing} className="shrink-0 self-center">
+                <GitCompareArrows className="size-3.5 text-state-permission" role="img" aria-label={writing} />
+              </span>
+            ) : null}
             {quieter ? (
               <quieter.icon
                 className="size-3.5 shrink-0 self-center text-fg-muted"

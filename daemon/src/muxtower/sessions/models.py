@@ -90,6 +90,15 @@ class GitPlace(BaseModel):
     remote: str | None = Field(default=None, description="its origin as owner/repo")
 
 
+class AlsoWriting(BaseModel):
+    """Another session of this machine that wrote in the same git worktree lately (`writes/`)."""
+
+    worktree: str
+    session_id: str
+    name: str
+    files: list[str] = Field(description="written by both, relative to the worktree")
+
+
 class Session(BaseModel):
     id: str
     name: str
@@ -162,6 +171,11 @@ class Session(BaseModel):
         default=None,
         description="where `project` came from: set by an agent or the owner, or worked out from its git remote, "
         "its repository's folder, or (outside git) its folder; the lists place it by its folder in that last case",
+    )
+    also_writing: list[AlsoWriting] = Field(
+        default_factory=list,
+        description="other running sessions here that wrote files in the same worktree within the last minutes "
+        "(file-editing tools only, not Bash): a hint, nothing is held back",
     )
     working_dir: str | None = Field(
         default=None,

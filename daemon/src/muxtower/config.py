@@ -134,6 +134,12 @@ class ArchiveSettings(BaseModel):
     hide_after_days: int = Field(default=30, ge=0)  # no longer listed after this (kept); 0: always listed
 
 
+class WritesSettings(BaseModel):
+    """`[writes]`: telling two sessions apart that write in one worktree at once (`writes/`)."""
+
+    window_minutes: float = Field(default=30, gt=0)  # writes older than this no longer count
+
+
 class UsageSettings(BaseModel):
     """When what the daemon uses is worth showing (an alert by the machine's name in the app)."""
 
@@ -171,6 +177,7 @@ class Settings(BaseModel):
     usage: UsageSettings = Field(default_factory=UsageSettings)
     recovery: RecoverySettings = Field(default_factory=RecoverySettings)
     archive: ArchiveSettings = Field(default_factory=ArchiveSettings)
+    writes: WritesSettings = Field(default_factory=WritesSettings)
     hub: HubSettings = Field(default_factory=HubSettings)
     # What the config file, the environment or an override set (dotted keys): the settings page shows
     # those as set there, and does not change them.

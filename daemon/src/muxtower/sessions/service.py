@@ -5,7 +5,7 @@ import os
 import secrets
 import time
 import uuid
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -55,6 +55,7 @@ class SessionService:
         self.runtimes = runtimes
         self.config = config
         self.live: dict[str, LiveSession] = {}
+        self.gone: Callable[[str], None] = lambda _: None  # it ended or was interrupted (writes/)
 
     # --- views ---------------------------------------------------------------------------------
 
@@ -206,6 +207,7 @@ class SessionService:
         record.interrupted_at = datetime.now(UTC)
         self.repo.upsert(record)
         self.live.pop(record.id, None)
+        self.gone(record.id)
 
     def know_agent(self, record: SessionRecord, transcript: str | None) -> None:
         """The agent's own id for its conversation, from its transcript's name: what resumes it."""
@@ -216,6 +218,7 @@ class SessionService:
     def forget(self, session_id: str) -> None:
         self.repo.delete(session_id)
         self.live.pop(session_id, None)
+        self.gone(session_id)
         for hook_file in self.hook_files.glob(f"{session_id}.*"):
             hook_file.unlink(missing_ok=True)
 

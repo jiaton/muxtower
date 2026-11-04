@@ -56,6 +56,8 @@ def decorate(session: Session, directory: SessionDirectory) -> Session:
         update["git"] = GitPlace(repo=found.repo, worktree=found.root, branch=found.branch, remote=found.remote)
     if update.get("project_auto") and update.get("project_source") is None:  # worked out before it was kept
         update["project_source"] = "git root" if update.get("git") else "folder"
+    if d.writing and session.node is None and not session.archived_at and (writing := d.writing(session.id)):
+        update["also_writing"] = writing
     if d.concierge_id and session.id == d.concierge_id:
         update["role"] = SessionRole.CONCIERGE
         update["capabilities"] = session.capabilities.model_copy(update={"archive": False})  # it is restarted
