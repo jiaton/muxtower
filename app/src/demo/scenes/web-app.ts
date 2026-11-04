@@ -47,6 +47,7 @@ export function webApp(): Scene {
     session: demoSession({
       id: 'web-app',
       name: 'web-app',
+      agent_name: 'Usage chart on the billing page',
       cwd: `${HOME}/code/web-app`,
       state: 'needs_answer',
       needs_attention: true,

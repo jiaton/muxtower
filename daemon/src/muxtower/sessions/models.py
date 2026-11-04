@@ -161,6 +161,9 @@ class Session(BaseModel):
         description="its project, as its team record keeps it (`my_team` says the same): set by an agent or the "
         "owner, else worked out once from git when it was first seen (`project_auto`); null until then",
     )
+    agent_name: str | None = Field(
+        default=None, description="the name its agent gives it (Claude Code's title), offered when renaming"
+    )
     project_auto: bool = Field(default=False, description="`project` was worked out by muxtower, not set")
     project_anchor: str | None = Field(
         default=None,

@@ -1552,6 +1552,11 @@ export interface components {
              */
             account?: string | null;
             /**
+             * Agent Name
+             * @description the name its agent gives it (Claude Code's title), offered when renaming
+             */
+            agent_name?: string | null;
+            /**
              * Also Writing
              * @description other running sessions here that wrote files in the same worktree within the last minutes (file-editing tools only, not Bash): a hint, nothing is held back
              */

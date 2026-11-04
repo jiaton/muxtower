@@ -23,6 +23,7 @@ def session_view(svc: "SessionService", record: SessionRecord) -> Session:
     return Session(
         id=record.id,
         name=record.name if record.named else (live.title or record.name),  # else its tmux session's
+        agent_name=live.title,
         runtime=record.runtime,
         cwd=record.cwd,
         source=record.source,

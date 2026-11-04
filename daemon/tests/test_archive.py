@@ -232,3 +232,4 @@ def test_a_name_the_owner_gave_stays_over_remote_controls_title(tmp_path: Path) 
     Monitor(app.state.sessions, FakeProcesses({4242: "cse_1"}, {})).tick()
     again = next(s for s in client.get("/v1/sessions", headers=auth).json() if s["id"] == merged["id"])
     assert again["name"] == "Muxtower Worker"  # after a refresh too
+    assert again["agent_name"] == "Fix the build"  # what Claude Code calls it, offered when renaming
