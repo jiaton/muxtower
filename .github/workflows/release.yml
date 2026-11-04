@@ -1,6 +1,8 @@
 name: release
 # A tag vX.Y.Z (the version in daemon/pyproject.toml) publishes that release to PyPI, through PyPI's
 # trusted publishing (no token stored here): the wheel carries the built web and glasses apps.
+# Then, only once that succeeded and only where the repository variable DEPLOY_PUBLIC_APP is "true",
+# the public hosted app is deployed from the same tag (app/deploy/README.md).
 on:
   push:
     tags: ["v*"]
@@ -37,3 +39,33 @@ jobs:
       - uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: daemon/dist/
+
+  public-app:
+    # Opt-in, so a fork's tags deploy nothing. Its environment holds the Cloudflare token, the account
+    # and the domain (none in this file), and only tags may deploy from it.
+    needs: pypi
+    if: vars.DEPLOY_PUBLIC_APP == 'true'
+    runs-on: ubuntu-latest
+    environment: public-app
+    permissions:
+      contents: read
+    concurrency:
+      group: public-app
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the tag itself, which `make public-app` checks HEAD is on
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: |
+            app/package-lock.json
+            app/deploy/package-lock.json
+      - name: Deploy the public app from this tag
+        run: make public-app
+        env:
+          MUXTOWER_APP_DOMAIN: ${{ vars.PUBLIC_APP_DOMAIN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

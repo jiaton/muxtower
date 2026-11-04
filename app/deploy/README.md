@@ -21,3 +21,21 @@ the demo: the website's `/demo/` runs the same code against daemons simulated in
 
 The website links to it when built with `MUXTOWER_SITE_APP_URL`, with the line that the daemon serves the
 same app itself.
+
+## On every release, from CI
+
+`.github/workflows/release.yml` deploys it after a tag's PyPI release succeeded (job `public-app`,
+`needs: pypi`, so a failed release deploys nothing), by running the same `make public-app` on the tag.
+It is opt-in, so a fork's tags deploy nothing unless its owner sets it up:
+
+- **Repository variable** `DEPLOY_PUBLIC_APP` = `true` (Settings › Secrets and variables › Actions ›
+  Variables). Unset, the job is skipped.
+- **Environment `public-app`** (Settings › Environments), with deployment refs limited to tags `v*`, and:
+  - secret `CLOUDFLARE_API_TOKEN`: an API token with only *Account › Workers Scripts › Edit* on the
+    account and *Zone › Workers Routes › Edit* on the app's zone;
+  - variable `CLOUDFLARE_ACCOUNT_ID`;
+  - variable `PUBLIC_APP_DOMAIN`: the custom domain (`app.muxtower.dev` here). Unset, the Worker is
+    deployed on its workers.dev address.
+
+The domain never sits in the workflow, so a fork that turns this on deploys to its own. A release that is
+already out can be deployed by hand: `MUXTOWER_APP_DOMAIN=… make public-app` from a worktree on its tag.
