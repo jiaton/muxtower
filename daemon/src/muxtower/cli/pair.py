@@ -25,12 +25,27 @@ def _lan_ip() -> str | None:
     return None if ip.startswith("127.") else ip
 
 
-def candidates(port: int) -> list[tuple[str, str]]:
+LOOPBACK = ("127.0.0.1", "localhost", "::1")
+
+
+def candidates(
+    port: int, host: str = "127.0.0.1", tailscale: str | None = None, lan: str | None = None
+) -> list[tuple[str, str]]:
+    """The addresses a device might reach this daemon at, each with what it is good for."""
     found = []
-    if url := tailscale_url():
-        found.append((url, "Tailscale, after `muxtower expose tailscale`"))
-    if ip := _lan_ip():
-        found.append((f"http://{ip}:{port}", "LAN (plain HTTP: no push notifications)"))
+    if tailscale:
+        found.append((tailscale, "Tailscale (https): works from any app, a hosted one too"))
+    if lan:
+        if host in LOOPBACK:
+            found.append(
+                (f"http://{lan}:{port}", "not reachable: the daemon listens on this machine only (set `host`)")
+            )
+        else:
+            found.append((
+                f"http://{lan}:{port}",
+                "LAN, plain HTTP: open it directly in a browser; a hosted https app (such as app.muxtower.dev) "
+                "cannot pair with plain HTTP, and there are no push notifications",
+            ))  # fmt: skip
     found.append((f"http://127.0.0.1:{port}", "this machine only"))
     return found
 
@@ -73,8 +88,11 @@ def cmd_pair(args: argparse.Namespace, daemon: LocalDaemon) -> int:
         # Which address a device will use (LAN, tailnet, a proxy, a tunnel) is not knowable from here, so
         # nothing is baked into a QR code. The device opens whatever address works for it.
         print(f"Pairing code: {code['code']}\n")
+        tailscale = tailscale_url()
+        if not tailscale:
+            print("No https address yet: `muxtower expose tailscale` gives it one (any app, push notifications).\n")
         print("Open this daemon's address on the new device and enter the code. Addresses seen from here:")
-        for candidate, note in candidates(daemon.settings.port):
+        for candidate, note in candidates(daemon.settings.port, daemon.settings.host, tailscale, _lan_ip()):
             print(f"  {candidate}  ({note})")
         print("\nFor a QR code, pass --url, set public_url in the config, or run `muxtower expose tailscale`.")
     print(f"The code works once and expires at {expires} UTC.")

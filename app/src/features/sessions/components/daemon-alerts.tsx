@@ -1,7 +1,9 @@
 import { Link } from '@tanstack/react-router'
 import { CircleAlert, Unplug } from 'lucide-react'
 import { Banner } from '@/components/ui/banner'
+import { ApiError } from '@/lib/api/client'
 import { useStreamStatus } from '@/lib/api/streams'
+import { whyUnreachable } from '@/lib/reach'
 import { useFallback } from '@/lib/daemons/fallback'
 import { useDaemonsStore, useRejectedDaemons } from '@/lib/daemons/store'
 import type { DaemonSessions } from '../api/use-sessions'
@@ -63,7 +65,7 @@ export function DaemonAlerts({ daemons }: { daemons: DaemonSessions[] }) {
         <Banner key={daemon.id} tone="error">
           <CircleAlert />
           <span>
-            {daemon.name}: {error!.message}
+            {daemon.name}: {error instanceof ApiError ? error!.message : whyUnreachable(daemon.url, error, location)}
           </span>
         </Banner>
       ))}
