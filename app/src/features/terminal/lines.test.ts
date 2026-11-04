@@ -37,8 +37,9 @@ describe('collapseGap', () => {
   })
 
   it('counts a line of styled spaces as blank', () => {
-    const styled = ['<b>header</b>', '<span class="x">   </span>', '<span>&nbsp;</span>', '', 'prompt']
+    const styled = ['<b>header</b>', '<span class="x">   </span>', '<span>\u00a0</span>', '', 'prompt']
     expect(collapseGap(styled, 3, 5)).toEqual(['<b>header</b>', '', 'prompt'])
+    expect(collapseGap(['h', '&amp;', '', '', 'p'], 3, 5)).toEqual(['h', '&amp;', '', 'p']) // an escaped & shows
   })
 })
 
