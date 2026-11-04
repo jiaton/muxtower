@@ -1,7 +1,7 @@
 export const usage = {
   label: '07',
   title: 'Built to cost little.',
-  lead: 'A daemon runs all day on every machine you own, so it has to be cheap, and it measures itself to prove it. Every number here is from `docs/design.md`, measured or enforced in code.',
+  lead: 'A daemon runs all day on every machine you own, so it stays cheap, and the app shows you what each one costs.',
 }
 
 /** One engineering fact: a figure a developer can check, and the sentence that explains it. */
