@@ -521,6 +521,52 @@
         "title": "Device",
         "type": "object"
       },
+      "DirectNode": {
+        "properties": {
+          "node": {
+            "title": "Node",
+            "type": "string"
+          },
+          "token": {
+            "description": "a device token of that node, for this device",
+            "title": "Token",
+            "type": "string"
+          },
+          "url": {
+            "description": "https: where the app reaches it itself",
+            "title": "Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "node",
+          "url",
+          "token"
+        ],
+        "title": "DirectNode",
+        "type": "object"
+      },
+      "DirectUrl": {
+        "properties": {
+          "direct_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "https; null: the address the node reports",
+            "title": "Direct Url"
+          }
+        },
+        "required": [
+          "direct_url"
+        ],
+        "title": "DirectUrl",
+        "type": "object"
+      },
       "ErrorFrame": {
         "properties": {
           "message": {
@@ -1059,6 +1105,18 @@
       "NodeInfo": {
         "description": "A daemon joined to this one: its sessions are listed here, as from any other source.",
         "properties": {
+          "direct_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the owner's address for it, used over the reported one",
+            "title": "Direct Url"
+          },
           "joined_at": {
             "format": "date-time",
             "title": "Joined At",
@@ -1084,6 +1142,18 @@
           "online": {
             "title": "Online",
             "type": "boolean"
+          },
+          "reported_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where it says the app can reach it itself",
+            "title": "Reported Url"
           },
           "runtimes": {
             "description": "what can be started there",
@@ -3213,6 +3283,32 @@
         ]
       }
     },
+    "/v1/nodes/direct": {
+      "post": {
+        "description": "For this device: each connected node's address and a device token of its own, to reach it directly\nwhile the hub is down (made anew each time; revoking this device here revokes them).",
+        "operationId": "direct_tokens_v1_nodes_direct_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/DirectNode"
+                  },
+                  "title": "Response Direct Tokens V1 Nodes Direct Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Direct Tokens",
+        "tags": [
+          "nodes"
+        ]
+      }
+    },
     "/v1/nodes/{name}": {
       "delete": {
         "description": "Forgets a node: its link closes, its sessions leave the lists, and it can no longer link.",
@@ -3244,6 +3340,50 @@
           }
         },
         "summary": "Remove Node",
+        "tags": [
+          "nodes"
+        ]
+      },
+      "patch": {
+        "description": "The owner's address for reaching a node itself while the hub is down, over the one it reports.",
+        "operationId": "set_direct_url_v1_nodes__name__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "title": "Name",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DirectUrl"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Direct Url",
         "tags": [
           "nodes"
         ]
