@@ -61,3 +61,34 @@ def test_the_migration_keeps_explicit_renames_and_dates_launch_names(tmp_path: P
         rows = {r["id"]: (r["named"], r["named_at"]) for r in conn.execute("SELECT id, named, named_at FROM sessions")}
     assert rows["renamed"] == (1, (T0 + timedelta(hours=3)).isoformat())  # the owner's rename, kept as such
     assert rows["launched"] == (0, T0.isoformat())  # named at launch only
+
+
+def test_a_restart_that_restores_an_old_name_is_no_rename_but_a_new_name_there_is() -> None:
+    from muxtower.sessions.naming import as_seen, seen
+
+    renamed = replace(LAUNCHED, name="Muxtower Worker", named=True, named_at=T0)
+    restored = AgentName("user", T0 + timedelta(hours=3))  # Claude Code stamps nameSince when it starts
+    now = T0 + timedelta(hours=3, seconds=3)
+    assert seen(renamed, "Muxtower 项目重构规划", restored, now)  # first seen: set there, when not known
+    assert renamed.agent_name_at is None
+    assert chosen(renamed, "Muxtower 项目重构规划", as_seen(renamed, "Muxtower 项目重构规划", restored)) == (
+        "Muxtower Worker",
+        True,
+    )
+    assert not seen(
+        renamed, "Muxtower 项目重构规划", AgentName("user", now + timedelta(hours=1)), now
+    )  # again: no change
+
+    later = now + timedelta(hours=2)
+    assert seen(renamed, "Worker 2", AgentName("user", later), later)  # renamed in Claude, after muxtower
+    assert chosen(renamed, "Worker 2", as_seen(renamed, "Worker 2", AgentName("user", later))) == ("Worker 2", False)
+    assert seen(renamed, "x", AgentName("derived", later), later) is False  # one it made up is no naming
+
+
+def test_a_launch_name_still_gives_way_to_one_set_there() -> None:
+    from muxtower.sessions.naming import as_seen, seen
+
+    launched = replace(LAUNCHED)
+    seen(launched, "openclaw 语音", AgentName("user", T0 + timedelta(hours=1)), T0 + timedelta(hours=1))
+    origin = as_seen(launched, "openclaw 语音", AgentName("user", T0 + timedelta(hours=1)))
+    assert chosen(launched, "openclaw 语音", origin) == ("openclaw 语音", False)

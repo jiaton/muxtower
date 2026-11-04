@@ -18,7 +18,7 @@ from muxtower.sessions.images import ImageFile, read_shown
 from muxtower.sessions.marks import SessionMarks
 from muxtower.sessions.merged import merged
 from muxtower.sessions.models import AlsoWriting, Conversation, Session, UpdateSession
-from muxtower.sessions.naming import AgentName, chosen
+from muxtower.sessions.naming import AgentName, as_seen, chosen
 from muxtower.sessions.owner_marks import OwnerMarks
 from muxtower.sessions.ports import ClaudeProcessPort, SessionSourcePort
 from muxtower.sessions.service import SessionService
@@ -93,6 +93,7 @@ class SessionDirectory(OwnerMarks):
             live = self.local.live.get(local.id)
             remote = source.get(local.remote_id)
             title, origin = (live.title, live.title_origin) if live else (None, None)
+            origin = as_seen(record, title, origin) if record else origin
             if remote.name and title and remote.name != title:  # named on Remote Control's side, by someone
                 title, origin = remote.name, AgentName("user")
             ours = record is not None and chosen(record, title, origin)[1]

@@ -14,6 +14,7 @@ from muxtower.infra.bus import EventBus
 from muxtower.runtimes.models import AgentState
 from muxtower.runtimes.spec import Classification
 from muxtower.sessions.live import ScreenState
+from muxtower.sessions.naming import seen as seen_name
 from muxtower.sessions.ports import ClaudeProcessPort
 from muxtower.sessions.reconcile import Reconciler
 from muxtower.sessions.service import SessionService
@@ -145,6 +146,9 @@ class Monitor(Reconciler):
             origin = ask(pid, text) if ask and pid and title else None
             if origin != live.title_origin:
                 live.title_origin = origin
+                result.sessions_changed = True
+            if seen_name(record, title, origin, datetime.now(UTC)):  # a new name set there, not a restored one
+                svc.repo.upsert(record)
                 result.sessions_changed = True
             alt_screen, attached = bool(pane and pane.alternate), bool(pane and pane.attached)
             if transcript:

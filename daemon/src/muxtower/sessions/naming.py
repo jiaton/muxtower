@@ -16,6 +16,24 @@ if TYPE_CHECKING:
     from muxtower.sessions.ports import SessionRecord
 
 
+def seen(record: "SessionRecord", title: str | None, origin: "AgentName | None", now: datetime) -> bool:
+    """Notes the name a person gave the session on the agent's side, and when it changed to it; True when
+    the record changed. The agent's own `since` is not believed: Claude Code stamps it anew each time it
+    starts and restores an old name. The first one seen was set at a time not known."""
+    if not title or origin is None or origin.source != "user" or title == record.agent_name:
+        return False
+    record.agent_name_at = now if record.agent_name is not None else None
+    record.agent_name = title
+    return True
+
+
+def as_seen(record: "SessionRecord", title: str | None, origin: "AgentName | None") -> "AgentName | None":
+    """The agent's naming as muxtower saw it happen, in place of the time the agent says."""
+    if origin is not None and origin.source == "user" and title == record.agent_name:
+        return AgentName("user", record.agent_name_at)
+    return origin
+
+
 @dataclass(frozen=True)
 class AgentName:
     """Where the agent's own name for the session came from: "user" or "derived", and since when."""
