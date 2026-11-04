@@ -1,5 +1,6 @@
-"""What the process uses, read cheaply: /proc where there is one (Linux), the standard library otherwise.
-None where it cannot be read, never a made-up 0. No outside commands."""
+"""What the process uses, read cheaply: /proc where there is one (Linux), the kernel's own calls on macOS
+(`infra/libproc.py`), the standard library otherwise. None where it cannot be read, never a made-up 0. No
+outside commands."""
 
 import os
 import resource
@@ -7,6 +8,7 @@ import sys
 import threading
 from pathlib import Path
 
+from muxtower.infra.libproc import libproc
 from muxtower.infra.procfs import Children
 
 PROC = Path("/proc")
@@ -19,7 +21,15 @@ def cpu_seconds() -> float:
     return times.user + times.system
 
 
+def _task(pid: int | str) -> tuple[float, float, int] | None:
+    kernel = libproc()
+    return kernel.task(os.getpid() if pid == "self" else int(pid)) if kernel else None
+
+
 def rss_mb(pid: int | str = "self", proc: Path = PROC) -> float | None:
+    if not proc.is_dir():
+        task = _task(pid)
+        return task[0] if task else None
     try:
         for line in (proc / str(pid) / "status").read_text().splitlines():
             if line.startswith("VmRSS:"):
@@ -41,7 +51,10 @@ def threads(proc: Path = PROC) -> int | None:
                 return int(line.split()[1])
     except (OSError, ValueError, IndexError):
         pass
-    return threading.active_count() if not proc.is_dir() else None  # Python's own, where there is no /proc
+    if not proc.is_dir():
+        task = _task("self")
+        return task[2] if task else threading.active_count()  # Python's own, where nothing else tells
+    return None
 
 
 def open_files() -> int | None:
@@ -57,7 +70,11 @@ def children(proc: Path = PROC) -> list[tuple[int, str, float]] | None:
     """(pid, name, CPU seconds) of this process's children, or None without /proc (macOS: only `ps` knows,
     and no outside command runs here)."""
     if not proc.is_dir():
-        return None
+        kernel = libproc()
+        if kernel is None or (table := kernel.parents()) is None:
+            return None
+        mine = sorted(pid for pid, parent in table if parent == os.getpid())
+        return [(pid, info[1], task[1]) for pid in mine if (info := kernel.bsd(pid)) and (task := kernel.task(pid))]
     found = []
     for pid in sorted(Children(proc)(os.getpid())):
         try:
