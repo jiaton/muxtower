@@ -5,6 +5,8 @@ export const nav = [
   { href: '#demo', label: 'Demo' },
   { href: '#hub', label: 'Hub' },
   { href: '#team', label: 'Teams' },
+  { href: '#assistant', label: 'Assistant' },
+  { href: '#api', label: 'API' },
   { href: '#install', label: 'Install' },
   { href: '#faq', label: 'FAQ' },
 ]
@@ -25,7 +27,7 @@ export const hub = {
   facts: [
     'A joined machine dials out to the hub, so a laptop needs no address and no open port.',
     'The hub reaches your phone over HTTPS: `muxtower expose tailscale`, or your own domain behind any proxy. No SSH to expose.',
-    'A sleeping laptop’s sessions stay listed, marked offline. A machine too old for its hub installs the hub’s version itself.',
+    'A sleeping laptop’s sessions stay listed, marked offline, and come back when it wakes.',
   ],
 }
 
@@ -41,24 +43,24 @@ export const team = {
 }
 
 export const sources = {
-  label: '03',
+  label: '04',
   title: 'Wherever the session started.',
   lead: 'You do not have to start agents through muxtower. It finds them where they already run.',
 }
 
 export const reach = {
-  label: '04',
+  label: '05',
   title: 'Answer from wherever you are.',
 }
 
 export const security = {
-  label: '05',
+  label: '09',
   title: 'Safe on the open internet.',
   lead: 'muxtower brings its own lock, and fits behind whatever you already run.',
 }
 
 export const install = {
-  label: '06',
+  label: '10',
   title: 'Running in two minutes.',
   lead: 'Python 3.11+ and tmux on the machine your agents run on. The daemon serves the app itself.',
 }

@@ -3,6 +3,7 @@ import { Section, SectionHeading } from '@/components/shared/section'
 import { Terminal } from '@/components/shared/terminal'
 import { teamTranscript } from '@/content/lists'
 import { team } from '@/content/page'
+import { TeamExamples } from './team-examples'
 
 export function Team() {
   return (
@@ -14,6 +15,7 @@ export function Team() {
           <FactList facts={team.facts} />
         </div>
       </div>
+      <TeamExamples />
     </Section>
   )
 }
