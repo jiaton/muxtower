@@ -3,6 +3,7 @@ source cannot do (a screen, input as typed, resizing, renaming, stopping) goes t
 
 Every daemon is built with it; one that no node has joined behaves exactly as `SessionDirectory`."""
 
+from collections.abc import Sequence
 from typing import Any
 
 from muxtower.errors import Conflict
@@ -11,6 +12,7 @@ from muxtower.nodes.source import NodeSource
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.images import ImageFile
 from muxtower.sessions.models import Conversation, Session, UpdateSession
+from muxtower.sessions.names import NameSeen
 from muxtower.terminal.models import Resize, Screen, SendInput
 
 
@@ -37,6 +39,11 @@ class HubDirectory(SessionDirectory):
         """Its node has it, and it is not one kept in the archive here."""
         archived = self.archive_store is not None and self.archive_store.get(session_id) is not None
         return not archived and self.source_of(session_id) is self.nodes
+
+    def names(self, session_id: str) -> Sequence[NameSeen]:
+        if self._on_node(session_id):  # kept where it runs
+            return self.nodes.names(session_id)
+        return super().names(session_id)
 
     def conversation(self, session_id: str, after: int, limit: int) -> Conversation:
         if self._on_node(session_id):  # its node reads it from where it is whole (its transcript)

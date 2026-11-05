@@ -12,14 +12,16 @@ for. A node that is offline answers nothing; its sessions are listed from its la
 import asyncio
 import base64
 from collections.abc import Callable
+from datetime import datetime
 from typing import Any
 
 from muxtower.approval.models import ApprovalResult
-from muxtower.errors import Conflict, NotFound
+from muxtower.errors import Conflict, Invalid, NotFound
 from muxtower.nodes.hub import Node, Nodes
 from muxtower.runtimes.models import AgentState
 from muxtower.sessions.images import ImageFile
 from muxtower.sessions.models import Capabilities, Conversation, CreateSession, Session, UpdateSession
+from muxtower.sessions.names import NameSeen
 from muxtower.sessions.ports import SessionSource
 from muxtower.terminal.models import ImageInput, Resize, Screen, SendInput
 
@@ -123,6 +125,14 @@ class NodeSource:
         if running is loop:
             raise RuntimeError("a node call would block the event loop")
         return asyncio.run_coroutine_threadsafe(link.call(method, params, timeout), loop).result(timeout + 5)
+
+    def names(self, session_id: str) -> list[NameSeen]:
+        """A node's session's other names, as its node keeps them (an older node: none)."""
+        try:
+            result = self._call(session_id, "names")
+        except Invalid:
+            return []
+        return [NameSeen(r["name"], r["source"], datetime.fromisoformat(r["last_seen"])) for r in result or []]
 
     def conversation(self, session_id: str, after: int, limit: int) -> Conversation:
         result = self._call(session_id, "conversation", {"after": after, "limit": limit})

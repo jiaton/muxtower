@@ -1,7 +1,9 @@
 import asyncio
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Request, Response
+from pydantic import BaseModel, Field
 
 from muxtower.approval.models import ApprovalResult, Approve
 from muxtower.auth.deps import CurrentDevice
@@ -236,3 +238,15 @@ def deny(session_id: str, device: CurrentDevice, directory: Directory, audit: Au
     result = directory.deny(session_id)
     audit.record(device.name, "deny", session_id, f"state={result.state}")
     return result
+
+
+class SessionName(BaseModel):
+    name: str
+    source: str = Field(description="muxtower | claude (its own title) | set in claude | remote control | codex")
+    last_seen: datetime
+
+
+@router.get("/sessions/{session_id}/names")
+def session_names(session_id: str, _: CurrentDevice, directory: Directory) -> list[SessionName]:
+    """Other names it went by, latest first (at most 10, not the one it has): offered when renaming it."""
+    return [SessionName(name=n.name, source=n.source, last_seen=n.last_seen) for n in directory.names(session_id)]

@@ -5,7 +5,7 @@ session's capabilities and hands the action to the local services or to the owni
 gets a 409 instead of keys sent to the wrong place.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Literal
 
 from muxtower.approval.models import Answers, ApprovalResult
@@ -18,9 +18,10 @@ from muxtower.sessions.images import ImageFile, read_shown
 from muxtower.sessions.marks import SessionMarks
 from muxtower.sessions.merged import merged
 from muxtower.sessions.models import AlsoWriting, Conversation, Session, UpdateSession
+from muxtower.sessions.names import CODEX, REMOTE_CONTROL, NameSeen, SessionNames
 from muxtower.sessions.naming import AgentName, as_seen, chosen
 from muxtower.sessions.owner_marks import OwnerMarks
-from muxtower.sessions.ports import ClaudeProcessPort, SessionSourcePort
+from muxtower.sessions.ports import ClaudeProcessPort, SessionSource, SessionSourcePort
 from muxtower.sessions.service import SessionService
 from muxtower.sessions.transcripts import Transcripts
 from muxtower.summaries.service import SummaryService
@@ -41,6 +42,14 @@ def _as_listed(session: Session, listed_as: dict[str, str]) -> Session:
     """A fork names its parent's Remote Control id; a parent in tmux here is listed under its own."""
     parent = listed_as.get(session.fork_of or "")
     return session.model_copy(update={"fork_of": parent}) if parent else session
+
+
+# The names a source gives its sessions, for the rename dialog (`names.py`).
+SOURCE_NAMES = {
+    SessionSource.REMOTE_CONTROL: REMOTE_CONTROL,
+    SessionSource.CODEX: CODEX,
+    SessionSource.CODEX_SHARED: CODEX,
+}
 
 
 class SessionDirectory(OwnerMarks):
@@ -69,6 +78,7 @@ class SessionDirectory(OwnerMarks):
         self.transcripts = transcripts
         self.archive_store = archive
         self.anchors = ProjectAnchors()
+        self.name_store: SessionNames | None = None  # every name a session went by (`names.py`), set by the app
         self.accounts = accounts  # the account a session here runs as (`agents/accounts.py`)
         self.concierge_id: str | None = None  # set by the concierge service once its session runs
         self.team: Callable[[str], TeamRecord | None] | None = None  # set by the team service: a session's role
@@ -92,6 +102,8 @@ class SessionDirectory(OwnerMarks):
             record = self.local.repo.get(local.id)
             live = self.local.live.get(local.id)
             remote = source.get(local.remote_id)
+            if self.name_store:
+                self.name_store.note(local.id, remote.name, REMOTE_CONTROL)
             title, origin = (live.title, live.title_origin) if live else (None, None)
             origin = as_seen(record, title, origin) if record else origin
             if remote.name and title and remote.name != title:  # named on Remote Control's side, by someone
@@ -116,6 +128,10 @@ class SessionDirectory(OwnerMarks):
         remotes = [(source, v) for source, v in listed if v.id not in ended]
         merged_into = {s.remote_id for s in locals_ if s.remote_id} | {v.remote_id for _, v in remotes if v.remote_id}
         kept = [v for source, v in remotes if v.id not in merged_into and self.source_of(v.id) is source]
+        if self.name_store:
+            for v in kept:
+                if v.node is None and v.source in SOURCE_NAMES:
+                    self.name_store.note(v.id, v.name, SOURCE_NAMES[v.source])
         archived = self.archive_store.views() if self.archive_store else []
         listed_as = {s.remote_id: s.id for s in locals_ if s.remote_id}
         live = self.anchors.apply(self._decorate(_as_listed(s, listed_as)) for s in locals_ + kept)
@@ -148,6 +164,14 @@ class SessionDirectory(OwnerMarks):
         if not getattr(session.capabilities, capability):
             raise Conflict(f"{WHAT[capability]} is not available for this session")
         return session
+
+    def names(self, session_id: str) -> Sequence[NameSeen]:
+        """Blocking. Its other names, latest first (`names.py`); its past ones read from its transcript once."""
+        session = self.get(session_id)
+        if self.name_store is None:
+            return []
+        self.name_store.backfill(session.id, self.local.transcript_of(session.id))
+        return self.name_store.offered(session.id, session.name)
 
     def conversation(self, session_id: str, after: int, limit: int) -> Conversation:
         """From the transcript of the Claude Code in the session's pane (the whole history, also for one that

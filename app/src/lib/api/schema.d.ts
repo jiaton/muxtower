@@ -535,6 +535,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_id}/names": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Session Names
+         * @description Other names it went by, latest first (at most 10, not the one it has): offered when renaming it.
+         */
+        get: operations["session_names_v1_sessions__session_id__names_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_id}/notify": {
         parameters: {
             query?: never;
@@ -1864,6 +1884,21 @@ export interface components {
              */
             working_dir?: string | null;
         };
+        /** SessionName */
+        SessionName: {
+            /**
+             * Last Seen
+             * Format: date-time
+             */
+            last_seen: string;
+            /** Name */
+            name: string;
+            /**
+             * Source
+             * @description muxtower | claude (its own title) | set in claude | remote control | codex
+             */
+            source: string;
+        };
         /** SessionNotify */
         SessionNotify: {
             level: components["schemas"]["NotifyLevel"];
@@ -3132,6 +3167,37 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    session_names_v1_sessions__session_id__names_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionName"][];
+                };
             };
             /** @description Validation Error */
             422: {

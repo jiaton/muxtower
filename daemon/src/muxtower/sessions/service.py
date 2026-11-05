@@ -20,6 +20,7 @@ from muxtower.sessions.interrupted import agent_id_of, launch_options
 from muxtower.sessions.launch import launch_args
 from muxtower.sessions.live import Effective, HookState, LiveSession, merge
 from muxtower.sessions.models import CreateSession, Session, UpdateSession
+from muxtower.sessions.names import MUXTOWER, SessionNames
 from muxtower.sessions.ports import SessionRecord, SessionRepository, SessionSource
 from muxtower.sessions.views import session_view
 from muxtower.terminal.ports import TmuxPort
@@ -59,6 +60,7 @@ class SessionService:
         self.gone: Callable[[str], None] = lambda _: None  # it ended or was interrupted (writes/)
         # A runtime's default permission mode and arguments (`[launch]`), set by the app.
         self.launch_defaults: Callable[[str], tuple[str, list[str]]] = lambda _: ("agent", [])
+        self.names: SessionNames | None = None  # every name a session went by (`names.py`), set by the app
 
     # --- views ---------------------------------------------------------------------------------
 
@@ -174,6 +176,8 @@ class SessionService:
             server_id=self.tmux.server_id(self.config.socket),
         )
         self.repo.upsert(record)
+        if self.names and name and not again:
+            self.names.note(session_id, record.name, MUXTOWER)
         if again:  # what it was before it was interrupted is no more
             self.repo.save_hook_state(session_id, None)
             self.live.pop(session_id, None)
@@ -184,6 +188,8 @@ class SessionService:
         if patch.name is not None:
             record.name = patch.name
             record.named, record.named_at = True, datetime.now(UTC)
+            if self.names:
+                self.names.note(session_id, patch.name, MUXTOWER, record.named_at)
         if patch.auto_approve is not None:
             runtime = self.runtime_of(record)
             if patch.auto_approve and not (runtime and runtime.config.auto_approve_states):

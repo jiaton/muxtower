@@ -2251,6 +2251,31 @@
         "title": "Session",
         "type": "object"
       },
+      "SessionName": {
+        "properties": {
+          "last_seen": {
+            "format": "date-time",
+            "title": "Last Seen",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "source": {
+            "description": "muxtower | claude (its own title) | set in claude | remote control | codex",
+            "title": "Source",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "source",
+          "last_seen"
+        ],
+        "title": "SessionName",
+        "type": "object"
+      },
       "SessionNotify": {
         "properties": {
           "level": {
@@ -4295,6 +4320,53 @@
           }
         },
         "summary": "Send Input",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/names": {
+      "get": {
+        "description": "Other names it went by, latest first (at most 10, not the one it has): offered when renaming it.",
+        "operationId": "session_names_v1_sessions__session_id__names_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SessionName"
+                  },
+                  "title": "Response Session Names V1 Sessions  Session Id  Names Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Session Names",
         "tags": [
           "sessions"
         ]

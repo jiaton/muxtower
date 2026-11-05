@@ -60,6 +60,7 @@ from muxtower.sessions.claude_processes import ClaudeProcesses
 from muxtower.sessions.launcher import Launcher
 from muxtower.sessions.marks import SessionMarks, SqliteMarksRepository
 from muxtower.sessions.monitor import Monitor
+from muxtower.sessions.names import SessionNames
 from muxtower.sessions.placement import Placements
 from muxtower.sessions.ports import SessionSourcePort
 from muxtower.sessions.repository import SqliteSessionRepository
@@ -170,6 +171,9 @@ def create_app(
     teams = TeamService(directory, SqliteTeamRepository(db), transcript_of=directory.local.transcript_of)
     writes = WriteTracker(lambda: settings.writes.window_minutes, teams.checkouts)
     nodes.screen_feed = monitor.screen_feed  # one numbering of screens, for the stream's patches
+    names = SessionNames(db)  # every name a session went by: the rename dialog's suggestions
+    sessions.names = directory.name_store = names
+    teams.taken_over = names.inherit
     watches = SessionWatches(directory)  # sessions watching sessions (MCP watch_session)
 
     def gone(session_id: str) -> None:
