@@ -16,6 +16,7 @@ export function Drawer({
   onOpenChange,
   label,
   onPull,
+  over,
   children,
 }: {
   drawer: boolean
@@ -23,6 +24,8 @@ export function Drawer({
   onOpenChange: (open: boolean) => void
   label: string
   onPull?: (pull: Pull | null) => void
+  /** Above another drawer (the sidebar over the session list's). */
+  over?: boolean
   children: ReactNode
 }) {
   const shown = drawer && open
@@ -46,7 +49,8 @@ export function Drawer({
           aria-hidden
           onClick={() => onOpenChange(false)}
           className={cn(
-            'fixed inset-0 z-40 bg-overlay transition-opacity duration-200',
+            'fixed inset-0 bg-overlay transition-opacity duration-200',
+            over ? 'z-[60]' : 'z-40',
             shown ? 'opacity-100' : 'pointer-events-none opacity-0',
           )}
         />
@@ -60,7 +64,10 @@ export function Drawer({
         onClick={(e) => drawer && (e.target as Element).closest('a[href]') && onOpenChange(false)}
         className={cn(
           drawer
-            ? 'fixed inset-y-0 left-0 z-50 flex w-[min(85vw,24rem)] bg-bg shadow-card transition-transform duration-200 ease-out'
+            ? cn(
+                'fixed inset-y-0 left-0 flex w-[min(85vw,24rem)] bg-bg shadow-card transition-transform duration-200 ease-out',
+                over ? 'z-[70]' : 'z-50',
+              )
             : 'contents',
           drawer && !open && '-translate-x-full',
         )}

@@ -41,7 +41,7 @@ export function ListChips({
   }, [current])
 
   return (
-    <nav aria-label="Show" className={cn('-mx-3 sm:-mx-4', className)}>
+    <nav aria-label="Show" data-own-swipe className={cn('-mx-3 sm:-mx-4', className)}>
       <div ref={row} className="flex gap-1.5 overflow-x-auto px-3 [scrollbar-width:none] sm:px-4">
         {views.map((view) => (
           <Chip

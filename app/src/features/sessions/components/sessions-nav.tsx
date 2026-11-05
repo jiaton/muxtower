@@ -25,6 +25,8 @@ import { sourceIcon } from './source-icon'
 
 /** Opens the scope's only session with it, when that is what a click on it would show (see `useSoleOpener`). */
 const SoleOpener = createContext<(event: MouseEvent, target: ListSearch) => void>(() => {})
+/** In the phone's drawer: a scope replaces the page it opened on (`useBackCloses`). */
+const Replace = createContext(false)
 
 /** Side by side with the list (where opening it loses no one), a click on a scope that holds one session
  *  opens it too; not on a phone, not when it is the session already open, and only on a click, never
@@ -63,10 +65,12 @@ function ScopeLink({
   indent?: number
 }) {
   const openSole = useContext(SoleOpener)
+  const replace = useContext(Replace)
   const target = scopeSearch(search, scope)
   return (
     <Link
       to="/"
+      replace={replace}
       search={target}
       onClick={(event) => openSole(event, target)}
       activeOptions={{ exact: true }}
@@ -172,7 +176,7 @@ function DeviceTree({
  *  accounts when there is more than one, each with its count. The router
  *  marks the entry whose search params the list shows (data-status=active), also while one of its
  *  sessions is open. */
-export function SessionsNav() {
+export function SessionsNav({ replace = false }: { replace?: boolean }) {
   const { entries } = useSessionEntries()
   const facets = facetsOf(entries)
   const usage = useMachineUsage()
@@ -180,60 +184,62 @@ export function SessionsNav() {
   const openSole = useSoleOpener(entries)
 
   return (
-    <SoleOpener.Provider value={openSole}>
-      <nav aria-label="Sessions" className="flex flex-col gap-4">
-        <NavSection title="Sessions">
-          {VIEWS.filter((view) => view !== 'interrupted' || facets.views.interrupted).map((view) => {
-            const Icon = VIEW_ICONS[view]
-            return (
-              <ScopeLink key={view} search={search} scope={{ view }} className={navItemClass}>
-                <Icon aria-hidden />
-                <span className="truncate">{VIEW_LABEL[view]}</span>
-                <NavCount count={facets.views[view]} alert={view === 'needs'} accent={view === 'unread'} />
-              </ScopeLink>
-            )
-          })}
-        </NavSection>
-        <NavSection title="Devices">
-          {facets.devices.map((d) => (
-            <DeviceTree key={d.label} device={d} search={search} usage={usage.get(d.label.toLowerCase())} entries={entries} />
-          ))}
-        </NavSection>
-        {facets.agents.length ? (
-          <NavSection title="Agents">
-            {facets.agents.map((a) => (
-              <ScopeLink key={a.label} search={search} scope={{ agent: a.label }} className={navItemClass}>
-                <AgentMark decorative agent={a.label} className="size-4" />
-                <span className="truncate">{a.label}</span>
-                <NavCount count={a.needs || a.count} alert={a.needs > 0} />
-              </ScopeLink>
+    <Replace.Provider value={replace}>
+      <SoleOpener.Provider value={openSole}>
+        <nav aria-label="Sessions" className="flex flex-col gap-4">
+          <NavSection title="Sessions">
+            {VIEWS.filter((view) => view !== 'interrupted' || facets.views.interrupted).map((view) => {
+              const Icon = VIEW_ICONS[view]
+              return (
+                <ScopeLink key={view} search={search} scope={{ view }} className={navItemClass}>
+                  <Icon aria-hidden />
+                  <span className="truncate">{VIEW_LABEL[view]}</span>
+                  <NavCount count={facets.views[view]} alert={view === 'needs'} accent={view === 'unread'} />
+                </ScopeLink>
+              )
+            })}
+          </NavSection>
+          <NavSection title="Devices">
+            {facets.devices.map((d) => (
+              <DeviceTree key={d.label} device={d} search={search} usage={usage.get(d.label.toLowerCase())} entries={entries} />
             ))}
           </NavSection>
-        ) : null}
-        <NavSection title="Sources">
-          {facets.sources.map((s) => {
-            const Icon = sourceIcon(s.label)
-            return (
-              <ScopeLink key={s.label} search={search} scope={{ source: s.label }} className={navItemClass}>
-                <Icon aria-hidden />
-                <span className="truncate">{s.label}</span>
-                <NavCount count={s.needs || s.count} alert={s.needs > 0} />
-              </ScopeLink>
-            )
-          })}
-        </NavSection>
-        {facets.accounts.length ? (
-          <NavSection title="Accounts">
-            {facets.accounts.map((a) => (
-              <ScopeLink key={a.label} search={search} scope={{ account: a.label }} className={navItemClass}>
-                <UserRound aria-hidden />
-                <span className="truncate">{a.label}</span>
-                <NavCount count={a.needs || a.count} alert={a.needs > 0} />
-              </ScopeLink>
-            ))}
+          {facets.agents.length ? (
+            <NavSection title="Agents">
+              {facets.agents.map((a) => (
+                <ScopeLink key={a.label} search={search} scope={{ agent: a.label }} className={navItemClass}>
+                  <AgentMark decorative agent={a.label} className="size-4" />
+                  <span className="truncate">{a.label}</span>
+                  <NavCount count={a.needs || a.count} alert={a.needs > 0} />
+                </ScopeLink>
+              ))}
+            </NavSection>
+          ) : null}
+          <NavSection title="Sources">
+            {facets.sources.map((s) => {
+              const Icon = sourceIcon(s.label)
+              return (
+                <ScopeLink key={s.label} search={search} scope={{ source: s.label }} className={navItemClass}>
+                  <Icon aria-hidden />
+                  <span className="truncate">{s.label}</span>
+                  <NavCount count={s.needs || s.count} alert={s.needs > 0} />
+                </ScopeLink>
+              )
+            })}
           </NavSection>
-        ) : null}
-      </nav>
-    </SoleOpener.Provider>
+          {facets.accounts.length ? (
+            <NavSection title="Accounts">
+              {facets.accounts.map((a) => (
+                <ScopeLink key={a.label} search={search} scope={{ account: a.label }} className={navItemClass}>
+                  <UserRound aria-hidden />
+                  <span className="truncate">{a.label}</span>
+                  <NavCount count={a.needs || a.count} alert={a.needs > 0} />
+                </ScopeLink>
+              ))}
+            </NavSection>
+          ) : null}
+        </nav>
+      </SoleOpener.Provider>
+    </Replace.Provider>
   )
 }

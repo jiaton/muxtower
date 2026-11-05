@@ -1,6 +1,6 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Archive, CheckCheck, EyeOff, Folder, ListFilter, Monitor, RotateCcw, Rows3, Search, UserRound, X } from 'lucide-react'
-import { Fragment, useEffect, useState } from 'react'
+import { CheckCheck, Rows3, Search, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -13,15 +13,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/cn'
-import type { Facets } from '../model/counts'
 import { GROUPINGS, GROUP_LABEL, type GroupBy, type SessionQuery } from '../model/query'
 import { useMarkRead } from '../api/use-session-marks'
-import { folderName, shortFolderNames, type SessionEntry } from '../model/facets'
-import { scopeOf, scopeSearch, type ListSearch, type Scope } from '../model/search'
+import { folderName, type SessionEntry } from '../model/facets'
+import { scopeOf, scopeSearch, type ListSearch } from '../model/search'
 import { useListPrefs } from '../store'
-import { AgentMark } from './agent-mark'
-import { sourceIcon } from './source-icon'
 
 const SEARCH_DEBOUNCE_MS = 200
 
@@ -100,144 +96,6 @@ export function ListMenu({
         >
           <CheckCheck /> Mark {unread.length ? `${unread.length} ` : ''}as read
         </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
-const SEP = '\u0000'
-const encodeScope = (scope: Scope | null) =>
-  scope ? [scope.device, scope.folder, scope.agent, scope.source, scope.account].map((part) => part ?? '').join(SEP) : ''
-function decodeScope(value: string): Scope {
-  if (!value) return { view: 'all' }
-  const [device, folder, agent, source, account] = value.split(SEP).map((part) => part || undefined)
-  return { device, folder, agent, source, account }
-}
-
-/** One device (or one of its folders), one agent, one source or one account (where the sidebar is not
- *  shown). */
-export function FilterMenu({
-  query,
-  search,
-  facets,
-  className,
-}: {
-  query: SessionQuery
-  search: ListSearch
-  facets: Facets
-  className?: string
-}) {
-  const navigate = useNavigate()
-  const scope = scopeOf(query)
-  const count = (n: number) => <span className="text-xs text-fg-muted tabular-nums">{n}</span>
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Filter by device, folder, agent, source or account"
-          title="Filter"
-          className={cn(scope && 'text-accent', className)}
-        >
-          <ListFilter />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="max-h-[70dvh] overflow-y-auto">
-        <DropdownMenuRadioGroup
-          value={encodeScope(scope)}
-          onValueChange={(value) => void navigate({ to: '/', search: scopeSearch(search, decodeScope(value)) })}
-        >
-          <DropdownMenuRadioItem value="">Everything</DropdownMenuRadioItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel>Devices and folders</DropdownMenuLabel>
-          {facets.devices.map((d) => {
-            const names = shortFolderNames(d.folders.map((f) => f.label))
-            return (
-              <Fragment key={d.label}>
-                <DropdownMenuRadioItem value={encodeScope({ device: d.label })}>
-                  <Monitor className="text-fg-muted" aria-hidden />
-                  <span className="min-w-0 flex-1 truncate">{d.label}</span>
-                  {count(d.count)}
-                </DropdownMenuRadioItem>
-                {d.folders.map((f) => (
-                  <DropdownMenuRadioItem
-                    key={f.label}
-                    value={encodeScope({ device: d.label, folder: f.label })}
-                    className="pl-8"
-                    title={f.label}
-                  >
-                    <Folder className="text-fg-muted" aria-hidden />
-                    <span className="min-w-0 flex-1 truncate">{names.get(f.label)}</span>
-                    {count(f.count)}
-                  </DropdownMenuRadioItem>
-                ))}
-              </Fragment>
-            )
-          })}
-          {facets.agents.length ? (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Agents</DropdownMenuLabel>
-              {facets.agents.map((a) => (
-                <DropdownMenuRadioItem key={a.label} value={encodeScope({ agent: a.label })}>
-                  <AgentMark decorative agent={a.label} className="size-4 text-fg-muted" />
-                  <span className="min-w-0 flex-1 truncate">{a.label}</span>
-                  {count(a.count)}
-                </DropdownMenuRadioItem>
-              ))}
-            </>
-          ) : null}
-          <DropdownMenuSeparator />
-          <DropdownMenuLabel>Sources</DropdownMenuLabel>
-          {facets.sources.map((src) => {
-            const Icon = sourceIcon(src.label)
-            return (
-              <DropdownMenuRadioItem key={src.label} value={encodeScope({ source: src.label })}>
-                <Icon className="text-fg-muted" aria-hidden />
-                <span className="min-w-0 flex-1 truncate">{src.label}</span>
-                {count(src.count)}
-              </DropdownMenuRadioItem>
-            )
-          })}
-          {facets.accounts.length ? (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuLabel>Accounts</DropdownMenuLabel>
-              {facets.accounts.map((a) => (
-                <DropdownMenuRadioItem key={a.label} value={encodeScope({ account: a.label })}>
-                  <UserRound className="text-fg-muted" aria-hidden />
-                  <span className="min-w-0 flex-1 truncate">{a.label}</span>
-                  {count(a.count)}
-                </DropdownMenuRadioItem>
-              ))}
-            </>
-          ) : null}
-        </DropdownMenuRadioGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          disabled={!facets.views.hidden}
-          onSelect={() => void navigate({ to: '/', search: scopeSearch(search, { view: 'hidden' }) })}
-        >
-          <EyeOff className="text-fg-muted" aria-hidden />
-          <span className="min-w-0 flex-1 truncate">Hidden sessions</span>
-          {count(facets.views.hidden)}
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          disabled={!facets.views.archived}
-          onSelect={() => void navigate({ to: '/', search: scopeSearch(search, { view: 'archived' }) })}
-        >
-          <Archive className="text-fg-muted" aria-hidden />
-          <span className="min-w-0 flex-1 truncate">Archived sessions</span>
-          {count(facets.views.archived)}
-        </DropdownMenuItem>
-        {facets.views.interrupted ? (
-          <DropdownMenuItem onSelect={() => void navigate({ to: '/', search: scopeSearch(search, { view: 'interrupted' }) })}>
-            <RotateCcw className="text-fg-muted" aria-hidden />
-            <span className="min-w-0 flex-1 truncate">Interrupted sessions</span>
-            {count(facets.views.interrupted)}
-          </DropdownMenuItem>
-        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   )

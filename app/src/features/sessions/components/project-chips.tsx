@@ -73,7 +73,7 @@ export function ProjectChips({
   }
 
   return (
-    <nav aria-label="Projects" className={cn('-mx-3 sm:-mx-4', className)}>
+    <nav aria-label="Projects" data-own-swipe className={cn('-mx-3 sm:-mx-4', className)}>
       <div ref={row} className="flex gap-1.5 overflow-x-auto px-3 [scrollbar-width:none] sm:px-4">
         {chips.map((chip) => {
           const group = groups.find((g) => g.id === chip.id)

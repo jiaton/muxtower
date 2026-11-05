@@ -171,7 +171,7 @@ describe('SuggestInput', () => {
 })
 
 describe('SwipeActions', () => {
-  it('reveals its actions on a swipe right, keeps the swipe from clicking the row, and runs an action', () => {
+  it('reveals its actions on a swipe left, keeps the swipe from clicking the row, and runs an action', () => {
     const opened = vi.fn()
     const hide = vi.fn()
     render(
@@ -185,10 +185,10 @@ describe('SwipeActions', () => {
     const tray = screen.getByRole('button', { name: 'Hide', hidden: true }).parentElement!
     expect(tray).toHaveAttribute('aria-hidden', 'true') // closed
     Object.defineProperty(tray, 'offsetWidth', { value: 64 })
-    fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 10, clientY: 10, pointerId: 1 })
+    fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 90, clientY: 10, pointerId: 1 })
     row.parentElement!.setPointerCapture = () => {}
-    fireEvent.pointerMove(row, { pointerType: 'touch', clientX: 90, clientY: 12, pointerId: 1 })
-    fireEvent.pointerUp(row, { pointerType: 'touch', clientX: 90, clientY: 12, pointerId: 1 })
+    fireEvent.pointerMove(row, { pointerType: 'touch', clientX: 10, clientY: 12, pointerId: 1 })
+    fireEvent.pointerUp(row, { pointerType: 'touch', clientX: 10, clientY: 12, pointerId: 1 })
     fireEvent.click(row)
     expect(opened).not.toHaveBeenCalled()
     expect(tray).toHaveAttribute('aria-hidden', 'false')
@@ -207,12 +207,31 @@ describe('SwipeActions', () => {
     const tray = screen.getByRole('button', { name: 'Hide', hidden: true }).parentElement!
     Object.defineProperty(tray, 'offsetWidth', { value: 128 })
     row.setPointerCapture = () => {}
-    fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 10, clientY: 10, pointerId: 1 })
-    fireEvent.pointerMove(row, { pointerType: 'touch', clientX: 20, clientY: 21, pointerId: 1 }) // 48° off level
-    expect(fireEvent.touchMove(row, { touches: [{ clientX: 50, clientY: 60 }] })).toBe(false) // drifts: no scroll
-    fireEvent.pointerMove(row, { pointerType: 'touch', clientX: 50, clientY: 60, pointerId: 1 })
-    fireEvent.pointerUp(row, { pointerType: 'touch', clientX: 50, clientY: 60, pointerId: 1 })
+    fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 100, clientY: 10, pointerId: 1 })
+    fireEvent.pointerMove(row, { pointerType: 'touch', clientX: 90, clientY: 21, pointerId: 1 }) // 48° off level
+    expect(fireEvent.touchMove(row, { touches: [{ clientX: 60, clientY: 60 }] })).toBe(false) // drifts: no scroll
+    fireEvent.pointerMove(row, { pointerType: 'touch', clientX: 60, clientY: 60, pointerId: 1 })
+    fireEvent.pointerUp(row, { pointerType: 'touch', clientX: 60, clientY: 60, pointerId: 1 })
     expect(tray).toHaveAttribute('aria-hidden', 'false')
+  })
+
+  it('leaves a swipe right on a closed row to what is around it (the list: the sidebar)', () => {
+    const opened = vi.fn()
+    render(
+      <SwipeActions actions={<SwipeAction icon={() => null} label="Hide" onClick={() => {}} />}>
+        <button type="button" onClick={opened}>
+          row
+        </button>
+      </SwipeActions>,
+    )
+    const row = screen.getByRole('button', { name: 'row' })
+    const tray = screen.getByRole('button', { name: 'Hide', hidden: true }).parentElement!
+    Object.defineProperty(tray, 'offsetWidth', { value: 64 })
+    fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 30, clientY: 10, pointerId: 1 })
+    expect(fireEvent.touchMove(row, { touches: [{ clientX: 110, clientY: 12 }] })).toBe(true) // not held for the row
+    fireEvent.pointerMove(row, { pointerType: 'touch', clientX: 110, clientY: 12, pointerId: 1 })
+    fireEvent.pointerUp(row, { pointerType: 'touch', clientX: 110, clientY: 12, pointerId: 1 })
+    expect(tray).toHaveAttribute('aria-hidden', 'true') // still closed
   })
 })
 

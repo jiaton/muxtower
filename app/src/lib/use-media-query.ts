@@ -15,3 +15,6 @@ export function useMediaQuery(query: string): boolean {
 
 /** The breakpoint from which the list and a session show side by side (Tailwind `md`). */
 export const SPLIT_QUERY = '(min-width: 48rem)'
+
+/** The breakpoint from which the sidebar is docked (Tailwind `lg`); below it, it is a drawer. */
+export const SIDEBAR_QUERY = '(min-width: 64rem)'

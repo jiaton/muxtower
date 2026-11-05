@@ -6,12 +6,13 @@ const OVERDRAG_PX = 24
 
 type Gesture = { x: number; y: number; dx: number; from: number; axis?: 'x' | 'y'; speed: Speed }
 
-/** A list row that a finger can swipe right to reveal `actions` on its left (like a mail app). A
+/** A list row that a finger can swipe left to reveal `actions` on its right (like a mail app). A
  *  vertical move scrolls as usual; once a swipe, a finger drifting up or down keeps it a swipe, and let
  *  go, it opens or closes by how far and how fast it went (a short flick is enough). A tap on the row
  *  while it is open closes it instead of opening the row; pressing anywhere else closes it too. An open
  *  row says so (`data-swipe-open`), for a swipe around it (a drawer's) to leave it to the row. Mice and
- *  keyboards do not swipe: give them another way to the same actions (a menu). */
+ *  keyboards do not swipe: give them another way to the same actions (a menu). A swipe right on a closed
+ *  row is not the row's: it is left to what is around it (the list's, which pulls the sidebar). */
 export function SwipeActions({ actions, children }: { actions: ReactNode; children: ReactNode }) {
   const root = useRef<HTMLDivElement>(null)
   const tray = useRef<HTMLDivElement>(null)
@@ -21,7 +22,7 @@ export function SwipeActions({ actions, children }: { actions: ReactNode; childr
   const [offset, setOffset] = useState(0)
   const [dragging, setDragging] = useState(false)
   const [slide, setSlide] = useState(landMs(Infinity))
-  const open = offset > 0 && !dragging
+  const open = offset < 0 && !dragging
   const width = () => tray.current?.offsetWidth ?? 0
 
   useEffect(() => holdScroll(row.current!, () => gesture.current?.axis === 'x'), [])
@@ -36,7 +37,7 @@ export function SwipeActions({ actions, children }: { actions: ReactNode; childr
   }, [open])
 
   /** The row `dx` across from where the gesture began, as the finger has it. */
-  const follow = (g: Gesture, dx: number) => setOffset(Math.max(0, Math.min(width() + OVERDRAG_PX, g.from + dx)))
+  const follow = (g: Gesture, dx: number) => setOffset(Math.min(0, Math.max(-width() - OVERDRAG_PX, g.from + dx)))
 
   const end = (e: ReactPointerEvent) => {
     const g = gesture.current
@@ -45,7 +46,7 @@ export function SwipeActions({ actions, children }: { actions: ReactNode; childr
     const lifted = e.type === 'pointerup' // a cancel may carry no position: the last move's then
     const dx = lifted ? e.clientX - g.x : g.dx
     if (lifted) g.speed.add(e.clientX)
-    if (!g.axis && lifted && axisOf(dx, e.clientY - g.y) === 'x') {
+    if (!g.axis && lifted && axisOf(dx, e.clientY - g.y) === 'x' && (dx < 0 || g.from < 0)) {
       g.axis = 'x' // a flick so quick that its only move is the lift
       swiped.current = true
       follow(g, dx)
@@ -53,8 +54,8 @@ export function SwipeActions({ actions, children }: { actions: ReactNode; childr
     if (g.axis !== 'x') return
     setDragging(false)
     const speed = g.speed.get()
-    const at = Math.max(0, g.from + dx)
-    const to = landing(at, speed, dx) > width() / 2 ? width() : 0
+    const at = Math.min(0, g.from + dx)
+    const to = landing(at, speed, dx) < -width() / 2 ? -width() : 0
     setSlide(landMs(to - at, speed))
     setOffset(to)
   }
@@ -63,7 +64,7 @@ export function SwipeActions({ actions, children }: { actions: ReactNode; childr
     <div ref={root} className="relative overflow-hidden" data-swipe-open={open || undefined}>
       <div
         ref={tray}
-        className={cn('absolute inset-y-0 left-0 flex', !offset && 'invisible')} // closed: nothing shows past the row as it moves
+        className={cn('absolute inset-y-0 right-0 flex', !offset && 'invisible')} // closed: nothing shows past the row as it moves
         aria-hidden={!open}
         inert={!open}
         onClick={() => {
@@ -94,6 +95,10 @@ export function SwipeActions({ actions, children }: { actions: ReactNode; childr
           if (!g.axis) {
             g.axis = axisOf(dx, e.clientY - g.y)
             if (g.axis !== 'x') return
+            if (dx > 0 && g.from === 0) {
+              gesture.current = null // a swipe right on a closed row: the list's (the sidebar), not the row's
+              return
+            }
             e.currentTarget.setPointerCapture(e.pointerId)
             setDragging(true)
           }
