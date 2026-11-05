@@ -13,7 +13,7 @@ import type { GlassesPort } from '@/platform/port'
 import { MENU, act, menuAct, view } from '@/screens'
 import { pairingView } from '@/screens/pairing'
 import { launchNav } from '@/state/launch'
-import { conciergeOf, current, findSession, type Outcome } from '@/state/model'
+import { conciergeOf, current, findSession, needsYou, type Outcome } from '@/state/model'
 import { loadSaved, saveNav, saveToken } from '@/state/persist'
 import type { AppStore } from '@/state/store'
 import { runCommand } from './commands'
@@ -131,8 +131,8 @@ export class GlassesApp {
 
   private applySessions(sessions: Session[]) {
     const state = this.store.getState()
-    const before = new Set(state.sessions.filter((s) => s.needs_attention).map((s) => s.id))
-    const newly = sessions.filter((s) => s.needs_attention && !before.has(s.id))
+    const before = new Set(needsYou(state.sessions).map((s) => s.id))
+    const newly = needsYou(sessions).filter((s) => !before.has(s.id))
     if (!state.loaded) {
       this.store.setState({ sessions, loaded: true, nav: launchNav(state.nav, sessions, state.hubName) })
       return
@@ -141,7 +141,7 @@ export class GlassesApp {
     if (newly.length) return this.notify(`! ${newly[0].name} needs you`)
     // The assistant answered while the owner is looking elsewhere.
     const was = conciergeOf(state)
-    const is = sessions.find((s) => s.role === 'concierge')
+    const is = conciergeOf({ ...state, sessions })
     const place = current(state.nav)
     const away = place.screen !== 'session' || place.id !== is?.id
     if (was && is && away && is.state !== 'busy' && is.last_message !== was.last_message)

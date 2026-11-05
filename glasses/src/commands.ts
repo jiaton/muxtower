@@ -18,6 +18,11 @@ export async function runCommand(client: HubClient, command: Command, effects: C
         const result = unwrap(await client.POST('/v1/sessions/{session_id}/approve', { params, body: { option: command.option } }))
         return result.option === 'deny' ? 'Denied' : 'Sent'
       }
+      case 'answer': {
+        const params = { path: { session_id: command.id } }
+        unwrap(await client.POST('/v1/sessions/{session_id}/approve', { params, body: { answers: command.answers } }))
+        return 'Sent'
+      }
       case 'deny':
         unwrap(await client.POST('/v1/sessions/{session_id}/deny', { params: { path: { session_id: command.id } } }))
         return 'Denied'

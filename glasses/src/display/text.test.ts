@@ -21,6 +21,25 @@ it('aligns columns to within a space', () => {
   expect(Math.abs(at(a, 'approve') - at(b, 'idle'))).toBeLessThanOrEqual(width(' '))
 })
 
+it('starts every column at its stop within 2 px, Chinese names too', () => {
+  const rows = [
+    ['muxtower PM', 'working', 'now'],
+    ['Muxtower demo 网页', 'idle', '4m'],
+    ['campsite 登录修补', 'working', '4m'],
+    ['AT&T 网关', 'idle', '16m'],
+  ].map((cells) => columns(cells, [300, 150], 560))
+  const at = (line: string, i: number) => {
+    const words = ['working', 'idle', 'now', '4m', '16m']
+    const cell = line.split(/[ \u3000]{2,}|(?<=[^ ])\u3000/).filter(Boolean)[i]
+    expect(words).toContain(cell)
+    return width(line.slice(0, line.lastIndexOf(cell)))
+  }
+  for (const line of rows) {
+    expect(Math.abs(at(line, 1) - 300)).toBeLessThanOrEqual(2)
+    expect(Math.abs(at(line, 2) - 450)).toBeLessThanOrEqual(2)
+  }
+})
+
 it('wraps Latin at spaces and Chinese anywhere', () => {
   const latin = wrap('the quick brown fox jumps over the lazy dog '.repeat(4), 200)
   expect(latin.every((l) => width(l) <= 200 && !l.startsWith(' '))).toBe(true)
