@@ -3,12 +3,22 @@ import { useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent }
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/cn'
 import { newChipId, useSaveChipGroups } from '../api/use-chip-groups'
-import { MAX_GROUPS, projectChips, type ChipGroup, type ProjectChip } from '../model/chip-groups'
+import { MAX_GROUPS, OTHER, projectChips, projectIn, type ChipGroup, type ProjectChip } from '../model/chip-groups'
+import { workspacesOf } from '../model/workspaces'
 import type { SessionEntry } from '../model/facets'
 import { filterEntries, type SessionQuery } from '../model/query'
 import type { ListSearch } from '../model/search'
 import { ChipGroupDialog } from './chip-group-dialog'
 import { Chip } from './list-chips'
+import { TeamCard } from './team-card'
+
+/** The team project of the sessions a one-project chip holds, when they share one. */
+function teamProject(entries: SessionEntry[], project: string): string | null {
+  const workspaces = workspacesOf(entries)
+  const projects = new Set(entries.filter((e) => projectIn(e, workspaces) === project).map((e) => e.session.project ?? null))
+  const [only] = projects
+  return projects.size === 1 ? only : null
+}
 
 const HOLD_MS = 500
 
@@ -42,8 +52,10 @@ export function ProjectChips({
     const el = row.current
     const chip = el?.querySelector<HTMLElement>('[aria-current="true"], [aria-current="page"]')
     if (!el || !chip) return
-    if (chip.offsetLeft < el.scrollLeft || chip.offsetLeft + chip.offsetWidth > el.scrollLeft + el.clientWidth)
-      el.scrollLeft = chip.offsetLeft - el.clientWidth / 2 + chip.offsetWidth / 2
+    // By its box, not offsetLeft: a chip with a team card sits in a positioned wrapper of its own.
+    const left = chip.getBoundingClientRect().left - el.getBoundingClientRect().left + el.scrollLeft
+    const width = chip.getBoundingClientRect().width
+    if (left < el.scrollLeft || left + width > el.scrollLeft + el.clientWidth) el.scrollLeft = left - el.clientWidth / 2 + width / 2
   }, [search.chip, chips?.length])
 
   if (!chips) return null
@@ -63,14 +75,19 @@ export function ProjectChips({
           const group = groups.find((g) => g.id === chip.id)
           const current = search.chip === chip.id
           return (
-            <HeldChip
+            <TeamCard
               key={chip.id}
-              search={search}
-              chip={chip}
-              current={current}
-              count={count(chip)}
-              onHold={group ? (x, y) => setMenu({ group, x, y }) : undefined}
-            />
+              project={group || chip.projects[0] === OTHER ? null : teamProject(entries, chip.projects[0])}
+              entries={entries}
+            >
+              <HeldChip
+                search={search}
+                chip={chip}
+                current={current}
+                count={count(chip)}
+                onHold={group ? (x, y) => setMenu({ group, x, y }) : undefined}
+              />
+            </TeamCard>
           )
         })}
         {groups.length < MAX_GROUPS ? (
@@ -89,7 +106,12 @@ export function ProjectChips({
         <DropdownMenuTrigger asChild>
           <span aria-hidden tabIndex={-1} className="pointer-events-none fixed size-0" style={{ left: menu?.x, top: menu?.y }} />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" sideOffset={12} onCloseAutoFocus={(e) => e.preventDefault()}>
+        <DropdownMenuContent
+          align="start"
+          sideOffset={12}
+          onCloseAutoFocus={(e) => e.preventDefault()}
+          onFocusOutside={(e) => e.preventDefault()} // a long press's own click focuses the chip: no closing on it
+        >
           {menu ? (
             <>
               <DropdownMenuItem onSelect={() => setEditing(menu.group)}>Edit</DropdownMenuItem>

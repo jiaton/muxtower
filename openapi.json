@@ -1377,7 +1377,7 @@
         "type": "object"
       },
       "PendingAction": {
-        "description": "What the agent is waiting for. tool_name/detail come from hooks; options from the screen.",
+        "description": "What the agent is waiting for. tool_name/detail come from hooks, else the screen; options from the screen.",
         "properties": {
           "detail": {
             "anyOf": [
@@ -5197,6 +5197,59 @@
         "summary": "Stream Schema",
         "tags": [
           "stream"
+        ]
+      }
+    },
+    "/v1/tasks/latest": {
+      "get": {
+        "description": "The last task each of these sessions was sent (as `my_team` shows it), by session id; a session sent\nnone is left out. For a team card: one request for every member.",
+        "operationId": "latest_tasks_v1_tasks_latest_get",
+        "parameters": [
+          {
+            "description": "session ids",
+            "in": "query",
+            "name": "to",
+            "required": true,
+            "schema": {
+              "description": "session ids",
+              "items": {
+                "type": "string"
+              },
+              "maxItems": 200,
+              "title": "To",
+              "type": "array"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "$ref": "#/components/schemas/TeamTask"
+                  },
+                  "title": "Response Latest Tasks V1 Tasks Latest Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Latest Tasks",
+        "tags": [
+          "teams"
         ]
       }
     },

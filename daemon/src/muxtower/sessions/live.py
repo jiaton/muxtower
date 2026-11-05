@@ -116,7 +116,9 @@ def merge(hook: HookState | None, screen: ScreenState | None, now: float, busy_s
 
     overruled = screen is not None and _hook_knows_better(hook, screen)
     if screen is not None and screen_state in ATTENTION_STATES and not overruled:
-        pending = PendingAction(state=screen_state, options=options)
+        assert screen is not None
+        c = screen.classification
+        pending = PendingAction(state=screen_state, tool_name=c.tool_name, detail=c.detail, options=options)
         return Effective(screen_state, StateSource.SCREEN, rule, pending)
 
     if screen is not None and rule is not None and not overruled:

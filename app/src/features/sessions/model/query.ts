@@ -4,7 +4,8 @@
  * status, by device and folder, by agent or by account (each offered only when there is more than one),
  * or by source. Lives in the URL, so back, reload and links keep it.
  */
-import { inChip, type ChipMembers } from './chip-groups'
+import type { ChipMembers } from './chip-groups'
+import { filterEntries } from './filter'
 import { nestFolders, withRepositories } from './folders'
 import { anchorOf, homeKind, homeOf, worktreeOf, type PlaceKind } from './places'
 import {
@@ -18,7 +19,6 @@ import {
   compareAgents,
   deviceOf,
   isAssistant,
-  placeOf,
   sourceOf,
   statusOf,
   type Place,
@@ -81,36 +81,8 @@ export const agentLabel = (entry: SessionEntry) => agentOf(entry.session)
 export const sourceLabel = (entry: SessionEntry) => sourceOf(entry.session)
 export const accountLabel = (entry: SessionEntry) => accountOf(entry.session)
 
-function matchesText(entry: SessionEntry, q: string): boolean {
-  const { session } = entry
-  const haystack = [
-    session.name,
-    folderLabel(entry),
-    deviceLabel(entry),
-    agentLabel(entry),
-    sourceLabel(entry),
-    session.account,
-    session.summary?.detail,
-    session.summary?.recent,
-  ]
-  return haystack.some((text) => text?.toLowerCase().includes(q))
-}
 
-export function filterEntries(entries: SessionEntry[], query: SessionQuery): SessionEntry[] {
-  const q = query.q?.trim().toLowerCase()
-  return entries.filter((entry) => {
-    const status = statusOf(entry.session)
-    if (placeOf(entry.session) !== placeIn(query.view)) return false
-    if (placeIn(query.view) === 'listed' && query.view !== 'all' && status !== query.view) return false
-    if (query.device && deviceLabel(entry) !== query.device) return false
-    if (query.folder && folderLabel(entry) !== query.folder && worktreeOf(entry.session)?.label !== query.folder) return false
-    if (query.agent && agentLabel(entry) !== query.agent) return false
-    if (query.source && sourceLabel(entry) !== query.source) return false
-    if (query.account && accountLabel(entry) !== query.account) return false
-    if (query.chip && !inChip(entry, query.chip)) return false
-    return !q || matchesText(entry, q)
-  })
-}
+export { filterEntries }
 
 /** What needs you first (longest waiting first), then the most recently active. */
 export function compareEntries(a: SessionEntry, b: SessionEntry): number {

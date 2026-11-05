@@ -15,8 +15,9 @@ export interface Nested<T> {
   parent?: string
   /** What to call it under its parent: the path below the parent's (its own label at the top). */
   name: string
-  /** Its count with everything below it. */
+  /** Its count with everything below it, and of those, how many need the owner. */
   total: number
+  needsTotal: number
 }
 
 /** The folders of `folders` that `folder` lies in, the closest first. */
@@ -33,10 +34,9 @@ const holderOf = (at: string, folders: string[]): string | undefined => (folders
 
 /** Folders in tree order: each followed by the ones inside it, the most sessions first at every level;
  *  `last` (the unknown folder) at the end, at the top level. */
-export function nestFolders<T extends { label: string; count: number; under?: string; name?: string; at?: string }>(
-  items: T[],
-  last?: string,
-): Nested<T>[] {
+export function nestFolders<
+  T extends { label: string; count: number; needs?: number; under?: string; name?: string; at?: string; last?: boolean },
+>(items: T[], last?: string): Nested<T>[] {
   const known = items.filter((i) => i.label !== last)
   const labels = known.map((i) => i.label)
   const listed = new Set(labels)
@@ -53,18 +53,22 @@ export function nestFolders<T extends { label: string; count: number; under?: st
   )
   const children = new Map<string | undefined, T[]>()
   for (const item of known) children.set(parents.get(item.label), [...(children.get(parents.get(item.label)) ?? []), item])
-  const total = (item: T): number => item.count + (children.get(item.label) ?? []).reduce((n, c) => n + total(c), 0)
-  const order = (list: T[]) => [...list].sort((a, b) => total(b) - total(a) || a.label.localeCompare(b.label))
+  const sum = (item: T, of: (i: T) => number): number => of(item) + (children.get(item.label) ?? []).reduce((n, c) => n + sum(c, of), 0)
+  const total = (item: T) => sum(item, (i) => i.count)
+  const needsTotal = (item: T) => sum(item, (i) => i.needs ?? 0)
+  const order = (list: T[]) =>
+    [...list].sort((a, b) => Number(Boolean(a.last)) - Number(Boolean(b.last)) || total(b) - total(a) || a.label.localeCompare(b.label))
 
   const out: Nested<T>[] = []
   const walk = (item: T, depth: number) => {
     const parent = parents.get(item.label)
     const name = item.name ?? (parent && !item.at ? item.label.slice(parent === '/' ? 1 : parent.length + 1) : item.label)
-    out.push({ item, depth, parent, name, total: total(item) })
+    out.push({ item, depth, parent, name, total: total(item), needsTotal: needsTotal(item) })
     for (const child of order(children.get(item.label) ?? [])) walk(child, depth + 1)
   }
   for (const root of order(children.get(undefined) ?? [])) walk(root, 0)
-  for (const item of items.filter((i) => i.label === last)) out.push({ item, depth: 0, name: item.label, total: item.count })
+  for (const item of items.filter((i) => i.label === last))
+    out.push({ item, depth: 0, name: item.label, total: item.count, needsTotal: item.needs ?? 0 })
   return out
 }
 

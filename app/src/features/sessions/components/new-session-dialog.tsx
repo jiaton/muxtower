@@ -1,6 +1,7 @@
 import { useNavigate } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
+import { createDaemonClient } from '@/lib/api/client'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
@@ -18,14 +19,35 @@ import { useNewSessionPrefs } from '../store'
 import { AgentMark } from './agent-mark'
 
 /** Starts a session on a daemon's machine, or on one of its nodes (another computer joined to it).
- *  `trigger`: the element that opens it (a button), defaulting to a labelled one. */
+ *  `trigger`: the element that opens it (a button), defaulting to a labelled one. `preset` (a team card's
+ *  "New session here…"): where, and the project it joins, with a role to give it; opened by `open`. */
 import { splitArgs } from '../model/launch'
 import { LaunchOptions } from './launch-options'
-export function NewSessionDialog({ trigger }: { trigger?: ReactNode }) {
+export interface NewSessionPreset {
+  daemonId: string
+  node: string | null
+  cwd: string
+  project: string
+}
+
+export function NewSessionDialog({
+  trigger,
+  preset,
+  open: shown,
+  onOpenChange,
+}: {
+  trigger?: ReactNode
+  preset?: NewSessionPreset
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+}) {
   const daemons = usePairedDaemons()
-  const [open, setOpen] = useState(false)
-  const [daemonId, setDaemonId] = useState<string>('')
-  const [nodeName, setNodeName] = useState<string | null>(null)
+  const [opened, setOpened] = useState(false)
+  const open = shown ?? opened
+  const setOpen = (value: boolean) => (onOpenChange ? onOpenChange(value) : setOpened(value))
+  const [daemonId, setDaemonId] = useState<string>(preset?.daemonId ?? '')
+  const [nodeName, setNodeName] = useState<string | null>(preset?.node ?? null)
+  const [role, setRole] = useState('')
   const current = daemons.find((d) => d.id === daemonId) ?? daemons[0]
   const nodes = (useNodes(current?.id ?? '', open && !!current).data ?? []).filter((n) => n.online)
   const node = nodes.find((n) => n.name === nodeName) ?? null
@@ -39,7 +61,7 @@ export function NewSessionDialog({ trigger }: { trigger?: ReactNode }) {
   // the agent picked here, else the one started last, as long as this computer has it
   const available = (runtimes.data ?? []).filter((r) => r.available).map((r) => r.name)
   const runtime = picked ?? (available.includes(lastRuntime) || !available.length ? lastRuntime : available[0])
-  const [cwd, setCwd] = useState('')
+  const [cwd, setCwd] = useState(preset?.cwd ?? '')
   const [name, setName] = useState('')
   const [headless, setHeadless] = useState(false)
   const [mode, setMode] = useState<string | null>(null)
@@ -55,13 +77,15 @@ export function NewSessionDialog({ trigger }: { trigger?: ReactNode }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button size="sm">
-            <Plus /> New session
-          </Button>
-        )}
-      </DialogTrigger>
+      {preset && !trigger ? null : (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button size="sm">
+              <Plus /> New session
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent
         title="New session"
         description={
@@ -80,7 +104,14 @@ export function NewSessionDialog({ trigger }: { trigger?: ReactNode }) {
                 permission_mode: asHeadless ? null : mode, args: asHeadless ? [] : splitArgs(extra),
               }, // prettier-ignore
               {
-                onSuccess: (session) => {
+                onSuccess: async (session) => {
+                  if (preset) {
+                    const body = { project: preset.project, rename_project: false, ...(role.trim() ? { role: role.trim() } : {}) }
+                    await createDaemonClient(current!).PUT('/v1/sessions/{session_id}/team', {
+                      params: { path: { session_id: session.id } },
+                      body,
+                    })
+                  }
                   rememberRuntime(runtime)
                   setOpen(false)
                   void navigate({ to: '/d/$daemonId/s/$sessionId', params: { daemonId: current!.id, sessionId: session.id }, search: true })
@@ -166,8 +197,20 @@ export function NewSessionDialog({ trigger }: { trigger?: ReactNode }) {
             Name <span className="font-normal text-fg-muted">optional, defaults to the directory name</span>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
           </label>
+          {preset ? (
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              Role in {preset.project} <span className="font-normal text-fg-muted">optional</span>
+              <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="e.g. reviewer" />
+            </label>
+          ) : null}
           {asHeadless ? null : (
-            <LaunchOptions runtime={runtimes.data?.find((r) => r.name === runtime)} mode={mode} onMode={setMode} extra={extra} onExtra={setExtra} />
+            <LaunchOptions
+              runtime={runtimes.data?.find((r) => r.name === runtime)}
+              mode={mode}
+              onMode={setMode}
+              extra={extra}
+              onExtra={setExtra}
+            />
           )}
           {create.isError ? <Banner tone="error">{create.error.message}</Banner> : null}
           <Button type="submit" disabled={create.isPending}>

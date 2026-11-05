@@ -72,3 +72,13 @@ def session_tasks(
 ) -> list[TeamTask]:
     """The tasks it was sent and sent, newest first."""
     return [TeamTask(**vars(t)) for t in tasks.repo.involving(session_id, limit)]
+
+
+@router.get("/tasks/latest")
+def latest_tasks(
+    _: CurrentDevice, tasks: Tasks, to: Annotated[list[str], Query(max_length=200, description="session ids")]
+) -> dict[str, TeamTask]:
+    """The last task each of these sessions was sent (as `my_team` shows it), by session id; a session sent
+    none is left out. For a team card: one request for every member."""
+    latest = tasks.recent(to, 1)
+    return {session_id: TeamTask(**vars(sent[0])) for session_id, sent in latest.items() if sent}
