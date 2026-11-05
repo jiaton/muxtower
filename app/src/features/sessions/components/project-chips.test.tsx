@@ -101,7 +101,35 @@ it('a right click on a group offers Edit, Move and Delete; Move right puts the n
     within(menu)
       .getAllByRole('menuitem')
       .map((i) => i.textContent),
-  ).toEqual(['Edit', 'Move right', 'Delete'])
+  ).toEqual(['Team · a', 'Edit', 'Move right', 'Delete'])
   fireEvent.click(within(menu).getByRole('menuitem', { name: 'Move right' }))
   await waitFor(() => expect(put).toEqual([['two', 'one']]))
+})
+
+it('a group’s menu offers its teams, six then "More teams…", and one chosen shows its card', async () => {
+  show(entries, [{ id: 'all', name: 'All', projects: ['a', 'b', 'c', 'd', 'e', 'f', 'g'], sessions: [] }])
+  fireEvent.contextMenu(await screen.findByRole('link', { name: /All/ }))
+  const menu = await screen.findByRole('menu')
+  const items = () =>
+    within(menu)
+      .getAllByRole('menuitem')
+      .map((i) => i.textContent)
+  expect(items()).toEqual(['Team · a', 'Team · b', 'Team · c', 'Team · d', 'Team · e', 'Team · f', 'More teams…', 'Edit', 'Delete'])
+  fireEvent.click(within(menu).getByRole('menuitem', { name: 'More teams…' }))
+  expect(items()).toContain('Team · g')
+  fireEvent.click(within(menu).getByRole('menuitem', { name: 'Team · c' }))
+  const card = (await screen.findByText('c · 1 session')).closest('[role="menu"]') as HTMLElement
+  expect(within(card).getByRole('menuitem', { name: 'Rename project…' })).toBeInTheDocument()
+})
+
+it('a group of single sessions offers the teams they are in', async () => {
+  show(entries, [{ id: 'few', name: 'Few', projects: [], sessions: ['b', 'a', 'b'] }])
+  fireEvent.contextMenu(await screen.findByRole('link', { name: /Few/ }))
+  const menu = await screen.findByRole('menu')
+  expect(
+    within(menu)
+      .getAllByRole('menuitem')
+      .map((i) => i.textContent)
+      .slice(0, 2),
+  ).toEqual(['Team · b', 'Team · a'])
 })
