@@ -30,6 +30,14 @@ state = "needs_trust"
 pattern = 'Hooks\s+need\s+review'
 
 [[rules]]
+# The first start: how to sign in, the owner's to choose (needs_answer: never approved for them). Its last
+# line is the footer; with the composer up no dialog is (a reply quoting these words).
+name = "first-start-sign-in"
+state = "needs_answer"
+pattern = 'Choose\s+how\s+you\s+want\s+to\s+use\s+Codex\..*Press\s+enter\s+to\s+continue[^\n]*\Z'
+last_lines = 30
+
+[[rules]]
 name = "workspace-trust"
 state = "needs_trust"
 pattern = 'Do\s+you\s+trust\s+the\s+contents\s+of\s+this\s+directory\?'
@@ -96,6 +104,7 @@ pattern = '(?m)^■ (?!Conversation interrupted)[^\n]*\n(?:[ \t]*\n)*(?:[^\n]*\n
 
 [menu]
 cursor = "›"
+other_cursors = [">"]  # the first-start sign-in
 
 [approve]
 default = ['^Yes\b']

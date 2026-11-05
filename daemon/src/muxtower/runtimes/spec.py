@@ -50,6 +50,9 @@ class MenuConfig(BaseModel):
     same column right above/below it, optionally numbered ("1. Yes")."""
 
     cursor: str = "❯"
+    # Other glyphs a dialog of its marks the highlighted choice with, tried when none shows `cursor` (Codex's
+    # first-start sign-in uses ">").
+    other_cursors: list[str] = Field(default_factory=list)
     search_last_lines: int = 40
 
 
@@ -130,6 +133,7 @@ class Classification:
 
 
 _NUMBERED = re.compile(r"^(\d+)\.\s+(.*)$")
+CHOSEN = "✔"  # marks the choice in effect (Claude Code's theme), next to the cursor or on its own
 
 
 class Runtime:
@@ -189,29 +193,34 @@ class Runtime:
 
     def parse_menu(self, screen: str) -> Menu | None:
         """The lowest block of 2+ choices around a cursor line. A lone cursor line is the prompt input."""
-        cursor = self.config.menu.cursor
         lines = screen.splitlines()[-self.config.menu.search_last_lines :]
-        for at in range(len(lines) - 1, -1, -1):
-            if lines[at].lstrip().startswith(cursor):
-                menu = self._menu_at(lines, at)
-                if menu is not None and len(menu.options) >= 2:
-                    return menu
+        for cursor in (self.config.menu.cursor, *self.config.menu.other_cursors):
+            for at in range(len(lines) - 1, -1, -1):
+                if lines[at].lstrip().startswith(cursor):
+                    menu = self._menu_at(lines, at, cursor)
+                    if menu is not None and len(menu.options) >= 2:
+                        return menu
         return None
 
-    def _menu_at(self, lines: list[str], at: int) -> Menu | None:
-        cursor = self.config.menu.cursor
+    def _menu_at(self, lines: list[str], at: int, cursor: str) -> Menu | None:
         cursor_line = lines[at]
         if not cursor_line.lstrip()[len(cursor) :].strip():
             return None
         column = len(cursor_line) - len(cursor_line.lstrip()) + len(cursor)
         column += len(cursor_line[column:]) - len(cursor_line[column:].lstrip())  # text start
+        if cursor_line[column:].startswith(CHOSEN):  # "❯ ✔ Dark mode": the others line up with "Dark"
+            rest = cursor_line[column + len(CHOSEN) :]
+            column += len(CHOSEN) + len(rest) - len(rest.lstrip())
 
         numbered_menu = bool(_NUMBERED.match(cursor_line.lstrip()[len(cursor) :].strip()))
 
         def kind(line: str) -> str | None:
-            """ "choice" (text starts exactly at `column`), "more" (a wrapped label, indented deeper)."""
+            """ "choice" (text starts exactly at `column`), "more" (a wrapped label or a choice's description,
+            indented deeper), "gap" (a blank line between numbered choices, as Codex spaces them)."""
             head, body = line[:column], line[column:]
-            if not body.strip() or head.replace(cursor, "").strip():
+            if not line.strip():
+                return "gap" if numbered_menu else None
+            if not body.strip() or head.replace(cursor, "").replace(CHOSEN, "").strip():
                 return None
             if body[:1].isspace():
                 return "more"
@@ -222,26 +231,32 @@ class Runtime:
         first = at
         while first > 0 and kind(lines[first - 1]) is not None:
             first -= 1
-        while kind(lines[first]) == "more":  # a block cannot start with a continuation
+        while kind(lines[first]) in ("more", "gap"):  # a block cannot start with a continuation
             first += 1
         last = at
         while last + 1 < len(lines) and kind(lines[last + 1]) is not None:
             last += 1
+        while kind(lines[last]) == "gap":
+            last -= 1
+        spaced = any(kind(lines[i]) == "gap" for i in range(first, last + 1))
 
         # TUIs wrap at spaces and split a word only when it is longer than a whole line (long paths). So a
         # continuation joins without a space only after a full-width line that is one unbroken token. The
-        # width comes from lines outside the menu: real screens have a full-width separator above it.
+        # width comes from lines outside the menu: real screens have a full-width separator above it. In a
+        # menu spaced by blank lines the deeper lines are each choice's description.
         outside = [len(line.rstrip()) for j, line in enumerate(lines) if not first <= j <= last]
         width = max(outside, default=0)
         labels: list[str] = []
         cursor_index = 0
         for i in range(first, last + 1):
+            if kind(lines[i]) == "gap":
+                continue
             text = lines[i][column:].strip()
             if kind(lines[i]) == "more" and labels:
                 previous = lines[i - 1]
                 one_token = " " not in previous.strip()
                 cut = one_token and abs(len(previous.rstrip()) - width) <= 1
-                labels[-1] += ("" if cut else " ") + text
+                labels[-1] += " · " + text if spaced and labels[-1].count(" · ") == 0 else ("" if cut else " ") + text
                 continue
             if i == at:
                 cursor_index = len(labels)

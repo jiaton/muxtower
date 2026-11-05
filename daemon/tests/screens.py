@@ -332,3 +332,105 @@ ERROR_SCROLLED_UP = """\
 ────────────────────────────────────────
   ⏵⏵ auto mode on (shift+tab to cycle)
 """
+
+
+# First start (captured from Claude Code 2.1.318 and Codex with an empty config): it waits on the owner's
+# choice before any session can begin, with no input box yet.
+FIRST_THEME = """\
+ Let's get started.
+
+ Choose the text style that looks best with your terminal
+ To change this later, run /theme
+
+     Auto (match terminal)
+ ❯ ✔ Dark mode
+     Light mode
+     Dark mode (colorblind-friendly)
+     Light mode (colorblind-friendly)
+     Dark mode (ANSI colors only)
+     Light mode (ANSI colors only)
+
+ ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  1  function greet() {
+  2 -  console.log("Hello, World!");
+  2 +  console.log("Hello, Claude!");
+  3  }
+ ╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+  Syntax theme: Monokai Extended (ctrl+t to disable)
+"""
+
+FIRST_LOGIN = """\
+ Claude Code can be used with your Claude subscription or billed based on API usage through your
+ Console account.
+
+ Select login method:
+
+ ❯ 1. Claude account with subscription · Individual, Team, or Enterprise
+   2. Anthropic Console account · API usage billing
+   3. 3rd-party platform · Amazon Bedrock, Microsoft Foundry, Google Vertex AI
+"""
+
+CODEX_FIRST_SIGN_IN = """\
+  Welcome to Codex, OpenAI's command-line coding agent
+
+  Choose how you want to use Codex.
+
+> 1. Sign in with ChatGPT
+     Usage included with Plus, Pro, Business, and Enterprise plans
+
+  2. Sign in with Device Code
+     Sign in from another device with a one-time code
+
+  3. Use an OpenAI API key
+     Pay for what you use
+
+  4. Use Amazon Bedrock
+     Connect using your AWS credentials
+
+  Press enter to continue
+"""
+
+# A session editing these rules: the dialogs' words in a diff above its input box, and in its reply.
+BUSY_QUOTING_FIRST_START = """\
+⏺ Update(tests/screens.py)
+  ⎿  Added 6 lines
+      340 + Select login method:
+      341 +
+      342 + ❯ 1. Claude account with subscription · Individual, Team, or Enterprise
+      343 +   2. Anthropic Console account · API usage billing
+      344 + Choose the text style that looks best with your terminal
+      345 + Syntax theme: Monokai Extended (ctrl+t to disable)
+
+✻ Pondering… (41s · ↓ 2.1k tokens)
+──────────────────────────────────────────────────
+❯ 
+──────────────────────────────────────────────────
+  ⏵⏵ auto mode on (shift+tab to cycle) · esc to interrupt
+"""
+
+IDLE_QUOTING_FIRST_START = """\
+⏺ On a first start Claude Code asks:
+
+  Select login method:
+
+  ❯ 1. Claude account with subscription · Individual, Team, or Enterprise
+    2. Anthropic Console account · API usage billing
+    3. 3rd-party platform · Amazon Bedrock, Microsoft Foundry, Google Vertex AI
+──────────────────────────────────────────────────
+❯ 
+──────────────────────────────────────────────────
+  ? for shortcuts
+"""
+
+CODEX_IDLE_QUOTING_FIRST_START = """\
+• A fresh Codex says "Choose how you want to use Codex." and lists:
+
+  > 1. Sign in with ChatGPT
+    2. Sign in with Device Code
+
+  Press enter to continue
+
+› Ask Codex to do anything
+
+  gpt-5.5 default · ~/projects/web
+"""
