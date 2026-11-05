@@ -10,41 +10,41 @@ from muxtower.sessions.naming import AgentName, chosen
 from tests.test_recovery import _record
 
 T0 = datetime(2026, 11, 3, 5, 0, tzinfo=UTC)
-LAUNCHED = replace(_record("1:1"), name="语音输入", named=False, named_at=T0)
+LAUNCHED = replace(_record("1:1"), name="Voice input", named=False, named_at=T0)
 
 
 def test_a_name_given_at_launch_beats_one_the_agent_made_up() -> None:
-    assert chosen(LAUNCHED, "voice-assistant-5c", AgentName("derived", T0 + timedelta(hours=1))) == ("语音输入", True)
+    assert chosen(LAUNCHED, "project-5c", AgentName("derived", T0 + timedelta(hours=1))) == ("Voice input", True)
 
 
 def test_a_name_the_owner_set_on_the_agents_side_later_wins_and_a_rename_after_wins_again() -> None:
     later = AgentName("user", T0 + timedelta(hours=1))
-    assert chosen(LAUNCHED, "openclaw 语音", later) == ("openclaw 语音", False)
+    assert chosen(LAUNCHED, "Voice notes", later) == ("Voice notes", False)
     renamed = replace(LAUNCHED, name="Voice", named=True, named_at=T0 + timedelta(hours=2))
-    assert chosen(renamed, "openclaw 语音", later) == ("Voice", True)
+    assert chosen(renamed, "Voice notes", later) == ("Voice", True)
     earlier = AgentName("user", T0 - timedelta(hours=1))  # set there before muxtower named it
-    assert chosen(LAUNCHED, "openclaw 语音", earlier) == ("语音输入", True)
+    assert chosen(LAUNCHED, "Voice notes", earlier) == ("Voice input", True)
 
 
 def test_a_name_from_nowhere_known_never_replaces_one_muxtower_gave() -> None:
-    assert chosen(LAUNCHED, "Muxtower 项目 git 提交中的新功能", None) == ("语音输入", True)  # a Remote Control title
-    assert chosen(LAUNCHED, None, None) == ("语音输入", True)
+    assert chosen(LAUNCHED, "New features in the last commit", None) == ("Voice input", True)  # a Remote Control title
+    assert chosen(LAUNCHED, None, None) == ("Voice input", True)
     never = replace(LAUNCHED, named_at=None)
-    assert chosen(never, "openclaw 语音", None) == ("openclaw 语音", False)  # never named: its agent's
+    assert chosen(never, "Voice notes", None) == ("Voice notes", False)  # never named: its agent's
 
 
 def test_a_name_set_on_the_agents_side_at_an_unknown_time_does_not_either() -> None:
     elsewhere = AgentName("user")  # a Remote Control title other than the one Claude Code derived
-    assert chosen(LAUNCHED, "openclaw 语音", elsewhere) == ("语音输入", True)
-    assert chosen(replace(LAUNCHED, named=True), "openclaw 语音", elsewhere) == ("语音输入", True)
-    assert chosen(replace(LAUNCHED, named_at=None), "openclaw 语音", elsewhere) == ("openclaw 语音", False)
+    assert chosen(LAUNCHED, "Voice notes", elsewhere) == ("Voice input", True)
+    assert chosen(replace(LAUNCHED, named=True), "Voice notes", elsewhere) == ("Voice input", True)
+    assert chosen(replace(LAUNCHED, named_at=None), "Voice notes", elsewhere) == ("Voice notes", False)
 
 
 def test_the_migration_keeps_explicit_renames_and_dates_launch_names(tmp_path: Path) -> None:
     db = Database(tmp_path / "m.db")
     db.migrate()
     with db.connect() as conn:
-        for sid, name in (("renamed", "Muxtower Worker"), ("launched", "语音输入")):
+        for sid, name in (("renamed", "Worker"), ("launched", "Voice input")):
             conn.execute(
                 "INSERT INTO sessions (id, name, runtime, cwd, source, socket, tmux_session, pane_id, auto_approve,"
                 " created_at, named) VALUES (?, ?, 'claude-code', '/srv', 'launched', 's', 't', '%1', 0, ?, 1)",
@@ -52,7 +52,7 @@ def test_the_migration_keeps_explicit_renames_and_dates_launch_names(tmp_path: P
             )
         conn.execute(
             "INSERT INTO audit_log (at, actor, action, session_id, detail) VALUES (?, 'phone', 'update', 'renamed',"
-            ' \'{"name":"Muxtower Worker"}\')',
+            ' \'{"name":"Worker"}\')',
             ((T0 + timedelta(hours=3)).isoformat(),),
         )
         conn.execute("ALTER TABLE sessions DROP COLUMN named_at")  # as it was before
@@ -67,17 +67,17 @@ def test_the_migration_keeps_explicit_renames_and_dates_launch_names(tmp_path: P
 def test_a_restart_that_restores_an_old_name_is_no_rename_but_a_new_name_there_is() -> None:
     from muxtower.sessions.naming import as_seen, seen
 
-    renamed = replace(LAUNCHED, name="Muxtower Worker", named=True, named_at=T0)
+    renamed = replace(LAUNCHED, name="Worker", named=True, named_at=T0)
     restored = AgentName("user", T0 + timedelta(hours=3))  # Claude Code stamps nameSince when it starts
     now = T0 + timedelta(hours=3, seconds=3)
-    assert seen(renamed, "Muxtower 项目重构规划", restored, now)  # first seen: set there, when not known
+    assert seen(renamed, "Refactor plan", restored, now)  # first seen: set there, when not known
     assert renamed.agent_name_at is None
-    assert chosen(renamed, "Muxtower 项目重构规划", as_seen(renamed, "Muxtower 项目重构规划", restored)) == (
-        "Muxtower Worker",
+    assert chosen(renamed, "Refactor plan", as_seen(renamed, "Refactor plan", restored)) == (
+        "Worker",
         True,
     )
     assert not seen(
-        renamed, "Muxtower 项目重构规划", AgentName("user", now + timedelta(hours=1)), now
+        renamed, "Refactor plan", AgentName("user", now + timedelta(hours=1)), now
     )  # again: no change
 
     later = now + timedelta(hours=2)
@@ -91,8 +91,8 @@ def test_a_launch_name_gives_way_only_to_a_name_seen_set_there_after_it() -> Non
 
     launched = replace(LAUNCHED)
     first = AgentName("user", T0 + timedelta(hours=1))
-    seen(launched, "lyric 这个项目", first, T0 + timedelta(hours=1))  # first seen already set: when, not known
-    assert chosen(launched, "lyric 这个项目", as_seen(launched, "lyric 这个项目", first)) == ("语音输入", True)
+    seen(launched, "Lyrics app", first, T0 + timedelta(hours=1))  # first seen already set: when, not known
+    assert chosen(launched, "Lyrics app", as_seen(launched, "Lyrics app", first)) == ("Voice input", True)
     later = T0 + timedelta(hours=2)
-    seen(launched, "lyric v2", AgentName("user", later), later)  # renamed in Claude, seen happen after
-    assert chosen(launched, "lyric v2", as_seen(launched, "lyric v2", AgentName("user", later))) == ("lyric v2", False)
+    seen(launched, "Lyrics v2", AgentName("user", later), later)  # renamed in Claude, seen happen after
+    assert chosen(launched, "Lyrics v2", as_seen(launched, "Lyrics v2", AgentName("user", later))) == ("Lyrics v2", False)

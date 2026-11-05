@@ -226,10 +226,10 @@ def test_a_name_the_owner_gave_stays_over_remote_controls_title(tmp_path: Path) 
     merged = next(s for s in client.get("/v1/sessions", headers=auth).json() if s["remote_id"] == "cse_1")
     assert merged["name"] == "Fix the build"  # its title, until someone names it
     assert (
-        client.patch(f"/v1/sessions/{merged['id']}", json={"name": "Muxtower Worker"}, headers=auth).status_code == 200
+        client.patch(f"/v1/sessions/{merged['id']}", json={"name": "Release worker"}, headers=auth).status_code == 200
     )
     source.tick()
     Monitor(app.state.sessions, FakeProcesses({4242: "cse_1"}, {})).tick()
     again = next(s for s in client.get("/v1/sessions", headers=auth).json() if s["id"] == merged["id"])
-    assert again["name"] == "Muxtower Worker"  # after a refresh too
+    assert again["name"] == "Release worker"  # after a refresh too
     assert again["agent_name"] == "Fix the build"  # what Claude Code calls it, offered when renaming
