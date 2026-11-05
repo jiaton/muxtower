@@ -29,5 +29,5 @@ Only the latest release on PyPI gets fixes. Update the hub first: its nodes are 
 
 - What a paired device can do by design: it drives your agents, and the agents run with your account's rights.
 - An agent itself running something harmful once approved.
-- Running the daemon without HTTPS, or on an address others can reach without a gate, against the README's advice.
+- Running the daemon without HTTPS, or on an address others can reach without a gate, against the [install guide](docs/install.md)'s advice.
 - The Claude Remote Control integration breaking because its private API changed.
