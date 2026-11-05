@@ -2,6 +2,7 @@
 
 from muxtower.sessions.archive import SessionArchive
 from muxtower.sessions.directory import SessionDirectory
+from muxtower.sessions.endable import ends_when_archived
 
 ARCHIVED_ITEMS = 400  # of a conversation that has no transcript, kept when it is archived
 
@@ -11,12 +12,16 @@ class Archiver:
         self.directory = directory
         self.archive_store = archive
 
-    def archive(self, session_id: str) -> None:
+    def archive(self, session_id: str) -> bool:
         """On Remote Control archived there first (if that fails, nothing has changed), then ended where
         it runs (its tmux pane closed, here or on its node), its conversation kept: the transcript it
-        was read from, else the items it had."""
+        was read from, else the items it had. True; False for a session muxtower cannot end (Claude's
+        desktop app's, `endable.py`), which is only hidden here, and not archived on Remote Control."""
         directory = self.directory
         session = directory.require(session_id, "archive")
+        if not ends_when_archived(session):
+            directory.hide(session.id, True)
+            return False
         own = directory.source_of(session.id)
         transcript = directory.local.transcript_of(session.id) if own is None else None
         items = None
@@ -31,3 +36,4 @@ class Archiver:
         if own is None:
             directory.local.close(session.id)
         self.archive_store.keep(session, transcript, items)
+        return True

@@ -60,7 +60,7 @@ def test_archiving_ends_a_tmux_agent_and_keeps_its_conversation(tmp_path: Path) 
 
 def test_archiving_a_remote_session_keeps_the_conversation_it_had(tmp_path: Path) -> None:
     port = FakeRemoteControl()
-    port.sessions = [session("cse_away", title="Elsewhere")]
+    port.sessions = [session("cse_away", title="Elsewhere", environment_id=None, environment_kind="anthropic_cloud")]
     port.events = {"cse_away": [assistant(1, {"type": "text", "text": "Done over there."})]}
     source = RemoteControlSource(port, {})
     source.tick()
@@ -83,7 +83,15 @@ def test_archiving_a_remote_session_keeps_the_conversation_it_had(tmp_path: Path
 def test_an_archived_session_used_again_elsewhere_is_listed_again(tmp_path: Path) -> None:
     """Archived on Remote Control, Claude Desktop keeps it; written to there, it is active again."""
     port = FakeRemoteControl()
-    port.sessions = [session("cse_main", title="Main", last_event_at="2026-10-18T10:00:00Z")]
+    port.sessions = [
+        session(
+            "cse_main",
+            title="Main",
+            last_event_at="2026-10-18T10:00:00Z",
+            environment_id=None,
+            environment_kind="anthropic_cloud",
+        )
+    ]
     source = RemoteControlSource(port, {})
     source.tick()
     app = _app(tmp_path, FakeTmux(), source)
@@ -96,7 +104,15 @@ def test_an_archived_session_used_again_elsewhere_is_listed_again(tmp_path: Path
     (archived,) = client.get("/v1/sessions", headers=auth).json()
     assert archived["archived_at"]
 
-    port.sessions = [session("cse_main", title="Main", last_event_at="2999-01-01T00:00:00Z")]
+    port.sessions = [
+        session(
+            "cse_main",
+            title="Main",
+            last_event_at="2999-01-01T00:00:00Z",
+            environment_id=None,
+            environment_kind="anthropic_cloud",
+        )
+    ]
     source.tick()
     (live,) = client.get("/v1/sessions", headers=auth).json()
     assert live["id"] == "cse_main" and not live["archived_at"]
@@ -122,7 +138,9 @@ def test_a_node_session_on_remote_control_is_archived_there_too() -> None:
             done.append((self.name, session_id))
 
     node, remote = Source("node"), Source("remote control")
-    on_mac = SimpleNamespace(id="mac~ab12", remote_id="cse_9", capabilities=SimpleNamespace(conversation=True))
+    on_mac = SimpleNamespace(
+        id="mac~ab12", remote_id="cse_9", source="launched", capabilities=SimpleNamespace(conversation=True)
+    )
     sources = {"mac~ab12": node, "cse_9": remote}
     directory: Any = SimpleNamespace(
         require=lambda sid, _: on_mac, source_of=sources.get,
@@ -146,8 +164,8 @@ def test_an_archived_fork_still_says_where_it_came_from(tmp_path: Path) -> None:
     port = FakeRemoteControl()
     port.sessions = [
         session("cse_parent", title="Plan"),
-        session("cse_fork", title="Plan (fork)", tags=tag),
-        session("cse_away", title="Plan (fork 2)", tags=tag),
+        session("cse_fork", title="Plan (fork)", tags=tag, environment_id=None, environment_kind="anthropic_cloud"),
+        session("cse_away", title="Plan (fork 2)", tags=tag, environment_id=None, environment_kind="anthropic_cloud"),
     ]
     source = RemoteControlSource(port, {})
     source.tick()

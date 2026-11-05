@@ -46,7 +46,7 @@ export function docs(): Scene {
         resize: true,
         terminate: false,
         rename: true,
-        archive: false,
+        archive: false, archive_ends: true,
         place: false,
         images: false,
       },

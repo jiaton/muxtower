@@ -908,6 +908,12 @@ export interface components {
              */
             archive: boolean;
             /**
+             * Archive Ends
+             * @description archiving ends it; false: it runs where muxtower cannot end it (Claude's desktop app), and archiving it only hides it here (`sessions/endable.py`)
+             * @default true
+             */
+            archive_ends: boolean;
+            /**
              * Conversation
              * @description structured conversation items exist (GET /conversation)
              */

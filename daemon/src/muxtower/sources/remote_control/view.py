@@ -7,6 +7,7 @@ from typing import Any
 from muxtower.agent_text import questions_of
 from muxtower.claude_conversation import ConversationBuilder
 from muxtower.runtimes.models import ATTENTION_STATES, AgentState, Option
+from muxtower.sessions.endable import CLOUD, ends_when_archived
 from muxtower.sessions.models import Capabilities, PendingAction, Session, StateSource, TurnSummary
 from muxtower.sessions.ports import SessionSource
 from muxtower.sources.remote_control.folder import WorkingFolder
@@ -49,7 +50,7 @@ def machine(raw: dict[str, Any], environments: dict[str, str]) -> str | None:
     if env_id and env_id in environments:
         return environments[env_id]
     if raw.get("environment_kind") == "anthropic_cloud":
-        return "cloud"
+        return CLOUD
     return f"env {str(env_id)[-6:]}" if env_id else None
 
 
@@ -112,7 +113,7 @@ def to_session(rc: RcSession, environments: dict[str, str]) -> Session:
         noteworthy=_flag(turn.get("is_noteworthy")),
     )
     title = raw.get("title") or detail.get("task_summary") or "Untitled session"
-    return Session(
+    session = Session(
         id=str(raw["id"]),
         name=str(title)[:80],
         runtime="claude-code",
@@ -144,3 +145,5 @@ def to_session(rc: RcSession, environments: dict[str, str]) -> Session:
         created_at=_when(raw.get("created_at")),
         updated_at=_when(raw.get("last_event_at") or raw.get("updated_at")),
     )
+    session.capabilities.archive_ends = ends_when_archived(session)  # in the desktop app: only hidden here
+    return session

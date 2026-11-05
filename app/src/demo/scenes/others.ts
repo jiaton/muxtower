@@ -114,9 +114,11 @@ export function releaseNotes(): Scene {
         terminate: false,
         rename: true,
         archive: true,
+        archive_ends: false, // in the desktop app: archiving only hides it here
         place: false,
         images: false,
       },
+      origin: 'claude_desktop',
       state_source: 'remote',
       last_message: 'Release notes for 2.4 are ready.',
       team_role: 'research',

@@ -26,7 +26,7 @@ export function demoSession(fields: Pick<Session, 'id' | 'name' | 'cwd'> & Parti
       resize: true,
       terminate: true,
       rename: true,
-      archive: true,
+      archive: true, archive_ends: true,
       place: false,
       images: true,
     },

@@ -24,9 +24,15 @@ export function SessionHeader({ daemonId, session, actions }: { daemonId: string
   const AgentIcon = agentIcon(agent)
   const project = projectLabel(session)
   const team = session.team_role ? `${session.team_role}${project ? ` in ${project}` : ''}` : project
-  const where = [team, agent, deviceOf(session) ?? NO_ENVIRONMENT, folderOf(session), workingIn(session), session.permission_mode ? `${session.permission_mode} mode` : null, sourceOf(session)].filter(
-    Boolean,
-  )
+  const where = [
+    team,
+    agent,
+    deviceOf(session) ?? NO_ENVIRONMENT,
+    folderOf(session),
+    workingIn(session),
+    session.permission_mode ? `${session.permission_mode} mode` : null,
+    sourceOf(session),
+  ].filter(Boolean)
   return (
     <PaneHeader
       leading={
@@ -45,7 +51,15 @@ export function SessionHeader({ daemonId, session, actions }: { daemonId: string
       title={
         <>
           <h1 className="min-w-0 truncate">{session.name}</h1>
-          {session.interrupted_at ? <Badge>Interrupted</Badge> : session.archived_at ? <Badge>Archived</Badge> : session.offline ? <Badge>Offline</Badge> : <StateBadge state={session.state} />}
+          {session.interrupted_at ? (
+            <Badge>Interrupted</Badge>
+          ) : session.archived_at ? (
+            <Badge>Archived</Badge>
+          ) : session.offline ? (
+            <Badge>Offline</Badge>
+          ) : (
+            <StateBadge state={session.state} />
+          )}
           <StreamMark daemonId={daemonId} />
         </>
       }
