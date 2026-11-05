@@ -211,6 +211,10 @@ class CreateSession(BaseModel):
     cwd: str
     name: str | None = None
     args: list[str] = Field(default_factory=list, description="extra arguments for the agent binary")
+    prompt: str | None = Field(
+        default=None, max_length=100_000,
+        description="its first message, given after every option (`--`): any length, lines and characters",
+    )  # fmt: skip
     headless: bool = Field(
         default=False, description="run it without a terminal, where the runtime can (`RuntimeInfo.headless`)"
     )

@@ -126,15 +126,17 @@ class SessionService:
         default_mode, default_args = self.launch_defaults(runtime.name)
         mode = request.permission_mode or default_mode
         args = launch_args(runtime.config, mode, default_args, request.args)
-        return self.launch(runtime, cwd, args, request.name, hooks=True)
+        return self.launch(runtime, cwd, args, request.name, hooks=True, prompt=request.prompt)
 
     def launch(
         self, runtime: Runtime, cwd: str, args: Sequence[str], name: str | None, hooks: bool,
-        again: SessionRecord | None = None,
+        again: SessionRecord | None = None, prompt: str | None = None,
     ) -> Session:  # fmt: skip
         """Starts the runtime's binary with `args` in a tmux session of its own; with its hooks, if it has
         them, reporting to this daemon. `again`: an interrupted session started again under its own id
-        (its name, marks and team stay with it)."""
+        (its name, marks and team stay with it). `prompt`: its first message, last, after `--`: an option
+        that takes several values (Claude Code's `--mcp-config`) would take it for one more. Conflict, with
+        what it said, when it exits at once."""
         if not self.tmux.installed():
             raise Conflict(
                 "tmux is not installed here (not on the PATH muxtower runs with): install it, "
@@ -155,6 +157,8 @@ class SessionService:
             if mcp:
                 env[MCP_TOKEN_ENV] = launch.mcp_token
         argv += args
+        if prompt:
+            argv += ["--", prompt]
 
         tmux_session = f"mxt-{session_id[:8]}"
         pane = self.tmux.new_session(self.config.socket, tmux_session, cwd, argv, env, DEFAULT_COLS, DEFAULT_ROWS)
@@ -176,6 +180,9 @@ class SessionService:
             server_id=self.tmux.server_id(self.config.socket),
         )
         self.repo.upsert(record)
+        if (said := self.tmux.started(pane)) is not None:
+            self.repo.delete(session_id)
+            raise Conflict(f"{runtime.config.binary} exited as it started:\n{said}")
         if self.names and name and not again:
             self.names.note(session_id, record.name, MUXTOWER)
         if again:  # what it was before it was interrupted is no more

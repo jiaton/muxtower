@@ -4,6 +4,7 @@ import logging
 import os
 import shutil
 import subprocess
+import time
 
 from muxtower.terminal.ports import PaneInfo, PaneRef
 
@@ -46,6 +47,15 @@ class TmuxError(Exception):
     pass
 
 
+def literal(arg: str) -> str:
+    """An argument as tmux passes it on: tmux ends a command at any argument ending in ";" (dropping the ";"),
+    and takes "\\;" there for a plain ";". So a prompt or typed text ending in ";" keeps it."""
+    return arg[:-1] + "\\;" if arg.endswith(";") else arg
+
+
+STARTUP_SECONDS = 1.5  # an agent that exits within this of starting failed to start (`started`)
+
+
 class TmuxCli:
     def __init__(self, binary: str = "tmux") -> None:
         self.binary = binary
@@ -74,13 +84,37 @@ class TmuxCli:
         # A server already running keeps the environment it started with: whatever it has is unset too.
         shown = self._run(socket, "show-environment", "-g", check=False).stdout
         names = {line.lstrip("-").split("=", 1)[0] for line in shown.splitlines()} | set(os.environ)
-        # Several command arguments make tmux exec them directly, without a shell.
+        # Several command arguments make tmux exec them directly, without a shell. Its pane stays when what
+        # runs in it ends, till `started` has seen it start (or read why not).
+        command = [literal(arg) for arg in without_inside_claude(argv, names)]
         result = self._run(
             socket,
             "new-session", "-d", "-s", name, "-c", cwd, "-x", str(cols), "-y", str(rows),
-            *env_args, "-P", "-F", "#{pane_id}", "--", *without_inside_claude(argv, names),
+            *[literal(arg) for arg in env_args], "-P", "-F", "#{pane_id}", "--", *command,
+            ";", "set-option", "-w", "-t", f"={name}:", "remain-on-exit", "on",
         )  # fmt: skip
-        return PaneRef(socket=socket, pane_id=result.stdout.strip())
+        return PaneRef(socket=socket, pane_id=result.stdout.strip().splitlines()[0])
+
+    def started(self, pane: PaneRef, seconds: float = STARTUP_SECONDS) -> str | None:
+        """None once what runs in a new pane has run for `seconds`; else its last lines (what it said as it
+        exited), and the pane is closed."""
+        deadline = time.monotonic() + seconds
+        while True:
+            shown = self._run(pane.socket, "display-message", "-p", "-t", pane.pane_id, "#{pane_dead}", check=False)
+            dead = shown.returncode != 0 or shown.stdout.strip() == "1"
+            if dead or time.monotonic() >= deadline:
+                break
+            time.sleep(0.1)
+        if not dead:
+            self._run(pane.socket, "set-option", "-w", "-t", pane.pane_id, "remain-on-exit", "off", check=False)
+            shown = self._run(pane.socket, "display-message", "-p", "-t", pane.pane_id, "#{pane_dead}", check=False)
+            dead = shown.returncode != 0 or shown.stdout.strip() == "1"  # it ended just then
+            if not dead:
+                return None
+        said = self._run(pane.socket, "capture-pane", "-p", "-S", "-200", "-t", pane.pane_id, check=False).stdout
+        self.kill_pane(pane)
+        lines = [line.rstrip() for line in said.splitlines() if line.strip() and not line.startswith("Pane is dead")]
+        return "\n".join(lines[-8:]) or "it said nothing"
 
     def server_id(self, socket: str) -> str | None:
         shown = self._run(socket, "display-message", "-p", "#{pid}:#{start_time}", check=False)
@@ -127,7 +161,7 @@ class TmuxCli:
         return result.stdout.rstrip("\n")
 
     def send_text(self, pane: PaneRef, text: str) -> None:
-        self._run(pane.socket, "send-keys", "-t", pane.pane_id, "-l", "--", text)
+        self._run(pane.socket, "send-keys", "-t", pane.pane_id, "-l", "--", literal(text))
 
     def paste(self, pane: PaneRef, text: str) -> None:
         """As a paste (bracketed, when the app asked for it): Claude Code takes a pasted image path for the

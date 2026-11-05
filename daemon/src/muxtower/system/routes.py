@@ -26,6 +26,7 @@ class Me(BaseModel):
         description="the Claude login this daemon reads Remote Control sessions with is missing or expired: "
         "those sessions (Claude Desktop's, the Claude app's) do not update until it is logged in again",
     )
+    version: str | None = Field(default=None, description="the muxtower this daemon runs (null: an older one)")
 
 
 @router.get("/health")
@@ -39,4 +40,10 @@ def me(request: Request, device: CurrentDevice) -> Me:
     state = request.app.state
     features = Features(summaries=state.summaries.available, asr=state.asr.available)
     expired = bool(state.remote_control and state.remote_control.login_expired)
-    return Me(token_name=device.name, daemon_name=state.daemon_name, features=features, claude_login_expired=expired)
+    return Me(
+        token_name=device.name,
+        daemon_name=state.daemon_name,
+        features=features,
+        claude_login_expired=expired,
+        version=__version__,
+    )

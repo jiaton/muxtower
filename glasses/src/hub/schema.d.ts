@@ -1063,6 +1063,11 @@ export interface components {
              * @description one of its runtime's `permission_modes`, or "agent" (its own settings); null: the configured default (`launch.<runtime>_mode`)
              */
             permission_mode?: string | null;
+            /**
+             * Prompt
+             * @description its first message, given after every option (`--`): any length, lines and characters
+             */
+            prompt?: string | null;
             /** Runtime */
             runtime: string;
         };
@@ -1331,6 +1336,11 @@ export interface components {
             features: components["schemas"]["Features"];
             /** Token Name */
             token_name: string;
+            /**
+             * Version
+             * @description the muxtower this daemon runs (null: an older one)
+             */
+            version?: string | null;
         };
         /** ModeInfo */
         ModeInfo: {

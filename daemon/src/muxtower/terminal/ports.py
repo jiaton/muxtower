@@ -28,6 +28,10 @@ class TmuxPort(Protocol):
     def new_session(
         self, socket: str, name: str, cwd: str, argv: list[str], env: dict[str, str], cols: int, rows: int
     ) -> PaneRef: ...
+    def started(self, pane: PaneRef) -> str | None:
+        """None once a new pane's program has been running a moment; else its last lines (the pane closed)."""
+        ...
+
     def installed(self) -> bool:
         """Whether tmux itself can be run (it is on the daemon's PATH)."""
         ...
