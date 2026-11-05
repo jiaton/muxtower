@@ -67,11 +67,10 @@ To try it without a phone, open http://127.0.0.1:8731 on this machine; HTTPS is 
 - **One token per device, one-time pairing codes.** Codes expire in five minutes and travel in the URL fragment; only a wrong credential answers 401, so fail2ban can count guesses. [Security model](https://github.com/jiaton/muxtower/blob/main/docs/security.md).
 - **One package.** The daemon is a single pipx install with the app inside; a typed HTTP and WebSocket API ([design](https://github.com/jiaton/muxtower/blob/main/docs/design.md)).
 
-## How it compares
+## Why not just…
 
-- [claude-squad](https://github.com/smtg-ai/claude-squad): a terminal UI for many agents on your own machine. muxtower is a daemon and API for reaching them remotely.
-- [TmuxDeck](https://github.com/ctliz/TmuxDeck): the closest idea, a desktop app with a LAN-only mobile page. muxtower is headless and built to sit behind a proxy on the open internet.
-- ttyd and gotty: browser terminals. muxtower shows terminals too, but its point is knowing what each agent waits for.
+- **Claude Code's Remote Control, or the Codex app?** Each reaches only its own agent, one session at a time. muxtower puts every Claude Code and Codex session on all your computers in one list, shows which one is waiting on you and for what, and lets the agents hand each other work.
+- **SSH and tmux from your phone?** It works, but you find who is waiting yourself, window by window, and approving on a phone keyboard is clumsy.
 
 ## Development
 
