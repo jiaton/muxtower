@@ -1,13 +1,16 @@
-"""Claude Code's hooks: a `--settings` file whose http hooks post every event to the daemon, with the
-session's id and token taken from its environment. Nothing is written to the user's own settings.json."""
+"""Claude Code's hooks: a `--settings` file whose command hooks run `relay.py` for every event, which posts
+it to the daemon. Not http hooks: Claude Code tells the agent about each one that fails ("PostToolUse:Bash
+hook error … ECONNREFUSED" while the daemon restarts), and the agent took muxtower for gone; the relay tries
+again and otherwise says nothing. Nothing is written to the user's own settings.json."""
 
 import json
 from typing import Any
 
 from pydantic import ValidationError
 
-from muxtower.hooks.events import SESSION_HEADER, AskingTools, HookEvent
+from muxtower.hooks.events import AskingTools, HookEvent
 from muxtower.hooks.ports import MCP_SERVER, HookLaunch
+from muxtower.hooks.relay import relay_command, write_target
 
 EVENTS = [
     "SessionStart",
@@ -24,17 +27,8 @@ EVENTS = [
 ]
 
 
-def hook_settings(hook_url: str) -> dict[str, Any]:
-    hook = {
-        "type": "http",
-        "url": hook_url,
-        "headers": {
-            "Authorization": "Bearer ${MUXTOWER_HOOK_TOKEN}",
-            SESSION_HEADER: "${MUXTOWER_SESSION_ID}",
-        },
-        "allowedEnvVars": ["MUXTOWER_HOOK_TOKEN", "MUXTOWER_SESSION_ID"],
-        "timeout": 5,
-    }
+def hook_settings(command: str) -> dict[str, Any]:
+    hook = {"type": "command", "command": command, "timeout": 5}
     return {"hooks": {event: [{"hooks": [hook]}] for event in EVENTS}}
 
 
@@ -45,7 +39,10 @@ class ClaudeCodeHooks:
     def launch_args(self, launch: HookLaunch) -> list[str]:
         settings = launch.files / f"{launch.session_id}.json"
         settings.parent.mkdir(parents=True, exist_ok=True)
-        settings.write_text(json.dumps(hook_settings(launch.url)))
+        target = write_target(
+            launch.files / f"{launch.session_id}.relay.json", launch.url, launch.session_id, launch.token
+        )
+        settings.write_text(json.dumps(hook_settings(relay_command(target))))
         args = ["--settings", str(settings)]
         if launch.mcp_url:
             server = {"type": "http", "url": launch.mcp_url, "headers": {"Authorization": f"Bearer {launch.mcp_token}"}}

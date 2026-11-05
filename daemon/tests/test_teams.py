@@ -281,12 +281,12 @@ def test_a_resumed_session_keeps_its_role_and_project(
     assert codex.startswith("ERROR opencode sessions cannot be resumed")
 
 
-async def test_a_node_may_ask_its_hub_for_team_and_reach_tools_only(make_app: Callable[..., FastAPI]) -> None:
+async def test_a_node_may_ask_its_hub_for_team_reach_and_listing_tools_only(make_app: Callable[..., FastAPI]) -> None:
     from muxtower.nodes import asked
 
     tools = make_app().state.mcp
     reply = json.loads(
-        await asked.answer(tools, "mac", {"id": 1, "method": "team_tool", "params": {"tool": "start_session"}})
+        await asked.answer(tools, "mac", {"id": 1, "method": "team_tool", "params": {"tool": "make_coffee"}})
     )
     assert reply["error"]["status"] == 400 and "no team tool" in reply["error"]["message"]
     reply = json.loads(await asked.answer(tools, "mac", {"id": 2, "method": "approve", "params": {}}))

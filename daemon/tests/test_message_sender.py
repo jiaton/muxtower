@@ -108,7 +108,7 @@ def test_a_node_without_its_hub_changes_no_team_data_but_still_says_who_is_here(
     assert refused.startswith("ERROR the hub is unreachable now") and "nothing was changed" in refused
     assert app.state.teams.kept(me.id) is None or app.state.teams.kept(me.id).role is None
     assert _tool(client, token, "set_project", project="x").startswith("ERROR the hub is unreachable")
-    assert "only this machine's sessions below" in _tool(client, token, "my_team")
+    assert "Only this machine's sessions below" in _tool(client, token, "my_team")
     app.state.mcp.team_tools.forward = None  # standalone: no hub at all, written here as before
     assert not _tool(client, token, "set_role", role="db").startswith("ERROR")
     assert app.state.teams.kept(me.id).role == "db"

@@ -164,8 +164,9 @@ def test_a_node_s_sessions_see_the_whole_team_through_the_hub(hub: tuple[FastAPI
     ]
     node_mcp = TestClient(node)
 
-    def tool(client: Any, bearer: str, name: str, **arguments: Any) -> str:
-        body = {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": name, "arguments": arguments}}
+    def tool(client: Any, bearer: str, tool_name: str, /, **arguments: Any) -> str:
+        params = {"name": tool_name, "arguments": arguments}
+        body = {"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": params}
         result = client.post("/v1/mcp", json=body, headers={"Authorization": f"Bearer {bearer}"}).json()["result"]
         return ("ERROR " if result["isError"] else "") + str(result["content"][0]["text"])
 
@@ -204,12 +205,37 @@ def test_a_node_s_sessions_see_the_whole_team_through_the_hub(hub: tuple[FastAPI
         assert tool(node_mcp, token, "read_session", session_id=research.id).startswith(research.id)
         assert tool(node_mcp, token, "watch_session", session_id=research.id).startswith("Watching research")
         assert hub_app.state.mcp.tools["watch_session"] is not None
+        assert research.id in tool(node_mcp, token, "list_sessions")  # linked: every machine's sessions
+
+        # The watched session's events reach the node's session (typed in there), and list_events has them.
+        hub_pane = next(
+            p for p in hub_app.state.sessions.tmux.panes.values() if p.info.session_name == research.tmux_session
+        )
+        hooked = {"Authorization": f"Bearer {hub_pane.env['MUXTOWER_HOOK_TOKEN']}", "X-Muxtower-Session": research.id}
+        stop = {"hook_event_name": "Stop", "last_assistant_message": "Spec reviewed."}
+        assert hub_mcp.post("/v1/hooks/claude-code", json=stop, headers=hooked).status_code == 200
+        hub_app.state.watches.updates()
+        hub_app.state.watches.deliver()
+        node_pane = next(p for p in node_tmux.panes.values() if p.info.session_name == worker.tmux_session)
+        _until(lambda: any("[muxtower event" in text and "research" in text for _, text in node_pane.sent))
+        assert "research" in tool(node_mcp, token, "list_events", after=0)
+
+        # Started on another machine, renamed and archived there: through the hub too.
+        started = tool(node_mcp, token, "start_session", cwd=str(work), machine="@nas", name="helper")
+        assert started.startswith("Started helper") and not started.startswith("ERROR"), started
+        helper = next(s for s in hub_app.state.directory.list() if s.name == "helper")
+        assert "~" not in helper.id  # on the hub itself
+        assert not tool(node_mcp, token, "rename_session", session_id=helper.id, name="helper 2").startswith("ERROR")
+        assert hub_app.state.directory.get(helper.id).name == "helper 2"
+        assert not tool(node_mcp, token, "archive_session", session_id=helper.id).startswith("ERROR")
 
         # Without its hub, the node answers for itself and says so.
         link.stop()
         _until(lambda: not node.state.hub.status().connected)
         alone = tool(node_mcp, token, "my_team")
-        assert alone.startswith("(this machine is not linked to its hub right now: only this machine's sessions")
+        assert alone.startswith("NOTE: this machine is a node of the hub") and "try again in a few seconds" in alone
+        listed = tool(node_mcp, token, "list_sessions")
+        assert listed.startswith("NOTE: this machine is a node") and research.id not in listed  # said why
         away = tool(node_mcp, token, "send_message", session_id=research.id, text="hi")
         assert away.startswith(f"ERROR {research.id} is not on this machine, and its hub cannot be asked now")
     finally:

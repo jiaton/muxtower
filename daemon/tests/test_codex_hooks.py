@@ -42,7 +42,8 @@ def test_launch_adds_trusted_command_hooks_and_a_private_target(tmp_path: Path) 
         hook = hooks[event][0]["hooks"][0]
         assert hooks["state"][f"{SESSION_FLAGS}:{label}:0:0"]["trusted_hash"] == trusted_hash(label, hook)
     target = tmp_path / "hooks" / "s1.codex.json"
-    assert json.loads(target.read_text()) == {"url": launch.url, "session": "s1", "token": "secret"}
+    log = str(tmp_path / "hooks" / "relay.log")
+    assert json.loads(target.read_text()) == {"url": launch.url, "session": "s1", "token": "secret", "log": log}
     assert stat.S_IMODE(target.stat().st_mode) == 0o600
 
 
