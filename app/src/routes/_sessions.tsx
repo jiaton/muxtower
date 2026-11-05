@@ -26,7 +26,7 @@ import { foldForks } from '@/features/sessions/model/forks'
 import { foldSideChats } from '@/features/sessions/model/side-chats'
 import { parseListSearch, toQuery } from '@/features/sessions/model/search'
 import { useChipGroups } from '@/features/sessions/api/use-chip-groups'
-import { chipProjects } from '@/features/sessions/model/chip-groups'
+import { chipMembers } from '@/features/sessions/model/chip-groups'
 import { ProjectChips } from '@/features/sessions/components/project-chips'
 import { useListMemory, useListPrefs, useSessionDrawer } from '@/features/sessions/store'
 import { cn } from '@/lib/cn'
@@ -48,7 +48,7 @@ function SessionsLayout() {
       search,
       useListPrefs((s) => s.group),
     ),
-    projects: chipProjects(search.chip, chipGroups) ?? undefined, // the second chip row's
+    chip: chipMembers(search.chip, chipGroups) ?? undefined, // the second chip row's
   }
   const { entries, daemons, loading } = useSessionEntries()
   const unpaired = useUnpairedDaemons()

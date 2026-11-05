@@ -7,7 +7,7 @@ from collections.abc import Callable
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from muxtower.chips.service import MAX_GROUPS, MAX_NAME, MAX_PROJECTS, OTHER
+from muxtower.chips.service import MAX_GROUPS, MAX_NAME, MAX_PROJECTS, MAX_SESSIONS, OTHER
 
 
 def _client(app: FastAPI) -> tuple[TestClient, dict[str, str]]:
@@ -19,14 +19,14 @@ def test_what_is_put_is_read_back_in_its_order(make_app: Callable[..., FastAPI])
     client, auth = _client(make_app())
     assert client.get("/v1/chip-groups", headers=auth).json() == {"groups": []}
     groups = [
-        {"id": "g2", "name": " Focus ", "projects": ["muxtower", "ha", "ha"]},
-        {"id": "g1", "name": "Rest", "projects": [OTHER]},
+        {"id": "g2", "name": " Focus ", "projects": ["muxtower", "ha", "ha"], "sessions": ["mac~ab12", "ab34", "ab34"]},
+        {"id": "g1", "name": "Rest", "projects": [OTHER]},  # as an app before single sessions puts it
     ]
     put = client.put("/v1/chip-groups", json={"groups": groups}, headers=auth)
     assert put.status_code == 200
     expected = [
-        {"id": "g2", "name": "Focus", "projects": ["muxtower", "ha"]},  # trimmed, each project once
-        {"id": "g1", "name": "Rest", "projects": [OTHER]},
+        {"id": "g2", "name": "Focus", "projects": ["muxtower", "ha"], "sessions": ["mac~ab12", "ab34"]},  # each once
+        {"id": "g1", "name": "Rest", "projects": [OTHER], "sessions": []},
     ]
     assert put.json()["groups"] == expected and client.get("/v1/chip-groups", headers=auth).json()["groups"] == expected
     assert client.put("/v1/chip-groups", json={"groups": []}, headers=auth).json() == {"groups": []}  # replaced
@@ -43,6 +43,8 @@ def test_the_limits(make_app: Callable[..., FastAPI]) -> None:
     assert put([{**one, "id": f"g{i}"} for i in range(MAX_GROUPS + 1)]) == 422
     assert put([{**one, "projects": [f"p{i}" for i in range(MAX_PROJECTS + 1)]}]) == 422
     assert put([{**one, "name": "n" * (MAX_NAME + 1)}]) == 422
+    assert put([{**one, "sessions": [f"s{i}" for i in range(MAX_SESSIONS)]}]) == 200
+    assert put([{**one, "sessions": [f"s{i}" for i in range(MAX_SESSIONS + 1)]}]) == 422
     assert put([{**one, "name": "   "}]) == 422
     assert put([one, one]) == 422  # two with one id
     assert put([{**one, "id": "has space"}]) == 422

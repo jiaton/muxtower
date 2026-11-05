@@ -17,18 +17,23 @@ export const AUTO_CHIPS = 6
 export const MAX_GROUPS = 20
 export const MAX_PROJECTS = 40
 export const MAX_NAME = 40
+export const MAX_SESSIONS = 100
 
-export interface ChipGroup {
-  id: string
-  name: string
+/** Projects held whole (sessions to come included), and single sessions besides (a fixed list). */
+export interface ChipMembers {
   projects: string[]
+  sessions: string[]
 }
 
-export interface ProjectChip {
+export interface ChipGroup extends ChipMembers {
+  id: string
+  name: string
+}
+
+export interface ProjectChip extends ChipMembers {
   /** The group's id, or `p:<project>` for a chip of one project (no groups). */
   id: string
   label: string
-  projects: string[]
 }
 
 const TEMP = /^\/(?:private\/)?(?:tmp|var\/folders)(?:\/|$)/
@@ -68,18 +73,21 @@ export function projectsByActivity(entries: SessionEntry[]): string[] {
 /** What the row shows: the groups in their order, else one chip per recent project; null when it would
  *  show a single project and no groups (no row, no height taken). */
 export function projectChips(groups: ChipGroup[], entries: SessionEntry[]): ProjectChip[] | null {
-  if (groups.length) return groups.map((g) => ({ id: g.id, label: g.name, projects: g.projects }))
+  if (groups.length) return groups.map((g) => ({ id: g.id, label: g.name, projects: g.projects, sessions: g.sessions ?? [] }))
   const projects = projectsByActivity(entries)
   if (projects.length <= 1) return null
-  return projects.slice(0, AUTO_CHIPS).map((p) => ({ id: `p:${p}`, label: projectLabel(p), projects: [p] }))
+  return projects.slice(0, AUTO_CHIPS).map((p) => ({ id: `p:${p}`, label: projectLabel(p), projects: [p], sessions: [] }))
 }
 
-/** The projects a chip id from the URL means: a group's, or the one of a `p:` chip; null for none (a
- *  group since deleted, or none chosen). */
-export function chipProjects(id: string | undefined, groups: ChipGroup[]): string[] | null {
+/** What a chip id from the URL holds: a group's members, or the one project of a `p:` chip; null for
+ *  none (a group since deleted, or none chosen). */
+export function chipMembers(id: string | undefined, groups: ChipGroup[]): ChipMembers | null {
   if (!id) return null
-  if (id.startsWith('p:')) return [id.slice(2)]
-  return groups.find((g) => g.id === id)?.projects ?? null
+  if (id.startsWith('p:')) return { projects: [id.slice(2)], sessions: [] }
+  const group = groups.find((g) => g.id === id)
+  return group ? { projects: group.projects, sessions: group.sessions ?? [] } : null
 }
 
-export const inProjects = (entry: SessionEntry, projects: string[]) => projects.includes(chipProject(entry.session))
+/** Whether a chip holds a session: its project whole, or the session itself. */
+export const inChip = (entry: SessionEntry, chip: ChipMembers) =>
+  chip.projects.includes(chipProject(entry.session)) || chip.sessions.includes(entry.session.id)

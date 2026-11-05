@@ -232,7 +232,7 @@ def test_a_node_s_sessions_see_the_whole_team_through_the_hub(hub: tuple[FastAPI
         # The app's groups of projects: kept on the hub, asked through the node too.
         _, phone = node.state.tokens.create("phone")
         on_node = {"Authorization": f"Bearer {phone}"}
-        focus = {"groups": [{"id": "focus", "name": "Focus", "projects": ["muxtower", "ha"]}]}
+        focus = {"groups": [{"id": "focus", "name": "Focus", "projects": ["muxtower", "ha"], "sessions": []}]}
         assert node_mcp.put("/v1/chip-groups", json=focus, headers=on_node).status_code == 200
         assert hub_app.state.chip_groups.load().groups[0].name == "Focus"  # on the hub, not the node
         assert node.state.chip_groups.load().groups == []

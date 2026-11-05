@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { Session } from '@/lib/api/types'
 import type { Daemon } from '@/lib/daemons/types'
-import { OTHER, chipProject, chipProjects, projectChips, projectsByActivity, type ChipGroup } from './chip-groups'
+import { OTHER, chipProject, chipMembers, projectChips, projectsByActivity, type ChipGroup } from './chip-groups'
 import type { SessionEntry } from './facets'
 import { filterEntries } from './query'
 import { parseListSearch, scopeSearch, toQuery } from './search'
@@ -44,7 +44,7 @@ const entries = [
   entry('web', { cwd: '/home/me/web' }),
   entry('gone', { project: 'old', project_source: 'set', hidden: true }), // hidden: not listed, no chip
 ]
-const focus: ChipGroup = { id: 'focus', name: 'Focus', projects: ['muxtower', 'ha'] }
+const focus: ChipGroup = { id: 'focus', name: 'Focus', projects: ['muxtower', 'ha'], sessions: [] }
 
 describe('the second row', () => {
   it('orders projects by who needs the owner, then by activity, Other last', () => {
@@ -52,23 +52,25 @@ describe('the second row', () => {
   })
 
   it('shows the groups in their order, else a chip per project, and nothing for a single project', () => {
-    const rest: ChipGroup = { id: 'rest', name: 'Rest', projects: [OTHER] }
+    const rest: ChipGroup = { id: 'rest', name: 'Rest', projects: [OTHER], sessions: [] }
     expect(projectChips([rest, focus], entries)?.map((c) => c.label)).toEqual(['Rest', 'Focus'])
     expect(projectChips([], entries)?.map((c) => c.id)).toEqual(['p:ha', 'p:web', 'p:muxtower', `p:${OTHER}`])
     expect(projectChips([], entries.slice(0, 1))).toBeNull()
-    expect(chipProjects('focus', [focus])).toEqual(['muxtower', 'ha'])
-    expect(chipProjects('p:web', [])).toEqual(['web'])
-    expect(chipProjects('deleted', [focus])).toBeNull() // a group since deleted narrows nothing
+    expect(chipMembers('focus', [focus])).toEqual({ projects: ['muxtower', 'ha'], sessions: [] })
+    expect(chipMembers('p:web', [])).toEqual({ projects: ['web'], sessions: [] })
+    expect(chipMembers('deleted', [focus])).toBeNull() // a group since deleted narrows nothing
   })
 
   it('narrows the view chosen in the first row, and counts what it holds', () => {
-    const shown = (view: 'all' | 'needs' | 'working', projects?: string[]) =>
-      filterEntries(entries, { view, group: 'status', projects }).map((e) => e.session.id)
+    const shown = (view: 'all' | 'needs' | 'working', projects?: string[], sessions: string[] = []) =>
+      filterEntries(entries, { view, group: 'status', chip: projects && { projects, sessions } }).map((e) => e.session.id)
     expect(shown('all', focus.projects)).toEqual(['mux-1', 'ha-1', 'mux-2'])
     expect(shown('needs', focus.projects)).toEqual(['ha-1'])
     expect(shown('working', focus.projects)).toEqual(['mux-2'])
     expect(shown('all', [OTHER])).toEqual(['scratch'])
     expect(shown('all', ['old'])).toEqual([]) // a project with no listed session counts none
+    expect(shown('all', ['ha'], ['web', 'gone-long-ago'])).toEqual(['ha-1', 'web']) // its project, or itself
+    expect(shown('needs', [], ['web', 'ha-1'])).toEqual(['ha-1'])
   })
 })
 
