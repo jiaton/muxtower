@@ -1,8 +1,90 @@
-# muxtower (Python package)
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jiaton/muxtower/main/app/public/icon.svg" width="96" alt="muxtower">
+</p>
 
-`pipx install muxtower` installs one command, `muxtower`:
+<h1 align="center">muxtower</h1>
 
-- `muxtower serve` — run the daemon: the API under `/v1` and the web app at `/`.
-- `muxtower token add|list|revoke` — manage device tokens.
+<p align="center"><b>Approve and drive the coding agents running on your machines, from your phone.</b></p>
 
-See the repository README and `docs/design.md`.
+<p align="center">
+  <a href="https://pypi.org/project/muxtower/"><img src="https://img.shields.io/pypi/v/muxtower?style=flat-square" alt="PyPI"></a>
+  <a href="https://pypi.org/project/muxtower/"><img src="https://img.shields.io/pypi/pyversions/muxtower?style=flat-square" alt="Python"></a>
+  <a href="https://github.com/jiaton/muxtower/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue?style=flat-square" alt="License: Apache-2.0"></a>
+  <a href="https://github.com/jiaton/muxtower/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/jiaton/muxtower/ci.yml?branch=main&style=flat-square&label=ci" alt="CI"></a>
+  <a href="https://github.com/jiaton/muxtower/tags"><img src="https://img.shields.io/github/v/tag/jiaton/muxtower?sort=semver&style=flat-square&label=release" alt="Release"></a>
+</p>
+
+<p align="center">
+  <a href="https://muxtower.dev">muxtower.dev</a> · <a href="https://muxtower.dev/demo/">Live demo</a> · <a href="https://app.muxtower.dev">Hosted app</a>
+</p>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jiaton/muxtower/main/docs/media/hero.gif" width="360" alt="A phone approving what an agent asks, and the agent going on">
+</p>
+
+muxtower is a small daemon that runs next to your agents (Claude Code, Codex, …) in tmux. It knows which one is waiting on you and for what, and serves a web app for your phone: approve, answer, read and type into any session, on any of your computers.
+
+- **Knows what each agent is asking.** Claude Code and Codex report through their own hooks, so a permission prompt arrives with the exact command; anything else is read off the screen with rules you can edit.
+- **Teams of agents.** Each session has a role and a project; agents find each other with `my_team` and hand each other work with `send_task`, on one machine or across several.
+- **All your computers in one list.** Join them to one hub; a laptop needs no address of its own, and while the hub restarts the app reaches the others directly.
+- **Yours to host.** One `pipx install`, and the daemon serves the app itself. No account, no cloud service; every device has its own revocable token.
+
+> Status: early (0.1.x). Interfaces may change.
+
+## Quick start
+
+```sh
+pipx install muxtower
+cd ~/code/my-project
+muxtower run claude            # starts the daemon, opens Claude Code in a managed tmux session
+muxtower expose tailscale      # an HTTPS address on your tailnet (or put any proxy in front)
+muxtower pair                  # a one-time code (and a QR code) for your phone
+```
+
+More: [install, HTTPS and running it as a service](https://github.com/jiaton/muxtower/blob/main/docs/install.md).
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jiaton/muxtower/main/docs/media/sessions-desktop.png" width="70%" alt="The session list, grouped by project">
+  <img src="https://raw.githubusercontent.com/jiaton/muxtower/main/docs/media/sessions-phone.png" width="24%" alt="The same list on a phone">
+</p>
+
+## What it does
+
+| Feature | |
+|---|---|
+| Approve and answer | prompts and questions with their options, from the phone; push notifications when a session needs you |
+| Live terminal and conversation | each session's screen and its conversation, with an input bar, voice and pictures |
+| Sessions you already run | agents started in plain tmux are found by themselves; Claude's Remote Control and Codex's app-server sessions are listed too |
+| [More than one computer](https://github.com/jiaton/muxtower/blob/main/docs/multi-machine.md) | one hub lists every computer's sessions; a node needs no address; direct fallback while the hub is down |
+| [Teams](https://github.com/jiaton/muxtower/blob/main/docs/teams.md) | roles, projects, `send_task`, watching another session, warnings when two write in one worktree; MCP tools and a concierge |
+| [Agents and permission modes](https://github.com/jiaton/muxtower/blob/main/docs/agents.md) | Claude Code, Codex, screen rules as TOML, a permission mode per session |
+| [The web app](https://github.com/jiaton/muxtower/blob/main/docs/web-app.md) | served by the daemon, or hosted by you, or [app.muxtower.dev](https://app.muxtower.dev); and a [glasses app](https://github.com/jiaton/muxtower/blob/main/docs/g2.md) |
+| After a restart | interrupted sessions are kept and started again in their conversation, when you say so |
+| [Configuration](https://github.com/jiaton/muxtower/blob/main/docs/configuration.md) | a TOML file, environment variables, and a settings page in the app |
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/jiaton/muxtower/main/docs/media/terminal-desktop.png" width="70%" alt="A session's terminal">
+  <img src="https://raw.githubusercontent.com/jiaton/muxtower/main/docs/media/teams-phone.png" width="24%" alt="A team's tasks on a phone">
+</p>
+
+## Engineering
+
+- **State from hooks, checked against the screen.** Hooks say exactly what an agent wants; screen rules cover what hooks miss, and the app shows which rule matched.
+- **Nothing typed blindly.** Approving re-reads the live screen first and moves to the chosen option with the arrow keys.
+- **Screens as patches.** The app gets each next screen as the lines it shares with the one before plus the new ones: on a busy session about 80 times less data than whole screens.
+- **One token per device, one-time pairing codes.** Codes expire in five minutes and travel in the URL fragment; only a wrong credential answers 401, so fail2ban can count guesses. [Security model](https://github.com/jiaton/muxtower/blob/main/docs/security.md).
+- **One package.** The daemon is a single pipx install with the app inside; a typed HTTP and WebSocket API ([design](https://github.com/jiaton/muxtower/blob/main/docs/design.md)).
+
+## How it compares
+
+- [claude-squad](https://github.com/smtg-ai/claude-squad): a terminal UI for many agents on your own machine. muxtower is a daemon and API for reaching them remotely.
+- [TmuxDeck](https://github.com/ctliz/TmuxDeck): the closest idea, a desktop app with a LAN-only mobile page. muxtower is headless and built to sit behind a proxy on the open internet.
+- ttyd and gotty: browser terminals. muxtower shows terminals too, but its point is knowing what each agent waits for.
+
+## Development
+
+`daemon/` is the Python package, `app/` the web app, `glasses/` the glasses app, `site/` muxtower.dev. `make check` runs what CI runs; see [AGENTS.md](https://github.com/jiaton/muxtower/blob/main/AGENTS.md) and [docs/design.md](https://github.com/jiaton/muxtower/blob/main/docs/design.md).
+
+## License
+
+[Apache-2.0](https://github.com/jiaton/muxtower/blob/main/LICENSE)
