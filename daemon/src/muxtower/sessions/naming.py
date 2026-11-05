@@ -4,9 +4,11 @@
   Code's `nameSource: "derived"`, a Remote Control title it generated).
 - A name the owner set on the agent's side (claude.ai, the Claude app, `/rename`: `nameSource: "user"`)
   that is newer than muxtower's naming beats it; a later rename in muxtower wins again.
-- When the agent's side says neither where its name came from nor since when (a Remote Control title
-  alone), only an explicit rename counts (`named`): a name given at launch stays until the agent gives one.
-  An agent starting a teammate with a name (`start_session(name=…)`) chose it on purpose: explicit too."""
+- A name whose source or time is not known never replaces one muxtower gave, at launch or since: a
+  Remote Control title (claude.ai regenerates those by itself, and says nothing of who set one), or a
+  name first seen already set on the agent's side. A name the owner sets in the Claude app shows in
+  muxtower once renamed there too. A session muxtower never named goes by its agent's name.
+  An agent starting a teammate with a name (`start_session(name=…)`) chose it on purpose: explicit."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -44,12 +46,11 @@ class AgentName:
 
 def chosen(record: "SessionRecord", title: str | None, origin: AgentName | None) -> tuple[str, bool]:
     """(the name to show, whether it is muxtower's own: kept over a Remote Control title too)."""
-    if title and origin and origin.source == "user":
-        if origin.since is None:  # set there, nobody knows when: only an explicit rename beats it
-            return (record.name, True) if record.named else (title, False)
+    named = record.named or record.named_at is not None  # muxtower gave it this name, at launch or since
+    if title and origin and origin.source == "user" and origin.since is not None:
         if record.named_at is None or origin.since > record.named_at:
-            return title, False  # the owner named it there, after muxtower did
+            return title, False  # the owner named it there, seen to change after muxtower named it
         return record.name, True
-    if record.named or (record.named_at is not None and title and origin is not None):  # over one it made up
+    if named:  # over one it made up, and over one whose source or time is not known
         return record.name, True
     return (title or record.name), False

@@ -26,17 +26,18 @@ def test_a_name_the_owner_set_on_the_agents_side_later_wins_and_a_rename_after_w
     assert chosen(LAUNCHED, "voice notes", earlier) == ("语音输入", True)
 
 
-def test_without_where_its_name_came_from_only_a_rename_counts() -> None:
-    assert chosen(LAUNCHED, "voice notes", None) == ("voice notes", False)  # e.g. a Remote Control title
-    assert chosen(LAUNCHED, None, None) == ("语音输入", False)  # nothing better: as it was started
-    renamed = replace(LAUNCHED, named=True)
-    assert chosen(renamed, "voice notes", None) == ("语音输入", True)
+def test_a_name_from_nowhere_known_never_replaces_one_muxtower_gave() -> None:
+    assert chosen(LAUNCHED, "Muxtower 项目 git 提交中的新功能", None) == ("语音输入", True)  # a Remote Control title
+    assert chosen(LAUNCHED, None, None) == ("语音输入", True)
+    never = replace(LAUNCHED, named_at=None)
+    assert chosen(never, "voice notes", None) == ("voice notes", False)  # never named: its agent's
 
 
-def test_a_name_set_on_the_agents_side_at_an_unknown_time_beats_a_launch_name_only() -> None:
+def test_a_name_set_on_the_agents_side_at_an_unknown_time_does_not_either() -> None:
     elsewhere = AgentName("user")  # a Remote Control title other than the one Claude Code derived
-    assert chosen(LAUNCHED, "voice notes", elsewhere) == ("voice notes", False)
+    assert chosen(LAUNCHED, "voice notes", elsewhere) == ("语音输入", True)
     assert chosen(replace(LAUNCHED, named=True), "voice notes", elsewhere) == ("语音输入", True)
+    assert chosen(replace(LAUNCHED, named_at=None), "voice notes", elsewhere) == ("voice notes", False)
 
 
 def test_the_migration_keeps_explicit_renames_and_dates_launch_names(tmp_path: Path) -> None:
@@ -85,10 +86,13 @@ def test_a_restart_that_restores_an_old_name_is_no_rename_but_a_new_name_there_i
     assert seen(renamed, "x", AgentName("derived", later), later) is False  # one it made up is no naming
 
 
-def test_a_launch_name_still_gives_way_to_one_set_there() -> None:
+def test_a_launch_name_gives_way_only_to_a_name_seen_set_there_after_it() -> None:
     from muxtower.sessions.naming import as_seen, seen
 
     launched = replace(LAUNCHED)
-    seen(launched, "voice notes", AgentName("user", T0 + timedelta(hours=1)), T0 + timedelta(hours=1))
-    origin = as_seen(launched, "voice notes", AgentName("user", T0 + timedelta(hours=1)))
-    assert chosen(launched, "voice notes", origin) == ("voice notes", False)
+    first = AgentName("user", T0 + timedelta(hours=1))
+    seen(launched, "notes 这个项目", first, T0 + timedelta(hours=1))  # first seen already set: when, not known
+    assert chosen(launched, "notes 这个项目", as_seen(launched, "notes 这个项目", first)) == ("语音输入", True)
+    later = T0 + timedelta(hours=2)
+    seen(launched, "notes v2", AgentName("user", later), later)  # renamed in Claude, seen happen after
+    assert chosen(launched, "notes v2", as_seen(launched, "notes v2", AgentName("user", later))) == ("notes v2", False)
