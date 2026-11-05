@@ -76,9 +76,7 @@ def test_a_restart_that_restores_an_old_name_is_no_rename_but_a_new_name_there_i
         "Worker",
         True,
     )
-    assert not seen(
-        renamed, "Refactor plan", AgentName("user", now + timedelta(hours=1)), now
-    )  # again: no change
+    assert not seen(renamed, "Refactor plan", AgentName("user", now + timedelta(hours=1)), now)  # again: no change
 
     later = now + timedelta(hours=2)
     assert seen(renamed, "Worker 2", AgentName("user", later), later)  # renamed in Claude, after muxtower
@@ -95,4 +93,7 @@ def test_a_launch_name_gives_way_only_to_a_name_seen_set_there_after_it() -> Non
     assert chosen(launched, "Notes app", as_seen(launched, "Notes app", first)) == ("Voice input", True)
     later = T0 + timedelta(hours=2)
     seen(launched, "Notes v2", AgentName("user", later), later)  # renamed in Claude, seen happen after
-    assert chosen(launched, "Notes v2", as_seen(launched, "Notes v2", AgentName("user", later))) == ("Notes v2", False)
+    assert chosen(launched, "Notes v2", as_seen(launched, "Notes v2", AgentName("user", later))) == (
+        "Notes v2",
+        False,
+    )

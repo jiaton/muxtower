@@ -62,6 +62,22 @@ const marked =
   (world, id, body) =>
     world.mark(id, patch(body)) ? empty() : refuse(404, 'no such session')
 
+/** The names each demo session went by before the one it has: its agent's, then each it was renamed from. */
+const EARLIER = new WeakMap<World, Map<string, { name: string; source: string; last_seen: string }[]>>()
+
+function earlier(world: World, id: string) {
+  const all = EARLIER.get(world) ?? new Map()
+  EARLIER.set(world, all)
+  if (!all.has(id)) all.set(id, [])
+  return all.get(id) as { name: string; source: string; last_seen: string }[]
+}
+
+function namesOf(world: World, id: string, current: Session) {
+  const agent = current.agent_name ? [{ name: current.agent_name, source: 'claude', last_seen: current.updated_at }] : []
+  const seen = new Set([current.name])
+  return [...earlier(world, id), ...agent].filter((n) => !seen.has(n.name) && seen.add(n.name)).slice(0, 10)
+}
+
 /** `METHOD /v1/sessions/{id}/<action>` → what it does to the session. */
 const SESSION_ROUTES: Record<string, Handler> = {
   'GET ': (world, id) => {
@@ -96,8 +112,16 @@ const SESSION_ROUTES: Record<string, Handler> = {
   'POST archive': marked(() => ({ archived_at: new Date().toISOString() })),
   'PUT notify': (world, id, body) =>
     world.mark(id, { notify: (body.level as Session['notify']) ?? 'all' }) ? json(world.session(id)) : refuse(404, 'no such session'),
+  'GET names': (world, id) => {
+    const session = world.session(id)
+    return session ? json(namesOf(world, id, session)) : refuse(404, 'no such session')
+  },
   'PATCH ': (world, id, body) => {
     const patch = typeof body.name === 'string' ? { name: body.name } : {}
+    const before = world.session(id)
+    if (before && patch.name && patch.name !== before.name) {
+      earlier(world, id).unshift({ name: before.name, source: 'muxtower', last_seen: new Date().toISOString() })
+    }
     return world.mark(id, patch) ? json(world.session(id)) : refuse(404, 'no such session')
   },
   'PUT team': (world, id, body) => {

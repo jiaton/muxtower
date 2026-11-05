@@ -51,6 +51,7 @@ class TeamService:
         self.repo = repo
         self.checkouts = CheckoutCache(read)
         self.transcript_of = transcript_of or (lambda _: None)
+        self.taken_over: Callable[[str, str], None] = lambda old, new: None  # its names follow (`names.py`)
         self.changed: Callable[[], None] = lambda: None  # a role or project changed (the lists show them)
         self._lock = threading.Lock()
         self._records = repo.load()
@@ -79,6 +80,7 @@ class TeamService:
             was = next((r for r in self._records.values() if r.agent_id == agent and r.session_id != session.id), None)
         if untouched and was is not None:
             record = replace(was, session_id=session.id)
+            self.taken_over(was.session_id, session.id)
         else:
             record = replace(record or TeamRecord(session.id), agent_id=agent)
         self._save(record)
@@ -88,6 +90,8 @@ class TeamService:
         """A session started to resume the agent's `agent_id`: it is that one again, role and project kept."""
         with self._lock:
             was = next((r for r in self._records.values() if r.agent_id == agent_id), None)
+        if was:
+            self.taken_over(was.session_id, session_id)
         self._save(replace(was, session_id=session_id) if was else TeamRecord(session_id, agent_id=agent_id))
 
     def member(self, session: Session) -> Member:

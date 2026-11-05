@@ -14,6 +14,7 @@ from muxtower.infra.bus import EventBus
 from muxtower.runtimes.models import AgentState
 from muxtower.runtimes.spec import Classification
 from muxtower.sessions.live import ScreenState
+from muxtower.sessions.names import CLAUDE, SET_IN_CLAUDE
 from muxtower.sessions.naming import seen as seen_name
 from muxtower.sessions.ports import ClaudeProcessPort
 from muxtower.sessions.reconcile import Reconciler
@@ -149,6 +150,8 @@ class Monitor(Reconciler):
             if origin != live.title_origin:
                 live.title_origin = origin
                 result.sessions_changed = True
+            if title and svc.names and title != live.title:
+                svc.names.note(record.id, title, SET_IN_CLAUDE if origin and origin.source == "user" else CLAUDE)
             if seen_name(record, title, origin, datetime.now(UTC)):  # a new name set there, not a restored one
                 svc.repo.upsert(record)
                 result.sessions_changed = True
