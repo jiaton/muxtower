@@ -1,5 +1,6 @@
 import { Link, Outlet, createRootRoute, useMatch } from '@tanstack/react-router'
 import { Layers, Plus, Server } from 'lucide-react'
+import { useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { navItemClass, tabItemClass } from '@/components/ui/nav'
 import { AppUpdateBanner } from '@/features/daemons/components/app-update-banner'
@@ -84,6 +85,8 @@ function RootLayout() {
   const setSidebarOpen = useSidebarDrawer((s) => s.setOpen)
   const setSidebarPull = useSidebarDrawer((s) => s.setPull)
   const closeSidebar = useBackCloses(sidebarOpen && !docked, setSidebarOpen)
+  const content = useRef<HTMLDivElement>(null)
+  const pushed = sidebarOpen && !docked
 
   return (
     <div className="flex h-dvh overflow-hidden pt-[env(safe-area-inset-top)]">
@@ -91,14 +94,15 @@ function RootLayout() {
         <Sidebar />
       </aside>
       {docked ? null : (
-        <Drawer drawer open={sidebarOpen} onOpenChange={closeSidebar} onPull={setSidebarPull} label="Navigation" over>
+        <Drawer drawer open={sidebarOpen} onOpenChange={closeSidebar} onPull={setSidebarPull} label="Navigation" over push={content}>
           <div className="flex w-full flex-col bg-surface pt-[env(safe-area-inset-top)]">
             <Sidebar inDrawer onLeave={() => closeSidebar(false)} />
           </div>
         </Drawer>
       )}
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      {/* Pushed aside by the sidebar drawer, never resized (a terminal keeps its size): out of reach meanwhile. */}
+      <div ref={content} className="flex min-w-0 flex-1 flex-col" inert={pushed} aria-hidden={pushed || undefined}>
         <AppUpdateBanner />
         <main className="flex min-h-0 flex-1">
           <Outlet />

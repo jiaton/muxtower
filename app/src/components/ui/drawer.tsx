@@ -17,6 +17,7 @@ export function Drawer({
   label,
   onPull,
   over,
+  push,
   children,
 }: {
   drawer: boolean
@@ -26,13 +27,26 @@ export function Drawer({
   onPull?: (pull: Pull | null) => void
   /** Above another drawer (the sidebar over the session list's). */
   over?: boolean
+  /** A push drawer (Slack's, Discord's): this, the page beside it, slides right as the drawer opens, by
+   *  a transform only, so nothing in it changes size (a terminal is not fitted again, its tmux pane not
+   *  resized); the strip of it that still shows is dimmed lightly and closes the drawer when tapped. */
+  push?: RefObject<HTMLElement | null>
   children: ReactNode
 }) {
   const shown = drawer && open
   const panel = useRef<HTMLDivElement>(null)
   const scrim = useRef<HTMLDivElement>(null)
-  useSwipeClose(panel, scrim, shown, () => onOpenChange(false))
-  usePullOpen(panel, scrim, drawer && !open, () => onOpenChange(true), onPull)
+  useSwipeClose(panel, scrim, shown, () => onOpenChange(false), push)
+  usePullOpen(panel, scrim, drawer && !open, () => onOpenChange(true), onPull, push)
+
+  useEffect(() => {
+    const el = push?.current
+    if (!el || !drawer) return
+    const width = panel.current?.offsetWidth ?? 0
+    el.style.willChange = ''
+    el.style.transition = stillness() ? 'none' : `transform 200ms ${LAND_EASE}`
+    el.style.transform = shown ? `translateX(${width}px)` : ''
+  }, [push, drawer, shown])
 
   useEffect(() => {
     if (!shown) return
@@ -49,9 +63,9 @@ export function Drawer({
           aria-hidden
           onClick={() => onOpenChange(false)}
           className={cn(
-            'fixed inset-0 bg-overlay transition-opacity duration-200',
+            'fixed inset-0 bg-overlay transition-opacity duration-200 motion-reduce:transition-none',
             over ? 'z-[60]' : 'z-40',
-            shown ? 'opacity-100' : 'pointer-events-none opacity-0',
+            shown ? (push ? 'opacity-40' : 'opacity-100') : 'pointer-events-none opacity-0',
           )}
         />
       ) : null}
@@ -65,7 +79,8 @@ export function Drawer({
         className={cn(
           drawer
             ? cn(
-                'fixed inset-y-0 left-0 flex w-[min(85vw,24rem)] bg-bg shadow-card transition-transform duration-200 ease-out',
+                'fixed inset-y-0 left-0 flex bg-bg transition-transform duration-200 ease-out motion-reduce:transition-none',
+                push ? 'w-[min(85vw,18rem)] border-r border-border' : 'w-[min(85vw,24rem)] shadow-card',
                 over ? 'z-[70]' : 'z-50',
               )
             : 'contents',
@@ -78,6 +93,23 @@ export function Drawer({
   )
 }
 
+/** Whether the viewer asked for less motion: then the drawer shows and hides, without sliding. */
+function stillness(): boolean {
+  return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
+}
+
+/** A scrim's opacity for a drawer `at` of `width` open: a push drawer's only dims the page beside it. */
+const dim = (at: number, width: number, push?: RefObject<HTMLElement | null>) => (at / Math.max(1, width)) * (push ? 0.4 : 1)
+
+/** The page beside a push drawer, `px` across (with the drawer), over `ms` (0: as the finger has it). */
+function shift(push: RefObject<HTMLElement | null> | undefined, px: number, ms: number) {
+  const el = push?.current
+  if (!el) return
+  el.style.willChange = ms ? '' : 'transform'
+  el.style.transition = ms && !stillness() ? `transform ${ms}ms ${LAND_EASE}` : 'none'
+  el.style.transform = px > 0 ? `translateX(${px}px)` : ''
+}
+
 /** While `active` (the drawer shut), the `Pull` that opens it with the finger, handed to `onPull` (null
  *  otherwise): the drawer and scrim follow it and, let go, it opens or goes back by how far and how fast. */
 function usePullOpen(
@@ -86,6 +118,7 @@ function usePullOpen(
   active: boolean,
   open: () => void,
   onPull?: (pull: Pull | null) => void,
+  push?: RefObject<HTMLElement | null>,
 ) {
   const opening = useRef(open)
   opening.current = open
@@ -96,11 +129,13 @@ function usePullOpen(
     let timer: ReturnType<typeof setTimeout> | undefined
     const place = (at: number, ms: number) => {
       const width = Math.max(1, el.offsetWidth)
+      const slide = ms && !stillness() ? ms : 0
       // `translate`, which its classes shut it with (a transform would add to that).
-      el.style.transition = ms ? `translate ${ms}ms ${LAND_EASE}` : 'none'
-      behind.style.transition = ms ? `opacity ${ms}ms ${LAND_EASE}` : 'none'
+      el.style.transition = slide ? `translate ${slide}ms ${LAND_EASE}` : 'none'
+      behind.style.transition = slide ? `opacity ${slide}ms ${LAND_EASE}` : 'none'
       el.style.translate = `${at - width}px`
-      behind.style.opacity = String(at / width)
+      behind.style.opacity = String(dim(at, width, push))
+      shift(push, at, ms)
     }
     onPull({
       move: (px) => {
@@ -119,7 +154,7 @@ function usePullOpen(
       },
     })
     return () => onPull(null)
-  }, [panel, scrim, active, onPull])
+  }, [panel, scrim, active, onPull, push])
 }
 
 /** While `active`, a swipe left on the drawer or its scrim drags the drawer with the finger, and let go,
@@ -130,6 +165,7 @@ function useSwipeClose(
   scrim: RefObject<HTMLDivElement | null>,
   active: boolean,
   close: () => void,
+  push?: RefObject<HTMLElement | null>,
 ) {
   const closing = useRef(close)
   closing.current = close
@@ -161,7 +197,8 @@ function useSwipeClose(
       g.at = Math.min(0, dx)
       el.style.transition = behind.style.transition = 'none'
       el.style.transform = `translateX(${g.at}px)`
-      behind.style.opacity = String(1 + g.at / Math.max(1, el.offsetWidth))
+      behind.style.opacity = String(dim(el.offsetWidth + g.at, el.offsetWidth, push))
+      shift(push, el.offsetWidth + g.at, 0)
     }
     const up = (e: TouchEvent) => {
       const swipe = g
@@ -172,9 +209,10 @@ function useSwipeClose(
       const speed = swipe.speed.get()
       const width = el.offsetWidth
       const shut = landing(swipe.at, speed, swipe.at) < -width / 2
-      const ms = landMs(shut ? width + swipe.at : swipe.at, speed)
-      el.style.transition = `transform ${ms}ms ${LAND_EASE}`
-      behind.style.transition = `opacity ${ms}ms ${LAND_EASE}`
+      const ms = stillness() ? 0 : landMs(shut ? width + swipe.at : swipe.at, speed)
+      el.style.transition = ms ? `transform ${ms}ms ${LAND_EASE}` : 'none'
+      behind.style.transition = ms ? `opacity ${ms}ms ${LAND_EASE}` : 'none'
+      shift(push, shut ? 0 : width, Math.max(ms, 1))
       el.style.transform = behind.style.opacity = '' // to where its classes put it: shut or open
       clearTimeout(timer)
       timer = setTimeout(() => (el.style.transition = behind.style.transition = ''), ms + 50)
@@ -198,5 +236,5 @@ function useSwipeClose(
       }
       el.style.transform = behind.style.opacity = ''
     }
-  }, [panel, scrim, active])
+  }, [panel, scrim, active, push])
 }
