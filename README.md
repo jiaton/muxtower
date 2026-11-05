@@ -134,6 +134,8 @@ An app hosted away from the hub's machine (Workers, Pages) also still loads whil
 
 Adding `"token"` to an entry skips pairing entirely, but anyone who can load the site can then read that token. The build refuses unless you also set `"acknowledge_public_tokens": true`, and the app shows a warning. The trade-off: the gate's login becomes the only barrier (anyone past it controls those daemons), and revoking means rebuilding and deploying again. Only do this behind a gate you trust, such as Cloudflare Access, your own SSO or a password gate. A gate in front of the static app is a good extra layer either way.
 
+**Session names.** A name you give a session in muxtower (when starting it, or by renaming it) stays: a title Claude makes up, or one claude.ai regenerates for a Remote Control session, does not replace it. Renamed in the Claude app, a session shows that name once muxtower sees it change; to be sure, rename it in muxtower too. A session you never named goes by its agent's own name.
+
 **Moving to another device.** On a paired phone, *Daemons → Add another device* shows one QR code that pairs the other device with every daemon at once. It carries one-time codes, not tokens: each device gets its own token, and the QR stops working after one use or five minutes.
 
 ## On Even Realities G2 glasses
