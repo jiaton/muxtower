@@ -102,6 +102,15 @@ name = "error"
 state = "error"
 pattern = '(?m)^■ (?!Conversation interrupted)[^\n]*\n(?:[ \t]*\n)*(?:[^\n]*\n){0,5}[^\n]*\Z'
 
+[context]
+# What a dialog asks about, for whoever approves it away from the screen (when no hook said); only the
+# dialog's own lines are searched. A command shows under its question ("$ echo hello"); other dialogs say
+# why ("Reason: …").
+detail = [
+  '(?m)^[ \t]*Would\s+you\s+like\s+to\s+run\s+the\s+following\s+command\?[^\n]*\n(?:[^\n]*\n){0,12}?[ \t]*(\$[ \t][^\n]+)',
+  '(?m)^[ \t]*(Reason:[ \t][^\n]+)',
+]
+
 [menu]
 cursor = "›"
 other_cursors = [">"]  # the first-start sign-in

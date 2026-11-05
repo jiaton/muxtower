@@ -1526,7 +1526,7 @@ export interface components {
         };
         /**
          * PendingAction
-         * @description What the agent is waiting for. tool_name/detail come from hooks; options from the screen.
+         * @description What the agent is waiting for. tool_name/detail come from hooks, else the screen; options from the screen.
          */
         PendingAction: {
             /** Detail */
