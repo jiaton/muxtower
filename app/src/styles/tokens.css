@@ -3,6 +3,18 @@
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
+/* Inter, shipped with the app (one variable file, every weight, latin only: 48 KB): without it a machine
+   that has no Inter draws the interface in its own sans (DejaVu on Linux, Segoe on Windows). Other scripts
+   (Chinese…) fall through to the system's fonts. Preloaded in index.html, so text does not change face. */
+@font-face {
+  font-family: 'Inter';
+  src: url('../assets/fonts/InterVariable-latin.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
 /* Shipped with the app: a browser without a monospace font of its own draws `monospace` in a
    proportional one, and the terminal's columns stop lining up. An installed copy wins. */
 @font-face {
