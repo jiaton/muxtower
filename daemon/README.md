@@ -71,6 +71,7 @@ To try it without a phone, open http://127.0.0.1:8731 on this machine; HTTPS is 
 
 - **Claude Code's Remote Control, or the Codex app?** Each reaches only its own agent, one session at a time. muxtower puts every Claude Code and Codex session on all your computers in one list, shows which one is waiting on you and for what, and lets the agents hand each other work.
 - **SSH and tmux from your phone?** It works, but you find who is waiting yourself, window by window, and approving on a phone keyboard is clumsy.
+  muxtower needs no SSH key on the phone and no SSH port open to the internet: the phone holds a device token you can revoke at any time, which reaches the agents' sessions (reading them, approving, typing to them) and not a shell on the machine.
 
 ## Development
 
