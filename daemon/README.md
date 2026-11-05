@@ -33,15 +33,17 @@ muxtower is a small daemon that runs next to your agents (Claude Code, Codex, â€
 
 ## Quick start
 
+Needs Python 3.11+, tmux, pipx, and Claude Code or Codex.
+
 ```sh
-pipx install muxtower
+pipx install muxtower          # then `pipx ensurepath` and a new shell, if `muxtower` is not found
 cd ~/code/my-project
 muxtower run claude            # starts the daemon, opens Claude Code in a managed tmux session
 muxtower expose tailscale      # an HTTPS address on your tailnet (or put any proxy in front)
-muxtower pair                  # a one-time code (and a QR code) for your phone
+muxtower pair                  # a one-time code for your phone (and a QR code, once it has an https address)
 ```
 
-More: [install, HTTPS and running it as a service](https://github.com/jiaton/muxtower/blob/main/docs/install.md).
+To try it without a phone, open http://127.0.0.1:8731 on this machine; HTTPS is only needed for the phone. More: [install, HTTPS and running it as a service](https://github.com/jiaton/muxtower/blob/main/docs/install.md).
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/jiaton/muxtower/main/docs/media/sessions-desktop.png" width="70%" alt="The session list, grouped by project">
