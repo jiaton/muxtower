@@ -205,3 +205,25 @@ def test_an_agent_is_looked_up_on_the_path_the_tmux_server_runs_it_with(tmp_path
         assert tmux.finds(socket, "agent") and tmux.finds(socket, "sh")
     finally:
         subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)
+
+
+def test_a_long_first_prompt_arrives_whole_and_an_agent_that_exits_at_once_is_an_error(tmp_path: Path) -> None:
+    import json
+
+    from muxtower.infra.tmux import TmuxCli
+
+    prompt = ("📱✅🤝🔒 “quoted” 'single' \"double\" https://example.com/?a=b&c • 中文\n" * 40) + "ends;"
+    out = tmp_path / "argv.json"
+    write = f"import json,sys,time; open({str(out)!r},'w').write(json.dumps(sys.argv[1:])); time.sleep(5)"
+    socket = f"mxt-test-{uuid.uuid4().hex[:8]}"
+    tmux = TmuxCli()
+    try:
+        pane = tmux.new_session(socket, "prompt", str(tmp_path), ["python3", "-c", write, "--", prompt], {}, 120, 40)
+        assert tmux.started(pane) is None
+        assert json.loads(out.read_text()) == ["--", prompt]
+        failing = ["sh", "-c", "sleep 0.2; echo 'Error: Invalid MCP configuration'; exit 1"]
+        pane = tmux.new_session(socket, "fails", str(tmp_path), failing, {}, 120, 40)
+        assert tmux.started(pane) == "Error: Invalid MCP configuration"
+        assert all(p.session_name != "fails" for p in tmux.list_panes(socket))  # closed
+    finally:
+        subprocess.run(["tmux", "-L", socket, "kill-server"], capture_output=True)

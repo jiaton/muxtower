@@ -1,4 +1,5 @@
 /// <reference types="vitest/config" />
+import { readFileSync } from 'node:fs'
 import { fileURLToPath, URL } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
@@ -29,8 +30,12 @@ const demoEntry = (): Plugin => ({
   },
 })
 
+/** The muxtower this app is part of (the daemon's package version), to tell when a daemon runs a newer one. */
+const APP_VERSION = /^version\s*=\s*"([^"]+)"/m.exec(readFileSync(new URL('../daemon/pyproject.toml', import.meta.url), 'utf8'))?.[1] ?? ''
+
 export default defineConfig(({ mode }) => ({
   base,
+  define: { 'import.meta.env.VITE_APP_VERSION': JSON.stringify(APP_VERSION) },
   build: mode === 'demo' ? { outDir: 'dist-demo' } : undefined,
   plugins: [
     tanstackRouter({ target: 'react', autoCodeSplitting: true }),

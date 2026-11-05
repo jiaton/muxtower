@@ -10,6 +10,7 @@ class FakePane:
     env: dict[str, str]
     screen: str = ""
     sent: list[tuple[str, str]] = field(default_factory=list)  # ("text"|"key", value)
+    exits_with: str | None = None  # what it says as it exits at once (`FakeTmux.exits_with`)
 
 
 class FakeTmux:
@@ -20,6 +21,7 @@ class FakeTmux:
         self._next = 0
         self.missing: set[str] = set()  # binaries not installed
         self.servers: dict[str, str | None] = {}  # socket -> server identity (`server_id`)
+        self.exits_with: str | None = None  # the next session started exits at once, saying this
 
     def add_pane(self, socket: str, session: str, command: str, cwd: str = "/tmp") -> FakePane:  # noqa: S108
         self._next += 1
@@ -35,7 +37,14 @@ class FakeTmux:
     ) -> PaneRef:
         pane = self.add_pane(socket, name, argv[0], cwd)
         pane.argv, pane.env = argv, env
+        pane.exits_with, self.exits_with = self.exits_with, None
         return PaneRef(socket, pane.info.pane_id)
+
+    def started(self, pane: PaneRef) -> str | None:
+        said = self.pane(pane).exits_with
+        if said is not None:
+            del self.panes[(pane.socket, pane.pane_id)]
+        return said
 
     def server_id(self, socket: str) -> str | None:
         """The fake server's identity: set `servers[socket]` (None: no server answers) to change it."""

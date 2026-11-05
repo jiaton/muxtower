@@ -462,6 +462,19 @@
             "description": "one of its runtime's `permission_modes`, or \"agent\" (its own settings); null: the configured default (`launch.<runtime>_mode`)",
             "title": "Permission Mode"
           },
+          "prompt": {
+            "anyOf": [
+              {
+                "maxLength": 100000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "its first message, given after every option (`--`): any length, lines and characters",
+            "title": "Prompt"
+          },
           "runtime": {
             "title": "Runtime",
             "type": "string"
@@ -1036,6 +1049,18 @@
           "token_name": {
             "title": "Token Name",
             "type": "string"
+          },
+          "version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the muxtower this daemon runs (null: an older one)",
+            "title": "Version"
           }
         },
         "required": [

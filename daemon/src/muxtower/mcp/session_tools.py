@@ -89,7 +89,7 @@ class SessionTools:
 
     def start_session(self, args: StartArgs) -> str:
         node = self._node(args.machine)
-        agent_args = [args.prompt] if args.prompt else []
+        agent_args: list[str] = []
         if args.resume:
             resume = RESUME_ARGS.get(args.runtime)
             if resume is None:
@@ -102,7 +102,7 @@ class SessionTools:
                 runtime.config, args.permission_mode, local.launch_defaults(runtime.name)[0], self.may_escalate()
             )
         request = CreateSession(
-            runtime=args.runtime, cwd=args.cwd, name=args.name, args=agent_args, node=node,
+            runtime=args.runtime, cwd=args.cwd, name=args.name, args=agent_args, prompt=args.prompt, node=node,
             permission_mode=args.permission_mode,
         )  # fmt: skip
         try:

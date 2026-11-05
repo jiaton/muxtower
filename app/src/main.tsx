@@ -4,7 +4,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { listenForInstall } from './features/install/store'
 import { queryClient } from './lib/query'
-import { reloadOnUpdate } from './lib/reload-on-update'
+import { watchForUpdates } from './lib/app-update'
 import { routeTree } from './routeTree.gen'
 import './styles/tokens.css'
 
@@ -20,7 +20,7 @@ declare module '@tanstack/react-router' {
 }
 
 listenForInstall()
-reloadOnUpdate()
+watchForUpdates()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
