@@ -65,6 +65,20 @@ pattern = '\A(?=.*trust\s+this\s+folder).*Enter\s+to\s+confirm[^\n]*\Z'
 last_lines = 40
 
 [[rules]]
+# The first start, before any input box: the theme, then how to sign in. Both are the owner's to choose
+# (needs_answer: never approved for them), each matched by its own last line.
+name = "first-start-theme"
+state = "needs_answer"
+pattern = 'Choose\s+the\s+text\s+style\b.*(?:\(ctrl\+t\s+to\s+(?:dis|en)able\)|Light\s+mode\s+\(ANSI\s+colors\s+only\))[^\n]*\Z'
+last_lines = 30
+
+[[rules]]
+name = "first-start-login"
+state = "needs_answer"
+pattern = 'Select\s+login\s+method:(?:[ \t]*\n)+(?:[ \t]*(?:❯[ \t]*)?\d+\.[^\n]*(?:\n|\Z))+\Z'
+last_lines = 12
+
+[[rules]]
 name = "plan-review"
 state = "plan_review"
 pattern = 'How\s+would\s+you\s+like\s+to\s+proceed\?'
