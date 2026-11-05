@@ -21,7 +21,7 @@ mkdir -p ~/.config/muxtower/runtimes
 python -c "import muxtower, pathlib; print(pathlib.Path(muxtower.__file__).parent / 'runtimes/defaults/claude-code.toml')"
 ```
 
-A file in `~/.config/muxtower/runtimes/` replaces the shipped one with the same name; a new file adds an agent. Each rule maps a regex to a state (`needs_permission`, `needs_answer`, `needs_trust`, `plan_review`, `error`, `busy`, `idle`). The `[menu]` section sets the cursor glyph that marks the highlighted choice (`other_cursors` for a dialog that draws another one), and `[approve.prefer]` sets which choice "approve" picks. The session page shows which rule matched.
+A file in `~/.config/muxtower/runtimes/` replaces the shipped one with the same name; a new file adds an agent. Each rule maps a regex to a state (`needs_permission`, `needs_answer`, `needs_trust`, `plan_review`, `error`, `busy`, `idle`). The `[menu]` section sets the cursor glyph that marks the highlighted choice (`other_cursors` for a dialog that draws another one), `[approve.prefer]` sets which choice "approve" picks, and `[context]` reads what a dialog asks about off the screen (its tool and command, for approving it from elsewhere when no hook said). The session page shows which rule matched.
 
 Sessions that muxtower did not start (found in your own tmux) can be watched, answered and approved, but never killed.
 

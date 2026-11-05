@@ -24,6 +24,14 @@ class Step(BaseModel):
     key: str | None = None
 
 
+def _anchored(pattern: str) -> str:
+    """A pattern that opens with a lookahead is tried at every position of the screen, and each try scans
+    to its end (screens are matched with DOTALL): quadratic, tens of milliseconds a pane a second."""
+    if pattern.startswith("(?=") or pattern.startswith("(?!"):
+        raise ValueError(f"pattern {pattern!r} opens with a lookahead: anchor it, \\A(?=…)")
+    return pattern
+
+
 class RuleConfig(BaseModel):
     name: str
     state: AgentState
@@ -38,11 +46,7 @@ class RuleConfig(BaseModel):
     @field_validator("pattern")
     @classmethod
     def anchored_lookahead(cls, pattern: str) -> str:
-        """A pattern that opens with a lookahead is tried at every position of the screen, and each try scans
-        to its end (screens are matched with DOTALL): quadratic, tens of milliseconds a pane a second."""
-        if pattern.startswith("(?=") or pattern.startswith("(?!"):
-            raise ValueError(f"pattern {pattern!r} opens with a lookahead: anchor it, \\A(?=…)")
-        return pattern
+        return _anchored(pattern)
 
 
 class MenuConfig(BaseModel):
@@ -69,6 +73,38 @@ class ApproveConfig(BaseModel):
 
 class DenyConfig(BaseModel):
     send: list[Step] = Field(default_factory=lambda: [Step(key="Escape")])
+
+
+class ContextConfig(BaseModel):
+    """What a dialog asks about, read off the screen for whoever approves it elsewhere (`pending.tool_name`
+    and `pending.detail`, when no hook said). Searched only where the dialog is (`Runtime.dialog_lines`),
+    its last `last_lines`, from its top line on: the words of an older call or a quoted dialog in the
+    conversation are not it."""
+
+    # The dialog's first line (a rule above it); the last such line counts. Without one, or when none shows,
+    # the details are searched in all of the dialog's lines and no tool is read.
+    top: str | None = None
+    # Group 1 is the tool: the first line matching it going up from the top line (the call the dialog is
+    # about), within `tool_lines`, and before an earlier top line or a `tool_stop` line (another item of
+    # the conversation) that it does not match.
+    tool: str | None = None
+    tool_stop: str | None = None
+    tool_lines: int = Field(default=8, ge=1)
+    # Tried in order on the dialog from its top line, the first match's group 1 is the detail: its lines
+    # stripped, blank ones dropped, cut to `detail_chars`.
+    detail: list[str] = Field(default_factory=list)
+    detail_chars: int = Field(default=500, ge=20, le=4000)
+    last_lines: int = Field(default=40, ge=1)
+
+    @field_validator("top", "tool", "tool_stop")
+    @classmethod
+    def anchored_tool(cls, pattern: str | None) -> str | None:
+        return _anchored(pattern) if pattern else pattern
+
+    @field_validator("detail")
+    @classmethod
+    def anchored_detail(cls, patterns: list[str]) -> list[str]:
+        return [_anchored(p) for p in patterns]
 
 
 class PermissionMode(BaseModel):
@@ -107,6 +143,7 @@ class RuntimeConfig(BaseModel):
     panel_rule: str | None = None  # a line that frames the box and a panel above it, e.g. '^─{8,}\s*$'
     panel_lines: int = Field(default=25, ge=1)  # the tallest such panel
     menu: MenuConfig = Field(default_factory=MenuConfig)
+    context: ContextConfig = Field(default_factory=ContextConfig)
     approve: ApproveConfig = Field(default_factory=ApproveConfig)
     deny: DenyConfig = Field(default_factory=DenyConfig)
     # The permission modes it can be started in, least to most permissive (`sessions/launch.py`).
@@ -126,6 +163,9 @@ class Classification:
     menu: Menu | None = None
     # The rule that took longest to try, and its seconds: what shows a rule gone slow (`usage/`).
     slowest: tuple[str, float] | None = field(default=None, compare=False)
+    # What a dialog asks about, read off it (`ContextConfig`): set only when a dialog's rule matched.
+    tool_name: str | None = None
+    detail: str | None = None
 
     @property
     def options(self) -> list[Option]:
@@ -147,6 +187,11 @@ class Runtime:
         self.panel_rule = re.compile(config.panel_rule) if config.panel_rule else None
         self.prefer = {state: [re.compile(p) for p in ps] for state, ps in config.approve.prefer.items()}
         self.default = [re.compile(p) for p in config.approve.default]
+        context = config.context
+        self.context_top = re.compile(context.top) if context.top else None
+        self.context_tool = re.compile(context.tool) if context.tool else None
+        self.context_stop = re.compile(context.tool_stop) if context.tool_stop else None
+        self.context_detail = [re.compile(p) for p in context.detail]
 
     @property
     def name(self) -> str:
@@ -188,8 +233,41 @@ class Runtime:
                 slowest = (rule.name, took)
             if found:
                 menu = self.parse_menu(screen) if rule.state != AgentState.BUSY else None
+                if rule.state in APPROVABLE_STATES and dialog is not None:
+                    tool, detail = self.context_of(dialog)
+                    return Classification(rule.state, rule.name, menu, slowest, tool, detail)
                 return Classification(rule.state, rule.name, menu, slowest)
         return Classification(self.config.default_state, None, None, slowest)
+
+    def context_of(self, dialog: list[str]) -> tuple[str | None, str | None]:
+        """The tool a dialog is about and what it would do, from the dialog's own lines (`ContextConfig`)."""
+        context = self.config.context
+        lines = dialog[-context.last_lines :]
+        top = None
+        if self.context_top:
+            top = next((i for i in range(len(lines) - 1, -1, -1) if self.context_top.match(lines[i])), None)
+        tool = None
+        if top is not None and self.context_tool:
+            for line in reversed(lines[max(top - context.tool_lines, 0) : top]):
+                if found := self.context_tool.match(line):
+                    tool = found.group(1).strip() or None
+                    break
+                if (self.context_top and self.context_top.match(line)) or (
+                    self.context_stop and self.context_stop.match(line)
+                ):
+                    break
+        text = "\n".join(lines[top or 0 :])
+        for pattern in self.context_detail:
+            found = pattern.search(text)
+            detail = (
+                "\n".join(line.strip() for line in (found.group(1) or "").splitlines() if line.strip()) if found else ""
+            )
+            if detail:
+                cut = (
+                    detail if len(detail) <= context.detail_chars else detail[: context.detail_chars - 1].rstrip() + "…"
+                )
+                return tool, cut
+        return tool, None
 
     def parse_menu(self, screen: str) -> Menu | None:
         """The lowest block of 2+ choices around a cursor line. A lone cursor line is the prompt input."""
