@@ -2,7 +2,7 @@
 import { columns } from '@/display/text'
 import type { Screen } from '@/display/screen'
 import type { Action } from '@/input/gestures'
-import { back, findSession, groupOf, placeKey, push, withCursor, workers, type AppState, type Outcome } from '@/state/model'
+import { back, findSession, groupLabel, groupOf, placeKey, push, withCursor, workers, type AppState, type Outcome } from '@/state/model'
 import { footerFor, linkLabel } from './chrome'
 import { age, stateLabel } from './format'
 import { ROW_WIDTH, arrange, draw, move, resolveCursor, type Row } from './list'
@@ -34,7 +34,7 @@ export function groupView(state: AppState, group: string, now: number): { screen
   const count = `${arranged.rows.length} session${arranged.rows.length === 1 ? '' : 's'}`
   return {
     screen: {
-      header: columns([`@${group}`, linkLabel(state) ?? count], [NAME_PX + STATE_PX], ROW_WIDTH),
+      header: columns([groupLabel(group), linkLabel(state) ?? count], [NAME_PX + STATE_PX], ROW_WIDTH),
       body: arranged.rows.length ? list.lines : ['No sessions here any more.'],
       footer: footerFor(state, list, 'open'),
     },

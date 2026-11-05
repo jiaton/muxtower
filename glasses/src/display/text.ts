@@ -40,23 +40,47 @@ export function fit(text: string, px: number): string {
   return chars.slice(0, lo).join('').trimEnd() + ELLIPSIS
 }
 
-/** Pads with spaces to (about) `px`; the font is proportional, so this is exact to one space. */
-export function pad(text: string, px: number): string {
-  const space = width(' ')
+/** The firmware font's two blank glyphs: a space and the ideographic space. Their widths share no factor
+ *  (5 and 21 px), so mixing them reaches almost any gap within a pixel or two, where spaces alone land within 5. */
+const SPACE = ' '
+const WIDE_SPACE = '\u3000'
+
+/** `text` followed by the blank run that brings it closest to `px` (fewest wide spaces on a tie),
+ *  measured as a whole so kerning against the blanks counts. */
+function padded(text: string, px: number): string {
+  const space = width(SPACE)
+  const wide = width(WIDE_SPACE)
   const missingPx = px - width(text)
-  return missingPx <= 0 ? text : text + ' '.repeat(Math.round(missingPx / space))
+  let best = text
+  let bestMiss = Math.abs(missingPx)
+  for (let wides = 0; wides * wide <= missingPx + wide; wides++) {
+    const spaces = Math.max(0, Math.round((missingPx - wides * wide) / space))
+    for (const n of [spaces - 1, spaces, spaces + 1]) {
+      if (n < 0) continue
+      const candidate = text + WIDE_SPACE.repeat(wides) + SPACE.repeat(n)
+      const miss = Math.abs(px - width(candidate))
+      if (miss < bestMiss) [best, bestMiss] = [candidate, miss]
+    }
+  }
+  return best
 }
 
-/** Lays cells out as columns of the given pixel widths; the last cell takes what is left of `total`. */
+/** Pads with blanks to `px` (within a pixel or two where the gap allows, within a space otherwise). */
+export function pad(text: string, px: number): string {
+  return px - width(text) <= 0 ? text : padded(text, px)
+}
+
+/** Lays cells out as columns of the given pixel widths; the last cell takes what is left of `total`.
+ *  Each column starts at its own stop from the left edge, so rounding never adds up along a line. */
 export function columns(cells: string[], widths: number[], total: number): string {
   let line = ''
-  let used = 0
+  let stop = 0
   cells.forEach((cell, i) => {
     const last = i === cells.length - 1
-    const room = last ? total - used : widths[i]
-    const text = fit(clean(cell), room - (last ? 0 : width(' ')))
-    line += last ? text : pad(text, room)
-    used = width(line)
+    const start = width(line)
+    stop = last ? total : stop + widths[i]
+    const text = fit(clean(cell), stop - start - (last ? 0 : width(SPACE)))
+    line = last ? line + text : pad(line + text, stop)
   })
   return line
 }

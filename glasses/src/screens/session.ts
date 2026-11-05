@@ -3,11 +3,12 @@
 import { BODY_LINES, TEXT_WIDTH } from '@/display/limits'
 import type { Screen } from '@/display/screen'
 import { columns, fit, pad, width, wrap } from '@/display/text'
-import type { Session } from '@/hub/types'
+import type { PendingAction, PendingQuestion, Session } from '@/hub/types'
 import type { Action } from '@/input/gestures'
-import { back, findSession, placeKey, type AppState, type Nav, type Outcome } from '@/state/model'
+import { back, findSession, placeKey, type AppState, type Draft, type Nav, type Outcome } from '@/state/model'
 import { linkLabel } from './chrome'
 import { age, plain, stateLabel } from './format'
+import { answer, draftFor, oneTap, questionLayout, questionsOf, type Choice } from './questions'
 
 const READING = 'read'
 const PROMPT_LINES = 4
@@ -15,38 +16,53 @@ const STEP = BODY_LINES - 1 // a page keeps one line of the previous one
 const MARK = width('> ')
 const NAME_PX = 380
 const FULL_REPLY = '── full reply ──'
-
-interface Choice {
-  key: string
-  label: string
-  line: number
-}
+/** After the option the hub picks when none is given (`pending.recommended`). */
+const SUGGESTED = '  (suggested)'
 
 interface Layout {
   lines: string[]
   choices: Choice[]
+  /** The questions being answered one at a time, when the prompt has them. */
+  questions: PendingQuestion[]
 }
 
 /** Options are only offered while the session is actually waiting on them. */
 const pendingOf = (s: Session) => (s.needs_attention && s.pending?.options?.length ? s.pending : null)
 
-export function layout(session: Session): Layout {
+/** What it asks: the tool and what it would run, then its options, the suggested one marked. */
+function promptLayout(pending: PendingAction, session: Session) {
   const lines: string[] = []
   const choices: Choice[] = []
-  const pending = pendingOf(session)
-  if (pending) {
-    const tool = pending.tool_name && session.state !== 'needs_answer' ? `${pending.tool_name.toUpperCase()}  ` : ''
-    const prompt = wrap(`${tool}${pending.detail ?? ''}`, TEXT_WIDTH)
-    lines.push(...prompt.slice(0, PROMPT_LINES))
-    if (prompt.length > PROMPT_LINES) lines[PROMPT_LINES - 1] = fit(`${lines[PROMPT_LINES - 1]} …`, TEXT_WIDTH)
-    for (const option of pending.options ?? []) {
-      choices.push({ key: option.key, label: option.label, line: lines.length })
-      lines.push(fit(option.label, TEXT_WIDTH - MARK))
-    }
-    lines.push('')
+  const tool = pending.tool_name && session.state !== 'needs_answer' ? `${pending.tool_name.toUpperCase()}  ` : ''
+  const prompt = wrap(`${tool}${pending.detail ?? ''}`, TEXT_WIDTH)
+  lines.push(...prompt.slice(0, PROMPT_LINES))
+  if (prompt.length > PROMPT_LINES) lines[PROMPT_LINES - 1] = fit(`${lines[PROMPT_LINES - 1]} …`, TEXT_WIDTH)
+  for (const option of pending.options ?? []) {
+    const suggested = option.key === pending.recommended && (pending.options?.length ?? 0) > 1
+    const room = TEXT_WIDTH - MARK - (suggested ? width(SUGGESTED) : 0)
+    choices.push({ key: option.key, label: option.label, line: lines.length })
+    lines.push(fit(option.label, room) + (suggested ? SUGGESTED : ''))
   }
-  // Summary first: what the agent needs (its platform's turn summary), then the hub's short version of
-  // the reply (or the platform's one-liner); the full reply follows for whoever pages on.
+  return { lines, choices }
+}
+
+export function layout(session: Session, draft: Draft | null = null): Layout {
+  const lines: string[] = []
+  let choices: Choice[] = []
+  const questions = questionsOf(session)
+  const pending = pendingOf(session)
+  if (questions.length) {
+    const asking = questionLayout(questions, draftFor(session, draft), 0)
+    lines.push(...asking.lines, '')
+    choices = asking.choices
+  } else if (pending) {
+    const asking = promptLayout(pending, session)
+    lines.push(...asking.lines, '')
+    choices = asking.choices
+  }
+  // Under the question, what led to it. Summary first: what the agent needs (its platform's turn summary),
+  // then the hub's short version of the reply (or the platform's one-liner); the full reply follows for
+  // whoever pages on.
   const turn = session.summary
   const short = session.reply_summary ?? turn?.recent ?? turn?.detail
   const said = [turn?.needs && `Needs: ${turn.needs}`, short].filter(Boolean)
@@ -55,7 +71,7 @@ export function layout(session: Session): Layout {
   if (said.length && reply) lines.push('', session.reply_summary ? FULL_REPLY : '')
   lines.push(...wrap(reply, TEXT_WIDTH))
   if (!lines.some((l) => l.trim())) lines.push('Nothing to show yet.')
-  return { lines, choices }
+  return { lines, choices, questions }
 }
 
 const keyOf = (id: string) => placeKey({ screen: 'session', id })
@@ -70,7 +86,7 @@ function cursorOf(nav: Nav, id: string, choices: Choice[]): string {
 export function sessionView(state: AppState, id: string, now: number): Screen {
   const session = findSession(state, id)
   if (!session) return { header: 'Session ended', body: ['This session is gone.'], footer: '2× back' }
-  const { lines, choices } = layout(session)
+  const { lines, choices } = layout(session, state.nav.draft)
   const cursor = cursorOf(state.nav, id, choices)
   const chosen = choices.find((c) => c.key === cursor)
   // While choosing, the page holds the cursor; while reading, it starts at the reading position.
@@ -94,7 +110,7 @@ export function sessionAct(state: AppState, id: string, action: Action): Outcome
   const { nav } = state
   const session = findSession(state, id)
   if (action === 'back' || !session) return { nav: action === 'back' ? back(nav) : nav, notice: null }
-  const { lines, choices } = layout(session)
+  const { lines, choices, questions } = layout(session, nav.draft)
   const cursor = cursorOf(nav, id, choices)
   const at = choices.findIndex((c) => c.key === cursor)
   const set = (patch: Partial<Nav>, to = cursor): Outcome => ({
@@ -115,6 +131,7 @@ export function sessionAct(state: AppState, id: string, action: Action): Outcome
       return choices.length ? set({ offset: 0 }, choices[choices.length - 1].key) : set({})
     case 'select': {
       if (at < 0) return { nav, listen: 'start' } // reading: a tap answers by voice
+      if (questions.length) return answerAct(nav, session, questions, cursor)
       if (nav.armed === cursor)
         return {
           nav: { ...nav, armed: null },
@@ -126,4 +143,22 @@ export function sessionAct(state: AppState, id: string, action: Action): Outcome
     default:
       return { nav }
   }
+}
+
+/** A tap on a question's choice: tick it, arm it, or (armed) answer and go on to the next question. */
+function answerAct(nav: Nav, session: Session, questions: PendingQuestion[], cursor: string): Outcome {
+  const draft = draftFor(session, nav.draft)
+  const cursors = (to: string) => ({ ...nav.cursors, [keyOf(session.id)]: to })
+  if (!oneTap(questions, draft, cursor) && nav.armed !== cursor)
+    return { nav: { ...nav, cursors: cursors(cursor), armed: cursor, draft }, notice: null }
+  const answered = answer(questions, draft, cursor)
+  if (answered.send)
+    return {
+      nav: { ...nav, armed: null, draft: null },
+      notice: 'Sending…',
+      command: { type: 'answer', id: session.id, answers: answered.send },
+    }
+  const next = answered.draft.picked.length > draft.picked.length
+  const first = questionLayout(questions, answered.draft, 0).choices[0]?.key ?? READING
+  return { nav: { ...nav, cursors: cursors(next ? first : cursor), armed: null, draft: answered.draft, offset: 0 }, notice: null }
 }

@@ -2,7 +2,7 @@
 import { columns } from '@/display/text'
 import type { Session } from '@/hub/types'
 import type { Screen } from '@/display/screen'
-import { back, conciergeOf, findSession, groupOf, push, withCursor, workers, type AppState, type Outcome } from '@/state/model'
+import { INTERRUPTED, back, conciergeOf, findSession, groupLabel, groupOf, needsYou, push, withCursor, workers, type AppState, type Outcome } from '@/state/model'
 import type { Action } from '@/input/gestures'
 import { age, stateLabel } from './format'
 import { ROW_WIDTH, arrange, draw, move, resolveCursor, type Row } from './list'
@@ -13,10 +13,11 @@ const MACHINE_PX = 140
 
 const waitingSince = (s: Session) => Date.parse(s.updated_at)
 
-/** Group names in display order: the hub's own machine first, then by name. */
+/** Group names in display order: the hub's own machine first, then by name, interrupted sessions last. */
 export function groupNames(state: AppState): string[] {
   const names = new Set(workers(state).map((s) => groupOf(s, state.hubName)))
-  return [...names].sort((a, b) => Number(b === state.hubName) - Number(a === state.hubName) || a.localeCompare(b))
+  const rank = (name: string) => (name === INTERRUPTED ? 2 : name === state.hubName ? 0 : 1)
+  return [...names].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))
 }
 
 export function homeRows(state: AppState, now: number): Row[] {
@@ -27,11 +28,11 @@ export function homeRows(state: AppState, now: number): Row[] {
     const status = `${stateLabel(concierge.state)} ${age(concierge.updated_at, now)}`
     rows.push({ id: `s:${concierge.id}`, text: columns([`${mark}${concierge.name}`, '', status], [NAME_PX, MACHINE_PX], ROW_WIDTH) })
   }
-  const waiting = workers(state).filter((s) => s.needs_attention).sort((a, b) => waitingSince(a) - waitingSince(b))
+  const waiting = needsYou(workers(state)).sort((a, b) => waitingSince(a) - waitingSince(b))
   rows.push(...waiting.map((s) => ({
     id: `s:${s.id}`,
     text: columns(
-      [`! ${s.name}`, `@${groupOf(s, state.hubName)}`, `${stateLabel(s.state)} ${age(s.updated_at, now)}`],
+      [`! ${s.name}`, groupLabel(groupOf(s, state.hubName)), `${stateLabel(s.state)} ${age(s.updated_at, now)}`],
       [NAME_PX, MACHINE_PX],
       ROW_WIDTH,
     ),
@@ -39,9 +40,9 @@ export function homeRows(state: AppState, now: number): Row[] {
   if (waiting.length) rows.push({ id: 'divider', text: '─────', selectable: false })
   for (const group of groupNames(state)) {
     const members = workers(state).filter((s) => groupOf(s, state.hubName) === group)
-    const needs = members.filter((s) => s.needs_attention).length
+    const needs = needsYou(members).length
     const counts = needs ? `${members.length} · ${needs} need${needs === 1 ? 's' : ''} you` : `${members.length}`
-    rows.push({ id: `g:${group}`, text: columns([`@${group}`, counts], [NAME_PX + MACHINE_PX], ROW_WIDTH) })
+    rows.push({ id: `g:${group}`, text: columns([groupLabel(group), counts], [NAME_PX + MACHINE_PX], ROW_WIDTH) })
   }
   return rows
 }
@@ -50,7 +51,7 @@ export function homeView(state: AppState, now: number): { screen: Screen; order:
   const arranged = arrange(homeRows(state, now), state.nav.frozen ?? undefined)
   const cursor = resolveCursor(arranged.rows, state.nav.cursors.home)
   const list = draw(arranged, cursor)
-  const waiting = workers(state).filter((s) => s.needs_attention).length
+  const waiting = needsYou(workers(state)).length
   const status = linkLabel(state) ?? (waiting ? `${waiting} need${waiting === 1 ? 's' : ''} you` : 'all quiet')
   const body = state.loaded && !arranged.rows.length ? ['No sessions.'] : list.lines
   return {

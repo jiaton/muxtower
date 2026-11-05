@@ -21,6 +21,19 @@ export interface Nav {
   /** The option a first tap chose; a second tap on it confirms. */
   armed: string | null
   lastOpened: string | null
+  /** A multiple-choice prompt answered one question at a time: what was picked so far (kept in memory). */
+  draft: Draft | null
+}
+
+/** Answers to a session's questions, gathered one question at a time and sent together. */
+export interface Draft {
+  session: string
+  /** The questions these answers belong to: a draft for other questions is dropped. */
+  asked: string
+  /** The labels picked for each question answered so far, in order. */
+  picked: string[][]
+  /** The options ticked on the question at hand (a multi-select one). */
+  ticked: string[]
 }
 
 /** A voice reply in progress: recording while held, then the text to confirm before it is sent. */
@@ -54,6 +67,7 @@ export interface AppState {
 
 export type Command =
   | { type: 'approve'; id: string; option: string }
+  | { type: 'answer'; id: string; answers: string[][] }
   | { type: 'deny'; id: string }
   | { type: 'input'; id: string; text?: string; key?: string }
   | { type: 'refresh' }
@@ -78,6 +92,7 @@ export const initialNav = (): Nav => ({
   offset: 0,
   armed: null,
   lastOpened: null,
+  draft: null,
 })
 
 /** Entering a screen: its order is computed afresh and nothing is armed. */
@@ -96,11 +111,37 @@ export const withCursor = (nav: Nav, cursor: string | undefined): Nav =>
 
 export const findSession = (state: AppState, id: string) => state.sessions.find((s) => s.id === id)
 
-/** The group a session is listed under: the machine it runs on (local tmux sessions run on the hub). */
-export const groupOf = (session: Session, hubName: string) => session.machine || hubName
+/** Where a session is listed, as the web app sorts them: with the others, set aside as interrupted (its
+ *  machine restarted under it), or not at all (archived or hidden by the owner). */
+export type Listing = 'listed' | 'interrupted' | 'archived' | 'hidden'
+
+export const listingOf = (session: Session): Listing =>
+  session.interrupted_at ? 'interrupted' : session.archived_at ? 'archived' : session.hidden ? 'hidden' : 'listed'
+
+/** Shown on the glasses at all: archived and hidden sessions are left out of every list, count and launch. */
+export const isShown = (session: Session) => {
+  const listing = listingOf(session)
+  return listing === 'listed' || listing === 'interrupted'
+}
+
+/** The group interrupted sessions are set apart in (a key no machine name can take). */
+export const INTERRUPTED = ':interrupted'
+
+/** The group a session is listed under: the machine it runs on (local tmux sessions run on the hub), or
+ *  the interrupted group. */
+export const groupOf = (session: Session, hubName: string) =>
+  listingOf(session) === 'interrupted' ? INTERRUPTED : session.machine || hubName
+
+/** A group's name on screen. */
+export const groupLabel = (group: string) => (group === INTERRUPTED ? 'Interrupted' : `@${group}`)
 
 /** The owner's assistant session, if the hub runs one: pinned on Home, and the target of voice outside a session. */
-export const conciergeOf = (state: AppState) => state.sessions.find((s) => s.role === 'concierge')
+export const conciergeOf = (state: AppState) =>
+  state.sessions.find((s) => s.role === 'concierge' && listingOf(s) === 'listed')
 
-/** Sessions other than the assistant (it has its own row and is not counted in any group). */
-export const workers = (state: AppState) => state.sessions.filter((s) => s.role !== 'concierge')
+/** Shown sessions other than the assistant (it has its own row and is not counted in any group). */
+export const workers = (state: AppState) => state.sessions.filter((s) => s.role !== 'concierge' && isShown(s))
+
+/** Sessions waiting on the owner: shown ones only (an interrupted session waits on nobody). */
+export const needsYou = (sessions: Session[]) =>
+  sessions.filter((s) => s.needs_attention && listingOf(s) === 'listed')

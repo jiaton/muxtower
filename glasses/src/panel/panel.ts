@@ -3,6 +3,7 @@
 import type { GlassesApp } from '@/app'
 import { DEVICE_NAME } from '@/hub/pairing'
 import type { AppStore } from '@/state/store'
+import { isShown, needsYou } from '@/state/model'
 
 const LINK = {
   unpaired: 'Not paired',
@@ -75,7 +76,7 @@ export function mountPanel(root: HTMLElement, preview: boolean): Panel {
       const update = () => {
         const state = store.getState()
         linkValue.textContent = LINK[state.link]
-        sessionsValue.textContent = state.loaded ? `${state.sessions.length} (${state.sessions.filter((s) => s.needs_attention).length} need you)` : '—'
+        sessionsValue.textContent = state.loaded ? `${state.sessions.filter(isShown).length} (${needsYou(state.sessions).length} need you)` : '—'
         const unpaired = state.link === 'unpaired' || state.link === 'rejected'
         pairForm.hidden = !unpaired
         paired.hidden = unpaired
