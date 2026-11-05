@@ -158,8 +158,9 @@ function usePullOpen(
 }
 
 /** While `active`, a swipe left on the drawer or its scrim drags the drawer with the finger, and let go,
- *  closes it or puts it back by how far and how fast it went. A swipe right, or one on a list row that is
- *  showing its actions (`data-swipe-open`), is left to what is under it. */
+ *  closes it or puts it back by how far and how fast it went. A swipe right, or one that starts on a list
+ *  row that swipes itself (`data-swipe-row`: a swipe left there shows its actions), is left to what is
+ *  under it. */
 function useSwipeClose(
   panel: RefObject<HTMLDivElement | null>,
   scrim: RefObject<HTMLDivElement | null>,
@@ -177,7 +178,7 @@ function useSwipeClose(
     let timer: ReturnType<typeof setTimeout> | undefined
     const down = (e: TouchEvent) => {
       const t = e.touches[0]
-      const leave = e.touches.length !== 1 || !t || (e.target instanceof Element && e.target.closest('[data-swipe-open]'))
+      const leave = e.touches.length !== 1 || !t || (e.target instanceof Element && e.target.closest('[data-swipe-row]'))
       g = leave ? null : { x: t.clientX, y: t.clientY, at: 0, speed: new Speed() }
       g?.speed.add(t!.clientX)
     }

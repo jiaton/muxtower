@@ -10,7 +10,8 @@ type Gesture = { x: number; y: number; dx: number; from: number; axis?: 'x' | 'y
  *  vertical move scrolls as usual; once a swipe, a finger drifting up or down keeps it a swipe, and let
  *  go, it opens or closes by how far and how fast it went (a short flick is enough). A tap on the row
  *  while it is open closes it instead of opening the row; pressing anywhere else closes it too. An open
- *  row says so (`data-swipe-open`), for a swipe around it (a drawer's) to leave it to the row. Mice and
+ *  row says so (`data-swipe-open`); every one says it is a swiping row (`data-swipe-row`), for a swipe
+ *  starting on it to be the row's alone (not a drawer's around it closing as the row opens). Mice and
  *  keyboards do not swipe: give them another way to the same actions (a menu). A swipe right on a closed
  *  row is not the row's: it is left to what is around it (the list's, which pulls the sidebar). */
 export function SwipeActions({ actions, children }: { actions: ReactNode; children: ReactNode }) {
@@ -61,7 +62,7 @@ export function SwipeActions({ actions, children }: { actions: ReactNode; childr
   }
 
   return (
-    <div ref={root} className="relative overflow-hidden" data-swipe-open={open || undefined}>
+    <div ref={root} className="relative overflow-hidden" data-swipe-row data-swipe-open={open || undefined}>
       <div
         ref={tray}
         className={cn('absolute inset-y-0 right-0 flex', !offset && 'invisible')} // closed: nothing shows past the row as it moves
