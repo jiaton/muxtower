@@ -1,5 +1,5 @@
 import { Link, Outlet, createFileRoute, useMatch } from '@tanstack/react-router'
-import { Archive, BellOff, CheckCheck, EyeOff, Plus, RotateCcw, SearchX, Server } from 'lucide-react'
+import { Archive, BellOff, CheckCheck, EyeOff, PanelLeft, Plus, RotateCcw, SearchX, Server } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Drawer } from '@/components/ui/drawer'
@@ -12,7 +12,10 @@ import { ArchiveTools } from '@/features/sessions/components/archive-tools'
 import { InterruptedBanner } from '@/features/sessions/components/interrupted'
 import { ExpiredLogins } from '@/features/daemons/components/expired-logins'
 import { ListChips } from '@/features/sessions/components/list-chips'
-import { FilterMenu, ListMenu, ScopeChip, SearchField } from '@/features/sessions/components/list-controls'
+import { ListMenu, ScopeChip, SearchField } from '@/features/sessions/components/list-controls'
+import { useSidebarPull } from '@/features/sessions/hooks/use-sidebar-pull'
+import { useSidebarDrawer } from '@/lib/sidebar-drawer'
+import { SIDEBAR_QUERY } from '@/lib/use-media-query'
 import { NewSessionDialog } from '@/features/sessions/components/new-session-dialog'
 import { SessionList } from '@/features/sessions/components/session-list'
 import { useOpenedHere } from '@/features/sessions/hooks/use-opened-here'
@@ -54,6 +57,10 @@ function SessionsLayout() {
   const unpaired = useUnpairedDaemons()
   const open = useMatch({ from: '/_sessions/d/$daemonId/s/$sessionId', shouldThrow: false })
   const split = useMediaQuery(SPLIT_QUERY)
+  const docked = useMediaQuery(SIDEBAR_QUERY)
+  const openSidebar = useSidebarDrawer((s) => s.setOpen)
+  const listPane = useRef<HTMLElement>(null)
+  useSidebarPull(listPane, !docked) // a swipe right on the list: the sidebar, one level up
   const listRef = useRef<HTMLDivElement>(null)
   const listKey = JSON.stringify(query)
   const asDrawer = Boolean(open) && !split
@@ -90,8 +97,15 @@ function SessionsLayout() {
   return (
     <div className="flex min-w-0 flex-1">
       <Drawer drawer={asDrawer} open={drawerOpen} onOpenChange={setDrawer} onPull={setPull} label="Sessions">
-        <Pane className="flex w-full border-r border-border md:w-80 md:shrink-0 xl:w-96" aria-label="Sessions">
+        <Pane ref={listPane} className="flex w-full border-r border-border md:w-80 md:shrink-0 xl:w-96" aria-label="Sessions">
           <PaneHeader
+            leading={
+              docked ? null : (
+                <Button variant="ghost" size="icon-sm" aria-label="Open sidebar" title="Sidebar" onClick={() => openSidebar(true)}>
+                  <PanelLeft />
+                </Button>
+              )
+            }
             title={
               <h1 className="truncate" title={title}>
                 {query.folder ? folderName(title) : title}
@@ -106,7 +120,6 @@ function SessionsLayout() {
                   agents={facets.agents.length > 0}
                   accounts={facets.accounts.length > 0}
                 />
-                <FilterMenu query={query} search={search} facets={facets} className="lg:hidden" />
                 <div className="lg:hidden">
                   <NewSessionDialog
                     trigger={

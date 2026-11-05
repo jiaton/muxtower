@@ -20,7 +20,7 @@ export function DropdownMenuContent({ className, sideOffset = 6, align = 'end', 
         align={align}
         collisionPadding={8}
         className={cn(
-          'z-50 flex max-h-[min(70dvh,32rem)] min-w-52 flex-col overflow-y-auto rounded-md border border-border bg-surface p-1 shadow-card',
+          'z-[90] flex max-h-[min(70dvh,32rem)] min-w-52 flex-col overflow-y-auto rounded-md border border-border bg-surface p-1 shadow-card',
           className,
         )}
         {...props}
