@@ -40,14 +40,11 @@ export function TeamCard({
   device?: string
   children: ReactNode
 }) {
-  const navigate = useNavigate()
-  const [shown, setShown] = useState<{ pinned: boolean; x?: number; y?: number } | null>(null)
-  const [dialog, setDialog] = useState<'rename' | 'new' | null>(null)
+  const [shown, setShown] = useState<Shown | null>(null)
   const timer = useRef<number | undefined>(undefined)
   const press = useRef<{ x: number; y: number } | null>(null)
   const held = useRef(false)
   const members = project ? teamOf(entries, project) : []
-  const tasks = useLatestTasks(members, Boolean(shown))
   if (!project || !members.length) return <>{children}</>
 
   const later = (then: () => void, ms: number) => {
@@ -63,8 +60,6 @@ export function TeamCard({
     keep()
     setShown({ pinned: true, x, y })
   }
-  const start = folderToStart(members, device)
-
   return (
     <div
       className="relative [-webkit-touch-callout:none]"
@@ -105,7 +100,51 @@ export function TeamCard({
       }}
     >
       {children}
-      <DropdownMenu open={Boolean(shown)} onOpenChange={(open) => open || setShown(null)}>
+      <TeamPanel
+        project={project}
+        members={members}
+        device={device}
+        shown={shown}
+        onClose={() => setShown(null)}
+        onEnter={keep}
+        onLeave={leave}
+      />
+    </div>
+  )
+}
+
+/** Where a team card shows: by its row (hover), or pinned where it was pressed, with its actions. */
+export interface Shown {
+  pinned: boolean
+  x?: number
+  y?: number
+}
+
+/** The card itself, for whoever decides when it shows (a row's hover or press, a group chip's menu). */
+export function TeamPanel({
+  project,
+  members,
+  device,
+  shown,
+  onClose,
+  onEnter,
+  onLeave,
+}: {
+  project: string
+  members: SessionEntry[]
+  device?: string
+  shown: Shown | null
+  onClose: () => void
+  onEnter?: () => void
+  onLeave?: () => void
+}) {
+  const navigate = useNavigate()
+  const [dialog, setDialog] = useState<'rename' | 'new' | null>(null)
+  const tasks = useLatestTasks(members, Boolean(shown))
+  const start = folderToStart(members, device)
+  return (
+    <>
+      <DropdownMenu open={Boolean(shown)} onOpenChange={(open) => open || onClose()}>
         <DropdownMenuTrigger asChild>
           <span
             aria-hidden
@@ -119,8 +158,8 @@ export function TeamCard({
           align="start"
           sideOffset={shown?.pinned ? 12 : 8}
           className="w-80 max-w-[calc(100vw-2rem)]"
-          onPointerEnter={keep}
-          onPointerLeave={leave}
+          onPointerEnter={onEnter}
+          onPointerLeave={onLeave}
           onCloseAutoFocus={(e) => e.preventDefault()}
           onFocusOutside={(e) => e.preventDefault()} // the press's own click focuses the row: no closing on it
           aria-label={`Team of ${project}`}
@@ -174,6 +213,6 @@ export function TeamCard({
           }}
         />
       ) : null}
-    </div>
+    </>
   )
 }

@@ -73,3 +73,20 @@ describe('finding a session', () => {
     ).toBe(true)
   })
 })
+
+describe('the teams a group reaches', () => {
+  it('its projects in order, then its single sessions’ projects; each once, Other and unknown left out', async () => {
+    const { teamsOfGroup } = await import('./team')
+    const more = [
+      ...entries,
+      entry('w1', 'web', 5),
+      entry('x1', OTHER, 6, { cwd: '/home/me', project: undefined, project_source: undefined }),
+    ]
+    expect(teamsOfGroup({ id: 'g', name: 'G', projects: ['ha', OTHER, 'muxtower', 'gone'], sessions: [] }, more)).toEqual([
+      'ha',
+      'muxtower',
+    ])
+    expect(teamsOfGroup({ id: 'g', name: 'G', projects: [], sessions: ['w1', 'm2', 'm1', 'x1'] }, more)).toEqual(['web', 'muxtower'])
+    expect(teamsOfGroup({ id: 'g', name: 'G', projects: ['muxtower'], sessions: ['m1', 'w1'] }, more)).toEqual(['muxtower', 'web'])
+  })
+})

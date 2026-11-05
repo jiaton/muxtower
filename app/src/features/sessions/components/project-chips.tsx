@@ -1,24 +1,25 @@
 import { Plus } from 'lucide-react'
 import { useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent } from 'react'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/cn'
 import { newChipId, useSaveChipGroups } from '../api/use-chip-groups'
-import { MAX_GROUPS, OTHER, projectChips, projectIn, type ChipGroup, type ProjectChip } from '../model/chip-groups'
-import { workspacesOf } from '../model/workspaces'
+import { MAX_GROUPS, OTHER, projectChips, type ChipGroup, type ProjectChip } from '../model/chip-groups'
+import { teamOf, teamProject, teamsOfGroup } from '../model/team'
 import type { SessionEntry } from '../model/facets'
 import { filterEntries, type SessionQuery } from '../model/query'
 import type { ListSearch } from '../model/search'
 import { ChipGroupDialog } from './chip-group-dialog'
 import { Chip } from './list-chips'
-import { TeamCard } from './team-card'
+import { TeamCard, TeamPanel } from './team-card'
 
-/** The team project of the sessions a one-project chip holds, when they share one. */
-function teamProject(entries: SessionEntry[], project: string): string | null {
-  const workspaces = workspacesOf(entries)
-  const projects = new Set(entries.filter((e) => projectIn(e, workspaces) === project).map((e) => e.session.project ?? null))
-  const [only] = projects
-  return projects.size === 1 ? only : null
-}
+/** Teams a group's menu lists before "More teams…". */
+const TEAMS_SHOWN = 6
 
 const HOLD_MS = 500
 
@@ -46,6 +47,9 @@ export function ProjectChips({
   const save = useSaveChipGroups()
   const [editing, setEditing] = useState<ChipGroup | 'new' | null>(null)
   const [menu, setMenu] = useState<{ group: ChipGroup; x: number; y: number } | null>(null)
+  const [allTeams, setAllTeams] = useState(false)
+  const [team, setTeam] = useState<{ project: string; x: number; y: number; open: boolean } | null>(null)
+  const teams = menu ? teamsOfGroup(menu.group, entries) : []
   const chips = projectChips(groups, entries)
 
   useLayoutEffect(() => {
@@ -102,7 +106,14 @@ export function ProjectChips({
           </button>
         ) : null}
       </div>
-      <DropdownMenu open={Boolean(menu)} onOpenChange={(open) => open || setMenu(null)}>
+      <DropdownMenu
+        open={Boolean(menu)}
+        onOpenChange={(open) => {
+          if (open) return
+          setMenu(null)
+          setAllTeams(false)
+        }}
+      >
         <DropdownMenuTrigger asChild>
           <span aria-hidden tabIndex={-1} className="pointer-events-none fixed size-0" style={{ left: menu?.x, top: menu?.y }} />
         </DropdownMenuTrigger>
@@ -114,6 +125,22 @@ export function ProjectChips({
         >
           {menu ? (
             <>
+              {(allTeams ? teams : teams.slice(0, TEAMS_SHOWN)).map((project) => (
+                <DropdownMenuItem key={project} onSelect={() => setTeam({ project, x: menu.x, y: menu.y, open: true })}>
+                  Team · {project}
+                </DropdownMenuItem>
+              ))}
+              {!allTeams && teams.length > TEAMS_SHOWN ? (
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault() // the menu stays, with the rest
+                    setAllTeams(true)
+                  }}
+                >
+                  More teams…
+                </DropdownMenuItem>
+              ) : null}
+              {teams.length ? <DropdownMenuSeparator /> : null}
               <DropdownMenuItem onSelect={() => setEditing(menu.group)}>Edit</DropdownMenuItem>
               {groups[0]?.id !== menu.group.id ? (
                 <DropdownMenuItem onSelect={() => move(menu.group, -1)}>Move left</DropdownMenuItem>
@@ -128,6 +155,14 @@ export function ProjectChips({
           ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
+      {team ? (
+        <TeamPanel
+          project={team.project}
+          members={teamOf(entries, team.project)}
+          shown={team.open ? { pinned: true, x: team.x, y: team.y } : null}
+          onClose={() => setTeam({ ...team, open: false })} // kept: its dialogs (Rename…) outlive the card
+        />
+      ) : null}
       {editing ? (
         <ChipGroupDialog
           group={editing === 'new' ? undefined : editing}
