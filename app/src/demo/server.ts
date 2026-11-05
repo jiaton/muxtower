@@ -62,6 +62,11 @@ const marked =
   (world, id, body) =>
     world.mark(id, patch(body)) ? empty() : refuse(404, 'no such session')
 
+/** The owner's groups of projects (the second chip row), kept for this visit. */
+type ChipGroup = { id: string; name: string; projects: string[] }
+const CHIP_GROUPS = new WeakMap<World, ChipGroup[]>()
+const chipGroups = (world: World) => CHIP_GROUPS.get(world) ?? []
+
 /** The names each demo session went by before the one it has: its agent's, then each it was renamed from. */
 const EARLIER = new WeakMap<World, Map<string, { name: string; source: string; last_seen: string }[]>>()
 
@@ -143,6 +148,11 @@ const SESSION_ROUTES: Record<string, Handler> = {
 
 const ROUTES: Record<string, (world: World, body: Record<string, unknown>, url: URL) => Response> = {
   'GET /v1/me': () => json(ME),
+  'GET /v1/chip-groups': (world) => json({ groups: chipGroups(world) }),
+  'PUT /v1/chip-groups': (world, body) => {
+    CHIP_GROUPS.set(world, Array.isArray(body.groups) ? (body.groups as ChipGroup[]) : [])
+    return json({ groups: chipGroups(world) })
+  },
   'GET /v1/health': () => json({ status: 'ok', version: 'demo' }),
   'GET /v1/sessions': (world) => json(world.sessions()),
   'GET /v1/runtimes': () => json(RUNTIMES),

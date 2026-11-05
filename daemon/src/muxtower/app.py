@@ -25,6 +25,7 @@ from muxtower.builders import (
     build_summaries,
     build_token_service,
 )
+from muxtower.chips.service import ChipGroupStore
 from muxtower.concierge.events_repository import SqliteConciergeEvents
 from muxtower.concierge.service import ConciergeService
 from muxtower.concierge.store import FileConciergeStore
@@ -244,6 +245,7 @@ def create_app(
         concierge=concierge, teams=teams, team_tasks=team_tasks, usage=usage, recovery=recovery, writes=writes,
         watches=watches,
         direct=DirectAccess(nodes, node_sessions.call), feature_settings=feature_settings,
+        chip_groups=ChipGroupStore(db),
         node_sessions=node_sessions, mcp=mcp, asr=build_asr(settings, lambda: [s.name for s in directory.list()]),
         terminal=terminal, approvals=approvals, audit=audit, push=push,
         pairing=PairingService(db, tokens, settings.pairing, daemon_name),

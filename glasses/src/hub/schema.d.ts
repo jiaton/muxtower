@@ -25,6 +25,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/chip-groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Chip Groups
+         * @description The owner's groups of projects, in their order; the same on every device (kept on the hub).
+         */
+        get: operations["get_chip_groups_v1_chip_groups_get"];
+        /**
+         * Put Chip Groups
+         * @description Replaces them all with this ordered list (at most 20 groups of 40 projects, names of 40 characters).
+         */
+        put: operations["put_chip_groups_v1_chip_groups_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/claude-login": {
         parameters: {
             query?: never;
@@ -959,6 +983,26 @@ export interface components {
             values: {
                 [key: string]: unknown;
             };
+        };
+        /** ChipGroup */
+        ChipGroup: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Projects
+             * @description project names as the app reads them from sessions; ':other': sessions of no project
+             */
+            projects: string[];
+        };
+        /** ChipGroups */
+        ChipGroups: {
+            /**
+             * Groups
+             * @description in the order the chips show them
+             */
+            groups: components["schemas"]["ChipGroup"][];
         };
         /** ClaimRequest */
         ClaimRequest: {
@@ -2283,6 +2327,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Transcript"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_chip_groups_v1_chip_groups_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChipGroups"];
+                };
+            };
+        };
+    };
+    put_chip_groups_v1_chip_groups_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChipGroups"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChipGroups"];
                 };
             };
             /** @description Validation Error */

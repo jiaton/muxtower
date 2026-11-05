@@ -83,7 +83,7 @@ def leave_hub(device: CurrentDevice, hub: HubDep, audit: Audit) -> None:
 
 async def _reply(ws: WebSocket, tools: McpTools, name: str, frame: dict[str, Any]) -> None:
     try:
-        await ws.send_text(await asked.answer(tools, name, frame))
+        await ws.send_text(await asked.answer(tools, name, frame, ws.app.state.chip_groups))
     except (WebSocketDisconnect, RuntimeError):
         pass
 

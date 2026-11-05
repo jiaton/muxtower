@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { Monitor } from 'lucide-react'
-import { useLayoutEffect, useRef, type ReactNode } from 'react'
+import { useLayoutEffect, useRef, type ComponentProps, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import type { Facets } from '../model/counts'
 import { AgentMark } from './agent-mark'
@@ -34,7 +34,7 @@ export function ListChips({
 
   useLayoutEffect(() => {
     const el = row.current
-    const chip = el?.querySelector<HTMLElement>('[aria-current="true"]')
+    const chip = el?.querySelector<HTMLElement>('[aria-current="true"], [aria-current="page"]')
     if (!el || !chip) return
     if (chip.offsetLeft < el.scrollLeft || chip.offsetLeft + chip.offsetWidth > el.scrollLeft + el.clientWidth)
       el.scrollLeft = chip.offsetLeft - el.clientWidth / 2 + chip.offsetWidth / 2
@@ -74,13 +74,14 @@ export function ListChips({
   )
 }
 
-function Chip({
+export function Chip({
   search,
   scope,
   current,
   count,
   tone,
   children,
+  ...rest
 }: {
   search: ListSearch
   scope: Scope
@@ -88,13 +89,15 @@ function Chip({
   count: number
   tone?: 'needs' | 'unread'
   children: ReactNode
-}) {
+} & Omit<ComponentProps<'a'>, 'children' | 'href'>) {
   return (
     <Link
+      {...rest}
       to="/"
       search={scopeSearch(search, scope)}
       aria-current={current}
       className={cn(
+        rest.className,
         'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium whitespace-nowrap transition-colors',
         current ? 'border-fg bg-fg text-bg' : 'border-border bg-surface text-fg hover:bg-surface-muted',
       )}

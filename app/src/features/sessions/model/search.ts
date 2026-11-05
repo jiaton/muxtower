@@ -10,6 +10,8 @@ export interface ListSearch {
   source?: string
   account?: string
   q?: string
+  /** The chosen chip of the second row: a group's id, or `p:<project>` (`chip-groups.ts`). */
+  chip?: string
 }
 
 const pick = <T extends string>(value: unknown, allowed: readonly T[]) =>
@@ -26,6 +28,7 @@ export function parseListSearch(raw: Record<string, unknown>): ListSearch {
     source: text(raw.source),
     account: text(raw.account),
     q: text(raw.q),
+    chip: text(raw.chip),
   }
 }
 
@@ -47,20 +50,29 @@ export interface Scope {
   agent?: string
   source?: string
   account?: string
+  /** A chip of the second row (`''`: none), chosen within the view shown. */
+  chip?: string
 }
 
 /** Search params for a scope chosen in the navigation: a view, a device (and one of its folders), an
- *  agent, a source or an account. Grouping and search text stay. */
-export const scopeSearch = (current: ListSearch, scope: Scope): ListSearch => ({
-  group: current.group,
-  q: current.q,
-  view: scope.view === 'all' ? undefined : scope.view,
-  device: scope.device,
-  folder: scope.folder,
-  agent: scope.agent,
-  source: scope.source,
-  account: scope.account,
-})
+ *  agent, a source or an account. Grouping and search text stay. The two chip rows combine: a view keeps
+ *  the chosen group of projects (All only clears the view), a group keeps the view, and a device, folder,
+ *  agent, source or account clears the group. */
+export function scopeSearch(current: ListSearch, scope: Scope): ListSearch {
+  if (scope.chip !== undefined) return { group: current.group, q: current.q, view: current.view, chip: scope.chip || undefined }
+  const narrowed = Boolean(scope.device || scope.folder || scope.agent || scope.source || scope.account)
+  return {
+    group: current.group,
+    q: current.q,
+    view: scope.view === 'all' ? undefined : scope.view,
+    device: scope.device,
+    folder: scope.folder,
+    agent: scope.agent,
+    source: scope.source,
+    account: scope.account,
+    chip: narrowed ? undefined : current.chip,
+  }
+}
 
 /** The scope a query is narrowed to, if any. */
 export const scopeOf = (query: SessionQuery): Scope | null =>

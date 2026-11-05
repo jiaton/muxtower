@@ -8,6 +8,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from muxtower.chips.service import ChipGroups, ChipGroupStore
 from muxtower.errors import Invalid
 from muxtower.mcp.caller import CALLER, Caller
 from muxtower.mcp.service import McpTools
@@ -31,12 +32,22 @@ def _team_tool(tools: McpTools, node: str, params: dict[str, Any]) -> str:
     return tool.run(args)
 
 
-async def answer(tools: McpTools, node: str, frame: dict[str, Any]) -> str:
+def _chip_groups(store: ChipGroupStore | None, params: dict[str, Any]) -> dict[str, Any]:
+    if store is None:
+        raise Invalid("unknown method chip_groups")
+    put = params.get("put")
+    groups = store.load() if put is None else store.replace(ChipGroups.model_validate(put))
+    return groups.model_dump()
+
+
+async def answer(tools: McpTools, node: str, frame: dict[str, Any], chips: ChipGroupStore | None = None) -> str:
     """The reply frame to a node's request."""
     method, params = frame.get("method"), frame.get("params") or {}
     try:
         if method not in protocol.HUB_METHODS:
             raise Invalid(f"unknown method {method}")
+        if method == "chip_groups":
+            return protocol.answer(frame["id"], await asyncio.to_thread(_chip_groups, chips, params))
         text = await asyncio.to_thread(_team_tool, tools, node, params)
         return protocol.answer(frame["id"], {"text": text})
     except Exception as exc:  # noqa: BLE001 - every failure goes back to the node as its status

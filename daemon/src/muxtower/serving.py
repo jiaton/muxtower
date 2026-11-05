@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from muxtower.asr.routes import router as asr_router
 from muxtower.auth.deps import DAEMON_AUTH_HEADER
 from muxtower.auth.routes import router as auth_router
+from muxtower.chips.routes import router as chips_router
 from muxtower.config import Settings
 from muxtower.errors import Conflict, Forbidden, Invalid, NotFound, TooManyRequests, Unauthorized, Unavailable
 from muxtower.hooks.routes import router as hooks_router
@@ -33,7 +34,7 @@ def serve(app: FastAPI, settings: Settings, allowed_origins: list[str], daemon_n
             CORSMiddleware,
             allow_origins=allowed_origins,
             allow_credentials=False,  # bearer tokens only; the stream cookie is same-origin
-            allow_methods=["GET", "POST", "PATCH", "DELETE"],
+            allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
             allow_headers=["Authorization", "Content-Type", *settings.cors.extra_headers],
             expose_headers=list(DAEMON_AUTH_HEADER),
             max_age=600,
@@ -52,7 +53,7 @@ def serve(app: FastAPI, settings: Settings, allowed_origins: list[str], daemon_n
 
     routers = (system_router, auth_router, sessions_router, summaries_router, asr_router, mcp_router, stream_router,
                push_router, hooks_router, nodes_router, teams_router, usage_router, recovery_router,
-               settings_router)  # fmt: skip
+               settings_router, chips_router)  # fmt: skip
     for router in routers:
         app.include_router(router)
 
