@@ -23,7 +23,8 @@ class StartArgs(BaseModel):
     name: str | None = None
     runtime: str = Field(default="claude-code", description="claude-code, codex, …")
     machine: str | None = Field(
-        default=None, description="the device to start it on, as list_sessions names it (@name); default: the hub"
+        default=None,
+        description="the machine to start it on: any list_sessions shows (@name); default: the one you run on",
     )
     resume: str | None = Field(
         default=None,

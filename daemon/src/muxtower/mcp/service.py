@@ -10,7 +10,7 @@ from muxtower.concierge.service import ConciergeService
 from muxtower.errors import Invalid
 from muxtower.mcp.caller import CALLER
 from muxtower.mcp.describe import line
-from muxtower.mcp.reach import reaching
+from muxtower.mcp.reach import events_everywhere, listing_everywhere, reaching, starting_anywhere
 from muxtower.mcp.sender import headed, sender_label
 from muxtower.mcp.session_tools import SessionTools
 from muxtower.mcp.team_tools import Forward, TeamTools
@@ -114,6 +114,13 @@ class McpTools:
             tools += self.team_tools.tools()
         # A session another machine runs is reached through the hub (`reach.py`).
         tools = [replace(t, run=reaching(t.name, t.run, forward)) if t.name in REACH_TOOLS else t for t in tools]
+        # Every machine's sessions, on a node too: its hub lists them, and starts one on another machine.
+        everywhere = {
+            "list_sessions": lambda t: listing_everywhere(t.name, t.run, forward),
+            "start_session": lambda t: starting_anywhere(t.run, forward, hub),
+            "list_events": lambda t: events_everywhere(t.run, forward),
+        }
+        tools = [replace(t, run=everywhere[t.name](t)) if t.name in everywhere else t for t in tools]
         self.tools = {t.name: t for t in tools}
 
     def _target(self, session_id: str) -> Session:

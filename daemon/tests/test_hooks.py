@@ -1,4 +1,5 @@
 import json
+import shlex
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -63,14 +64,17 @@ def _launch(client: TestClient, auth: dict[str, str], tmp_path: Path) -> str:
     return str(res.json()["id"])
 
 
-def test_launch_injects_http_hooks(app: FastAPI, client: TestClient, auth: dict[str, str], tmux: FakeTmux,
-                                   tmp_path: Path) -> None:  # fmt: skip
+def test_launch_injects_relay_hooks(app: FastAPI, client: TestClient, auth: dict[str, str], tmux: FakeTmux,
+                                    tmp_path: Path) -> None:  # fmt: skip
     session_id = _launch(client, auth, tmp_path)
     pane = next(iter(tmux.panes.values()))
     assert pane.argv[0] == "claude" and pane.argv[1] == "--settings"
     settings = json.loads(Path(pane.argv[2]).read_text())
     hook = settings["hooks"]["PermissionRequest"][0]["hooks"][0]
-    assert hook["type"] == "http" and hook["url"].endswith("/v1/hooks/claude-code")
+    assert hook["type"] == "command" and "relay.py" in hook["command"]  # no http hook: its errors reach the agent
+    target = json.loads(Path(shlex.split(hook["command"])[-1]).read_text())
+    assert target["url"].endswith("/v1/hooks/claude-code") and target["session"] == session_id
+    assert target["token"] == pane.env["MUXTOWER_HOOK_TOKEN"] and target["token"] not in hook["command"]
     assert pane.env["MUXTOWER_SESSION_ID"] == session_id and pane.env["MUXTOWER_HOOK_TOKEN"]
 
 

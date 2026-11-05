@@ -15,18 +15,14 @@ review", a screen rule), and nothing runs untrusted."""
 import hashlib
 import json
 import os
-import shlex
-import subprocess
-import sys
-from pathlib import Path
 from typing import Any
 
 from pydantic import ValidationError
 
 from muxtower.hooks.events import AskingTools, HookEvent
 from muxtower.hooks.ports import MCP_SERVER, MCP_TOKEN_ENV, HookLaunch
+from muxtower.hooks.relay import relay_command, write_target
 
-RELAY = Path(__file__).with_name("relay.py")
 TIMEOUT_SECONDS = 3  # the most Codex allows a SessionEnd or Interrupt hook; it hashes the clamped value
 # Event -> the label Codex keys its hook state with.
 EVENTS = {
@@ -41,12 +37,6 @@ EVENTS = {
 }
 # Where Codex says hooks from the command line are declared.
 SESSION_FLAGS = r"C:\<session-flags>\config.toml" if os.name == "nt" else "/<session-flags>/config.toml"
-
-
-def relay_command(target: Path) -> str:
-    """Runs the relay with this daemon's Python, isolated and without site-packages: standard library only."""
-    argv = [sys.executable, "-I", "-S", str(RELAY), str(target)]
-    return subprocess.list2cmdline(argv) if os.name == "nt" else shlex.join(argv)
 
 
 def handler(command: str) -> dict[str, Any]:
@@ -85,11 +75,9 @@ class CodexHooks:
     asking = AskingTools(questions=frozenset({"request_user_input"}))  # Plan mode's questions, with the options
 
     def launch_args(self, launch: HookLaunch) -> list[str]:
-        target = launch.files / f"{launch.session_id}.codex.json"
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.touch(mode=0o600)
-        target.chmod(0o600)
-        target.write_text(json.dumps({"url": launch.url, "session": launch.session_id, "token": launch.token}))
+        target = write_target(
+            launch.files / f"{launch.session_id}.codex.json", launch.url, launch.session_id, launch.token
+        )
         args = ["-c", f"hooks={toml(hooks_config(relay_command(target)))}"]
         if launch.mcp_url:  # its token comes from the environment muxtower starts it with
             server = f"mcp_servers.{MCP_SERVER}"

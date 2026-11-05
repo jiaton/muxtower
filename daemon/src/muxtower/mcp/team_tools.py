@@ -40,6 +40,8 @@ muxtower runs the owner's coding agent sessions, on this machine and others, and
 - Writing to a teammate: send_task by default (work, reports, anything long: it waits while they are on a
   prompt, and is kept on record). send_message types in at once: only to answer the prompt they are stopped
   on, send a slash command, or pass on the owner's words; it can cut in or be taken as their answer.
+- Only this machine shown, or a machine missing? This machine's link to its hub may be down for a moment
+  (the tools say so with a NOTE): try again shortly. Never conclude another machine has no muxtower.
 - "also writing in <worktree>" means another session changes files in your checkout: agree with it
   (send_task) or ask the owner. If no file is changed by both, go on, but commit only your own changes."""
 
@@ -133,7 +135,7 @@ class TeamTools:
                     raise Unavailable(
                         f"the hub is unreachable now ({exc}): try again when it is back; nothing was changed"
                     ) from exc
-                return f"({exc}: only this machine's sessions below.)\n{here(args)}"
+                return f"NOTE: {exc}. Only this machine's sessions below.\n{here(args)}"
             return here(args) if answered is None else answered
 
         return run

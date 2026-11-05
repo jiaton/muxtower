@@ -20,7 +20,7 @@ logger = logging.getLogger("muxtower.nodes")
 def _team_tool(tools: McpTools, node: str, params: dict[str, Any]) -> str:
     name = str(params.get("tool"))
     tool = tools.tools.get(name)
-    if name not in protocol.TEAM_TOOLS | protocol.REACH_TOOLS or tool is None:
+    if name not in protocol.TEAM_TOOLS | protocol.REACH_TOOLS | protocol.LISTING_TOOLS or tool is None:
         raise Invalid(f"no team tool {name!r} here")
     try:
         args = tool.args.model_validate(params.get("arguments") or {})
