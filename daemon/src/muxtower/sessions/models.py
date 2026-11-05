@@ -75,6 +75,11 @@ class Capabilities(BaseModel):
     terminate: bool = Field(description="it can be stopped (DELETE); for an archived one: deleted from the archive")
     rename: bool
     archive: bool = Field(default=False, description="it can be archived: ended, and kept to read (POST /archive)")
+    archive_ends: bool = Field(
+        default=True,
+        description="archiving ends it; false: it runs where muxtower cannot end it (Claude's desktop app), and "
+        "archiving it only hides it here (`sessions/endable.py`)",
+    )
     place: bool = Field(
         default=False, description="where it runs can be set by the owner or detected from its log (/placement)"
     )

@@ -9,6 +9,7 @@ from muxtower.errors import Conflict, Invalid, Unavailable
 from muxtower.mcp.tool import Tool
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.directory import SessionDirectory
+from muxtower.sessions.endable import where_it_runs
 from muxtower.sessions.launch import agent_may_ask
 from muxtower.sessions.launcher import Launcher
 from muxtower.sessions.models import CreateSession, UpdateSession
@@ -132,5 +133,10 @@ class SessionTools:
 
     def archive_session(self, args: ArchiveArgs) -> str:
         assert self.archiver is not None
-        self.archiver.archive(args.session_id)
+        session = self.directory.get(args.session_id)
+        if not self.archiver.archive(args.session_id):
+            return (
+                f"Hidden {session.id} in muxtower, not archived: it runs in {where_it_runs(session)}, which muxtower "
+                f"cannot end, so it goes on there. To end it, do so in {where_it_runs(session)}."
+            )
         return f"Archived {args.session_id}: its agent has ended; it is kept to read under Archived."

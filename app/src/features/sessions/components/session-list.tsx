@@ -129,7 +129,12 @@ export function SessionList({
   const keyOf = (...parts: string[]) => foldKey(foldScope ?? '', ...parts)
   const isFolded = (key: string) => foldable && collapsed.includes(key) !== foldedFirst
   const onToggle = (key: string) => (foldable ? () => toggle(key) : undefined)
-  const folded = foldable ? groups.map((g) => keyOf(g.key)).filter(isFolded).concat(foldedFirst ? [] : collapsed) : []
+  const folded = foldable
+    ? groups
+        .map((g) => keyOf(g.key))
+        .filter(isFolded)
+        .concat(foldedFirst ? [] : collapsed)
+    : []
   useFlip(root, membership(groups, folded))
 
   return (

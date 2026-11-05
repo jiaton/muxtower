@@ -122,6 +122,12 @@
             "title": "Archive",
             "type": "boolean"
           },
+          "archive_ends": {
+            "default": true,
+            "description": "archiving ends it; false: it runs where muxtower cannot end it (Claude's desktop app), and archiving it only hides it here (`sessions/endable.py`)",
+            "title": "Archive Ends",
+            "type": "boolean"
+          },
           "conversation": {
             "description": "structured conversation items exist (GET /conversation)",
             "title": "Conversation",

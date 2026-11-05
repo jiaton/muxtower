@@ -8,7 +8,7 @@ const LEFT = 'Two of the four migrations are in. Next: backfill the new column, 
 
 /** What an interrupted session can do until it is started again: be deleted. */
 const STOPPED: Session['capabilities'] = {
-  screen: false, conversation: false, keys: [], resize: false, terminate: true, rename: false, archive: false,
+  screen: false, conversation: false, keys: [], resize: false, terminate: true, rename: false, archive: false, archive_ends: true,
   place: false, images: false,
 } // prettier-ignore
 
