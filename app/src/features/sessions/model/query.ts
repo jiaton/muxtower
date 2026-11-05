@@ -260,5 +260,13 @@ export function queryTitle(query: SessionQuery): { title: string; within?: strin
   return { title: query.device ?? query.agent ?? query.source ?? query.account ?? VIEW_LABEL[query.view] }
 }
 
-/** Whether a "show all" toggle is worth having for a list of `count` showing `shown`. */
-export const toggleable = (count: number, shown: number) => count > shown
+/** Whether a "show all" toggle is worth having for a list of `count` showing `shown`: not for one more
+ *  line, which shows in the room the toggle would take. */
+export const toggleable = (count: number, shown: number) => count > shown + 1
+
+/** The one session a scope holds, to open with it (a click on the scope, side by side with the list):
+ *  none when it holds more or fewer, or holds the session already open. */
+export function soleSession(entries: SessionEntry[], query: SessionQuery, openKey?: string): SessionEntry | null {
+  const shown = filterEntries(entries, query).filter((e) => !isAssistant(e.session))
+  return shown.length === 1 && shown[0].key !== openKey ? shown[0] : null
+}

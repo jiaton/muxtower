@@ -1,0 +1,9 @@
+muxtower is licensed under the Apache License 2.0 (LICENSE).
+
+The web app (app/) ships these fonts, each under the SIL Open Font License 1.1, whose text is next to them:
+
+- Inter, Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter), the variable font's latin
+  subset as published by Fontsource: app/src/assets/fonts/InterVariable-latin.woff2, Inter-OFL.txt
+- JetBrains Mono, Copyright 2020 The JetBrains Mono Project Authors
+  (https://github.com/JetBrains/JetBrainsMono): app/src/assets/fonts/JetBrainsMono-*.woff2,
+  JetBrainsMono-OFL.txt
