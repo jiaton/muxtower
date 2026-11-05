@@ -1,7 +1,7 @@
 import { RouterProvider, createMemoryHistory, createRootRoute, createRouter } from '@tanstack/react-router'
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
-import { afterEach, expect, it } from 'vitest'
+import { afterEach, expect, it, vi } from 'vitest'
 import type { Session } from '@/lib/api/types'
 import type { Daemon } from '@/lib/daemons/types'
 import { addDaemon, wrapper } from '@/test/render'
@@ -66,17 +66,20 @@ it('with groups: the groups in their order, counting the sessions they hold', as
 })
 
 it('scrolls the chosen chip into view', async () => {
-  Object.defineProperty(HTMLElement.prototype, 'offsetLeft', {
-    configurable: true,
-    get() {
-      return this.parentElement ? [...this.parentElement.children].indexOf(this) * 100 : 0
-    },
-  })
-  Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, get: () => 90 })
+  const at = (el: Element) => {
+    const nav = el.closest('nav')?.firstElementChild
+    const links = nav ? [...nav.querySelectorAll('a')] : []
+    return links.indexOf(el as HTMLAnchorElement)
+  }
   Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 300 })
+  const rect = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+    const i = at(this)
+    return { left: i >= 0 ? i * 100 : 0, width: 90, top: 0, height: 32, right: 0, bottom: 0, x: 0, y: 0, toJSON: () => ({}) } as DOMRect
+  })
   show(entries, [], 'p:b') // the sixth chip: at 500, past a row 300 wide
   const nav = await screen.findByRole('navigation', { name: 'Projects' })
   await waitFor(() => expect(nav.firstElementChild!.scrollLeft).toBe(500 - 150 + 45))
+  rect.mockRestore()
 })
 
 it('a right click on a group offers Edit, Move and Delete; Move right puts the new order', async () => {

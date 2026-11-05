@@ -27,7 +27,7 @@ class NotifyLevel(StrEnum):
 
 
 class PendingAction(BaseModel):
-    """What the agent is waiting for. tool_name/detail come from hooks; options from the screen."""
+    """What the agent is waiting for. tool_name/detail come from hooks, else the screen; options from the screen."""
 
     state: AgentState
     tool_name: str | None = None

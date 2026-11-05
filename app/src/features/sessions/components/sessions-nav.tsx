@@ -18,6 +18,9 @@ import { entryKey, type SessionEntry } from '../model/facets'
 import { useSessionEntries } from '../hooks/use-session-entries'
 import { useListPrefs } from '../store'
 import { AgentMark } from './agent-mark'
+import { TeamCard } from './team-card'
+import { projectOfRow } from '../model/team'
+import { filterEntries } from '../model/query'
 import { sourceIcon } from './source-icon'
 
 /** Opens the scope's only session with it, when that is what a click on it would show (see `useSoleOpener`). */
@@ -89,7 +92,17 @@ const VIEW_ICONS: Record<View, typeof Layers> = {
 const FOLDERS_SHOWN = 8
 
 /** A device and, unless folded, its folders: a folder inside another listed one indented under it. */
-function DeviceTree({ device, search, usage }: { device: DeviceFacet; search: ListSearch; usage?: MachineUsage }) {
+function DeviceTree({
+  device,
+  search,
+  usage,
+  entries,
+}: {
+  device: DeviceFacet
+  search: ListSearch
+  usage?: MachineUsage
+  entries: SessionEntry[]
+}) {
   const alerts = usage && !usage.stale ? (usage.alerts ?? []) : []
   const folded = useListPrefs((s) => s.folded.includes(device.label))
   const toggle = useListPrefs((s) => s.toggleFolded)
@@ -126,19 +139,25 @@ function DeviceTree({ device, search, usage }: { device: DeviceFacet; search: Li
       </div>
       {folded
         ? null
-        : folders.map(({ item: f, depth, name }) => (
-            <ScopeLink
+        : folders.map(({ item: f, depth, name, total, needsTotal }) => (
+            <TeamCard
               key={f.label}
-              search={search}
-              scope={{ device: device.label, folder: f.label }}
-              className={navSubItemClass}
-              title={f.title ?? f.label}
-              indent={depth}
+              project={projectOfRow(filterEntries(entries, { view: 'all', group: 'status', device: device.label, folder: f.label }))}
+              entries={entries}
+              device={device.label}
             >
-              <PlaceIcon kind={f.kind} />
-              <span className="truncate">{depth ? name : names.get(f.label)}</span>
-              <NavCount count={f.needs || f.count} alert={f.needs > 0} />
-            </ScopeLink>
+              <ScopeLink
+                search={search}
+                scope={{ device: device.label, folder: f.label }}
+                className={navSubItemClass}
+                title={f.title ?? f.label}
+                indent={depth}
+              >
+                <PlaceIcon kind={f.kind} />
+                <span className="truncate">{depth ? name : names.get(f.label)}</span>
+                <NavCount count={needsTotal || total} alert={needsTotal > 0} />
+              </ScopeLink>
+            </TeamCard>
           ))}
       {!folded && more ? (
         <button type="button" className={cn(navSubItemClass, 'text-fg-muted')} onClick={() => setAll((v) => !v)}>
@@ -177,7 +196,7 @@ export function SessionsNav() {
         </NavSection>
         <NavSection title="Devices">
           {facets.devices.map((d) => (
-            <DeviceTree key={d.label} device={d} search={search} usage={usage.get(d.label.toLowerCase())} />
+            <DeviceTree key={d.label} device={d} search={search} usage={usage.get(d.label.toLowerCase())} entries={entries} />
           ))}
         </NavSection>
         {facets.agents.length ? (

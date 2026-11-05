@@ -3,10 +3,11 @@
  * or, while there are none, the most recently active projects one chip each. Chosen together with a view
  * of the first row (Focus + Needs you). A session's project is the one set for it (set_project), else its
  * repository's, else its folder's name; a session with none of these, in the home folder, `/`, a temp
- * folder or no folder at all, is in Other.
+ * folder, a workspace (a folder holding repositories, `workspaces.ts`) or no folder at all, is in Other.
  */
 import type { Session } from '@/lib/api/types'
 import { folderName, folderOf, placeOf, type SessionEntry } from './facets'
+import { inWorkspace, workspacesOf } from './workspaces'
 
 /** The pseudo project of sessions that have none (as the hub keeps it in a group). */
 export const OTHER = ':other'
@@ -45,13 +46,18 @@ export function isNoPlace(cwd: string | null | undefined): boolean {
   return folder === null || folder === '~' || folder === '/' || TEMP.test(cwd)
 }
 
-/** The project a session counts under in the chips. */
-export function chipProject(session: Session): string {
+/** The project a session counts under in the chips; `workspaces` (`workspacesOf` the known sessions) say
+ *  which folders hold repositories, where a session with nothing else to place it is in Other. */
+export function chipProject(session: Session, workspaces?: Set<string>, entry?: SessionEntry): string {
   if (session.project && session.project_source === 'set') return session.project
   if (session.git) return session.project && session.project_source !== 'folder' ? session.project : folderName(session.git.repo)
   if (isNoPlace(session.cwd)) return OTHER
+  if (workspaces && entry && inWorkspace(entry, workspaces)) return OTHER
   return session.project ?? folderName(folderOf(session) ?? '') ?? OTHER
 }
+
+/** `chipProject` of an entry among these sessions. */
+export const projectIn = (entry: SessionEntry, workspaces: Set<string>) => chipProject(entry.session, workspaces, entry)
 
 export const projectLabel = (project: string) => (project === OTHER ? OTHER_LABEL : project)
 
@@ -59,9 +65,11 @@ export const projectLabel = (project: string) => (project === OTHER ? OTHER_LABE
  *  active; Other last. */
 export function projectsByActivity(entries: SessionEntry[]): string[] {
   const best = new Map<string, { needs: boolean; at: number }>()
-  for (const { session } of entries) {
+  const workspaces = workspacesOf(entries)
+  for (const entry of entries) {
+    const { session } = entry
     if (placeOf(session) !== 'listed') continue
-    const project = chipProject(session)
+    const project = projectIn(entry, workspaces)
     const seen = best.get(project) ?? { needs: false, at: 0 }
     best.set(project, { needs: seen.needs || session.needs_attention, at: Math.max(seen.at, Date.parse(session.updated_at) || 0) })
   }
@@ -89,5 +97,5 @@ export function chipMembers(id: string | undefined, groups: ChipGroup[]): ChipMe
 }
 
 /** Whether a chip holds a session: its project whole, or the session itself. */
-export const inChip = (entry: SessionEntry, chip: ChipMembers) =>
-  chip.projects.includes(chipProject(entry.session)) || chip.sessions.includes(entry.session.id)
+export const inChip = (entry: SessionEntry, chip: ChipMembers, workspaces: Set<string>) =>
+  chip.projects.includes(projectIn(entry, workspaces)) || chip.sessions.includes(entry.session.id)

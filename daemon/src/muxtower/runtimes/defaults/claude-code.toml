@@ -117,6 +117,23 @@ state = "busy"
 pattern = 'esc\s+to\s+inter(?:rupt|…)'
 last_lines = 3
 
+[context]
+# What a dialog asks about, for whoever approves it away from the screen (when no hook said). Only the
+# dialog's own lines are searched, from its top rule (the last one) down; the tool is the call right
+# above that rule ("● Bash(…)"), not one before another item of the conversation.
+top = '^─{8,}[ \t]*$'
+tool = '^[●⏺][ \t]+([^\n(]{1,80}?)\('
+tool_stop = '^[●⏺❯>]'
+detail = [
+  # A permission dialog: what sits between its title ("Bash command") and "Do you want to proceed?".
+  '(?s)\A[^\n]*\n[^\n]*\n(.*?)\n[ \t]*Do\s+you\s+want\s+to',
+  # Trusting a folder: which one.
+  '(?m)^[ \t]*Accessing\s+workspace:[ \t]*\n[ \t]*([^\n]+)',
+  # Any other dialog (an MCP server, bypass mode): its first line under the rule.
+  '\A─{8,}[ \t]*\n(?:[ \t]*\n)*[ \t]*([^\n]+)',
+]
+detail_chars = 500
+
 [menu]
 # The glyph that marks the highlighted choice. Change it if your theme draws something else.
 cursor = "❯"

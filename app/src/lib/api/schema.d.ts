@@ -853,6 +853,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tasks/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Latest Tasks
+         * @description The last task each of these sessions was sent (as `my_team` shows it), by session id; a session sent
+         *     none is left out. For a team card: one request for every member.
+         */
+        get: operations["latest_tasks_v1_tasks_latest_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/usage": {
         parameters: {
             query?: never;
@@ -1526,7 +1547,7 @@ export interface components {
         };
         /**
          * PendingAction
-         * @description What the agent is waiting for. tool_name/detail come from hooks; options from the screen.
+         * @description What the agent is waiting for. tool_name/detail come from hooks, else the screen; options from the screen.
          */
         PendingAction: {
             /** Detail */
@@ -3792,6 +3813,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StreamSchema"];
+                };
+            };
+        };
+    };
+    latest_tasks_v1_tasks_latest_get: {
+        parameters: {
+            query: {
+                /** @description session ids */
+                to: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: components["schemas"]["TeamTask"];
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

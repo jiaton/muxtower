@@ -149,6 +149,15 @@ const SESSION_ROUTES: Record<string, Handler> = {
 const ROUTES: Record<string, (world: World, body: Record<string, unknown>, url: URL) => Response> = {
   'GET /v1/me': () => json(ME),
   'GET /v1/chip-groups': (world) => json({ groups: chipGroups(world) }),
+  'GET /v1/tasks/latest': (world, _, url) =>
+    json(
+      Object.fromEntries(
+        url.searchParams.getAll('to').flatMap((id) => {
+          const sent = world.tasks(id).filter((t) => t.to_id === id)
+          return sent.length ? [[id, sent[0]]] : []
+        }),
+      ),
+    ),
   'PUT /v1/chip-groups': (world, body) => {
     CHIP_GROUPS.set(world, Array.isArray(body.groups) ? (body.groups as ChipGroup[]) : [])
     return json({ groups: chipGroups(world) })

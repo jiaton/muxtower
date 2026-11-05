@@ -5,8 +5,9 @@
  * Sessions the group held that are no longer known (archived, gone) are not shown, and not kept on save.
  */
 import type { Session } from '@/lib/api/types'
-import { MAX_PROJECTS, MAX_SESSIONS, OTHER, chipProject, projectLabel, type ChipGroup, type ChipMembers } from './chip-groups'
+import { MAX_PROJECTS, MAX_SESSIONS, OTHER, projectIn, projectLabel, type ChipGroup, type ChipMembers } from './chip-groups'
 import { placeOf, statusOf, type SessionEntry } from './facets'
+import { workspacesOf } from './workspaces'
 
 export type PickState = 'all' | 'some' | 'none'
 
@@ -35,9 +36,10 @@ const recent = (a: SessionEntry, b: SessionEntry) => Date.parse(b.session.update
  *  the ones the group holds that no session has now; Other last. */
 function projectsOf(entries: SessionEntry[], held: string[]): { order: string[]; by: Map<string, SessionEntry[]> } {
   const by = new Map<string, SessionEntry[]>()
+  const workspaces = workspacesOf(entries)
   for (const entry of entries) {
     if (placeOf(entry.session) === 'archived') continue
-    const project = chipProject(entry.session)
+    const project = projectIn(entry, workspaces)
     by.set(project, [...(by.get(project) ?? []), entry])
   }
   for (const list of by.values()) list.sort(recent)

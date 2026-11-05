@@ -13,7 +13,9 @@ import {
   statusOf,
   type SessionEntry,
 } from './facets'
+import { OTHER_LABEL } from './chip-groups'
 import { withRepositories } from './folders'
+import { isWorkspace, looseIn, workspacesOf } from './workspaces'
 import { anchorOf, homeKind, worktreeOf, type PlaceKind } from './places'
 import { SOURCE_ORDER, accountLabel, agentLabel, deviceLabel, folderLabel, orderBy, sourceLabel, type View } from './query'
 
@@ -29,6 +31,8 @@ export interface Facet {
   kind?: PlaceKind
   /** A project: the folder it sits in (`anchorOf`). */
   at?: string
+  /** Listed after the others under its parent (a workspace's "Other"). */
+  last?: boolean
 }
 
 export interface DeviceFacet extends Facet {
@@ -92,7 +96,17 @@ export function facetsOf(entries: SessionEntry[]): Facets {
         const session = here.find((e) => folderLabel(e) === f.label)!.session
         return { ...f, kind: homeKind(session), at: anchorOf(session) }
       })
-      const folders = withRepositories<Facet>([...homes, ...worktrees], (label) => ({
+      // A workspace (a folder holding repositories) only holds: its loose sessions are its "Other".
+      const workspaces = workspacesOf(counted)
+      const placed = homes.flatMap((f): Facet[] =>
+        f.kind === 'folder' && isWorkspace(workspaces, device.label, f.label)
+          ? [
+              { ...f, count: 0, needs: 0 },
+              { label: looseIn(f.label), count: f.count, needs: f.needs, under: f.label, name: OTHER_LABEL, kind: 'folder', last: true },
+            ]
+          : [f],
+      )
+      const folders = withRepositories<Facet>([...placed, ...worktrees], (label) => ({
         label,
         count: 0,
         needs: 0,
