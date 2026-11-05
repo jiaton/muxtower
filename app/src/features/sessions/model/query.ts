@@ -4,7 +4,7 @@
  * status, by device and folder, by agent or by account (each offered only when there is more than one),
  * or by source. Lives in the URL, so back, reload and links keep it.
  */
-import { inProjects } from './chip-groups'
+import { inChip, type ChipMembers } from './chip-groups'
 import { nestFolders, withRepositories } from './folders'
 import { anchorOf, homeKind, homeOf, worktreeOf, type PlaceKind } from './places'
 import {
@@ -45,8 +45,8 @@ export interface SessionQuery {
   /** An account label (`accountOf`). */
   account?: string
   q?: string
-  /** The projects of the chosen chip of the second row (`chip-groups.ts`). */
-  projects?: string[]
+  /** What the chosen chip of the second row holds (`chip-groups.ts`). */
+  chip?: ChipMembers
 }
 
 export const VIEW_LABEL: Record<View, string> = {
@@ -107,7 +107,7 @@ export function filterEntries(entries: SessionEntry[], query: SessionQuery): Ses
     if (query.agent && agentLabel(entry) !== query.agent) return false
     if (query.source && sourceLabel(entry) !== query.source) return false
     if (query.account && accountLabel(entry) !== query.account) return false
-    if (query.projects && !inProjects(entry, query.projects)) return false
+    if (query.chip && !inChip(entry, query.chip)) return false
     return !q || matchesText(entry, q)
   })
 }

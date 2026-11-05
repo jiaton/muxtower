@@ -23,7 +23,8 @@ def get_chip_groups(request: Request, _: CurrentDevice) -> ChipGroups:
 
 @router.put("/chip-groups")
 def put_chip_groups(body: ChipGroups, request: Request, _: CurrentDevice) -> ChipGroups:
-    """Replaces them all with this ordered list (at most 20 groups of 40 projects, names of 40 characters)."""
+    """Replaces them all with this ordered list (at most 20 groups of 40 projects and 100 sessions, names of
+    40 characters)."""
     store: ChipGroupStore = request.app.state.chip_groups
     answered = _hubs(request, body)
     if answered is not None:

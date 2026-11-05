@@ -39,7 +39,8 @@ export interface paths {
         get: operations["get_chip_groups_v1_chip_groups_get"];
         /**
          * Put Chip Groups
-         * @description Replaces them all with this ordered list (at most 20 groups of 40 projects, names of 40 characters).
+         * @description Replaces them all with this ordered list (at most 20 groups of 40 projects and 100 sessions, names of
+         *     40 characters).
          */
         put: operations["put_chip_groups_v1_chip_groups_put"];
         post?: never;
@@ -995,6 +996,11 @@ export interface components {
              * @description project names as the app reads them from sessions; ':other': sessions of no project
              */
             projects: string[];
+            /**
+             * Sessions
+             * @description single sessions it holds besides whole projects: their ids as the hub lists them
+             */
+            sessions?: string[];
         };
         /** ChipGroups */
         ChipGroups: {

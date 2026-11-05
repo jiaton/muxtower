@@ -59,8 +59,8 @@ it('without groups: the most recently active projects, one chip each, then +', a
 
 it('with groups: the groups in their order, counting the sessions they hold', async () => {
   show(entries, [
-    { id: 'z', name: 'Last', projects: ['a'] },
-    { id: 'f', name: 'Focus', projects: ['b', 'c', 'gone'] },
+    { id: 'z', name: 'Last', projects: ['a'], sessions: [] },
+    { id: 'f', name: 'Focus', projects: ['b', 'c', 'gone'], sessions: [] },
   ])
   expect(await labels()).toEqual(['Last1', 'Focus2'])
 })
@@ -89,8 +89,8 @@ it('a right click on a group offers Edit, Move and Delete; Move right puts the n
     }),
   )
   show(entries, [
-    { id: 'one', name: 'One', projects: ['a'] },
-    { id: 'two', name: 'Two', projects: ['b'] },
+    { id: 'one', name: 'One', projects: ['a'], sessions: [] },
+    { id: 'two', name: 'Two', projects: ['b'], sessions: [] },
   ])
   fireEvent.contextMenu(await screen.findByRole('link', { name: /One/ }))
   const menu = await screen.findByRole('menu')

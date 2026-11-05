@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent }
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/cn'
 import { newChipId, useSaveChipGroups } from '../api/use-chip-groups'
-import { MAX_GROUPS, projectChips, projectsByActivity, type ChipGroup, type ProjectChip } from '../model/chip-groups'
+import { MAX_GROUPS, projectChips, type ChipGroup, type ProjectChip } from '../model/chip-groups'
 import type { SessionEntry } from '../model/facets'
 import { filterEntries, type SessionQuery } from '../model/query'
 import type { ListSearch } from '../model/search'
@@ -47,7 +47,7 @@ export function ProjectChips({
   }, [search.chip, chips?.length])
 
   if (!chips) return null
-  const count = (chip: ProjectChip) => filterEntries(entries, { view: query.view, group: query.group, projects: chip.projects }).length
+  const count = (chip: ProjectChip) => filterEntries(entries, { view: query.view, group: query.group, chip }).length
   const saveAll = (next: ChipGroup[], done?: () => void) => save.mutate(next, { onSuccess: done })
   const move = (group: ChipGroup, by: -1 | 1) => {
     const at = groups.findIndex((g) => g.id === group.id)
@@ -109,15 +109,15 @@ export function ProjectChips({
       {editing ? (
         <ChipGroupDialog
           group={editing === 'new' ? undefined : editing}
-          projects={projectsByActivity(entries)}
+          entries={entries}
           error={save.error}
           pending={save.isPending}
           onClose={() => setEditing(null)}
-          onSave={(name, projects) => {
+          onSave={(name, members) => {
             const next =
               editing === 'new'
-                ? [...groups, { id: newChipId(), name, projects }]
-                : groups.map((g) => (g.id === editing.id ? { ...g, name, projects } : g))
+                ? [...groups, { id: newChipId(), name, ...members }]
+                : groups.map((g) => (g.id === editing.id ? { ...g, name, ...members } : g))
             saveAll(next, () => setEditing(null))
           }}
         />

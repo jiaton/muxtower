@@ -20,7 +20,8 @@ export function useChipGroups(): ChipGroup[] {
     enabled: keeper !== null,
     retry: false,
     refetchInterval: 60_000, // another device's change shows within a minute (and when the app comes back)
-    queryFn: async () => unwrap(await createDaemonClient(keeper!).GET('/v1/chip-groups')).groups,
+    queryFn: async (): Promise<ChipGroup[]> =>
+      unwrap(await createDaemonClient(keeper!).GET('/v1/chip-groups')).groups.map((g) => ({ ...g, sessions: g.sessions ?? [] })),
   })
   return query.data ?? NONE
 }
@@ -33,7 +34,7 @@ export function useSaveChipGroups() {
   return useMutation({
     mutationFn: async (groups: ChipGroup[]) => {
       if (!keeper) throw new Error('No daemon to keep the groups')
-      return unwrap(await createDaemonClient(keeper).PUT('/v1/chip-groups', { body: { groups } })).groups
+      return unwrap(await createDaemonClient(keeper).PUT('/v1/chip-groups', { body: { groups } })).groups.map((g) => ({ ...g, sessions: g.sessions ?? [] }))
     },
     onMutate: async (groups) => {
       await client.cancelQueries({ queryKey: key })

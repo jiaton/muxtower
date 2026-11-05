@@ -222,6 +222,15 @@
             "maxItems": 40,
             "title": "Projects",
             "type": "array"
+          },
+          "sessions": {
+            "description": "single sessions it holds besides whole projects: their ids as the hub lists them",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Sessions",
+            "type": "array"
           }
         },
         "required": [
@@ -3282,7 +3291,7 @@
         ]
       },
       "put": {
-        "description": "Replaces them all with this ordered list (at most 20 groups of 40 projects, names of 40 characters).",
+        "description": "Replaces them all with this ordered list (at most 20 groups of 40 projects and 100 sessions, names of\n40 characters).",
         "operationId": "put_chip_groups_v1_chip_groups_put",
         "requestBody": {
           "content": {
