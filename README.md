@@ -19,7 +19,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/media/hero.gif" width="360" alt="A phone approving what an agent asks, and the agent going on">
+  <img src="docs/media/hero.png" width="720" alt="Every machine. Every agent. One list. The sessions of every computer in one list, a conversation open beside it, and the same list on a phone">
 </p>
 
 muxtower is a small daemon that runs next to your agents (Claude Code, Codex, …) in tmux. It knows which one is waiting on you and for what, and serves a web app for your phone: approve, answer, read and type into any session, on any of your computers.
@@ -45,11 +45,6 @@ muxtower pair                  # a one-time code for your phone (and a QR code, 
 
 To try it without a phone, open http://127.0.0.1:8731 on this machine; HTTPS is only needed for the phone. More: [install, HTTPS and running it as a service](https://github.com/jiaton/muxtower/blob/main/docs/install.md).
 
-<p align="center">
-  <img src="docs/media/sessions-desktop.png" width="70%" alt="The session list, grouped by project">
-  <img src="docs/media/sessions-phone.png" width="24%" alt="The same list on a phone">
-</p>
-
 ## What it does
 
 | Feature | |
@@ -63,11 +58,6 @@ To try it without a phone, open http://127.0.0.1:8731 on this machine; HTTPS is 
 | [The web app](https://github.com/jiaton/muxtower/blob/main/docs/web-app.md) | served by the daemon, or hosted by you, or [app.muxtower.dev](https://app.muxtower.dev); and a [glasses app](https://github.com/jiaton/muxtower/blob/main/docs/g2.md) |
 | After a restart | interrupted sessions are kept and started again in their conversation, when you say so |
 | [Configuration](https://github.com/jiaton/muxtower/blob/main/docs/configuration.md) | a TOML file, environment variables, and a settings page in the app |
-
-<p align="center">
-  <img src="docs/media/terminal-desktop.png" width="70%" alt="A session's terminal">
-  <img src="docs/media/teams-phone.png" width="24%" alt="A team's tasks on a phone">
-</p>
 
 ## Engineering
 
