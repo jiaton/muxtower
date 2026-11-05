@@ -25,6 +25,9 @@ import { filterEntries, groupEntries, queryTitle } from '@/features/sessions/mod
 import { foldForks } from '@/features/sessions/model/forks'
 import { foldSideChats } from '@/features/sessions/model/side-chats'
 import { parseListSearch, toQuery } from '@/features/sessions/model/search'
+import { useChipGroups } from '@/features/sessions/api/use-chip-groups'
+import { chipProjects } from '@/features/sessions/model/chip-groups'
+import { ProjectChips } from '@/features/sessions/components/project-chips'
 import { useListMemory, useListPrefs, useSessionDrawer } from '@/features/sessions/store'
 import { cn } from '@/lib/cn'
 import { useUnpairedDaemons } from '@/lib/daemons/store'
@@ -39,10 +42,14 @@ export const Route = createFileRoute('/_sessions')({ validateSearch: parseListSe
  */
 function SessionsLayout() {
   const search = Route.useSearch()
-  const query = toQuery(
-    search,
-    useListPrefs((s) => s.group),
-  )
+  const chipGroups = useChipGroups()
+  const query = {
+    ...toQuery(
+      search,
+      useListPrefs((s) => s.group),
+    ),
+    projects: chipProjects(search.chip, chipGroups) ?? undefined, // the second chip row's
+  }
   const { entries, daemons, loading } = useSessionEntries()
   const unpaired = useUnpairedDaemons()
   const open = useMatch({ from: '/_sessions/d/$daemonId/s/$sessionId', shouldThrow: false })
@@ -114,6 +121,7 @@ function SessionsLayout() {
           >
             <SearchField search={search} />
             <ListChips query={query} search={search} facets={facets} className="lg:hidden" />
+            <ProjectChips query={query} search={search} entries={entries} groups={chipGroups} />
             <ScopeChip query={query} search={search} />
           </PaneHeader>
           <PaneBody ref={listRef}>

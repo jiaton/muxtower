@@ -199,6 +199,57 @@
         "title": "ChangeSettings",
         "type": "object"
       },
+      "ChipGroup": {
+        "properties": {
+          "id": {
+            "maxLength": 40,
+            "minLength": 1,
+            "pattern": "^[A-Za-z0-9_-]+$",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 40,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "projects": {
+            "description": "project names as the app reads them from sessions; ':other': sessions of no project",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 40,
+            "title": "Projects",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "projects"
+        ],
+        "title": "ChipGroup",
+        "type": "object"
+      },
+      "ChipGroups": {
+        "properties": {
+          "groups": {
+            "description": "in the order the chips show them",
+            "items": {
+              "$ref": "#/components/schemas/ChipGroup"
+            },
+            "maxItems": 20,
+            "title": "Groups",
+            "type": "array"
+          }
+        },
+        "required": [
+          "groups"
+        ],
+        "title": "ChipGroups",
+        "type": "object"
+      },
       "ClaimRequest": {
         "properties": {
           "code": {
@@ -3206,6 +3257,68 @@
         "summary": "Transcribe",
         "tags": [
           "voice"
+        ]
+      }
+    },
+    "/v1/chip-groups": {
+      "get": {
+        "description": "The owner's groups of projects, in their order; the same on every device (kept on the hub).",
+        "operationId": "get_chip_groups_v1_chip_groups_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChipGroups"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Chip Groups",
+        "tags": [
+          "chips"
+        ]
+      },
+      "put": {
+        "description": "Replaces them all with this ordered list (at most 20 groups of 40 projects, names of 40 characters).",
+        "operationId": "put_chip_groups_v1_chip_groups_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChipGroups"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChipGroups"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Chip Groups",
+        "tags": [
+          "chips"
         ]
       }
     },

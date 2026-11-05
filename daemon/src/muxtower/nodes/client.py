@@ -211,9 +211,9 @@ class HubClient:
             "other machines and their sessions are not listed. They are still there: try again in a few seconds"
         )
 
-    def team_tool(self, tool: str, arguments: dict[str, Any], session_id: str | None) -> str | None:
-        """A team tool one of this node's sessions called, answered by the hub (which sees every session);
-        None when this daemon is no node. Unavailable when the hub cannot answer it now."""
+    def ask(self, method: str, params: dict[str, Any]) -> Any:
+        """Something only the hub answers (`protocol.HUB_METHODS`), asked by this node; None when this
+        daemon is no node. Unavailable while it has no link, or its hub is too old to answer."""
         if self.store.load() is None:
             return None
         session, loop = self._session, self._loop
@@ -230,7 +230,18 @@ class HubClient:
                 f"this machine is a node of the hub {joined.url if joined else ''}, which runs an older muxtower "
                 "that answers no team tools: update the hub; other machines are not listed here"
             )
-        params = {"tool": tool, "arguments": arguments, "session_id": session_id}
-        asked = asyncio.run_coroutine_threadsafe(session.asks.call("team_tool", params, ASK_SECONDS), loop)
-        result = asked.result(ASK_SECONDS + 5)
+        asked = asyncio.run_coroutine_threadsafe(session.asks.call(method, params, ASK_SECONDS), loop)
+        try:
+            return asked.result(ASK_SECONDS + 5)
+        except Invalid as exc:
+            if "unknown method" in str(exc):
+                raise Unavailable(f"the hub runs an older muxtower that does not answer {method}: update it") from exc
+            raise
+
+    def team_tool(self, tool: str, arguments: dict[str, Any], session_id: str | None) -> str | None:
+        """A team tool one of this node's sessions called, answered by the hub (which sees every session);
+        None when this daemon is no node. Unavailable when the hub cannot answer it now."""
+        result = self.ask("team_tool", {"tool": tool, "arguments": arguments, "session_id": session_id})
+        if result is None and self.store.load() is None:
+            return None
         return str((result or {}).get("text", ""))
