@@ -12,7 +12,7 @@ export interface Page {
 
 const LOCAL = new Set(['localhost', '127.0.0.1', '[::1]', '::1'])
 
-/** The address as tried: typed without a scheme (`10.1.1.102:8731`), it is `http://…`. */
+/** The address as tried: typed without a scheme (`192.168.1.20:8731`), it is `http://…`. */
 export function withScheme(input: string): string {
   const url = input.trim().replace(/\/+$/, '')
   return /^[a-z][a-z0-9+.-]*:\/\//i.test(url) ? url : `http://${url}`

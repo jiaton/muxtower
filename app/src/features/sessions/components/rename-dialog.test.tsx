@@ -6,7 +6,7 @@ import { RenameDialog } from './rename-dialog'
 
 it('offers the name the agent gives the session, and takes it with one tap', () => {
   const daemon = addDaemon()
-  const session = { id: 's1', name: 'Muxtower Worker', agent_name: 'Fix the build', runtime: 'claude-code' } as Session
+  const session = { id: 's1', name: 'Release worker', agent_name: 'Fix the build', runtime: 'claude-code' } as Session
   const Wrapper = wrapper()
   render(
     <Wrapper>
