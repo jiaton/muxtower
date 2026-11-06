@@ -256,7 +256,7 @@ def create_app(
         watches=watches,
         direct=DirectAccess(nodes, node_sessions.call), feature_settings=feature_settings,
         chip_groups=ChipGroupStore(db),
-        node_sessions=node_sessions, mcp=mcp, asr=build_asr(settings, lambda: [s.name for s in directory.list()]),
+        node_sessions=node_sessions, mcp=mcp, asr=build_asr(settings),
         terminal=terminal, approvals=approvals, audit=audit, push=push,
         pairing=PairingService(db, tokens, settings.pairing, daemon_name),
         stream_cookies=StreamCookieSigner(settings.state_dir), client_address=ClientAddress(settings.trusted_proxies),

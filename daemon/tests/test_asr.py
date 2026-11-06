@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from pathlib import Path
 
 import httpx
 import pytest
@@ -37,12 +38,12 @@ def test_voice_is_off_until_configured(app: FastAPI) -> None:
 
 def test_transcribes_and_audits_without_the_words(app: FastAPI) -> None:
     fake = FakeTranscriber()
-    app.state.asr = AsrService(fake, language="zh", hints=lambda: ["Postgres", "notes", "notes"])
+    app.state.asr = AsrService(fake, language="zh", extra_prompt="Postgres, Redis")
     client, auth = _client(app)
     res = client.post("/v1/asr", content=WAV, headers={**auth, "Content-Type": "audio/wav"})
     assert res.json() == {"text": "继续，然后跑测试"}
     assert fake.calls == [(len(WAV), "audio/wav", "zh")]
-    assert "简体中文" in fake.prompts[0] and fake.prompts[0].endswith("会话：Postgres、notes")
+    assert "简体中文" in fake.prompts[0] and fake.prompts[0].endswith(" Postgres, Redis")  # base, then the owner's words
     with app.state.audit.db.connect() as conn:
         rows = [dict(r) for r in conn.execute("SELECT * FROM audit_log WHERE action = 'asr'")]
     assert len(rows) == 1 and "继续" not in str(rows[0])
@@ -79,14 +80,21 @@ def test_the_providers_reason_reaches_the_app_and_never_a_key(monkeypatch: pytes
     assert "gsk_" not in detail and "sk-proj" not in detail
 
 
-def test_the_prompt_fits_groqs_limit_in_bytes_with_whole_names() -> None:
-    names = [f"会话名字{i} browser worker" for i in range(80)]  # Chinese: three bytes a character
-    prompt = AsrService(FakeTranscriber(), None, hints=lambda: names, extra_prompt="额外的词").prompt()
-    assert len(prompt.encode()) <= 896  # Groq counts the limit in bytes
-    listed = prompt.split("会话：", 1)[1].split("、")
-    assert listed == names[: len(listed)] and len(listed) > 3  # as many whole names as fit, in order
-    long_extra = AsrService(FakeTranscriber(), None, hints=lambda: names, extra_prompt="词" * 400).prompt()
-    assert len(long_extra.encode()) <= 896 and "会话：" not in long_extra  # no room: no names, no dangling label
+def test_the_prompt_is_the_base_and_the_owners_words_only_within_groqs_limit_in_bytes(
+    app: FastAPI, tmp_path: Path
+) -> None:
+    from muxtower.asr.service import BASE_PROMPT
+    from muxtower.sessions.models import CreateSession
+
+    assert AsrService(FakeTranscriber(), None).prompt() == BASE_PROMPT
+    long_extra = AsrService(FakeTranscriber(), None, extra_prompt="词" * 400).prompt()  # three bytes each
+    assert len(long_extra.encode()) <= 896 and long_extra.startswith(BASE_PROMPT)  # Groq counts bytes
+    app.state.sessions.create(CreateSession(runtime="claude", cwd=str(tmp_path), name="私人项目"))
+    fake = FakeTranscriber()
+    app.state.asr = AsrService(fake, language=None)
+    client, auth = _client(app)
+    client.post("/v1/asr", content=WAV, headers={**auth, "Content-Type": "audio/wav"})
+    assert fake.prompts == [BASE_PROMPT]  # no session's name ever goes to the provider
 
 
 def test_a_browser_recording_is_named_by_its_format(monkeypatch: pytest.MonkeyPatch) -> None:

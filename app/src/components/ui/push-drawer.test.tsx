@@ -81,3 +81,35 @@ it('with reduced motion it shows and hides, without sliding', () => {
   expect(content.style.transition).toBe('none')
   expect(content.style.transform).toBe('translateX(288px)')
 })
+
+it('once shut and done sliding, paints nothing (no sliver of its border at the edge); the page is left untransformed', () => {
+  panelWidth()
+  render(<Page />)
+  const panel = screen.getByRole('dialog', { name: 'Navigation', hidden: true })
+  const content = screen.getByTestId('content')
+  expect(panel).toHaveClass('invisible') // shut from the start
+  fireEvent.click(screen.getByRole('button', { name: 'open' }))
+  expect(panel).not.toHaveClass('invisible')
+  expect(panel).not.toHaveClass('-translate-x-full')
+  fireEvent.click(document.querySelector('[aria-hidden].fixed')!) // close
+  expect(panel).toHaveClass('-translate-x-full')
+  expect(panel).not.toHaveClass('invisible') // still sliding away: seen going
+  expect(content.style.transform).toBe('')
+  fireEvent.transitionEnd(panel, { propertyName: 'translate' })
+  expect(panel).toHaveClass('invisible')
+  expect(content.style.transform).toBe('')
+})
+
+it('shows while a finger pulls it in from shut, and is hidden again if let go shut', () => {
+  vi.useFakeTimers()
+  panelWidth()
+  render(<Page />)
+  const panel = screen.getByRole('dialog', { name: 'Navigation', hidden: true })
+  act(() => pull!.move(40))
+  expect(panel.style.visibility).toBe('visible') // over the class that hides it
+  act(() => pull!.end(40, 0)) // not far enough: back shut
+  act(() => void vi.advanceTimersByTime(1000))
+  expect(panel.style.visibility).toBe('')
+  expect(panel).toHaveClass('invisible')
+  vi.useRealTimers()
+})

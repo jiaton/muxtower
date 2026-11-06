@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode, type RefObject } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { cn } from '@/lib/cn'
 import { axisOf, holdScroll, LAND_EASE, landing, landMs, sideways, Speed, type Pull } from './gesture'
 
@@ -48,6 +48,26 @@ export function Drawer({
     el.style.transform = shown ? `translateX(${width}px)` : ''
   }, [push, drawer, shown])
 
+  // Shut and done sliding: not painted at all. Laid off-screen flush with its edge, a panel of a
+  // fractional width (85vw) would otherwise show a sliver of its border at x=0 once a phone's compositor
+  // snaps it to device pixels.
+  const [settled, setSettled] = useState(!open)
+  useEffect(() => {
+    const el = panel.current
+    if (open || !drawer || !el) return setSettled(open ? false : true)
+    if (stillness()) return setSettled(true)
+    const done = (e?: TransitionEvent) => {
+      if (e && (e.target !== el || !/^(transform|translate)$/.test(e.propertyName))) return
+      setSettled(true)
+    }
+    el.addEventListener('transitionend', done)
+    const fallback = setTimeout(done, 1000) // a slide that never ends (cut short, or none)
+    return () => {
+      el.removeEventListener('transitionend', done)
+      clearTimeout(fallback)
+    }
+  }, [open, drawer])
+
   useEffect(() => {
     if (!shown) return
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onOpenChange(false)
@@ -85,6 +105,7 @@ export function Drawer({
               )
             : 'contents',
           drawer && !open && '-translate-x-full',
+          drawer && !open && settled && 'invisible',
         )}
       >
         {children}
@@ -133,6 +154,7 @@ function usePullOpen(
       // `translate`, which its classes shut it with (a transform would add to that).
       el.style.transition = slide ? `translate ${slide}ms ${LAND_EASE}` : 'none'
       behind.style.transition = slide ? `opacity ${slide}ms ${LAND_EASE}` : 'none'
+      el.style.visibility = 'visible' // while pulled in by the finger, shut or not
       el.style.translate = `${at - width}px`
       behind.style.opacity = String(dim(at, width, push))
       shift(push, at, ms)
@@ -149,7 +171,10 @@ function usePullOpen(
         const ms = landMs(opened ? width - at : at, speed)
         place(opened ? width : 0, ms)
         // Then to where its classes put it (open, or shut), once it is there.
-        timer = setTimeout(() => (el.style.transition = behind.style.transition = el.style.translate = behind.style.opacity = ''), ms + 50)
+        timer = setTimeout(
+          () => (el.style.transition = behind.style.transition = el.style.translate = el.style.visibility = behind.style.opacity = ''),
+          ms + 50,
+        )
         if (opened) opening.current()
       },
     })

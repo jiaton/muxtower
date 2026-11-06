@@ -1,5 +1,3 @@
-from collections.abc import Callable
-
 from muxtower.asr.models import Transcript
 from muxtower.asr.ports import Transcriber
 from muxtower.errors import Conflict, Invalid
@@ -9,7 +7,8 @@ AUDIO_TYPES = ("audio/wav", "audio/x-wav", "audio/webm", "audio/ogg", "audio/mpe
 
 
 # Whisper follows the style of its prompt: written in Simplified Chinese, it keeps Mandarin out of
-# Traditional characters; the words in it (session names, the jargon of driving agents) are spelled right.
+# Traditional characters, and the jargon of driving agents in it is spelled right. Nothing private goes
+# to the provider in it: no session names, only these words and the owner's own (`[asr] prompt`).
 BASE_PROMPT = (
     "以下是对编程助手说的话，普通话夹杂英文，用简体中文。常用词：会话、批准、拒绝、中断、继续、Claude、tmux、approve。"
 )
@@ -18,28 +17,14 @@ MAX_PROMPT_BYTES = 880
 
 
 class AsrService:
-    def __init__(
-        self, transcriber: Transcriber | None, language: str | None, hints: Callable[[], list[str]] | None = None,
-        extra_prompt: str | None = None,
-    ) -> None:  # fmt: skip
+    def __init__(self, transcriber: Transcriber | None, language: str | None, extra_prompt: str | None = None) -> None:
         self.transcriber = transcriber
         self.language = language
-        self.hints = hints
         self.extra_prompt = extra_prompt
 
     def prompt(self) -> str:
-        """The base prompt, the owner's extra words, then the names of the current sessions."""
-        prompt = _fit(" ".join(p for p in (BASE_PROMPT, self.extra_prompt or "") if p))
-        names = list(dict.fromkeys(n for n in (self.hints() if self.hints else []) if n))
-        if names:
-            prompt += " 会话："
-            for i, name in enumerate(names):  # whole names, as many as fit
-                more = ("、" if i else "") + name
-                if _size(prompt + more) > MAX_PROMPT_BYTES:
-                    break
-                prompt += more
-            prompt = prompt.removesuffix(" 会话：")
-        return prompt
+        """The base prompt, then the owner's extra words, within the provider's limit."""
+        return _fit(" ".join(p for p in (BASE_PROMPT, self.extra_prompt or "") if p))
 
     @property
     def available(self) -> bool:
@@ -56,10 +41,6 @@ class AsrService:
         if len(audio) > MAX_AUDIO_BYTES:
             raise Invalid("recording too long")
         return Transcript(text=self.transcriber.transcribe(audio, kind, language or self.language, self.prompt()))
-
-
-def _size(text: str) -> int:
-    return len(text.encode())
 
 
 def _fit(text: str) -> str:

@@ -3,7 +3,6 @@
 import logging
 import secrets
 import shutil
-from collections.abc import Callable
 
 from muxtower.asr.openai_compatible import OpenAICompatibleTranscriber
 from muxtower.asr.service import AsrService
@@ -65,7 +64,7 @@ def build_summaries(settings: Settings, db: Database) -> SummaryService:
     return SummaryService(summarizer, SqliteSummaryRepository(db), cfg.min_chars)
 
 
-def build_asr(settings: Settings, hints: Callable[[], list[str]]) -> AsrService:
+def build_asr(settings: Settings) -> AsrService:
     cfg = settings.asr
     key = cfg.key()
     if cfg.provider == "off":
@@ -73,7 +72,7 @@ def build_asr(settings: Settings, hints: Callable[[], list[str]]) -> AsrService:
     if not key:
         logger.warning("asr.provider is %s but no API key is set; voice is off", cfg.provider)
         return AsrService(None, cfg.language)
-    return AsrService(OpenAICompatibleTranscriber(cfg.provider, key, cfg.model), cfg.language, hints, cfg.prompt)
+    return AsrService(OpenAICompatibleTranscriber(cfg.provider, key, cfg.model), cfg.language, cfg.prompt)
 
 
 def build_codex(settings: Settings) -> CodexSource | None:
