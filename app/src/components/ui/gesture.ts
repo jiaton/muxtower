@@ -59,6 +59,34 @@ export function landMs(px: number, speed = 0): number {
   return Math.round(Math.min(LAND_MS[1], Math.max(LAND_MS[0], ms)))
 }
 
+const CARRY_MS = [120, 300] as const // a landing that carries the finger's speed on takes this long
+const CARRY_X1 = 0.2 // the carried curve's first control point, across (its start)
+const STOPPED = 0.15 // px/ms: let go slower than this, the finger had stopped: nothing to carry on
+
+/** How a released swipe lands `px` away, carrying on the finger's `speed` (px/ms): a duration and a
+ *  curve whose first slope is that speed, so nothing stalls or jumps as the finger lifts, easing into
+ *  place. A finger that had stopped (or let go the other way) lands as `landMs` and LAND_EASE: briskly,
+ *  easing out, never easing in. */
+export function landCurve(px: number, speed: number): { ms: number; ease: string } {
+  const distance = Math.abs(px)
+  const toward = Math.sign(speed) === Math.sign(px) || px === 0
+  const fast = Math.abs(speed)
+  if (!distance || !toward || fast < STOPPED) return { ms: landMs(px, speed), ease: LAND_EASE }
+  const ms = Math.round(Math.min(CARRY_MS[1], Math.max(CARRY_MS[0], distance / fast)))
+  // The curve's starting slope (progress per unit of time) is y1 / x1: as fast as the finger, relative
+  // to the whole landing's average speed (distance / ms). Capped where a bezier can still go.
+  const slope = (fast * ms) / distance
+  // Never slower than the finger to start (a long way at a slow speed starts a little quicker than it).
+  const y1 = Math.min(1, CARRY_X1 * Math.max(1, slope))
+  return { ms, ease: `cubic-bezier(${CARRY_X1}, ${y1.toFixed(3)}, 0.2, 1)` }
+}
+
+/** Runs `fn` once the browser has drawn the next frame: a landing set off in a touch handler is under
+ *  way on the compositor first, and a React render `fn` causes cannot hold up its start. */
+export function afterFrame(fn: () => void): void {
+  requestAnimationFrame(() => setTimeout(fn, 0))
+}
+
 /** Keeps the browser from scrolling under a touch while `active()`: once a gesture is a sideways swipe,
  *  a finger drifting up or down must not turn it into a scroll (which would cancel it). The listener is
  *  native and not passive, since React's touch listeners cannot prevent scrolling. */

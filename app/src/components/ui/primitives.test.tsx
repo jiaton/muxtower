@@ -258,7 +258,7 @@ describe('Drawer', () => {
     expect(onOpenChange.mock.calls).toEqual([[false], [false], [false]])
   })
 
-  it('closes on a swipe left, and leaves a swipe right to what is under it', () => {
+  it('closes on a swipe left, and leaves a swipe right to what is under it', async () => {
     const onOpenChange = vi.fn()
     render(
       <Drawer drawer open onOpenChange={onOpenChange} label="Sessions">
@@ -276,12 +276,16 @@ describe('Drawer', () => {
     fireEvent.touchMove(panel, { touches: [{ clientX: 190, clientY: 108 }] }) // tilted, left
     expect(fireEvent.touchMove(panel, { touches: [{ clientX: 20, clientY: 160 }] })).toBe(false) // no scroll under it
     fireEvent.touchEnd(panel, { changedTouches: [{ clientX: 20, clientY: 160 }] })
-    expect(onOpenChange).toHaveBeenCalledWith(false)
+    // Landing already, in the release handler itself: no render to wait for, no frame without movement.
+    expect(panel.style.translate).toBe('-320px')
+    expect(panel.style.transition).toMatch(/^translate \d+ms cubic-bezier/)
+    expect(onOpenChange).not.toHaveBeenCalled() // told after the frame, once the landing is under way
+    await vi.waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false))
   })
 })
 
 describe('Drawer pulled open', () => {
-  it('follows the finger while shut, then opens or goes back by where it let go', () => {
+  it('follows the finger while shut, then opens or goes back by where it let go', async () => {
     const onOpenChange = vi.fn()
     const handed: { pull: Pull | null } = { pull: null }
     render(
@@ -298,7 +302,10 @@ describe('Drawer pulled open', () => {
     expect(onOpenChange).not.toHaveBeenCalled()
     pull.move(60)
     pull.end(60, 1) // a flick: open
-    expect(onOpenChange).toHaveBeenCalledWith(true)
+    expect(panel.style.translate).toBe('0px') // set off at once, at the finger's speed
+    expect(panel.style.transition).toMatch(/^translate (\d+)ms cubic-bezier\(0\.2, /)
+    expect(onOpenChange).not.toHaveBeenCalledWith(true)
+    await vi.waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(true))
   })
 })
 

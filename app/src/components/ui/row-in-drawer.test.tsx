@@ -46,12 +46,12 @@ it('in the list drawer: a swipe left on a row shows its actions, and the drawer 
   expect(onOpenChange).not.toHaveBeenCalled() // the drawer neither closed nor landed
 })
 
-it('in the list drawer: a swipe left off the rows still closes it', () => {
+it('in the list drawer: a swipe left off the rows still closes it', async () => {
   const onOpenChange = vi.fn()
   render(<List open onOpenChange={onOpenChange} />)
   prepare()
   swipeLeft(screen.getByText('All sessions'), 300, 20)
-  expect(onOpenChange).toHaveBeenCalledWith(false)
+  await vi.waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false)) // after the landing set off
 })
 
 it('with the sidebar shut: a swipe left on a row shows its actions, and the sidebar does nothing', () => {
