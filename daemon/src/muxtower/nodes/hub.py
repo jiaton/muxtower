@@ -57,6 +57,7 @@ class Node:
     screens: dict[str, list[int]] = field(default_factory=dict)  # watched here: local id -> histories
     usage: MachineUsage | None = None  # what its daemon uses, as it last said (`usage/`)
     usage_at: float = 0.0  # monotonic
+    default_folder: str | None = None  # where a session given no folder starts there, as it last said
 
     @property
     def online(self) -> bool:
@@ -135,9 +136,16 @@ class Nodes:
                     runtimes=[RuntimeInfo.model_validate(r) for r in node.record.runtimes],
                     reported_url=node.record.reported_url,
                     direct_url=node.record.direct_url,
+                    default_folder=node.default_folder,
                 )  # fmt: skip
                 for name, node in sorted(self.nodes.items())
             ]
+
+    def set_default_folder(self, name: str, folder: str | None) -> None:
+        """What a node now says its default folder is (its settings changed from the hub)."""
+        with self._lock:
+            if node := self.nodes.get(name):
+                node.default_folder = folder
 
     def all(self) -> dict[str, Node]:
         with self._lock:
@@ -186,6 +194,7 @@ class Nodes:
             node.record.runtimes = [r.model_dump(mode="json") for r in hello.runtimes]
             node.record.platform = hello.platform or node.record.platform
             node.record.reported_url = hello.url
+            node.default_folder = hello.default_folder
             node.record.last_seen = datetime.now(UTC)
             watched = {sid: list(h) for sid, h in node.screens.items()}
         if old is not None:

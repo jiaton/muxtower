@@ -158,6 +158,7 @@ def create_app(
         lambda: node_protocol.Hello(
             protocol=node_protocol.PROTOCOL, oldest=node_protocol.OLDEST, name=daemon_name, version=__version__,
             runtimes=launcher.runtimes(), platform=sys.platform, url=direct_url,
+            default_folder=settings.sessions.folder(),
         ),
         Updater(settings.hub.update),
     )  # fmt: skip
@@ -184,6 +185,7 @@ def create_app(
 
     sessions.gone = gone
     sessions.launch_defaults = lambda runtime: settings.launch.of(runtime)  # read each time: settings change
+    sessions.default_folder = lambda: settings.sessions.folder()
     directory.writing = Writing(writes, lambda sid: r.name if (r := sessions.repo.get(sid)) else None).of
     team_tasks = TaskService(teams, directory, SqliteTaskRepository(db))
     titles = directory.titles = ClaudeTitles(directory)
@@ -241,6 +243,11 @@ def create_app(
         forward=hub.team_tool, watches=watches,
     )  # fmt: skip
     mcp.session_tools.may_escalate = lambda: settings.launch.agents_may_escalate
+    if (team_tools := getattr(mcp, "team_tools", None)) is not None:
+        team_tools.machines = lambda: [
+            (daemon_name, settings.sessions.folder()),
+            *((n.name, n.default_folder) for n in nodes.infos()),
+        ]
     state = dict(
         settings=settings, daemon_name=daemon_name, tokens=tokens, origins=OriginPolicy(allowed_origins), bus=bus,
         sessions=sessions, monitor=monitor, directory=directory, remote_control=remote_control,

@@ -29,6 +29,8 @@ FIELDS: tuple[Field, ...] = (
           "older ones are kept, just not listed; 0: always listed"),
     Field("writes.window_minutes", "Teams", "Two sessions writing in one worktree: count writes of the last (minutes)",
           "number", "now", "file-editing tools only, not Bash"),
+    Field("sessions.default_cwd", "New sessions", "Default folder", "text", "now",
+          "where one starts when given no folder (~ is the home folder); empty, or no such folder: home"),
     Field("launch.claude_code_mode", "New sessions", "Claude Code permission mode", "choice", "now",
           "agent: its own settings (defaultMode)",
           ("agent", "plan", "default", "acceptEdits", "auto", "bypassPermissions")),

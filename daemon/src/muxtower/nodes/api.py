@@ -112,6 +112,8 @@ class NodeApi:
                 if not isinstance(changes, dict):
                     raise Invalid("values: a table of settings")
                 return [_json(s) for s in self.settings.change(changes, f"hub ({params.get('actor') or 'owner'})")]
+            case "default_folder":
+                return self.settings.settings.sessions.folder() if self.settings else None
             case "names":
                 return [
                     {"name": n.name, "source": n.source, "last_seen": n.last_seen.isoformat()} for n in d.names(sid)

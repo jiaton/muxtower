@@ -1120,8 +1120,11 @@ export interface components {
              * @description extra arguments for the agent binary
              */
             args?: string[];
-            /** Cwd */
-            cwd: string;
+            /**
+             * Cwd
+             * @description its folder; none: the machine's default ([sessions] default_cwd)
+             */
+            cwd?: string | null;
             /**
              * Headless
              * @description run it without a terminal, where the runtime can (`RuntimeInfo.headless`)
@@ -1410,6 +1413,11 @@ export interface components {
             claude_login_expired: boolean;
             /** Daemon Name */
             daemon_name: string;
+            /**
+             * Default Folder
+             * @description where a new session starts when given no folder ([sessions] default_cwd, else home)
+             */
+            default_folder?: string | null;
             features: components["schemas"]["Features"];
             /** Token Name */
             token_name: string;
@@ -1474,6 +1482,11 @@ export interface components {
          * @description A daemon joined to this one: its sessions are listed here, as from any other source.
          */
         NodeInfo: {
+            /**
+             * Default Folder
+             * @description where a new session starts there when given none
+             */
+            default_folder?: string | null;
             /**
              * Direct Url
              * @description the owner's address for it, used over the reported one

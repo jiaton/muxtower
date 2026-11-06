@@ -69,6 +69,8 @@ class SessionService:
         self.gone: Callable[[str], None] = lambda _: None  # it ended or was interrupted (writes/)
         # A runtime's default permission mode and arguments (`[launch]`), set by the app.
         self.launch_defaults: Callable[[str], tuple[str, list[str]]] = lambda _: ("agent", [])
+        # Where a session given no folder starts (`[sessions] default_cwd`, read each time): home, unset.
+        self.default_folder: Callable[[], str] = lambda: os.path.expanduser("~")
         self.names: SessionNames | None = None  # every name a session went by (`names.py`), set by the app
 
     # --- views ---------------------------------------------------------------------------------
@@ -129,7 +131,7 @@ class SessionService:
 
     def create(self, request: CreateSession) -> Session:
         runtime = self.resolve_runtime(request.runtime)
-        cwd = os.path.abspath(os.path.expanduser(request.cwd))
+        cwd = os.path.abspath(os.path.expanduser(request.cwd or self.default_folder()))
         if not os.path.isdir(cwd):
             raise Invalid(f"not a directory: {cwd}")
         default_mode, default_args = self.launch_defaults(runtime.name)

@@ -121,6 +121,8 @@ class TeamTools:
         self.teams = teams
         self.tasks = tasks
         self.forward = forward
+        # Each machine with the folder a session starts in there when given none (start_session without cwd).
+        self.machines: Callable[[], list[tuple[str, str | None]]] = list
 
     def _via_hub(self, name: str, here: Callable[[Any], str]) -> Callable[[Any], str]:
         """On a node, the hub answers (it sees every session); without it, this machine does, and says so."""
@@ -194,6 +196,9 @@ class TeamTools:
                 out.append(_tasks(recent[m.session.id]))
         if not others:
             out.append("- nobody else yet")
+        if machines := self.machines():
+            folders = " · ".join(f"@{name} {folder or '(not known yet)'}" for name, folder in machines)
+            out.append(f"Machines, with the folder start_session uses when given no cwd: {folders}")
         return "\n".join(out)
 
     def send_task(self, args: TaskArgs) -> str:

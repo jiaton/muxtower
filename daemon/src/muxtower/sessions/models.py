@@ -213,7 +213,9 @@ class Session(BaseModel):
 
 class CreateSession(BaseModel):
     runtime: str
-    cwd: str
+    cwd: str | None = Field(
+        default=None, description="its folder; none: the machine's default ([sessions] default_cwd)"
+    )
     name: str | None = None
     args: list[str] = Field(default_factory=list, description="extra arguments for the agent binary")
     prompt: str | None = Field(

@@ -54,7 +54,7 @@ class Launcher:
         starter = self.starters.get(runtime)
         if starter is None:
             raise Conflict(f"{runtime} cannot run headless here")
-        cwd = os.path.abspath(os.path.expanduser(request.cwd))
+        cwd = os.path.abspath(os.path.expanduser(request.cwd or self.directory.local.default_folder()))
         if not os.path.isdir(cwd):
             raise Invalid(f"not a directory: {cwd}")
         return self.directory.get(starter.start(cwd, request.name).id)
