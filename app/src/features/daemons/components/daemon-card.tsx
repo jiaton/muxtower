@@ -1,8 +1,9 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronDown, Settings2, Trash2 } from 'lucide-react'
+import { ChevronDown, MoreHorizontal, Settings2, Trash2 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { StatusDot } from '@/components/ui/status-dot'
 import { ApiError } from '@/lib/api/client'
 import { useStreamStatus } from '@/lib/api/streams'
@@ -11,7 +12,7 @@ import { useDaemonsStore } from '@/lib/daemons/store'
 import type { Daemon } from '@/lib/daemons/types'
 import { useDaemonMe } from '../api/use-daemon-me'
 import { DevicesList } from './devices-list'
-import { NodesList } from './nodes-list'
+import { MachinesList } from './nodes-list'
 import { UsageList } from './usage-list'
 
 function useStatus(daemon: Daemon) {
@@ -27,44 +28,61 @@ function useStatus(daemon: Daemon) {
   return { tone: 'ok', text: `Connected as ${me.data.token_name}` } as const
 }
 
-/** A daemon with its status. `actions` holds what other features add (pairing, push). */
+/** A daemon: its header (status, name, address; its Settings, and forgetting it in ⋯) always shows;
+ *  opened, what other features add (`actions`: pairing, push), then its machines (itself and the
+ *  computers joined to it), the devices paired with it, and what each machine uses. */
 export function DaemonCard({ daemon, actions }: { daemon: Daemon; actions?: ReactNode }) {
   const status = useStatus(daemon)
   const remove = useDaemonsStore((s) => s.remove)
   const [open, setOpen] = useState(!daemon.token || !!daemon.rejected)
+  const paired = !!daemon.token && !daemon.rejected
 
   return (
-    <Card className="flex flex-col gap-3 p-0">
-      <button
-        type="button"
-        className="flex items-center gap-3 rounded-lg px-4 py-3 text-left hover:bg-surface-muted"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-      >
-        <StatusDot tone={status.tone} label={status.text} />
-        <div className="min-w-0 flex-1">
-          <p className="truncate font-medium">{daemon.name}</p>
-          <p className="truncate text-sm text-fg-muted">{status.text}</p>
-        </div>
-        <ChevronDown className={cn('size-4 text-fg-muted transition-transform', open && 'rotate-180')} aria-hidden />
-      </button>
-      {open ? (
-        <div className="flex flex-col gap-4 border-t border-border px-4 pt-3 pb-4">
-          <p className="font-mono text-xs break-all text-fg-muted">{daemon.url}</p>
-          {actions}
-          {daemon.token && !daemon.rejected ? <DevicesList daemonId={daemon.id} /> : null}
-          {daemon.token && !daemon.rejected ? <NodesList daemonId={daemon.id} url={daemon.url} /> : null}
-          {daemon.token && !daemon.rejected ? <UsageList daemonId={daemon.id} /> : null}
-          {daemon.token && !daemon.rejected ? (
-            <Button asChild variant="ghost" size="sm" className="self-start">
-              <Link to="/daemons/$daemonId/settings" params={{ daemonId: daemon.id }}>
+    <Card className="flex flex-col p-0">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2 pr-3 pl-1">
+        <button
+          type="button"
+          className="flex min-w-60 flex-1 items-center gap-3 rounded-md px-3 py-1.5 text-left hover:bg-surface-muted"
+          aria-expanded={open}
+          aria-label={`${daemon.name}: ${open ? 'hide' : 'show'} its machines and devices`}
+          onClick={() => setOpen(!open)}
+        >
+          <StatusDot tone={status.tone} label={status.text} />
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate font-medium">{daemon.name}</span>
+            <span className="truncate text-sm text-fg-muted">{status.text}</span>
+            <span className="truncate font-mono text-xs text-fg-muted">{daemon.url}</span>
+          </span>
+          <ChevronDown className={cn('size-4 shrink-0 text-fg-muted transition-transform', open && 'rotate-180')} aria-hidden />
+        </button>
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          {paired ? (
+            <Button asChild variant="outline" size="sm">
+              <Link to="/daemons/$daemonId/settings" params={{ daemonId: daemon.id }} aria-label={`Settings of ${daemon.name}`}>
                 <Settings2 /> Settings
               </Link>
             </Button>
           ) : null}
-          <Button variant="ghost" size="sm" className="self-start text-danger" onClick={() => remove(daemon.id)}>
-            <Trash2 /> Forget on this device
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon-sm" aria-label={`More for ${daemon.name}`} title="More">
+                <MoreHorizontal />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem tone="danger" onSelect={() => remove(daemon.id)}>
+                <Trash2 /> Forget on this device
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+      {open ? (
+        <div className="flex flex-col gap-5 border-t border-border px-4 pt-4 pb-4">
+          {actions}
+          {paired ? <MachinesList daemonId={daemon.id} url={daemon.url} /> : null}
+          {paired ? <DevicesList daemonId={daemon.id} /> : null}
+          {paired ? <UsageList daemonId={daemon.id} /> : null}
         </div>
       ) : null}
     </Card>
