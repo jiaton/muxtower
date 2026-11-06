@@ -124,6 +124,8 @@ def create_app(
     marks = SessionMarks(SqliteMarksRepository(db))
     transcripts = Transcripts()
     archive = SessionArchive(SqliteArchiveRepository(db), transcripts, lambda: settings.archive.hide_after_days)
+    if remote_control is not None:
+        remote_control.archived = archive  # its archived forks, told apart once (`_place_archived`)
     audit = AuditLog(db)
     # Daemons joined to this one (nodes): their sessions are one more source.
     nodes = Nodes(SqliteNodeRepository(db), bus)

@@ -107,6 +107,12 @@ class AnthropicRemoteControl:
             events = self.client.list_events(session_id, limit=limit, sort_order="asc", cursor=str(after_seq))
         return [_raw(e) for e in events]
 
+    def events_before(self, session_id: str, before_seq: int | None, limit: int) -> list[RawEvent]:
+        cursor = None if before_seq is None else str(before_seq)
+        with self._call():
+            events = self.client.list_events(session_id, limit=limit, sort_order="desc", cursor=cursor)
+        return [_raw(e) for e in events]
+
     def respond_permission(
         self, session_id: str, request_id: str, *, allow: bool, tool_input: dict[str, Any] | None,
         tool_use_id: str | None, message: str | None,

@@ -63,6 +63,10 @@ class FakeRemoteControl:
     def events_after(self, session_id: str, after_seq: int, limit: int) -> list[RawEvent]:
         return [e for e in self.events.get(session_id, []) if e.seq > after_seq][:limit]
 
+    def events_before(self, session_id: str, before_seq: int | None, limit: int) -> list[RawEvent]:
+        older = [e for e in self.events.get(session_id, []) if before_seq is None or e.seq < before_seq]
+        return list(reversed(older[-limit:]))
+
     def respond_permission(self, session_id: str, request_id: str, **kw: Any) -> None:
         self.calls.append(("permission", session_id, request_id, kw["allow"], kw["tool_input"]))
 

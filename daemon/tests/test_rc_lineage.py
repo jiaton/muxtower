@@ -169,3 +169,138 @@ def test_an_equal_title_alone_does_not_make_a_parent() -> None:
         ],
     }
     assert {v.id: v.fork_of for v in source(port).views()} == {"cse_other": None, "cse_fork": None}
+
+
+def _fork_copy(burst: str, first: str, second: str) -> list[RawEvent]:
+    """A desktop fork's start: a copy from `first` on, at one instant, then the owner going on."""
+    return [
+        say(1, burst, "user", first),
+        say(2, burst, "assistant", second),
+        say(3, "2026-11-05T22:43:20Z", "user", "f1"),
+        say(4, "2026-11-05T22:43:30Z", "assistant", "f2"),
+    ]
+
+
+def test_a_mid_session_fork_named_with_a_fork_suffix_finds_its_parent() -> None:
+    """Claude desktop names a fork "<title> (fork)" (a fork of one, "(fork) (fork)")."""
+    port = FakeRemoteControl()
+    port.sessions = [
+        session("cse_parent", title="Plan the launch", created_at="2026-10-20T17:43:26Z"),
+        session("cse_fork", title="Plan the launch (fork)", created_at="2026-11-05T22:42:34Z"),
+        session("cse_fork2", title="Plan the launch (fork) (fork)", created_at="2026-11-06T10:00:00Z"),
+    ]
+    port.events = {
+        "cse_parent": [
+            *history(),
+            say(927, "2026-11-01T08:00:00Z", "user", "m927"),
+            say(928, "2026-11-01T08:00:09Z", "assistant", "m928"),
+        ],
+        "cse_fork": _fork_copy("2026-11-05T22:42:35.240Z", "m927", "m928"),
+        "cse_fork2": _fork_copy("2026-11-06T10:00:01.000Z", "m927", "m928"),
+    }
+    views = {v.id: v.fork_of for v in source(port).views()}
+    assert views["cse_fork"] == "cse_parent"
+    assert views["cse_fork2"] == "cse_fork"  # a fork of the fork ("(fork) (fork)"): the fork, which holds its start
+
+
+def test_a_second_fork_of_a_session_is_placed_under_it_not_under_the_first_fork() -> None:
+    """Both forks hold the second's start (the first copied past it), but its title says it was forked from
+    the session itself: one " (fork)", not two. Seen live: two Plan the launch forks a day apart."""
+    port = FakeRemoteControl()
+    port.sessions = [
+        session("cse_parent", title="Plan the launch", created_at="2026-10-20T17:43:26Z"),
+        session("cse_fork", title="Plan the launch (fork)", created_at="2026-11-05T22:42:34Z"),
+        session("cse_again", title="Plan the launch (fork)", created_at="2026-11-06T19:57:46Z"),
+    ]
+    parent_log = [
+        *history(),
+        *(say(900 + i, "2026-11-01T08:00:00Z", "user" if i % 2 else "assistant", f"m{900 + i}") for i in range(1, 60)),
+    ]
+    port.events = {
+        "cse_parent": parent_log,
+        "cse_fork": [
+            *(
+                say(i, "2026-11-05T22:42:35.240Z", e.payload["type"], e.payload["uuid"])
+                for i, e in enumerate(parent_log[30:], 1)
+            ),
+            say(99, "2026-11-05T22:50:00Z", "user", "f1"),
+        ],
+        "cse_again": _fork_copy("2026-11-06T19:57:47.929Z", "m945", "m946"),
+    }
+    views = {v.id: v.fork_of for v in source(port).views()}
+    assert views == {"cse_parent": None, "cse_fork": "cse_parent", "cse_again": "cse_parent"}
+
+
+def test_a_fork_of_a_compacted_parent_is_found_by_the_summary_both_hold() -> None:
+    """A parent compacted since: its log has the summary (a synthetic user message) the fork's copy starts with."""
+    port = FakeRemoteControl()
+    port.sessions = [
+        session("cse_parent", title="Plan", created_at="2026-10-20T10:00:00Z"),
+        session("cse_fork", title="Plan (fork)", created_at="2026-11-05T09:00:00Z"),
+    ]
+    summary = say(900, "2026-11-04T08:00:00Z", "user", "sum1", "This session is being continued from a previous one…")
+    port.events = {
+        "cse_parent": [*history(), summary, say(901, "2026-11-04T08:00:05Z", "assistant", "after1")],
+        "cse_fork": [
+            RawEvent(1, None, "worker", {"type": "system", "subtype": "compact_boundary", "uuid": "b1"}),
+            *_fork_copy("2026-11-05T09:00:01.000Z", "sum1", "after1")[0:2],
+            say(4, "2026-11-05T09:00:30Z", "user", "f1"),
+        ],
+    }
+    assert {v.id: v.fork_of for v in source(port).views()}["cse_fork"] == "cse_parent"
+
+
+def test_of_two_sessions_with_the_title_the_one_that_holds_the_message_is_the_parent() -> None:
+    """An older one with the same title (archived on claude.ai, say) that does not hold it is passed over."""
+    port = FakeRemoteControl()
+    port.sessions = [
+        session("cse_live", title="Plan the launch", created_at="2026-10-20T17:43:26Z"),
+        session("cse_newer", title="Plan the launch", created_at="2026-10-25T05:00:05Z"),
+        session("cse_fork", title="Plan the launch (fork)", created_at="2026-11-05T22:42:34Z"),
+    ]
+    port.events = {
+        "cse_live": [
+            *history(),
+            say(945, "2026-11-02T08:00:00Z", "user", "m945"),
+            say(946, "2026-11-02T08:00:05Z", "assistant", "m946"),
+        ],
+        "cse_newer": [say(1, "2026-10-25T05:00:06Z", "user", "n1"), say(2, "2026-10-25T05:00:09Z", "assistant", "n2")],
+        "cse_fork": _fork_copy("2026-11-05T22:42:35.240Z", "m945", "m946"),
+    }
+    assert {v.id: v.fork_of for v in source(port).views()}["cse_fork"] == "cse_live"  # not the newer one
+
+
+def test_a_fork_taken_past_the_first_2000_events_of_its_parent_is_found() -> None:
+    port = FakeRemoteControl()
+    port.sessions = [
+        session("cse_parent", title="Long", created_at="2026-10-01T00:00:00Z"),
+        session("cse_fork", title="Long (fork)", created_at="2026-11-05T00:00:00Z"),
+    ]
+    long = [
+        say(i, f"2026-10-{1 + i // 1000:02d}T00:00:{i % 60:02d}Z", "user" if i % 2 else "assistant", f"p{i}")
+        for i in range(1, 6001)
+    ]
+    port.events = {"cse_parent": long, "cse_fork": _fork_copy("2026-11-05T00:00:01.000Z", "p5001", "p5002")}
+    assert {v.id: v.fork_of for v in source(port).views()}["cse_fork"] == "cse_parent"
+
+
+def test_an_archived_fork_still_tagged_on_claude_ai_gets_its_parent_once() -> None:
+    """Archived before forks were told apart: its view names no parent; the API's tag still does."""
+
+    class Store:
+        def __init__(self) -> None:
+            self.placed: dict[str, str] = {}
+
+        def unplaced(self, source: str) -> list[str]:
+            return [] if self.placed else ["cse_old_fork", "cse_gone"]
+
+        def place(self, session_id: str, parent: str) -> None:
+            self.placed[session_id] = parent
+
+    port = FakeRemoteControl()
+    port.details = {"cse_old_fork": {"tags": ["remote-control-fork-parent:session_01Parent"]}}
+    src = RemoteControlSource(port, {})
+    store = Store()
+    src.archived = store
+    src.tick()
+    assert store.placed == {"cse_old_fork": "cse_01Parent"}
