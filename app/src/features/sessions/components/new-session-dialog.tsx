@@ -2,6 +2,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { Plus } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { createDaemonClient } from '@/lib/api/client'
+import { useDaemonMe } from '@/features/daemons/api/use-daemon-me'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
@@ -61,13 +62,17 @@ export function NewSessionDialog({
   // the agent picked here, else the one started last, as long as this computer has it
   const available = (runtimes.data ?? []).filter((r) => r.available).map((r) => r.name)
   const runtime = picked ?? (available.includes(lastRuntime) || !available.length ? lastRuntime : available[0])
-  const [cwd, setCwd] = useState(preset?.cwd ?? '')
+  const [typed, setCwd] = useState<string | null>(preset?.cwd ?? null)
   const [name, setName] = useState('')
   const [headless, setHeadless] = useState(false)
   const [mode, setMode] = useState<string | null>(null)
   const [extra, setExtra] = useState('')
   const canRunHeadless = Boolean(runtimes.data?.find((r) => r.name === runtime)?.headless)
   const asHeadless = headless && canRunHeadless
+  const me = useDaemonMe(current?.id ?? '')
+  // The machine's default folder until one is typed (recent folders stay suggestions).
+  const fallback = (node ? node.default_folder : me.data?.default_folder) ?? ''
+  const cwd = typed ?? fallback
   const { entries } = useSessionEntries()
   const folders = current ? folderSuggestions(entries, current.id, node?.name ?? null) : []
 
@@ -100,7 +105,7 @@ export function NewSessionDialog({
             e.preventDefault()
             create.mutate(
               {
-                runtime, cwd, name: name.trim() || null, headless: asHeadless, node: node?.name ?? null,
+                runtime, cwd: cwd.trim() || null, name: name.trim() || null, headless: asHeadless, node: node?.name ?? null,
                 permission_mode: asHeadless ? null : mode, args: asHeadless ? [] : splitArgs(extra),
               }, // prettier-ignore
               {
@@ -185,7 +190,7 @@ export function NewSessionDialog({
           <label className="flex flex-col gap-1.5 text-sm font-medium">
             Directory
             <SuggestInput
-              required
+              required={!fallback}
               placeholder="~/code/project"
               value={cwd}
               onValueChange={setCwd}

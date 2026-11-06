@@ -22,6 +22,7 @@ class NodeInfo(BaseModel):
     runtimes: list[RuntimeInfo] = Field(default_factory=list, description="what can be started there")
     reported_url: str | None = Field(default=None, description="where it says the app can reach it itself")
     direct_url: str | None = Field(default=None, description="the owner's address for it, used over the reported one")
+    default_folder: str | None = Field(default=None, description="where a new session starts there when given none")
 
 
 class NodeClaim(BaseModel):

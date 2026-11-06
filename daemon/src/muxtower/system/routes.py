@@ -27,6 +27,9 @@ class Me(BaseModel):
         "those sessions (Claude Desktop's, the Claude app's) do not update until it is logged in again",
     )
     version: str | None = Field(default=None, description="the muxtower this daemon runs (null: an older one)")
+    default_folder: str | None = Field(
+        default=None, description="where a new session starts when given no folder ([sessions] default_cwd, else home)"
+    )
 
 
 @router.get("/health")
@@ -46,4 +49,5 @@ def me(request: Request, device: CurrentDevice) -> Me:
         features=features,
         claude_login_expired=expired,
         version=__version__,
+        default_folder=state.settings.sessions.folder(),
     )

@@ -150,6 +150,20 @@ class LaunchSettings(BaseModel):
         return str(getattr(self, f"{key}_mode", "agent")), list(getattr(self, f"{key}_args", []))
 
 
+class SessionSettings(BaseModel):
+    """`[sessions]`: where a new session starts when it is given no folder (`default_cwd`, ~ for the home
+    folder): the app's New session, and an agent's start_session without cwd. Unset, or not a folder
+    here: the home folder. `muxtower run` starts where it is run, as ever."""
+
+    default_cwd: str | None = None
+
+    def folder(self) -> str:
+        """The folder a new session starts in when given none: `default_cwd` if it is one here, else home."""
+        home = os.path.expanduser("~")
+        wanted = os.path.expanduser(self.default_cwd.strip()) if self.default_cwd and self.default_cwd.strip() else home
+        return wanted if os.path.isdir(wanted) else home
+
+
 class WritesSettings(BaseModel):
     """`[writes]`: telling two sessions apart that write in one worktree at once (`writes/`)."""
 
@@ -195,6 +209,7 @@ class Settings(BaseModel):
     archive: ArchiveSettings = Field(default_factory=ArchiveSettings)
     writes: WritesSettings = Field(default_factory=WritesSettings)
     launch: LaunchSettings = Field(default_factory=LaunchSettings)
+    sessions: SessionSettings = Field(default_factory=SessionSettings)
     hub: HubSettings = Field(default_factory=HubSettings)
     # What the config file, the environment or an override set (dotted keys): the settings page shows
     # those as set there, and does not change them.

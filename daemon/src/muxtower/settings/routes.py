@@ -48,6 +48,12 @@ def change_settings(
     if node:
         listed = _on_node(request, node, "set_settings", {"values": body.values, "actor": device.name})
         request.app.state.audit.record(device.name, "settings", None, f"on {node}: {', '.join(body.values)}")
+        if "sessions.default_cwd" in body.values:  # what the hub says of it (my_team, the app) follows
+            try:
+                folder = request.app.state.node_sessions.call(node, "default_folder", {})
+                request.app.state.nodes.set_default_folder(node, folder)
+            except Exception:  # noqa: BLE001, S110 - an older node: told on its next link
+                pass
         return MachineSettings(machine=node, settings=listed)
     service: SettingsService = request.app.state.feature_settings
     return MachineSettings(machine=request.app.state.daemon_name, settings=service.change(body.values, device.name))

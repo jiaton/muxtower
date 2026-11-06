@@ -26,7 +26,7 @@ export function useCreateSession(daemonId: string) {
   return useMutation({
     mutationFn: async (body: {
       runtime: string
-      cwd: string
+      cwd: string | null
       name?: string | null
       headless?: boolean
       node?: string | null

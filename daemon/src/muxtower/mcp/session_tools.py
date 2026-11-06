@@ -19,7 +19,11 @@ RESUME_ARGS = {"claude-code": ["--resume"], "codex": ["resume"]}  # then the age
 
 
 class StartArgs(BaseModel):
-    cwd: str = Field(description="directory to work in, on the machine it starts on")
+    cwd: str | None = Field(
+        default=None,
+        description="directory to work in, on the machine it starts on; omit cwd for the machine's default folder "
+        "(my_team says each machine's)",
+    )
     prompt: str | None = Field(default=None, description="first message for the new agent")
     name: str | None = None
     runtime: str = Field(default="claude-code", description="claude-code, codex, …")
@@ -67,7 +71,7 @@ class SessionTools:
         found = [
             Tool("start_session", "Start an agent session in tmux, on the hub or on another device joined to it "
                  "(machine): a new one, or one resuming an earlier conversation (resume), with its role and "
-                 "project.", StartArgs, self.start_session),
+                 "project. Omit cwd for the machine's default folder.", StartArgs, self.start_session),
             Tool("rename_session", "Rename a session.", RenameArgs, self.rename_session),
         ]  # fmt: skip
         if self.archiver is not None:
@@ -125,7 +129,8 @@ class SessionTools:
                 self.teams.set_project(created.id, args.project)
             m = self.teams.member(created)
             team = f" Role: {m.role or 'none yet'}; project {m.project}."
-        return f"Started {created.name} ({created.id}) on {node or self.hub} in {created.cwd}.{team}"
+        default = "" if args.cwd else " (the machine's default folder)"
+        return f"Started {created.name} ({created.id}) on {node or self.hub} in {created.cwd}{default}.{team}"
 
     def rename_session(self, args: RenameArgs) -> str:
         session = self.directory.update(args.session_id, UpdateSession(name=args.name))

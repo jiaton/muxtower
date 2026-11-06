@@ -206,6 +206,10 @@ def test_a_node_s_sessions_see_the_whole_team_through_the_hub(hub: tuple[FastAPI
         assert tool(node_mcp, token, "watch_session", session_id=research.id).startswith("Watching research")
         assert hub_app.state.mcp.tools["watch_session"] is not None
         assert research.id in tool(node_mcp, token, "list_sessions")  # linked: every machine's sessions
+        import os
+
+        (mac,) = hub_app.state.nodes.infos()
+        assert mac.default_folder == os.path.expanduser("~")  # its default folder, from its hello (none set: home)
 
         # The watched session's events reach the node's session (typed in there), and list_events has them.
         hub_pane = next(

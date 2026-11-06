@@ -484,8 +484,16 @@
             "type": "array"
           },
           "cwd": {
-            "title": "Cwd",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "its folder; none: the machine's default ([sessions] default_cwd)",
+            "title": "Cwd"
           },
           "headless": {
             "default": false,
@@ -547,8 +555,7 @@
           }
         },
         "required": [
-          "runtime",
-          "cwd"
+          "runtime"
         ],
         "title": "CreateSession",
         "type": "object"
@@ -1109,6 +1116,18 @@
             "title": "Daemon Name",
             "type": "string"
           },
+          "default_folder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where a new session starts when given no folder ([sessions] default_cwd, else home)",
+            "title": "Default Folder"
+          },
           "features": {
             "$ref": "#/components/schemas/Features"
           },
@@ -1231,6 +1250,18 @@
       "NodeInfo": {
         "description": "A daemon joined to this one: its sessions are listed here, as from any other source.",
         "properties": {
+          "default_folder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "where a new session starts there when given none",
+            "title": "Default Folder"
+          },
           "direct_url": {
             "anyOf": [
               {
