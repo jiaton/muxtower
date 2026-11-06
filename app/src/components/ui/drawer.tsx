@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { cn } from '@/lib/cn'
-import { axisOf, holdScroll, LAND_EASE, landing, landMs, sideways, Speed, type Pull } from './gesture'
+import { afterFrame, axisOf, holdScroll, LAND_EASE, landCurve, landing, sideways, Speed, type Pull } from './gesture'
 
 /**
  * A navigation drawer (Material's modal drawer): while `drawer`, `children` sit in a panel that slides in
@@ -43,9 +43,13 @@ export function Drawer({
     const el = push?.current
     if (!el || !drawer) return
     const width = panel.current?.offsetWidth ?? 0
+    const target = shown ? `translateX(${width}px)` : ''
+    // Already on its way there (a swipe landed it, with its own speed): left alone, not set off again
+    // on another curve, which would hitch it and part it from the drawer.
+    if (el.style.transform === target) return
     el.style.willChange = ''
     el.style.transition = stillness() ? 'none' : `transform 200ms ${LAND_EASE}`
-    el.style.transform = shown ? `translateX(${width}px)` : ''
+    el.style.transform = target
   }, [push, drawer, shown])
 
   // Shut and done sliding: not painted at all. Laid off-screen flush with its edge, a panel of a
@@ -123,12 +127,17 @@ function stillness(): boolean {
 const dim = (at: number, width: number, push?: RefObject<HTMLElement | null>) => (at / Math.max(1, width)) * (push ? 0.4 : 1)
 
 /** The page beside a push drawer, `px` across (with the drawer), over `ms` (0: as the finger has it). */
-function shift(push: RefObject<HTMLElement | null> | undefined, px: number, ms: number) {
+function shift(push: RefObject<HTMLElement | null> | undefined, px: number, ms: number, ease = LAND_EASE) {
   const el = push?.current
   if (!el) return
-  el.style.willChange = ms ? '' : 'transform'
-  el.style.transition = ms && !stillness() ? `transform ${ms}ms ${LAND_EASE}` : 'none'
+  el.style.willChange = 'transform' // on its layer through the landing too: let go when it is there (`settle`)
+  el.style.transition = ms && !stillness() ? `transform ${ms}ms ${ease}` : 'none'
   el.style.transform = px > 0 ? `translateX(${px}px)` : ''
+}
+
+/** The page beside a push drawer, once landed: off its own layer again. */
+function settle(push: RefObject<HTMLElement | null> | undefined) {
+  if (push?.current) push.current.style.willChange = ''
 }
 
 /** While `active` (the drawer shut), the `Pull` that opens it with the finger, handed to `onPull` (null
@@ -148,16 +157,17 @@ function usePullOpen(
     const behind = scrim.current
     if (!active || !el || !behind || !onPull) return
     let timer: ReturnType<typeof setTimeout> | undefined
-    const place = (at: number, ms: number) => {
+    const place = (at: number, ms: number, ease = LAND_EASE) => {
       const width = Math.max(1, el.offsetWidth)
       const slide = ms && !stillness() ? ms : 0
       // `translate`, which its classes shut it with (a transform would add to that).
-      el.style.transition = slide ? `translate ${slide}ms ${LAND_EASE}` : 'none'
-      behind.style.transition = slide ? `opacity ${slide}ms ${LAND_EASE}` : 'none'
+      el.style.willChange = 'translate'
+      el.style.transition = slide ? `translate ${slide}ms ${ease}` : 'none'
+      behind.style.transition = slide ? `opacity ${slide}ms ${ease}` : 'none'
       el.style.visibility = 'visible' // while pulled in by the finger, shut or not
       el.style.translate = `${at - width}px`
       behind.style.opacity = String(dim(at, width, push))
-      shift(push, at, ms)
+      shift(push, at, ms, ease)
     }
     onPull({
       move: (px) => {
@@ -168,14 +178,15 @@ function usePullOpen(
         const width = el.offsetWidth
         const at = Math.min(px, width)
         const opened = landing(at, speed, at) > width / 2
-        const ms = landMs(opened ? width - at : at, speed)
-        place(opened ? width : 0, ms)
+        const { ms, ease } = landCurve(opened ? width - at : -at, speed) // the way left to go, as signed
+        place(opened ? width : 0, ms, ease) // set off now, in this handler: no frame without movement
         // Then to where its classes put it (open, or shut), once it is there.
-        timer = setTimeout(
-          () => (el.style.transition = behind.style.transition = el.style.translate = el.style.visibility = behind.style.opacity = ''),
-          ms + 50,
-        )
-        if (opened) opening.current()
+        timer = setTimeout(() => {
+          el.style.transition = behind.style.transition = el.style.translate = el.style.visibility = behind.style.opacity = ''
+          el.style.willChange = ''
+          settle(push)
+        }, ms + 50)
+        if (opened) afterFrame(() => opening.current()) // the render after the landing is under way
       },
     })
     return () => onPull(null)
@@ -221,8 +232,10 @@ function useSwipeClose(
         }
       }
       g.at = Math.min(0, dx)
+      // `translate`, the property its classes shut it with: landed shut, they take over with no jump.
+      el.style.willChange = 'translate'
       el.style.transition = behind.style.transition = 'none'
-      el.style.transform = `translateX(${g.at}px)`
+      el.style.translate = `${g.at}px`
       behind.style.opacity = String(dim(el.offsetWidth + g.at, el.offsetWidth, push))
       shift(push, el.offsetWidth + g.at, 0)
     }
@@ -235,14 +248,21 @@ function useSwipeClose(
       const speed = swipe.speed.get()
       const width = el.offsetWidth
       const shut = landing(swipe.at, speed, swipe.at) < -width / 2
-      const ms = stillness() ? 0 : landMs(shut ? width + swipe.at : swipe.at, speed)
-      el.style.transition = ms ? `transform ${ms}ms ${LAND_EASE}` : 'none'
-      behind.style.transition = ms ? `opacity ${ms}ms ${LAND_EASE}` : 'none'
-      shift(push, shut ? 0 : width, Math.max(ms, 1))
-      el.style.transform = behind.style.opacity = '' // to where its classes put it: shut or open
+      const curve = landCurve(shut ? -(width + swipe.at) : -swipe.at, speed) // the way left to go, signed
+      const ms = stillness() ? 0 : curve.ms
+      // Set off now, in this handler, the drawer and the page beside it on the same curve.
+      el.style.transition = ms ? `translate ${ms}ms ${curve.ease}` : 'none'
+      behind.style.transition = ms ? `opacity ${ms}ms ${curve.ease}` : 'none'
+      shift(push, shut ? 0 : width, Math.max(ms, 1), curve.ease)
+      el.style.translate = `${shut ? -width : 0}px` // where its classes will put it (shut: -100%)
+      behind.style.opacity = shut ? '0' : ''
       clearTimeout(timer)
-      timer = setTimeout(() => (el.style.transition = behind.style.transition = ''), ms + 50)
-      if (shut) closing.current()
+      timer = setTimeout(() => {
+        el.style.transition = behind.style.transition = el.style.translate = behind.style.opacity = ''
+        el.style.willChange = ''
+        settle(push)
+      }, ms + 50)
+      if (shut) afterFrame(() => closing.current()) // the render after the landing is under way
     }
     const targets = [el, behind]
     for (const target of targets) {
@@ -260,7 +280,8 @@ function useSwipeClose(
         target.removeEventListener('touchend', up)
         target.removeEventListener('touchcancel', up)
       }
-      el.style.transform = behind.style.opacity = ''
+      // A landing under way finishes on its own (its timer tidies up); otherwise nothing is left set.
+      if (!el.style.transition || el.style.transition === 'none') el.style.translate = behind.style.opacity = ''
     }
   }, [panel, scrim, active, push])
 }
