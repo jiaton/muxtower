@@ -32,6 +32,7 @@ export function useRecorder() {
   const [state, setState] = useState<RecorderState>('idle')
   const [error, setError] = useState<string | null>(null)
   const parts = useRef<Parts | null>(null)
+  const starting = useRef<Promise<void> | null>(null) // while the microphone is being asked for
 
   const release = useCallback(() => {
     const p = parts.current
@@ -44,49 +45,56 @@ export function useRecorder() {
   }, [])
   useEffect(() => release, [release])
 
-  const start = useCallback(async () => {
-    if (parts.current) return
-    setError(null)
-    setState('starting')
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 },
-      })
-      const mimeType = TYPES.find((t) => MediaRecorder.isTypeSupported(t))
-      const recorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: BITS_PER_SECOND })
-      const audio = new AudioContext()
-      const analyser = audio.createAnalyser()
-      analyser.fftSize = 256 // a level, not a spectrum: the smallest buffer that reads one
-      audio.createMediaStreamSource(stream).connect(analyser)
-      const p: Parts = { recorder, stream, audio, analyser, samples: new Uint8Array(analyser.fftSize), chunks: [] }
-      recorder.ondataavailable = (e) => e.data.size && p.chunks.push(e.data)
-      recorder.start()
-      parts.current = p
-      setState('recording')
-    } catch (e) {
-      release()
-      setError(refused(e))
+  const start = useCallback(() => {
+    if (parts.current || starting.current) return starting.current ?? Promise.resolve()
+    const run = open().finally(() => (starting.current = null))
+    starting.current = run
+    return run
+    async function open() {
+      setError(null)
+      setState('starting')
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 },
+        })
+        const mimeType = TYPES.find((t) => MediaRecorder.isTypeSupported(t))
+        const recorder = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: BITS_PER_SECOND })
+        const audio = new AudioContext()
+        const analyser = audio.createAnalyser()
+        analyser.fftSize = 256 // a level, not a spectrum: the smallest buffer that reads one
+        audio.createMediaStreamSource(stream).connect(analyser)
+        const p: Parts = { recorder, stream, audio, analyser, samples: new Uint8Array(analyser.fftSize), chunks: [] }
+        recorder.ondataavailable = (e) => e.data.size && p.chunks.push(e.data)
+        recorder.start()
+        parts.current = p
+        setState('recording')
+      } catch (e) {
+        release()
+        setError(refused(e))
+      }
     }
   }, [release])
 
-  /** Stops and hands over the recording (null when nothing was heard). */
-  const stop = useCallback(
-    () =>
-      new Promise<Blob | null>((resolve) => {
-        const p = parts.current
-        if (!p) return resolve(null)
-        p.recorder.onstop = () => {
-          const blob = new Blob(p.chunks, { type: p.recorder.mimeType || 'audio/webm' })
-          p.chunks.length = 0
-          release()
-          resolve(blob.size ? blob : null)
-        }
-        p.recorder.stop()
-      }),
-    [release],
-  )
+  /** Stops and hands over the recording (null when nothing was recorded, which `error` then says).
+   *  Asked while the microphone is still starting, it waits for it first. */
+  const stop = useCallback(async () => {
+    if (starting.current) await starting.current
+    return new Promise<Blob | null>((resolve) => {
+      const p = parts.current
+      if (!p) return resolve(null) // it never started: `error` says why
+      p.recorder.onstop = () => {
+        const blob = new Blob(p.chunks, { type: p.recorder.mimeType || 'audio/webm' })
+        p.chunks.length = 0
+        release()
+        if (!blob.size) setError('Nothing was recorded: check that the microphone works.')
+        resolve(blob.size ? blob : null)
+      }
+      p.recorder.stop()
+    })
+  }, [release])
 
   const cancel = useCallback(() => {
+    if (starting.current) void starting.current.then(() => cancel())
     const p = parts.current
     if (p && p.recorder.state !== 'inactive') {
       p.recorder.onstop = null

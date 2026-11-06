@@ -1,4 +1,5 @@
-import { useCallback } from 'react'
+import { useCallback, useState } from 'react'
+import { ApiError } from '@/lib/api/client'
 import { useTranscribe } from '../api/use-transcribe'
 import { canRecord, useRecorder } from './use-recorder'
 
@@ -7,16 +8,26 @@ import { canRecord, useRecorder } from './use-recorder'
 export function useDictation(daemonId: string, enabled: boolean, onText: (text: string) => void) {
   const recorder = useRecorder()
   const transcribe = useTranscribe(daemonId)
+  const [heard, setHeard] = useState<string | null>(null) // why nothing came back, when nothing did
   const finish = useCallback(async () => {
+    setHeard(null)
     const audio = await recorder.stop()
-    if (audio) transcribe.mutate(audio, { onSuccess: (text) => text && onText(text) })
+    if (audio)
+      transcribe.mutate(audio, {
+        onSuccess: (text) => (text ? onText(text) : setHeard('Heard nothing: try again, a little closer.')),
+      })
   }, [recorder, transcribe, onText])
+  const start = useCallback(() => {
+    setHeard(null)
+    transcribe.reset()
+    return recorder.start()
+  }, [recorder, transcribe])
   return {
     available: enabled && canRecord(),
     active: recorder.state !== 'idle' || transcribe.isPending,
     transcribing: transcribe.isPending,
-    error: recorder.error ?? transcribe.error?.message ?? null,
-    start: recorder.start,
+    error: recorder.error ?? (transcribe.error ? failed(transcribe.error) : heard),
+    start,
     cancel: recorder.cancel,
     finish,
     level: recorder.level,
@@ -24,3 +35,14 @@ export function useDictation(daemonId: string, enabled: boolean, onText: (text: 
 }
 
 export type Dictation = ReturnType<typeof useDictation>
+
+/** Why the recording did not become words: the daemon's reason, or that it could not be reached. */
+export function failed(error: Error) {
+  const reason =
+    error instanceof TypeError
+      ? 'the daemon could not be reached'
+      : error instanceof ApiError && error.message.startsWith('request failed')
+        ? `something in front of the daemon answered ${error.status}`
+        : error.message
+  return `Transcription failed: ${reason}`
+}

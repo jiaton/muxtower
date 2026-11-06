@@ -76,3 +76,54 @@ it('lets the microphone go when cancelled or left, and says when it is blocked',
   await act(() => blocked.result.current.start())
   expect(blocked.result.current.error).toBe('Microphone access is blocked for this site.')
 })
+
+it('Done while the microphone is still starting waits for it, then hands the recording over', async () => {
+  let grant: (stream: unknown) => void = () => undefined
+  Object.defineProperty(navigator, 'mediaDevices', {
+    configurable: true,
+    value: { getUserMedia: () => new Promise((resolve) => (grant = resolve)) },
+  })
+  const { result } = renderHook(() => useRecorder())
+  let started: Promise<void> = Promise.resolve()
+  act(() => void (started = result.current.start()))
+  expect(result.current.state).toBe('starting')
+  let blob: Blob | null = null
+  const stopping = result.current.stop().then((b) => (blob = b))
+  await act(async () => {
+    grant({ getTracks: () => [{ stop: stopped }] })
+    await started
+    await stopping
+  })
+  expect(blob).not.toBeNull()
+  expect(result.current.state).toBe('idle')
+  expect(stopped).toHaveBeenCalled()
+})
+
+it('says so when nothing was recorded', async () => {
+  vi.stubGlobal(
+    'MediaRecorder',
+    class extends FakeRecorder {
+      stop() {
+        this.state = 'inactive'
+        this.onstop?.()
+      }
+    },
+  )
+  const { result } = renderHook(() => useRecorder())
+  await act(() => result.current.start())
+  let blob: Blob | null = new Blob()
+  await act(async () => void (blob = await result.current.stop()))
+  expect(blob).toBeNull()
+  expect(result.current.error).toMatch(/Nothing was recorded/)
+})
+
+it('says the microphone is blocked when the browser refuses it', async () => {
+  Object.defineProperty(navigator, 'mediaDevices', {
+    configurable: true,
+    value: { getUserMedia: () => Promise.reject(new DOMException('no', 'NotAllowedError')) },
+  })
+  const { result } = renderHook(() => useRecorder())
+  await act(() => result.current.start())
+  expect(result.current.error).toMatch(/Microphone access is blocked/)
+  expect(result.current.state).toBe('idle')
+})
