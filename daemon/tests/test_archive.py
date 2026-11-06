@@ -251,3 +251,33 @@ def test_a_name_the_owner_gave_stays_over_remote_controls_title(tmp_path: Path) 
     again = next(s for s in client.get("/v1/sessions", headers=auth).json() if s["id"] == merged["id"])
     assert again["name"] == "Release worker"  # after a refresh too
     assert again["agent_name"] == "Fix the build"  # what Claude Code calls it, offered when renaming
+
+
+def test_an_archived_remote_session_without_a_parent_can_be_placed_later(tmp_path: Path) -> None:
+    """Archived before forks were told apart: listed as unplaced, then given its parent, kept so."""
+    from datetime import UTC, datetime
+
+    from muxtower.infra.db import Database
+    from muxtower.sessions.archive import SessionArchive
+    from muxtower.sessions.archive_repository import SqliteArchiveRepository
+    from muxtower.sessions.models import Session
+    from muxtower.sessions.ports import ArchiveRecord
+
+    port = FakeRemoteControl()
+    port.sessions = [session("cse_fork", title="Plan (fork)"), session("cse_top", title="Other")]
+    source = RemoteControlSource(port, {})
+    source.tick()
+    views = {v.id: v for v in source.views()}
+    db = Database(tmp_path / "m.db")
+    db.migrate()
+    repo = SqliteArchiveRepository(db)
+    now = datetime.now(UTC)
+    for sid in ("cse_fork", "cse_top"):
+        repo.add(ArchiveRecord(sid, None, views[sid].model_dump_json(), None, None, now))
+    archive = SessionArchive(repo)
+    assert sorted(archive.unplaced("remote_control")) == ["cse_fork", "cse_top"]
+    archive.place("cse_fork", "cse_parent")
+    assert archive.get("cse_fork").fork_of == "cse_parent"  # type: ignore[union-attr]
+    assert archive.unplaced("remote_control") == ["cse_top"]
+    again = SessionArchive(SqliteArchiveRepository(db))  # kept
+    assert Session.model_validate(again.get("cse_fork")).fork_of == "cse_parent"

@@ -46,6 +46,10 @@ class RemoteControlSource(RcActions):
         self._lock = threading.Lock()
         self._unsent: dict[str, list[ConversationItem]] = {}  # items read outside a poll, for the next tick
         self.login_expired = False  # the last poll was refused for the login: nothing here updates
+        # Archived sessions of this source that name no parent, checked once for a fork's tag (archived
+        # before forks were told apart): `archived.unplaced` / `archived.place`.
+        self.archived: Any = None
+        self._backfilled = False
 
     # --- reading ------------------------------------------------------------------------------
 
@@ -165,13 +169,29 @@ class RemoteControlSource(RcActions):
             searches = lineage.to_search(lineage.listed(self.sessions))
         if searches and self._search_copies(searches):
             result.changed = True
+        if not self._backfilled and self.archived is not None:
+            self._backfilled = True
+            result.changed = self._place_archived() or result.changed
         return result
+
+    def _place_archived(self) -> bool:
+        """Blocking (HTTP), once: the archived forks the API still tags with their parent get it."""
+        placed = False
+        for session_id in self.archived.unplaced("remote_control"):
+            try:
+                parent = lineage.tagged_parent(self.port.get_session(session_id).get("tags") or [])
+            except (NotFound, Unavailable):
+                continue  # gone from the API, or not now: left as it is
+            if parent and parent != session_id:
+                self.archived.place(session_id, parent)
+                placed = True
+        return placed
 
     def _search_copies(self, searches: dict[str, list[str]]) -> bool:
         """Blocking (HTTP). Places the copies no first message did (`lineage.search`); True when one was."""
         with self._lock:
             firsts = {cid: rc.lineage.first for cid, rc in self.sessions.items() if cid in searches}
-        found = lineage.search(self.port.events_after, searches, firsts)
+        found = lineage.search(self.port.events_after, searches, firsts, self.port.events_before)
         with self._lock:
             for copy_id, parent in found.items():
                 if rc := self.sessions.get(copy_id):

@@ -16,6 +16,7 @@ import json
 import logging
 import threading
 from collections.abc import Callable, Iterable
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from muxtower.errors import Conflict
@@ -96,6 +97,27 @@ class SessionArchive:
             since = datetime.now(UTC) - timedelta(days=days)
             records = [r for r in records if r.archived_at >= since]
         return [_view(r) for r in records]
+
+    def unplaced(self, source: str) -> list[str]:
+        """The archived sessions of `source` that name no parent: archived before forks were told, some
+        may be one (`place`)."""
+        with self._lock:
+            records = list(self._records.values())
+        return [
+            r.session_id for r in records
+            if (view := Session.model_validate_json(r.session)).source == source and not view.fork_of
+        ]  # fmt: skip
+
+    def place(self, session_id: str, parent: str) -> None:
+        """An archived session, found to be a fork of `parent` since."""
+        with self._lock:
+            record = self._records.get(session_id)
+            if record is None:
+                return
+            view = Session.model_validate_json(record.session).model_copy(update={"fork_of": parent})
+            record = replace(record, session=view.model_dump_json())
+            self._records[session_id] = record
+        self.repo.add(record)
 
     def get(self, session_id: str) -> Session | None:
         with self._lock:

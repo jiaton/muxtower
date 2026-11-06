@@ -8,9 +8,11 @@
   when that one was compacted since (the copy starts after its summary), the newest older session with
   the same title (a side chat keeps its parent's).
 
-Copies without the note count as forks of that parent. Claude desktop's fork carries no tag, and one made
-from the middle of a session starts at that message, not at the parent's first: such a copy's parent is the
-newest older session with its title whose log holds its first message (looked for once, `holds`)."""
+Copies without the note count as forks of that parent. Claude desktop's fork carries no tag (and the API
+names no parent: `relations` is empty), and one made from the middle of a session starts at that message, not
+at the parent's first: such a copy's parent is the newest older session with its title, less the " (fork)"
+Claude desktop adds, whose log holds its first message (looked for once, `holds`, from the newest events
+back: a fork is mostly taken late in a long session)."""
 
 import logging
 from collections.abc import Callable, Iterable
@@ -31,6 +33,18 @@ FORK_PARENT_TAG = "remote-control-fork-parent:"
 SIDE_NOTE = "to ask something on the side"
 PAGE = 200
 MAX_PAGES = 10  # a copy as long as 2000 events is read to its end; longer, the note is not looked for
+HOLDS_PAGES = 100  # a log searched for a copy's first message: its last 20000 events (once per copy)
+FORK_SUFFIX = " (fork)"
+
+
+def base_title(title: str) -> str:
+    """A title without the " (fork)" Claude desktop adds to a fork's (a fork of a fork has two)."""
+    title = title.strip()
+    while title.endswith(FORK_SUFFIX):
+        title = title[: -len(FORK_SUFFIX)].rstrip()
+    return title
+
+
 COPY_GAP = 2.0  # seconds: a copy's batches follow each other closer than this (seen: under half a second)
 
 
@@ -115,7 +129,8 @@ def forks(sessions: "dict[str, RcSession]") -> dict[str, str]:
 def to_search(lineages: dict[str, tuple[Lineage, str, str]]) -> dict[str, list[str]]:
     """Copies that no first message places and that were not searched yet, each with the sessions that may
     hold its first message: older ones with its title that are neither side chats nor tagged forks, newest
-    first. Only one that does is its parent, so an equal title alone never makes one."""
+    first ("(fork)" suffixes aside). Only one that does is its parent, so an equal title alone never makes
+    one."""
     placed = parents(lineages)
     found: dict[str, list[str]] = {}
     for session_id, (lineage, created, title) in lineages.items():
@@ -125,9 +140,14 @@ def to_search(lineages: dict[str, tuple[Lineage, str, str]]) -> dict[str, list[s
             continue
         older = [
             (c, sid) for sid, (other, c, t) in lineages.items()
-            if sid != session_id and t == title and c < created and not other.side_chat and not other.parent
+            if sid != session_id and base_title(t) == base_title(title) and c < created
+            and not other.side_chat and not other.parent
         ]  # fmt: skip
-        found[session_id] = [sid for _, sid in sorted(older, reverse=True)]
+        # The title it was forked from first (its own, one " (fork)" less: a fork of a fork names the fork),
+        # then the others of that base title; each newest first.
+        named = title.strip().removesuffix(FORK_SUFFIX).rstrip()
+        ranked = sorted(older, key=lambda o: (lineages[o[1]][2].strip() == named, o[0]), reverse=True)
+        found[session_id] = [sid for _, sid in ranked]
     return found
 
 
@@ -135,6 +155,7 @@ def search(
     events_after: Callable[[str, int, int], list[RawEvent]],
     searches: dict[str, list[str]],
     firsts: dict[str, str | None],
+    events_before: Callable[[str, int | None, int], list[RawEvent]] | None = None,
 ) -> dict[str, str | None]:
     """Blocking (HTTP). For each copy to search (`to_search`) that has candidates, the first of them whose
     log holds its first message, or None; a copy whose search failed is left out, to be searched again."""
@@ -144,16 +165,33 @@ def search(
         if not first or not candidates:
             continue  # none to search yet: a parent listed later is still found
         try:
-            found[copy_id] = next((c for c in candidates if holds(events_after, c, first)), None)
+            found[copy_id] = next((c for c in candidates if holds(events_after, c, first, events_before)), None)
         except Unavailable as exc:
             logger.warning("could not look for where %s came from: %s", copy_id, exc)
     return found
 
 
-def holds(events_after: Callable[[str, int, int], list[RawEvent]], session_id: str, message_id: str) -> bool:
-    """Blocking (HTTP). Whether a session's log (its first MAX_PAGES pages) has that message."""
+def holds(
+    events_after: Callable[[str, int, int], list[RawEvent]],
+    session_id: str,
+    message_id: str,
+    events_before: Callable[[str, int | None, int], list[RawEvent]] | None = None,
+) -> bool:
+    """Blocking (HTTP). Whether a session's log has that message: read from its newest events back (a fork
+    is mostly taken late in a long session), up to HOLDS_PAGES pages; without `events_before`, from its
+    oldest on, as far."""
+    if events_before is not None:
+        before: int | None = None
+        for _ in range(HOLDS_PAGES):
+            events = events_before(session_id, before, PAGE)
+            if any(str(e.payload.get("uuid") or "") == message_id for e in events):
+                return True
+            if len(events) < PAGE:
+                return False
+            before = min(e.seq for e in events)
+        return False
     seq = 0
-    for _ in range(MAX_PAGES):
+    for _ in range(HOLDS_PAGES):
         events = events_after(session_id, seq, PAGE)
         if any(str(e.payload.get("uuid") or "") == message_id for e in events):
             return True
@@ -196,7 +234,8 @@ def parents(lineages: dict[str, tuple[Lineage, str, str]]) -> dict[str, str]:
         elif lineage.side_chat and title:
             older = [
                 (c, sid) for sid, (other, c, t) in lineages.items()
-                if t == title and c < created and not other.side_chat and not other.parent
+                if sid != session_id and base_title(t) == base_title(title) and c < created
+                and not other.side_chat and not other.parent
             ]  # fmt: skip
             if older:
                 found[session_id] = max(older)[1]
