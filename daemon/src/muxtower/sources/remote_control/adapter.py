@@ -142,6 +142,11 @@ class AnthropicRemoteControl:
         with self._call():
             self.client.interrupt(session_id)
 
+    def rename_session(self, session_id: str, title: str) -> None:
+        """Its title where every controller lists it; a connected worker (Claude Code) takes it too."""
+        with self._call():
+            self.client.rename_session(session_id, title)
+
     def archive_session(self, session_id: str) -> None:
         with self._call():
             self.client.archive_session(session_id)  # already archived counts as done

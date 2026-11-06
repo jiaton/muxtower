@@ -66,6 +66,7 @@ from muxtower.sessions.placement import Placements
 from muxtower.sessions.ports import SessionSourcePort
 from muxtower.sessions.repository import SqliteSessionRepository
 from muxtower.sessions.service import SessionConfig, SessionService
+from muxtower.sessions.titles import ClaudeTitles
 from muxtower.sessions.transcripts import Transcripts
 from muxtower.sessions.turns import TurnWatcher
 from muxtower.sessions.watches import SessionWatches
@@ -185,6 +186,7 @@ def create_app(
     sessions.launch_defaults = lambda runtime: settings.launch.of(runtime)  # read each time: settings change
     directory.writing = Writing(writes, lambda sid: r.name if (r := sessions.repo.get(sid)) else None).of
     team_tasks = TaskService(teams, directory, SqliteTaskRepository(db))
+    titles = directory.titles = ClaudeTitles(directory)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -199,6 +201,7 @@ def create_app(
                 "team-tasks": team_tasks.run_loop(bus),
                 "team-places": placing.run_loop(teams, bus),
                 "watches": watches.run_loop(bus),
+                "titles": titles.run_loop(bus),
                 "usage": usage.run_loop(),
                 "recovery": recovery.run_loop(bus),
             }
