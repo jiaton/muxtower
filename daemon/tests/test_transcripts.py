@@ -138,3 +138,17 @@ def test_a_transcript_that_says_it_went_on_elsewhere_is_followed_there(tmp_path:
     plain = tmp_path / "-Users-me-Documents" / "plain.jsonl"
     plain.write_text(line("user", "nothing moved"))
     assert continued(plain, tmp_path) == str(plain)
+
+
+def test_an_unreadable_transcript_is_told_of_once_an_hour_not_each_read(tmp_path: Path, caplog: Any) -> None:
+    from muxtower.sessions import transcripts as module
+
+    path = tmp_path / "gone.jsonl"
+    followed = module._Followed(str(path))
+    reader = Transcripts.__new__(Transcripts)
+    for _ in range(5):
+        assert reader._read(followed) == []
+    assert sum("cannot read transcript" in r.message for r in caplog.records) == 1
+    followed.warned -= module.WARN_EVERY  # an hour on
+    reader._read(followed)
+    assert sum("cannot read transcript" in r.message for r in caplog.records) == 2

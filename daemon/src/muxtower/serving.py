@@ -42,7 +42,8 @@ def serve(app: FastAPI, settings: Settings, allowed_origins: list[str], daemon_n
         app.add_middleware(PrivateNetworkAccess)  # outside CORS: it adds to the preflight's answer
 
     errors = ((NotFound, 404), (Invalid, 400), (Conflict, 409), (Forbidden, 403), (Unauthorized, 401),
-              (TooManyRequests, 429), (TmuxError, 502), (Unavailable, 502))  # fmt: skip
+              (TooManyRequests, 429), (TmuxError, 503), (Unavailable, 503))  # fmt: skip
+    # 503, not 502: Cloudflare (a tunnel) swaps an origin's 502 for its own page, and the reason is lost.
     for error, status in errors:
 
         def handler(_: Request, exc: Exception, status: int = status) -> JSONResponse:

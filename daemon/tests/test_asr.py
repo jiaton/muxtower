@@ -60,6 +60,33 @@ def test_provider_errors_become_unavailable(monkeypatch: pytest.MonkeyPatch) -> 
     with pytest.raises(Unavailable) as caught:
         OpenAICompatibleTranscriber("groq", "sk-secret").transcribe(WAV, "audio/wav", None, None)
     assert "sk-secret" not in str(caught.value) and "401" in str(caught.value)
+    assert "bad key" in str(caught.value)  # the provider's reason, the key taken out
+
+
+def test_the_providers_reason_reaches_the_app_and_never_a_key(monkeypatch: pytest.MonkeyPatch, app: FastAPI) -> None:
+    said = "prompt length must be 896 characters or fewer (key gsk_ABCDEF123456 sk-proj-zzzzzzzz)"
+
+    def refuse(*_: object, **__: object) -> httpx.Response:
+        return httpx.Response(400, json={"error": {"message": said, "type": "invalid_request_error"}})
+
+    monkeypatch.setattr(httpx, "post", refuse)
+    app.state.asr = AsrService(OpenAICompatibleTranscriber("groq", "gsk_real"), language=None)
+    client, auth = _client(app)
+    res = client.post("/v1/asr", content=WAV, headers={**auth, "Content-Type": "audio/wav"})
+    assert res.status_code == 503  # not 502: a Cloudflare tunnel swaps a 502 for its own page
+    detail = res.json()["detail"]
+    assert detail.startswith("groq answered HTTP 400: prompt length must be 896 characters or fewer")
+    assert "gsk_" not in detail and "sk-proj" not in detail
+
+
+def test_the_prompt_fits_groqs_limit_in_bytes_with_whole_names() -> None:
+    names = [f"会话名字{i} browser worker" for i in range(80)]  # Chinese: three bytes a character
+    prompt = AsrService(FakeTranscriber(), None, hints=lambda: names, extra_prompt="额外的词").prompt()
+    assert len(prompt.encode()) <= 896  # Groq counts the limit in bytes
+    listed = prompt.split("会话：", 1)[1].split("、")
+    assert listed == names[: len(listed)] and len(listed) > 3  # as many whole names as fit, in order
+    long_extra = AsrService(FakeTranscriber(), None, hints=lambda: names, extra_prompt="词" * 400).prompt()
+    assert len(long_extra.encode()) <= 896 and "会话：" not in long_extra  # no room: no names, no dangling label
 
 
 def test_a_browser_recording_is_named_by_its_format(monkeypatch: pytest.MonkeyPatch) -> None:

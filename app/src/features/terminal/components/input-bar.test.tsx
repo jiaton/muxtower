@@ -77,6 +77,51 @@ describe('InputBar', () => {
     })
   })
 
+  it('after Reply, focuses the box with the caret after what is typed', () => {
+    device(false)
+    render(<InputBar daemonId="nas" sessionId="s1" />)
+    fireEvent.change(box(), { target: { value: 'so far' } })
+    ;(box() as HTMLTextAreaElement).setSelectionRange(0, 0)
+    screen.getByRole('button', { name: 'Send' }).focus() // focus elsewhere, as after a click on Reply
+    act(() => useDrafts.getState().addQuote('nas/s1', 'Pick a date'))
+    expect(box()).toHaveFocus()
+    expect((box() as HTMLTextAreaElement).selectionStart).toBe('so far'.length)
+  })
+
+  it('never sends a quote alone on a first Enter: it goes on to the line to write; a second one sends', () => {
+    device(false)
+    render(<InputBar daemonId="nas" sessionId="s1" />)
+    act(() => useDrafts.getState().addQuote('nas/s1', 'Pick a date'))
+    fireEvent.keyDown(box(), { key: 'Enter', keyCode: 229, isComposing: true }) // an input method's Enter
+    fireEvent.keyDown(box(), { key: 'Enter' })
+    expect(mutate).not.toHaveBeenCalled()
+    expect(box()).toHaveFocus()
+    expect(box()).toHaveAttribute('placeholder', 'Add a message, or Enter again to send')
+    fireEvent.keyDown(box(), { key: 'Enter', shiftKey: true }) // a new line, as ever: nothing sent
+    expect(mutate).not.toHaveBeenCalled()
+    fireEvent.keyDown(box(), { key: 'Enter' })
+    expect(mutate.mock.calls[0]![0]).toEqual({ text: '> Pick a date', enter: true })
+  })
+
+  it('sends a quote with something written on the first Enter', () => {
+    device(false)
+    render(<InputBar daemonId="nas" sessionId="s1" />)
+    act(() => useDrafts.getState().addQuote('nas/s1', 'Pick a date'))
+    fireEvent.change(box(), { target: { value: '11/9' } })
+    fireEvent.keyDown(box(), { key: 'Enter' })
+    expect(mutate.mock.calls[0]![0]).toEqual({ text: '> Pick a date\n\n11/9', enter: true })
+  })
+
+  it('starts over when more is quoted after a first Enter', () => {
+    device(false)
+    render(<InputBar daemonId="nas" sessionId="s1" />)
+    act(() => useDrafts.getState().addQuote('nas/s1', 'one'))
+    fireEvent.keyDown(box(), { key: 'Enter' })
+    act(() => useDrafts.getState().addQuote('nas/s1', 'two'))
+    fireEvent.keyDown(box(), { key: 'Enter' })
+    expect(mutate).not.toHaveBeenCalled()
+  })
+
   it('sends on Enter with a keyboard, but not on the Enter that picks an input method word', () => {
     device(false)
     render(<InputBar daemonId="nas" sessionId="s1" />)
@@ -87,14 +132,16 @@ describe('InputBar', () => {
     expect(mutate).toHaveBeenCalledTimes(1)
   })
 
-  it('on a phone, return is a new line, Send sends, and quoting leaves the keyboard down', () => {
+  it('on a phone, return is a new line, Send sends, and quoting focuses the box', () => {
     device(true)
     render(<InputBar daemonId="nas" sessionId="s1" />)
     fireEvent.change(box(), { target: { value: 'first part' } })
     fireEvent.keyDown(box(), { key: 'Enter' })
     expect(mutate).not.toHaveBeenCalled()
-    useDrafts.getState().addQuote('nas/s1', 'quote it')
-    expect(document.activeElement).not.toBe(box())
+    act(() => useDrafts.getState().addQuote('nas/s1', 'quote it'))
+    expect(box()).toHaveFocus() // ready to reply (its keyboard may stay down)
+    fireEvent.keyDown(box(), { key: 'Enter' })
+    expect(mutate).not.toHaveBeenCalled() // return on a phone never sends
     fireEvent.click(screen.getByRole('button', { name: 'Send' }))
     expect(mutate).toHaveBeenCalledTimes(1)
   })

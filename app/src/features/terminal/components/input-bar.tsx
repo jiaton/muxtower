@@ -1,5 +1,5 @@
 import { ImagePlus, Plus, SendHorizontal } from 'lucide-react'
-import { useEffect, useRef, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/input'
@@ -55,13 +55,24 @@ export function InputBar({
   const setQuotes = useDrafts((s) => s.setQuotes)
   const message = withQuotes(quotes, text)
   const touch = useMediaQuery(TOUCH)
+  const pictures = useAttachments()
   const box = useRef<HTMLTextAreaElement>(null)
   const quoted = useRef(quotes.length)
   useEffect(() => {
-    // Just quoted: reply to it. Not on a phone, whose keyboard would cover what there is to quote next.
-    if (quotes.length > quoted.current && !touch) box.current?.focus()
+    // Just quoted: ready to reply to it, the caret after what is typed (on a phone too; its keyboard may
+    // stay down: the box is focused all the same).
+    const el = box.current
+    if (quotes.length > quoted.current && el) {
+      el.focus({ preventScroll: true })
+      el.setSelectionRange(el.value.length, el.value.length)
+    }
     quoted.current = quotes.length
   }, [quotes.length])
+  // Only quotes, nothing written: a first Enter does not send them, it goes on to the line to write
+  // (`armed`); a second one sends them as they are. Writing anything, or quoting more, starts over.
+  const quoteOnly = quotes.length > 0 && !text.trim() && quotes.every((q) => !q.reply.trim()) && !pictures.items.length
+  const [armed, setArmed] = useState(false)
+  useEffect(() => setArmed(false), [message])
   const filled = useDrafts((s) => s.filled[draftKey] ?? 0)
   const seenFill = useRef(filled)
   useEffect(() => {
@@ -74,7 +85,6 @@ export function InputBar({
   }, [filled])
   const open = useTerminalPrefs((s) => s.keypad)
   const setOpen = useTerminalPrefs((s) => s.setKeypad)
-  const pictures = useAttachments()
   const picker = useRef<HTMLInputElement>(null)
 
   /** With pictures: they and the words leave the box together, and come back to it if not sent. */
@@ -132,7 +142,17 @@ export function InputBar({
   const keyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // Not the Enter that picks an input method's word (Safari ends the composition first: 229).
     const picking = e.nativeEvent.isComposing || e.keyCode === 229
-    if (e.key === 'Enter' && !e.shiftKey && !touch && !picking) {
+    if (e.key !== 'Enter' || e.shiftKey || picking) return
+    if (quoteOnly && !armed) {
+      // A quote alone is never sent by a stray Enter: on to the line under it, to write the reply.
+      e.preventDefault()
+      setArmed(true)
+      const el = box.current
+      el?.focus()
+      el?.setSelectionRange(el.value.length, el.value.length)
+      return
+    }
+    if (!touch) {
       e.preventDefault()
       submit()
     }
@@ -184,7 +204,7 @@ export function InputBar({
             rows={1}
             enterKeyHint={touch ? 'enter' : 'send'}
             value={text}
-            placeholder={quotes.length ? 'Add a message' : 'Message the agent'}
+            placeholder={!quotes.length ? 'Message the agent' : armed && !touch ? 'Add a message, or Enter again to send' : 'Add a message'}
             aria-label="Message the agent"
             onChange={(e) => setText(e.target.value)}
             onKeyDown={keyDown}

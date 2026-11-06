@@ -1,6 +1,9 @@
 """Speech to text through an OpenAI-compatible `/audio/transcriptions` endpoint: Groq (Whisper) and
 OpenAI both speak it. The only code here that sends audio anywhere."""
 
+import logging
+import re
+
 import httpx
 
 from muxtower.errors import Unavailable
@@ -10,6 +13,7 @@ PROVIDERS = {
     "openai": ("https://api.openai.com/v1", "gpt-4o-transcribe"),
 }
 TIMEOUT = httpx.Timeout(60, connect=10)
+logger = logging.getLogger(__name__)
 
 
 # The provider tells the format by the file's name: a phone browser records WebM (Chrome) or MP4 (Safari).
@@ -41,6 +45,29 @@ class OpenAICompatibleTranscriber:
         except httpx.HTTPError as exc:
             raise Unavailable(f"cannot reach {self.provider} ({type(exc).__name__})") from exc
         if response.status_code != 200:
-            raise Unavailable(f"{self.provider} answered HTTP {response.status_code}")
+            reason = _reason(response, self.api_key)  # the provider's own words, never a key nor the audio
+            logger.warning("%s refused a transcription: HTTP %s %s", self.provider, response.status_code, reason)
+            raise Unavailable(
+                f"{self.provider} answered HTTP {response.status_code}" + (f": {reason}" if reason else "")
+            )
         text = response.json().get("text")
         return text.strip() if isinstance(text, str) else ""
+
+
+# What looks like an API key in a provider's message (Groq gsk_…, OpenAI sk-…), as some echo it back.
+KEYLIKE = re.compile(r"\b(?:gsk|sk)[-_][\w-]{4,}|\b[\w-]{32,}\b")
+
+
+def _reason(response: httpx.Response, api_key: str) -> str:
+    """The error message an OpenAI-compatible API gives (`{"error": {"message": …}}`), shortened, with
+    the key and anything shaped like one taken out."""
+    try:
+        body = response.json()
+    except ValueError:
+        return ""
+    error = body.get("error") if isinstance(body, dict) else None
+    message = error.get("message") if isinstance(error, dict) else error
+    if not message:
+        return ""
+    text = str(message).replace(api_key, "…") if api_key else str(message)
+    return KEYLIKE.sub("…", text)[:200]

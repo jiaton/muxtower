@@ -16,6 +16,7 @@ import json
 import logging
 import os
 import threading
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol
@@ -26,6 +27,7 @@ from muxtower.infra.bus import EventBus
 from muxtower.sessions.models import Conversation, ConversationItem
 
 logger = logging.getLogger("muxtower.transcripts")
+WARN_EVERY = 3600.0  # seconds: a transcript that stays unreadable is told of once an hour, not each read
 
 # A first read takes the end of the transcript, growing until it holds enough of the conversation
 # (tool output and images make some transcripts tens of megabytes).
@@ -54,6 +56,7 @@ class _Followed:
     path: str
     offset: int = 0
     partial: bytes = b""
+    warned: float = -WARN_EVERY  # monotonic: when it was last told it could not be read
     builder: TranscriptFormat = field(init=False)
 
     def __post_init__(self) -> None:
@@ -109,7 +112,10 @@ class Transcripts:
                 chunk = followed.partial + f.read()
                 followed.offset = f.tell()
         except OSError as exc:
-            logger.warning("cannot read transcript %s: %s", followed.path, exc)
+            now = time.monotonic()
+            if now - followed.warned >= WARN_EVERY:
+                followed.warned = now
+                logger.warning("cannot read transcript %s (said again in an hour if still so): %s", followed.path, exc)
             return []
         return self._feed(followed, chunk)
 
