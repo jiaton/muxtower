@@ -20,6 +20,9 @@
       // own, wiped on every visit, which would count nothing and reload forever.
       ;(function () {
         var KEY = 'mxt-recover', reloading = false, store = null
+        // Only our own files count: a third-party script failing (an analytics beacon an ad blocker
+        // stops) is not a broken app.
+        var OWN = new URL('%BASE_URL%', location.href).href
         try {
           store = window.sessionStorage
         } catch (e) {}
@@ -60,7 +63,8 @@
         }
         addEventListener('error', function (e) {
           var t = e.target
-          if (t && (t.tagName === 'SCRIPT' || (t.tagName === 'LINK' && /stylesheet|modulepreload/.test(t.rel)))) recover()
+          var url = t && (t.tagName === 'SCRIPT' ? t.src : t.tagName === 'LINK' && /stylesheet|modulepreload/.test(t.rel) ? t.href : '')
+          if (url && url.indexOf(OWN) === 0) recover()
         }, true)
         // A page's code, fetched when it is first opened (vite's lazy chunks).
         addEventListener('vite:preloadError', function (e) {
