@@ -14,21 +14,41 @@
     <script>
       // A page older than the server's files (one restored after a long time in the background, across
       // an update) asks for scripts that are gone and stays blank. Reload into the current version; if
-      // that is still broken, once more without the service worker's cached copies. Twice a minute at most.
+      // that is still broken, once more without the service worker's cached copies. Twice a minute at most,
+      // then say so instead of a blank page (an extension blocking a script fails the same way, every time).
+      // The tries are counted in the real sessionStorage, taken now: the demo swaps the global one for its
+      // own, wiped on every visit, which would count nothing and reload forever.
       ;(function () {
-        var KEY = 'mxt-recover', reloading = false
+        var KEY = 'mxt-recover', reloading = false, store = null
+        try {
+          store = window.sessionStorage
+        } catch (e) {}
+        function giveUp() {
+          var root = document.getElementById('root')
+          if (!root) return void addEventListener('DOMContentLoaded', giveUp)
+          var box = document.createElement('div')
+          box.setAttribute('role', 'alert')
+          box.style.cssText = 'font:15px/1.5 system-ui,sans-serif;max-width:28rem;margin:20vh auto;padding:0 16px'
+          box.textContent =
+            "muxtower couldn't load. A browser extension may be blocking part of it; try a private window or turn extensions off for this site. "
+          var link = document.createElement('a')
+          link.href = location.href
+          link.textContent = 'Reload'
+          box.appendChild(link)
+          root.replaceWith(box) // React may still hold #root; it keeps it, detached
+        }
         function recover() {
           if (reloading) return // one page's several failures are one try
           reloading = true
           var tries = []
           try {
-            tries = JSON.parse(sessionStorage.getItem(KEY) || '[]').filter(function (t) {
+            tries = JSON.parse(store.getItem(KEY) || '[]').filter(function (t) {
               return Date.now() - t < 60000
             })
-            if (tries.length >= 2) return
-            sessionStorage.setItem(KEY, JSON.stringify(tries.concat(Date.now())))
+            if (tries.length >= 2) return giveUp()
+            store.setItem(KEY, JSON.stringify(tries.concat(Date.now())))
           } catch (e) {
-            return // nowhere to count the tries: better blank than reloading forever
+            return giveUp() // nowhere to count the tries: never reload blindly
           }
           var cleared =
             tries.length && window.caches
