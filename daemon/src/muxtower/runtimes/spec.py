@@ -134,6 +134,11 @@ class RuntimeConfig(BaseModel):
     # (followed by its id), and which options take a value, to tell them from a first prompt (never resent).
     resume: list[str] = Field(default_factory=list)
     option_values: list[str] = Field(default_factory=list)
+    # The name muxtower gives a session, handed to the agent as it starts ("{name}" in them), so its own
+    # title (Claude Code's prompt box, claude.ai's Remote Control list) says the same; not when the
+    # arguments already give one (`name_options`).
+    name_args: list[str] = Field(default_factory=list)
+    name_options: list[str] = Field(default_factory=list)
     # The agent's input box, as it shows at the bottom (a match starts at its first line). A dialog either
     # takes its place, or (`panel_rule`) sits right above it, framed by rule lines. While the box shows,
     # rules for a dialog see only that framed panel, or nothing: the words a dialog uses, quoted in a reply

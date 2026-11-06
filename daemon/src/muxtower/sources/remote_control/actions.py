@@ -76,6 +76,11 @@ class RcActions:
             seq = max(e.seq for e in page)
         return folder.cwd or None
 
+    def rename(self, session_id: str, title: str) -> None:
+        """Retitled on Remote Control (claude.ai lists it so, and its Claude Code takes the title)."""
+        self.get(session_id)
+        self.port.rename_session(session_id, title)
+
     def archive(self, session_id: str) -> None:
         """Archived on Remote Control (which ends its agent), and out of this cache at once rather than
         at the next poll."""

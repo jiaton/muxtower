@@ -405,6 +405,7 @@ def test_one_loop_sends_each_task_once_and_goes_on_after_a_restart(
     research = app.state.sessions.create(CreateSession(runtime="claude", cwd=str(tmp_path), name="research"))
     worker = app.state.sessions.create(CreateSession(runtime="claude", cwd=str(tmp_path), name="worker"))
     tasks = app.state.team_tasks
+    tasks.answer_seconds = 10.0  # a loaded machine (the whole suite at once) must not make "failed" read "queued"
     directory = app.state.directory
     real = directory.send_input
     sent: list[str] = []

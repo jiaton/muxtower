@@ -13,6 +13,10 @@ option_values = [
   "--allowedTools", "--allowed-tools", "--disallowedTools", "--disallowed-tools", "--add-dir", "--agent",
   "--agents", "--remote-control", "--resume", "-r", "--session-id", "--plugin-dir", "--betas", "-n", "--name",
 ]
+# Its name in muxtower is its name in Claude Code too (the prompt box, /resume, claude.ai's Remote Control
+# list, which takes it from there): `--name`, unless the arguments give one.
+name_args = ["--name", "{name}"]
+name_options = ["-n", "--name"]
 # Its input box between two rules (older versions: "> " over "? for shortcuts"). While it shows, a dialog
 # can only be the panel framed right above it (a tip like "Teach auto mode…"), whatever the conversation
 # above quotes.

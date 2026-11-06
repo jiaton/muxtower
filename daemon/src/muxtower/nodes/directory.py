@@ -13,6 +13,7 @@ from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.images import ImageFile
 from muxtower.sessions.models import Conversation, Session, UpdateSession
 from muxtower.sessions.names import NameSeen
+from muxtower.sessions.titles import ClaudeTitles
 from muxtower.terminal.models import Resize, Screen, SendInput
 
 
@@ -21,6 +22,7 @@ class HubDirectory(SessionDirectory):
         super().__init__(*args, **kwargs)
         self.nodes = nodes
         self.node_processes = node_processes
+        self.titles: ClaudeTitles | None = None  # a rename on Claude's side too (`sessions/titles.py`)
         self.sources = [nodes, *self.sources]  # asked first: it yields what it does not run (`owns`)
         nodes.elsewhere = lambda session_id: any(s is not nodes and s.owns(session_id) for s in self.sources)
 
@@ -95,8 +97,12 @@ class HubDirectory(SessionDirectory):
 
     def update(self, session_id: str, patch: UpdateSession) -> Session:
         if self._on_node(session_id):
-            return self._decorate(self.nodes.update(session_id, patch))
-        return super().update(session_id, patch)
+            updated = self._decorate(self.nodes.update(session_id, patch))
+        else:
+            updated = super().update(session_id, patch)
+        if patch.name is not None and self.titles is not None:  # its name on Claude's side too
+            self.titles.renamed(self.find(session_id) or updated, patch.name)
+        return updated
 
     def terminate(self, session_id: str) -> None:
         if self._on_node(session_id) and not (self.archive_store and self.archive_store.get(session_id)):

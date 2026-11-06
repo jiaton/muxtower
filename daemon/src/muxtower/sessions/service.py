@@ -15,7 +15,7 @@ from muxtower.hooks.events import HookEvent, apply_event
 from muxtower.hooks.harnesses import harness
 from muxtower.hooks.ports import MCP_SERVER, MCP_TOKEN_ENV, HookLaunch
 from muxtower.runtimes.models import ATTENTION_STATES, AgentState
-from muxtower.runtimes.spec import Runtime
+from muxtower.runtimes.spec import Runtime, RuntimeConfig
 from muxtower.sessions.interrupted import agent_id_of, launch_options
 from muxtower.sessions.launch import launch_args
 from muxtower.sessions.live import Effective, HookState, LiveSession, merge
@@ -42,6 +42,15 @@ def _hash(token: str) -> str:
 
 def _brings_mcp(args: Sequence[str]) -> bool:
     return any(a == "--mcp-config" or a.startswith("--mcp-config=") or f"mcp_servers.{MCP_SERVER}" in a for a in args)
+
+
+def named(config: RuntimeConfig, name: str | None, args: Sequence[str]) -> list[str]:
+    """The arguments that give the agent its name in muxtower (`RuntimeConfig.name_args`), unless `args`
+    give it one (`name_options`, also as `--name=…`)."""
+    if not name or not config.name_args or (args and not args[0].startswith("-")):
+        return []  # nothing to give, or a subcommand (`claude auth login`), which takes no session name
+    given = any(a in config.name_options or any(a.startswith(f"{o}=") for o in config.name_options) for a in args)
+    return [] if given else [a.replace("{name}", name) for a in config.name_args]
 
 
 class SessionService:
@@ -156,6 +165,9 @@ class SessionService:
             argv += harnessed.launch_args(launch)
             if mcp:
                 env[MCP_TOKEN_ENV] = launch.mcp_token
+        # Started again: its name, if it was given one (one taken from its folder is no name).
+        given = (again.name if again.named or again.named_at else None) if again else name
+        argv += named(runtime.config, given, args) if hooks else []  # an agent session's, not a login's
         argv += args
         if prompt:
             argv += ["--", prompt]

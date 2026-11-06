@@ -36,7 +36,9 @@ def launch_options(args: list[str], config: RuntimeConfig) -> list[str]:
             i += 1  # a prompt (or a subcommand): not sent again
             continue
         kept.append(arg)
-        if arg in takes_value and i + 1 < len(args):
+        # Its value, when one follows (an option whose value is optional, a bare `--remote-control`, takes
+        # no other option for it).
+        if arg in takes_value and i + 1 < len(args) and not args[i + 1].startswith("-"):
             kept.append(args[i + 1])
             i += 1
         i += 1
