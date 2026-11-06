@@ -5,16 +5,16 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 const html = readFileSync('index.html', 'utf8') // vitest runs in app/
 const source = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]).find((s) => s?.includes('mxt-recover'))
 if (!source) throw new Error('recover script not found in index.html')
-const script = source
+const script = source.replace('%BASE_URL%', '/demo/') // as vite writes it for the demo's build
 
 const realSession = globalThis.sessionStorage
 const realLocal = globalThis.localStorage
 
 type Listener = (e: { target?: unknown; preventDefault: () => void }) => void
 
-/** One page load: the inline script, then (for the demo) its entry's storage swap. Returns the page's
- *  `vite:preloadError` listener, and counts reloads in `reloads`. */
-async function load(demo: boolean, reloads: { count: number }) {
+/** One page load: the inline script, then (for the demo) its entry's storage swap. Returns what fails on
+ *  that page: a lazy chunk (`vite:preloadError`), or the script at `src`; reloads are counted in `reloads`. */
+async function load(demo: boolean, reloads: { count: number }, src?: string) {
   for (const [name, real] of [['sessionStorage', realSession], ['localStorage', realLocal]] as const) {
     Object.defineProperty(globalThis, name, { value: real, configurable: true })
   }
@@ -27,9 +27,9 @@ async function load(demo: boolean, reloads: { count: number }) {
     vi.resetModules()
     await import('./demo/reset')
   }
-  const fail = listeners.get('vite:preloadError')
-  if (!fail) throw new Error('no vite:preloadError listener')
-  return () => fail({ preventDefault: () => {} })
+  const fail = listeners.get(src ? 'error' : 'vite:preloadError')
+  if (!fail) throw new Error('no listener')
+  return () => fail({ target: { tagName: 'SCRIPT', src }, preventDefault: () => {} })
 }
 
 const settle = () => new Promise((r) => setTimeout(r, 0))
@@ -74,4 +74,19 @@ it('tries again a minute later', async () => {
   } finally {
     vi.useRealTimers()
   }
+})
+
+it('a failing script of our own reloads at most twice; a third-party one (a blocked beacon) never', async () => {
+  const reloads = { count: 0 }
+  for (let page = 0; page < 3; page++) {
+    ;(await load(true, reloads, 'https://static.cloudflareinsights.com/beacon.min.js'))()
+    ;(await load(true, reloads, 'https://example.test/other/app.js'))() // same site, not under the app's base
+  }
+  await settle()
+  expect(reloads.count).toBe(0)
+  expect(document.querySelector('[role=alert]')).toBeNull()
+  for (let page = 0; page < 4; page++) (await load(true, reloads, 'https://example.test/demo/assets/index-abc.js'))()
+  await settle()
+  expect(reloads.count).toBe(2)
+  expect(document.querySelector('[role=alert]')).not.toBeNull()
 })
