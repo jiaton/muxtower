@@ -1,5 +1,14 @@
 import type { EvenHubEvent } from '@evenrealities/even_hub_sdk'
 
+/** The glasses as the Even App reports them; a field is left out when the app does not say. */
+export interface DeviceState {
+  connected: boolean
+  wearing?: boolean
+  inCase?: boolean
+  charging?: boolean
+  battery?: number
+}
+
 export interface MenuItem {
   id: number
   name: string
@@ -19,6 +28,10 @@ export interface GlassesPort {
   /** Starts the glasses microphone: 16 kHz mono s16le PCM arrives as `audioEvent`s. False if it cannot. */
   startAudio(): Promise<boolean>
   stopAudio(): Promise<void>
+  /** Head-motion reports (`sysEvent.imuData`), about two a second. False if it cannot. */
+  startImu(): Promise<boolean>
+  stopImu(): Promise<void>
+  onDevice(listener: (state: DeviceState) => void): () => void
   /** Leave the app (the system asks first). */
   exit(): Promise<void>
 }

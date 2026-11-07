@@ -10,6 +10,7 @@ from muxtower.auth.deps import DAEMON_AUTH_HEADER
 from muxtower.auth.routes import router as auth_router
 from muxtower.chips.routes import router as chips_router
 from muxtower.config import Settings
+from muxtower.diagnostics.routes import router as diagnostics_router
 from muxtower.errors import Conflict, Forbidden, Invalid, NotFound, TooManyRequests, Unauthorized, Unavailable
 from muxtower.hooks.routes import router as hooks_router
 from muxtower.infra.tmux import TmuxError
@@ -54,7 +55,7 @@ def serve(app: FastAPI, settings: Settings, allowed_origins: list[str], daemon_n
 
     routers = (system_router, auth_router, sessions_router, summaries_router, asr_router, mcp_router, stream_router,
                push_router, hooks_router, nodes_router, teams_router, usage_router, recovery_router,
-               settings_router, chips_router)  # fmt: skip
+               settings_router, chips_router, diagnostics_router)  # fmt: skip
     for router in routers:
         app.include_router(router)
 

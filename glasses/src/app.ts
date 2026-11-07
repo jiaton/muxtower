@@ -54,6 +54,11 @@ export class GlassesApp {
     this.client = createHubClient(config, null)
   }
 
+  /** The hub client while the stream is open (the residency diagnostic sends its log with it). */
+  get openClient(): HubClient | null {
+    return this.store.getState().link === 'open' ? this.client : null
+  }
+
   get hubUrl() {
     return this.config.url
   }

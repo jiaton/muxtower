@@ -30,6 +30,7 @@ from muxtower.concierge.events_repository import SqliteConciergeEvents
 from muxtower.concierge.service import ConciergeService
 from muxtower.concierge.store import FileConciergeStore
 from muxtower.config import Settings
+from muxtower.diagnostics.service import DiagnosticsService
 from muxtower.infra.audit import AuditLog
 from muxtower.infra.bus import EventBus
 from muxtower.infra.db import Database
@@ -259,6 +260,7 @@ def create_app(
         direct=DirectAccess(nodes, node_sessions.call), feature_settings=feature_settings,
         chip_groups=ChipGroupStore(db),
         node_sessions=node_sessions, mcp=mcp, asr=build_asr(settings),
+        diagnostics=DiagnosticsService(settings.state_dir / "diagnostics"),
         terminal=terminal, approvals=approvals, audit=audit, push=push,
         pairing=PairingService(db, tokens, settings.pairing, daemon_name),
         stream_cookies=StreamCookieSigner(settings.state_dir), client_address=ClientAddress(settings.trusted_proxies),

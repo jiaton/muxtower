@@ -10,6 +10,7 @@ export const linkLabel = (state: AppState): string | null => (state.link === 'op
 /** The notice if there is one, else what a tap does, plus the page when there is more than one. */
 export function footerFor(state: AppState, list: ListWindow | null, tap: string): string {
   if (state.notice) return state.notice
+  if (state.diag) return state.diag
   const page = list && list.pages > 1 ? `${list.page}/${list.pages} · ` : ''
   return `${page}tap ${tap} · 2× back`
 }

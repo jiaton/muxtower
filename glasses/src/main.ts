@@ -1,5 +1,7 @@
 import { GlassesApp } from './app'
+import { Residency, diagRequested } from './diag/residency'
 import { loadHubConfig } from './hub/config'
+import { mountDiag } from './panel/diag'
 import { mountPanel } from './panel/panel'
 import { connectEven, insideEvenApp as insideEvenAppNow } from './platform/even'
 import type { GlassesPort } from './platform/port'
@@ -38,9 +40,25 @@ async function main() {
     }
   }
   const store = createAppStore()
-  const app = new GlassesApp(port, config, store)
+  let residency: Residency | null = null
+  let app: GlassesApp | null = null
+  if (diagRequested(location.search)) {
+    residency = new Residency(port, {
+      client: () => app?.openClient ?? null,
+      link: () => store.getState().link,
+      onLink: (listener) => store.subscribe((state, before) => state.link !== before.link && listener()),
+      talking: () => store.getState().voice !== null,
+      show: (line) => store.setState({ diag: line }),
+    })
+    port = residency.instrument(port)
+  }
+  app = new GlassesApp(port, config, store)
   panel.bind(app, store)
   await app.start()
+  if (residency) {
+    await residency.start()
+    mountDiag(root, residency)
+  }
 }
 
 void main()
