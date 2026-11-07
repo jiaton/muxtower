@@ -2,6 +2,7 @@ import { CornerDownRight, X } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Textarea } from '@/components/ui/input'
 import { cn } from '@/lib/cn'
+import { useTokenMenu, type TokenSource } from '@/components/ui/token-menu'
 import type { Quote } from '../quotes'
 
 /** The quotes of a message, at the top of its box, a line each. A tap opens one to the whole quote and a
@@ -13,11 +14,13 @@ export function QuoteCards({
   onChange,
   onKeyDown,
   replied,
+  mention,
 }: {
   quotes: Quote[]
   onChange: (quotes: Quote[]) => void
   onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => void
   replied?: { n: number; text: string }
+  mention?: TokenSource
 }) {
   const [open, setOpen] = useState<string | null>(null) // by its text: a quote is there once
   const replies = useRef(new Map<string, HTMLTextAreaElement>())
@@ -68,16 +71,12 @@ export function QuoteCards({
               {opened ? (
                 <div className="flex items-start gap-1">
                   <CornerDownRight className="mt-1.5 size-3 shrink-0 text-accent" aria-hidden />
-                  <Textarea
-                    ref={(el) => void (el ? replies.current.set(quote.text, el) : replies.current.delete(quote.text))}
-                    autoFocus
-                    rows={1}
+                  <ReplyField
+                    field={(el) => void (el ? replies.current.set(quote.text, el) : replies.current.delete(quote.text))}
                     value={quote.reply}
-                    placeholder="Reply to this part"
-                    aria-label="Reply to this quote"
-                    onChange={(e) => update(i, e.target.value)}
+                    onChange={(reply) => update(i, reply)}
                     onKeyDown={onKeyDown}
-                    className="max-h-28 min-h-0 field-sizing-content rounded-none border-0 bg-transparent px-0 py-0.5 focus-visible:outline-none"
+                    mention={mention}
                   />
                 </div>
               ) : null}
@@ -95,5 +94,44 @@ export function QuoteCards({
         )
       })}
     </ul>
+  )
+}
+
+/** A quote's own reply, with the mention menu of the message box. */
+function ReplyField({
+  field,
+  value,
+  onChange,
+  onKeyDown,
+  mention,
+}: {
+  field: (el: HTMLTextAreaElement | null) => void
+  value: string
+  onChange: (value: string) => void
+  onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => void
+  mention?: TokenSource
+}) {
+  const el = useRef<HTMLTextAreaElement | null>(null)
+  const mentions = useTokenMenu(mention, el, value, onChange)
+  return (
+    <div className="min-w-0 flex-1">
+      <Textarea
+        ref={(node) => {
+          el.current = node
+          field(node)
+        }}
+        autoFocus
+        rows={1}
+        value={value}
+        placeholder="Reply to this part"
+        aria-label="Reply to this quote"
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => mentions.onKeyDown(e) || onKeyDown(e)}
+        onSelect={mentions.sync}
+        onBlur={mentions.close}
+        className="max-h-28 min-h-0 field-sizing-content rounded-none border-0 bg-transparent px-0 py-0.5 focus-visible:outline-none"
+      />
+      {mentions.menu}
+    </div>
   )
 }

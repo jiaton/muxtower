@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDrafts } from '../store'
+import type { TokenSource } from '@/components/ui/token-menu'
 import { InputBar } from './input-bar'
 
 const mutate = vi.fn((_body: unknown, options?: { onSuccess?: () => void; onError?: () => void }) => options?.onSuccess?.())
@@ -238,5 +239,44 @@ describe('InputBar', () => {
     expect(screen.queryByRole('listitem', { name: 'Adding a picture' })).toBeNull()
     expect(screen.getByRole('list', { name: 'Pictures' }).querySelectorAll('img')).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled()
+  })
+
+  describe('mentions', () => {
+    const mention: TokenSource = {
+      label: 'Mention a session',
+      at: (value, caret) => {
+        const i = value.slice(0, caret).lastIndexOf('@')
+        return i < 0 || /\s/.test(value.slice(i + 1, caret)) ? null : { start: i, query: value.slice(i + 1, caret) }
+      },
+      rows: () => [{ key: 'pm', label: 'PM', text: '@PM@p (pm1)' }],
+    }
+    const typeIn = (el: HTMLElement, value: string) => {
+      fireEvent.change(el, { target: { value } })
+      ;(el as HTMLTextAreaElement).setSelectionRange(value.length, value.length)
+      fireEvent.select(el)
+    }
+
+    it('in the box, @ offers sessions and Enter inserts one, without sending', () => {
+      device(false)
+      render(<InputBar daemonId="nas" sessionId="s1" mention={mention} />)
+      box().focus()
+      typeIn(box(), 'ask @')
+      expect(screen.getByRole('listbox', { name: 'Mention a session' })).toBeInTheDocument()
+      fireEvent.keyDown(box(), { key: 'Enter' })
+      expect(box()).toHaveValue('ask @PM@p (pm1) ')
+      expect(mutate).not.toHaveBeenCalled()
+      fireEvent.keyDown(box(), { key: 'Enter' }) // the menu closed: Enter sends
+      expect(mutate.mock.calls[0]![0]).toEqual({ text: 'ask @PM@p (pm1)', enter: true }) // trimmed: checked live, Claude Code takes it as text
+    })
+
+    it("in a quote's reply too: Enter inserts there, and does not go on to the box", () => {
+      device(false)
+      render(<InputBar daemonId="nas" sessionId="s1" mention={mention} />)
+      act(() => useDrafts.getState().addQuote('nas/s1', 'Pick a date'))
+      typeIn(reply(), 'cc @')
+      fireEvent.keyDown(reply(), { key: 'Enter' })
+      expect(reply()).toHaveValue('cc @PM@p (pm1) ')
+      expect(reply()).toHaveFocus()
+    })
   })
 })

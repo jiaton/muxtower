@@ -13,7 +13,8 @@ import { PendingActionCard } from '@/features/approval/components/pending-action
 import { useConversation } from '@/features/conversation/api/use-conversation'
 import { useDaemonMe } from '@/features/daemons/api/use-daemon-me'
 import { ConversationView } from '@/features/conversation/components/conversation-view'
-import { useSession } from '@/features/sessions/api/use-sessions'
+import { useDaemonSessions, useSession } from '@/features/sessions/api/use-sessions'
+import { useMentionSource } from '@/features/mentions/hooks/use-mention-source'
 import { SessionActionsMenu } from '@/features/sessions/components/session-actions-menu'
 import { SessionHeader } from '@/features/sessions/components/session-header'
 import { InterruptedState } from '@/features/sessions/components/interrupted'
@@ -83,6 +84,8 @@ function SessionPage() {
  *  conversation only; one whose node is offline says so, read only. */
 function SessionView({ daemonId, session }: { daemonId: string; session: Session }) {
   const { screen, conversation: hasConversation } = session.capabilities
+  // `@` in the message box: the sessions to mention, from the same list the page already has.
+  const mention = useMentionSource(daemonId, session, useDaemonSessions(daemonId).data)
   const key = entryKey(daemonId, session.id)
   const chosen = useSessionViews((s) => s.views[key] ?? s.last)
   const choose = useSessionViews((s) => s.setView)
@@ -238,6 +241,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
               track={outgoing.track}
               extra={dictation.available ? <MicButton dictation={dictation} /> : null}
               cover={dictation.active ? <VoiceBar dictation={dictation} /> : null}
+              mention={mention}
             />
           </footer>
         </>
