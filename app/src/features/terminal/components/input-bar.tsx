@@ -14,6 +14,7 @@ import { draftKey as keyOf, useDrafts, useTerminalPrefs } from '../store'
 import { ImageCards } from './image-cards'
 import { KeyPad } from './key-pad'
 import { QuoteCards } from './quote-cards'
+import { useTokenMenu, type TokenSource } from '@/components/ui/token-menu'
 
 const NO_QUOTES: Quote[] = []
 const TOUCH = '(pointer: coarse)' // a phone: its keyboard covers half the screen, its return key is a new line
@@ -37,6 +38,7 @@ export function InputBar({
   track,
   extra,
   cover,
+  mention,
 }: {
   daemonId: string
   sessionId: string
@@ -45,6 +47,8 @@ export function InputBar({
   track?: Track
   extra?: ReactNode
   cover?: ReactNode
+  /** What `@` offers to mention, in the box and in each quote's reply (from another feature, as a slot). */
+  mention?: TokenSource
 }) {
   const send = useSendInput(daemonId, sessionId)
   const draftKey = keyOf(daemonId, sessionId)
@@ -144,7 +148,10 @@ export function InputBar({
     el?.setSelectionRange(el.value.length, el.value.length)
   }
 
+  const mentions = useTokenMenu(mention, box, text, setText)
+
   const keyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mentions.onKeyDown(e)) return // the mention menu's: Up/Down, Enter/Tab to insert, Esc
     // Not the Enter that picks an input method's word (Safari ends the composition first: 229).
     const picking = e.nativeEvent.isComposing || e.keyCode === 229
     if (e.key !== 'Enter' || e.shiftKey || picking) return
@@ -204,7 +211,13 @@ export function InputBar({
             <ImageCards items={pictures.items} pending={pictures.pending} onRemove={pictures.remove} />
           ) : null}
           {quotes.length ? (
-            <QuoteCards quotes={quotes} onChange={(list) => setQuotes(draftKey, list)} onKeyDown={replyKeyDown} replied={replied} />
+            <QuoteCards
+              quotes={quotes}
+              onChange={(list) => setQuotes(draftKey, list)}
+              onKeyDown={replyKeyDown}
+              replied={replied}
+              mention={mention}
+            />
           ) : null}
           <Textarea
             ref={box}
@@ -215,6 +228,8 @@ export function InputBar({
             aria-label="Message the agent"
             onChange={(e) => setText(e.target.value)}
             onKeyDown={keyDown}
+            onSelect={mentions.sync}
+            onBlur={mentions.close}
             onPaste={(e) => {
               const pasted = images ? imagesIn(e.clipboardData.files) : []
               if (!pasted.length) return
@@ -223,6 +238,7 @@ export function InputBar({
             }}
             className="max-h-40 field-sizing-content border-0 bg-transparent focus-visible:outline-none"
           />
+          {mentions.menu}
         </div>
         {images ? (
           <>
