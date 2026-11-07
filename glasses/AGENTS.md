@@ -30,7 +30,8 @@ A layer imports only from layers above it in this list.
 5. `src/state/` — the app state and navigation (`model.ts`), the launch rule, persistence (through the port's storage).
 6. `src/screens/` — pure functions per screen: `view(state, now) → Screen` and `act(state, action) → Outcome {nav, notice?, command?}`. No I/O, no timers, no SDK; everything is unit-tested.
 7. `src/voice/` — `talk.ts` (a voice reply: hold or tap-to-tap, live text, final pass, confirm), `recorder.ts` (the microphone, 60 s cap), `segmenter.ts` (cuts at pauses for live text), `wav.ts`.
-8. `src/commands.ts` runs a screen's command against the hub; `src/app.ts` is the controller wiring everything; `src/panel/` is the phone panel; `src/main.ts` picks the port.
+8. `src/diag/` — the residency diagnostic (`?diag=1`): `probe.ts` (pure counters, fixed keys), `residency.ts` (timer, buffer, upload to `/v1/diagnostics`). Off unless asked for.
+9. `src/commands.ts` runs a screen's command against the hub; `src/app.ts` is the controller wiring everything; `src/panel/` is the phone panel; `src/main.ts` picks the port.
 
 Split a file past 250 lines or once it mixes two layers.
 

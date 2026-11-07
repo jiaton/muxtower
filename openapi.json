@@ -3444,6 +3444,53 @@
         ]
       }
     },
+    "/v1/diagnostics": {
+      "post": {
+        "description": "Appends a device's diagnostic entries to `<state_dir>/diagnostics/<source>.jsonl`, one line each with\nthe device's name and when it arrived. Entries must be counters and timestamps only: the daemon stores\nthem as they come, and nothing from them is audited.",
+        "operationId": "append_diagnostics_v1_diagnostics_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "properties": {
+                  "entries": {
+                    "items": {
+                      "additionalProperties": true,
+                      "type": "object"
+                    },
+                    "maxItems": 500,
+                    "title": "Entries",
+                    "type": "array"
+                  },
+                  "source": {
+                    "description": "Which log: `g2` for the glasses",
+                    "pattern": "^[a-z0-9-]{1,32}$",
+                    "title": "Source",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "source",
+                  "entries"
+                ],
+                "title": "DiagnosticsBatch",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Append Diagnostics",
+        "tags": [
+          "diagnostics"
+        ]
+      }
+    },
     "/v1/health": {
       "get": {
         "operationId": "health_v1_health_get",

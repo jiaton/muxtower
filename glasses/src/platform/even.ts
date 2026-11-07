@@ -2,6 +2,8 @@
 import {
   AudioInputSource,
   CreateStartUpPageContainer,
+  DeviceConnectType,
+  ImuReportPace,
   MenuContainerProperty,
   MenuItemProperty,
   RebuildPageContainer,
@@ -57,6 +59,20 @@ export async function connectEven(): Promise<GlassesPort> {
     async stopAudio() {
       await bridge.audioControl(false)
     },
+    startImu: () => bridge.imuControl(true, ImuReportPace.P500),
+    async stopImu() {
+      await bridge.imuControl(false)
+    },
+    onDevice: (listener) =>
+      bridge.onDeviceStatusChanged((status) =>
+        listener({
+          connected: status.connectType === DeviceConnectType.Connected,
+          wearing: status.isWearing,
+          inCase: status.isInCase,
+          charging: status.isCharging,
+          battery: status.batteryLevel,
+        }),
+      ),
     async exit() {
       await bridge.shutDownPageContainer(1)
     },

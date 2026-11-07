@@ -105,6 +105,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/diagnostics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Append Diagnostics
+         * @description Appends a device's diagnostic entries to `<state_dir>/diagnostics/<source>.jsonl`, one line each with
+         *     the device's name and when it arrived. Entries must be counters and timestamps only: the daemon stores
+         *     them as they come, and nothing from them is audited.
+         */
+        post: operations["append_diagnostics_v1_diagnostics_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/health": {
         parameters: {
             query?: never;
@@ -2499,6 +2521,38 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    append_diagnostics_v1_diagnostics_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Entries */
+                    entries: {
+                        [key: string]: unknown;
+                    }[];
+                    /**
+                     * Source
+                     * @description Which log: `g2` for the glasses
+                     */
+                    source: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

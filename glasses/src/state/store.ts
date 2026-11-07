@@ -11,6 +11,7 @@ export const createAppStore = () =>
     notice: null,
     voice: null,
     features: { summaries: false, asr: false },
+    diag: null,
   }))
 
 export type AppStore = ReturnType<typeof createAppStore>

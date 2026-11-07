@@ -79,6 +79,9 @@ export function createPreview(
     // The preview has no glasses microphone; voice is tried in the simulator or on hardware.
     startAudio: async () => false,
     async stopAudio() {},
+    startImu: async () => false,
+    async stopImu() {},
+    onDevice: () => () => undefined,
     async exit() {
       screen.textContent = ''
     },

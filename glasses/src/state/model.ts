@@ -63,6 +63,8 @@ export interface AppState {
   notice: string | null
   voice: Voice | null
   features: Features
+  /** The residency diagnostic's line (`?diag=1`), shown in the footer when there is no notice. */
+  diag: string | null
 }
 
 export type Command =

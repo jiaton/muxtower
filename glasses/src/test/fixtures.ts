@@ -53,5 +53,6 @@ export const appState = (sessions: Session[], over: Partial<AppState> = {}): App
   notice: null,
   voice: null,
   features: { summaries: true, asr: true },
+  diag: null,
   ...over,
 })
