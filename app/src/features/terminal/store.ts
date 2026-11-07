@@ -54,6 +54,9 @@ interface Drafts {
   fill: (key: string, text: string) => void
   /** Per session, how many times it was filled (not kept): the box takes focus, cursor at the end. */
   filled: Record<string, number>
+  /** Per session, the quote just replied to (not kept): its card opens, its own reply focused, on each Reply,
+   *  even to a quote already there (`n` counts the Replies). */
+  quoted: Record<string, { n: number; text: string }>
 }
 
 export const useDrafts = create<Drafts>()(
@@ -71,6 +74,7 @@ export const useDrafts = create<Drafts>()(
         const text = quoteOf(selected)
         const quotes = get().quotes[key] ?? []
         if (text && !quotes.some((q) => q.text === text)) get().setQuotes(key, [...quotes, { text, reply: '' }])
+        if (text) set((s) => ({ quoted: { ...s.quoted, [key]: { n: (s.quoted[key]?.n ?? 0) + 1, text } } }))
       },
       setQuotes: (key, list) =>
         set((s) => {
@@ -84,6 +88,7 @@ export const useDrafts = create<Drafts>()(
         set((s) => ({ filled: { ...s.filled, [key]: (s.filled[key] ?? 0) + 1 } }))
       },
       filled: {},
+      quoted: {},
     }),
     {
       name: 'muxtower.drafts',

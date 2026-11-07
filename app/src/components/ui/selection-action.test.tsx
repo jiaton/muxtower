@@ -68,4 +68,13 @@ describe('SelectionAction', () => {
     act(() => void vi.advanceTimersByTime(250))
     expect(screen.getByRole('button', { name: 'Reply' })).toBeTruthy()
   })
+
+  it('lets the selection go before it acts, so what acting focuses keeps its caret', () => {
+    vi.useFakeTimers()
+    let selectedWhileActing = -1
+    render(<Area onAction={() => (selectedWhileActing = document.getSelection()!.rangeCount)} />)
+    select('Pick a date for round two')
+    fireEvent.click(screen.getByRole('button', { name: 'Reply' }))
+    expect(selectedWhileActing).toBe(0)
+  })
 })

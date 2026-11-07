@@ -1,22 +1,42 @@
 import { CornerDownRight, X } from 'lucide-react'
-import { useState, type KeyboardEvent } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Textarea } from '@/components/ui/input'
 import { cn } from '@/lib/cn'
 import type { Quote } from '../quotes'
 
 /** The quotes of a message, at the top of its box, a line each. A tap opens one to the whole quote and a
  *  reply to that part alone, written right under it; closed, the start of its reply shows under it. Each
- *  has its remove. `onKeyDown`: what the message box does with a key (Enter sends), for the replies too. */
+ *  has its remove. `onKeyDown`: what a key does in a reply (Enter goes on to the message box). `replied`:
+ *  the quote just replied to (Reply on a selection): its card opens, the others close, its reply focused. */
 export function QuoteCards({
   quotes,
   onChange,
   onKeyDown,
+  replied,
 }: {
   quotes: Quote[]
   onChange: (quotes: Quote[]) => void
   onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => void
+  replied?: { n: number; text: string }
 }) {
   const [open, setOpen] = useState<string | null>(null) // by its text: a quote is there once
+  const replies = useRef(new Map<string, HTMLTextAreaElement>())
+  const seen = useRef<number | undefined>(undefined) // the last Reply acted on: a card shown for one opens
+  const [focusing, setFocusing] = useState<string | null>(null)
+  useEffect(() => {
+    if (!replied || replied.n === seen.current) return
+    seen.current = replied.n
+    setOpen(replied.text)
+    setFocusing(replied.text)
+  }, [replied])
+  useEffect(() => {
+    // Once its card is open: its reply, the caret after what it has (on a phone too; its keyboard may stay down).
+    const el = focusing ? replies.current.get(focusing) : undefined
+    if (!el) return
+    el.focus({ preventScroll: false })
+    el.setSelectionRange(el.value.length, el.value.length)
+    setFocusing(null)
+  }, [focusing, open])
   const update = (i: number, reply: string) => onChange(quotes.map((q, j) => (j === i ? { ...q, reply } : q)))
 
   return (
@@ -49,6 +69,7 @@ export function QuoteCards({
                 <div className="flex items-start gap-1">
                   <CornerDownRight className="mt-1.5 size-3 shrink-0 text-accent" aria-hidden />
                   <Textarea
+                    ref={(el) => void (el ? replies.current.set(quote.text, el) : replies.current.delete(quote.text))}
                     autoFocus
                     rows={1}
                     value={quote.reply}
