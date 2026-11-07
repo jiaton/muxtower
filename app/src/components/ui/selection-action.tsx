@@ -99,8 +99,10 @@ export function SelectionAction({
         className="shadow-card"
         onPointerDown={press}
         onClick={() => {
-          onAction(at.text)
+          // The selection let go first: cleared after, it would take the caret from where acting put it
+          // (the message box, focused to reply), as some browsers do.
           document.getSelection()?.removeAllRanges()
+          onAction(at.text)
           setAt(null)
         }}
       >

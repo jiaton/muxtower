@@ -57,17 +57,11 @@ export function InputBar({
   const touch = useMediaQuery(TOUCH)
   const pictures = useAttachments()
   const box = useRef<HTMLTextAreaElement>(null)
-  const quoted = useRef(quotes.length)
-  useEffect(() => {
-    // Just quoted: ready to reply to it, the caret after what is typed (on a phone too; its keyboard may
-    // stay down: the box is focused all the same).
-    const el = box.current
-    if (quotes.length > quoted.current && el) {
-      el.focus({ preventScroll: true })
-      el.setSelectionRange(el.value.length, el.value.length)
-    }
-    quoted.current = quotes.length
-  }, [quotes.length])
+  const lastReply = useDrafts((s) => s.quoted[draftKey])
+  // Replies made since this box showed (not one from before, coming back to the session): its card
+  // opens, its own reply focused (`QuoteCards`).
+  const shownAt = useRef(lastReply?.n ?? 0)
+  const replied = lastReply && lastReply.n > shownAt.current ? lastReply : undefined
   // Only quotes, nothing written: a first Enter does not send them, it goes on to the line to write
   // (`armed`); a second one sends them as they are. Writing anything, or quoting more, starts over.
   const quoteOnly = quotes.length > 0 && !text.trim() && quotes.every((q) => !q.reply.trim()) && !pictures.items.length
@@ -139,6 +133,17 @@ export function InputBar({
     )
   }
 
+  /** In a quote's own reply: Enter goes on to the message box, the caret at its end (sending is from there);
+   *  Shift+Enter, an input method's Enter, and return on a phone are new lines. */
+  const replyKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    const picking = e.nativeEvent.isComposing || e.keyCode === 229
+    if (e.key !== 'Enter' || e.shiftKey || picking || touch) return
+    e.preventDefault()
+    const el = box.current
+    el?.focus()
+    el?.setSelectionRange(el.value.length, el.value.length)
+  }
+
   const keyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     // Not the Enter that picks an input method's word (Safari ends the composition first: 229).
     const picking = e.nativeEvent.isComposing || e.keyCode === 229
@@ -198,7 +203,9 @@ export function InputBar({
           {pictures.items.length || pictures.pending ? (
             <ImageCards items={pictures.items} pending={pictures.pending} onRemove={pictures.remove} />
           ) : null}
-          {quotes.length ? <QuoteCards quotes={quotes} onChange={(list) => setQuotes(draftKey, list)} onKeyDown={keyDown} /> : null}
+          {quotes.length ? (
+            <QuoteCards quotes={quotes} onChange={(list) => setQuotes(draftKey, list)} onKeyDown={replyKeyDown} replied={replied} />
+          ) : null}
           <Textarea
             ref={box}
             rows={1}
