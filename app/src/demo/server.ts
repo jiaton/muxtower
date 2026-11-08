@@ -1,6 +1,7 @@
 import type { components } from '@/lib/api/schema'
+import { APP_VERSION } from '@/lib/app-update'
 import type { MachineUsage, NodeInfo, RuntimeInfo, Session } from '@/lib/api/types'
-import { DEMO_DAEMON, NODE } from './scenes/session'
+import { DEMO_DAEMON, HOME, NODE } from './scenes/session'
 import { plain } from './scenes/terminal'
 import { DemoSettings } from './settings'
 import type { World } from './world'
@@ -18,6 +19,8 @@ const SETTINGS = new DemoSettings()
 const ME: Me = {
   token_name: 'This browser',
   daemon_name: DEMO_DAEMON.name,
+  version: APP_VERSION || null,
+  default_folder: `${HOME}/code`,
   features: { summaries: false, asr: false },
   claude_login_expired: false,
 }
@@ -49,7 +52,8 @@ const NODES: NodeInfo[] = [
     joined_at: '2026-01-05T09:00:00Z',
     last_seen: null,
     sessions: 1,
-    version: null,
+    version: APP_VERSION || null,
+    default_folder: '/Users/dev/code',
     update: null,
     runtimes: RUNTIMES,
     reported_url: 'https://laptop.demo.invalid',
@@ -63,9 +67,13 @@ const marked =
     world.mark(id, patch(body)) ? empty() : refuse(404, 'no such session')
 
 /** The owner's groups of projects (the second chip row), kept for this visit. */
-type ChipGroup = { id: string; name: string; projects: string[] }
+type ChipGroup = { id: string; name: string; projects: string[]; sessions: string[] }
 const CHIP_GROUPS = new WeakMap<World, ChipGroup[]>()
-const chipGroups = (world: World) => CHIP_GROUPS.get(world) ?? []
+const STARTING_GROUPS: ChipGroup[] = [
+  { id: 'product', name: 'Product', projects: ['acme/shop-api', 'acme/web-app'], sessions: [] },
+  { id: 'ops', name: 'Ops', projects: ['acme/infra', ':other'], sessions: [] },
+]
+const chipGroups = (world: World) => CHIP_GROUPS.get(world) ?? STARTING_GROUPS
 
 /** The names each demo session went by before the one it has: its agent's, then each it was renamed from. */
 const EARLIER = new WeakMap<World, Map<string, { name: string; source: string; last_seen: string }[]>>()

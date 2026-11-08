@@ -81,6 +81,11 @@ export function webApp(): Scene {
       name: 'web-app',
       agent_name: 'Usage chart on the billing page',
       cwd: `${HOME}/code/web-app`,
+      team_role: 'worker',
+      project: 'acme/web-app',
+      project_auto: true,
+      project_source: 'git remote',
+      project_anchor: `${HOME}/code/web-app`,
       state: 'needs_answer',
       needs_attention: true,
       pending: {

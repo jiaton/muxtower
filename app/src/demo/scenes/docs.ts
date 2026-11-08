@@ -31,6 +31,7 @@ export function docs(): Scene {
       name: 'docs',
       cwd: `${HOME}/code/shop-api-docs`,
       git: { repo: `${HOME}/code/shop-api`, worktree: `${HOME}/code/shop-api-docs`, branch: 'docs', remote: 'acme/shop-api' },
+      team_role: 'docs',
       project: 'acme/shop-api',
       project_auto: true,
       project_source: 'git remote',
