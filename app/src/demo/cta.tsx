@@ -1,5 +1,5 @@
 import { ArrowUpRight, X } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Button } from '@/components/ui/button'
 
@@ -9,10 +9,12 @@ export function appUrl(doc: Document = document): string | null {
 }
 
 /** A small card over the demo: these sessions are made up, and here is the app for your own daemon. It sits
- *  above the message box (and the phone's tab bar), never over a control. */
+ *  above the message box (and the phone's tab bar), never over a control, and steps aside while someone
+ *  types, so the lists that open above the box (@-mentions) stay in view. */
 export function DemoCta({ url }: { url: string }) {
   const [shown, setShown] = useState(true)
-  if (!shown) return null
+  const typing = useTyping()
+  if (!shown || typing) return null
   return (
     <aside
       aria-label="About this demo"
@@ -32,6 +34,21 @@ export function DemoCta({ url }: { url: string }) {
       </Button>
     </aside>
   )
+}
+
+/** Whether a text field of the page has the focus. */
+function useTyping() {
+  const [typing, setTyping] = useState(false)
+  useEffect(() => {
+    const check = () => setTyping(document.activeElement instanceof HTMLTextAreaElement)
+    document.addEventListener('focusin', check)
+    document.addEventListener('focusout', check)
+    return () => {
+      document.removeEventListener('focusin', check)
+      document.removeEventListener('focusout', check)
+    }
+  }, [])
+  return typing
 }
 
 /** Puts the card on the page, beside the app, when the build names where it goes. */

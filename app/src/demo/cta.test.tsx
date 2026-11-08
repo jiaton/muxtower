@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { DemoCta, appUrl } from './cta'
 
@@ -19,5 +19,16 @@ describe('demo call to action', () => {
     expect(screen.getByRole('link', { name: /Connect your own daemon/ })).toHaveAttribute('href', 'https://app.example')
     fireEvent.click(screen.getByRole('button', { name: 'Hide' }))
     expect(screen.queryByRole('complementary', { name: 'About this demo' })).toBeNull()
+  })
+
+  it('steps aside while the message box has the focus, so the lists above it show', () => {
+    const box = document.createElement('textarea')
+    document.body.append(box)
+    render(<DemoCta url="https://app.example" />)
+    act(() => box.focus())
+    expect(screen.queryByRole('complementary', { name: 'About this demo' })).toBeNull()
+    act(() => box.blur())
+    expect(screen.getByRole('complementary', { name: 'About this demo' })).toBeInTheDocument()
+    box.remove()
   })
 })
