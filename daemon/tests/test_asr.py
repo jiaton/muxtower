@@ -114,3 +114,17 @@ def test_summary_route_and_reply_summary(make_app: Callable[..., FastAPI]) -> No
     app = make_app()
     client, auth = _client(app)
     assert client.post("/v1/sessions/nope/summary", headers=auth).status_code == 404
+
+
+def test_a_source_is_kept_in_the_audit_for_counts(app: FastAPI) -> None:
+    app.state.asr = AsrService(FakeTranscriber(), language=None)
+    client, auth = _client(app)
+    res = client.post("/v1/asr?source=live", content=WAV, headers={**auth, "Content-Type": "audio/wav"})
+    assert res.status_code == 200
+    with app.state.audit.db.connect() as conn:
+        detail = conn.execute("SELECT detail FROM audit_log WHERE action = 'asr'").fetchone()[0]
+    assert detail.endswith(" source=live")
+    assert (
+        client.post("/v1/asr?source=../x", content=WAV, headers={**auth, "Content-Type": "audio/wav"}).status_code
+        == 422
+    )

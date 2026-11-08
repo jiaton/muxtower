@@ -3205,7 +3205,7 @@
   "paths": {
     "/v1/asr": {
       "post": {
-        "description": "Speech to text: the body is the recording (WAV from the glasses). `language` (e.g. `zh`, `en`)\npins the language; without it the provider detects it. Nothing is stored.",
+        "description": "Speech to text: the body is the recording (WAV from the glasses). `language` (e.g. `zh`, `en`)\npins the language; without it the provider detects it. `source` names what asked (`live`: the app's\nLive mode), for the audit log's counts. Nothing is stored.",
         "operationId": "transcribe_v1_asr_post",
         "parameters": [
           {
@@ -3222,6 +3222,23 @@
                 }
               ],
               "title": "Language"
+            }
+          },
+          {
+            "in": "query",
+            "name": "source",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[a-z0-9-]{1,16}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source"
             }
           }
         ],

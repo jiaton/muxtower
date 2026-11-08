@@ -16,7 +16,8 @@ export interface paths {
         /**
          * Transcribe
          * @description Speech to text: the body is the recording (WAV from the glasses). `language` (e.g. `zh`, `en`)
-         *     pins the language; without it the provider detects it. Nothing is stored.
+         *     pins the language; without it the provider detects it. `source` names what asked (`live`: the app's
+         *     Live mode), for the audit log's counts. Nothing is stored.
          */
         post: operations["transcribe_v1_asr_post"];
         delete?: never;
@@ -2365,6 +2366,7 @@ export interface operations {
         parameters: {
             query?: {
                 language?: string | null;
+                source?: string | null;
             };
             header?: never;
             path?: never;

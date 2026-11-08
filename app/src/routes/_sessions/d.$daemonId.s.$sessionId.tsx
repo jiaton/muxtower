@@ -27,6 +27,9 @@ import { TerminalView } from '@/features/terminal/components/terminal-view'
 import { useSessionTerminal } from '@/features/terminal/hooks/use-session-terminal'
 import { draftKey, useDrafts, useTerminalPrefs } from '@/features/terminal/store'
 import { MicButton } from '@/features/voice/components/mic-button'
+import { LiveBar, LiveButton } from '@/features/voice/components/live'
+import { setLiveOps, setLiveTarget } from '@/features/voice/live/engine'
+import { draftBox } from '@/features/terminal/draft-box'
 import { VoiceBar } from '@/features/voice/components/voice-bar'
 import { useDictation } from '@/features/voice/hooks/use-dictation'
 import { entryKey } from '@/features/sessions/model/facets'
@@ -112,6 +115,13 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
     setDraft(key, typed ? `${typed} ${said}` : said)
   })
   const writable = !session.archived_at && !session.offline && !session.interrupted_at
+  // Live mode (hands-free voice): this page is the one in front while it shows, and its box takes the words.
+  useEffect(() => {
+    if (!writable) return
+    setLiveOps(draftBox)
+    setLiveTarget({ daemonId, sessionId: session.id })
+    return () => setLiveTarget(null)
+  }, [daemonId, session.id, writable])
   const fill = useDrafts((s) => s.fill)
   // Claude Code in a terminal runs a message that starts with "!" in its shell: a code block can be put in
   // the message box as one, to read and send (or not). Not where nothing types into a terminal (Remote
@@ -233,13 +243,21 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
           <SelectionAction within={views} label="Reply" icon={Reply} onAction={(text) => addQuote(draftKey(daemonId, session.id), text)} />
           <footer className="shrink-0 border-t border-border bg-bg p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-3">
             {dictation.error ? <Banner tone="error">{dictation.error}</Banner> : null}
+            {dictation.available ? <LiveBar /> : null}
             <InputBar
               daemonId={daemonId}
               sessionId={session.id}
               keys={session.capabilities.keys}
               images={session.capabilities.images}
               track={outgoing.track}
-              extra={dictation.available ? <MicButton dictation={dictation} /> : null}
+              extra={
+                dictation.available ? (
+                  <>
+                    <LiveButton />
+                    <MicButton dictation={dictation} />
+                  </>
+                ) : null
+              }
               cover={dictation.active ? <VoiceBar dictation={dictation} /> : null}
               mention={mention}
             />

@@ -15,12 +15,15 @@ export function QuoteCards({
   onKeyDown,
   replied,
   mention,
+  draftKey,
 }: {
   quotes: Quote[]
   onChange: (quotes: Quote[]) => void
   onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => void
   replied?: { n: number; text: string }
   mention?: TokenSource
+  /** The message's draft, named on each reply field (`data-draft`), with its quote (`data-quote`). */
+  draftKey?: string
 }) {
   const [open, setOpen] = useState<string | null>(null) // by its text: a quote is there once
   const replies = useRef(new Map<string, HTMLTextAreaElement>())
@@ -77,6 +80,8 @@ export function QuoteCards({
                     onChange={(reply) => update(i, reply)}
                     onKeyDown={onKeyDown}
                     mention={mention}
+                    quote={quote.text}
+                    draftKey={draftKey}
                   />
                 </div>
               ) : null}
@@ -104,12 +109,16 @@ function ReplyField({
   onChange,
   onKeyDown,
   mention,
+  quote,
+  draftKey,
 }: {
   field: (el: HTMLTextAreaElement | null) => void
   value: string
   onChange: (value: string) => void
   onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => void
   mention?: TokenSource
+  quote: string
+  draftKey?: string
 }) {
   const el = useRef<HTMLTextAreaElement | null>(null)
   const mentions = useTokenMenu(mention, el, value, onChange)
@@ -125,6 +134,8 @@ function ReplyField({
         value={value}
         placeholder="Reply to this part"
         aria-label="Reply to this quote"
+        data-quote={quote}
+        data-draft={draftKey}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => mentions.onKeyDown(e) || onKeyDown(e)}
         onSelect={mentions.sync}

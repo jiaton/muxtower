@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useDrafts } from '../store'
 import type { TokenSource } from '@/components/ui/token-menu'
 import { InputBar } from './input-bar'
+import { draftBox } from '../draft-box'
 
 const mutate = vi.fn((_body: unknown, options?: { onSuccess?: () => void; onError?: () => void }) => options?.onSuccess?.())
 vi.mock('../api/use-terminal', () => ({ useSendInput: () => ({ mutate, isPending: false, isError: false }) }))
@@ -239,6 +240,18 @@ describe('InputBar', () => {
     expect(screen.queryByRole('listitem', { name: 'Adding a picture' })).toBeNull()
     expect(screen.getByRole('list', { name: 'Pictures' }).querySelectorAll('img')).toHaveLength(1)
     expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled()
+  })
+
+  it('sends words written from outside (Live mode) in the same moment, before it has rendered them', () => {
+    device(false)
+    render(<InputBar daemonId="nas" sessionId="s1" />)
+    let result = ''
+    act(() => {
+      draftBox.append({ daemonId: 'nas', sessionId: 's1' }, 'fix the login test')
+      result = draftBox.send({ daemonId: 'nas', sessionId: 's1' }) // no render in between
+    })
+    expect(result).toBe('sent')
+    expect(mutate.mock.calls[0]![0]).toEqual({ text: 'fix the login test', enter: true })
   })
 
   describe('mentions', () => {

@@ -1,7 +1,7 @@
 import asyncio
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 
 from muxtower.asr.models import Transcript
 from muxtower.asr.service import AUDIO_TYPES, MAX_AUDIO_BYTES, AsrService
@@ -29,9 +29,11 @@ def _asr(request: Request) -> AsrService:
 async def transcribe(
     request: Request, device: CurrentDevice, asr: Annotated[AsrService, Depends(_asr)], audit: Audit,
     language: str | None = None,
+    source: Annotated[str | None, Query(pattern=r"^[a-z0-9-]{1,16}$")] = None,
 ) -> Transcript:  # fmt: skip
     """Speech to text: the body is the recording (WAV from the glasses). `language` (e.g. `zh`, `en`)
-    pins the language; without it the provider detects it. Nothing is stored."""
+    pins the language; without it the provider detects it. `source` names what asked (`live`: the app's
+    Live mode), for the audit log's counts. Nothing is stored."""
     if int(request.headers.get("content-length") or 0) > MAX_AUDIO_BYTES:
         raise Invalid("recording too long")
     audio = bytearray()
@@ -43,5 +45,11 @@ async def transcribe(
         asr.transcribe, bytes(audio), request.headers.get("content-type", ""), language
     )
     # What was said is never logged.
-    await asyncio.to_thread(audit.record, device.name, "asr", None, f"bytes={len(audio)} chars={len(transcript.text)}")
+    await asyncio.to_thread(
+        audit.record,
+        device.name,
+        "asr",
+        None,
+        f"bytes={len(audio)} chars={len(transcript.text)}" + (f" source={source}" if source else ""),
+    )
     return transcript

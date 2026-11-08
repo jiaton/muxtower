@@ -14,6 +14,7 @@ import { draftKey as keyOf, useDrafts, useTerminalPrefs } from '../store'
 import { ImageCards } from './image-cards'
 import { KeyPad } from './key-pad'
 import { QuoteCards } from './quote-cards'
+import { submitters } from '../draft-box'
 import { useTokenMenu, type TokenSource } from '@/components/ui/token-menu'
 
 const NO_QUOTES: Quote[] = []
@@ -86,7 +87,17 @@ export function InputBar({
   const picker = useRef<HTMLInputElement>(null)
 
   /** With pictures: they and the words leave the box together, and come back to it if not sent. */
+  /** What the box holds now, from the store: written from outside (Live mode) just before a send, it is
+   *  there before this box has rendered it. */
+  const now = () => {
+    const state = useDrafts.getState()
+    const nowText = state.drafts[draftKey] ?? ''
+    const nowQuotes = state.quotes[draftKey] ?? NO_QUOTES
+    return { text: nowText, quotes: nowQuotes, message: withQuotes(nowQuotes, nowText) }
+  }
+
   const submitPictures = async () => {
+    const { text, quotes, message } = now()
     const [sentText, sentQuotes, taken] = [text, quotes, pictures.take()]
     setText('')
     setQuotes(draftKey, [])
@@ -107,6 +118,7 @@ export function InputBar({
   const submit = () => {
     if (pictures.pending) return // a picture is still being made small: Send waits for it
     if (pictures.items.length) return void submitPictures()
+    const { text, quotes, message } = now()
     if (!message) return
     const [sentText, sentQuotes] = [text, quotes]
     const tracked = track?.(message)
@@ -149,6 +161,18 @@ export function InputBar({
   }
 
   const mentions = useTokenMenu(mention, box, text, setText)
+
+  // Send from outside the page (Live mode's "send"), exactly as the Send button does.
+  const submitNow = useRef<() => 'sent' | 'empty'>(() => 'empty')
+  submitNow.current = () => {
+    if (!now().message.trim() && !pictures.items.length) return 'empty'
+    submit()
+    return 'sent'
+  }
+  useEffect(() => {
+    submitters.set(draftKey, () => submitNow.current())
+    return () => void submitters.delete(draftKey)
+  }, [draftKey])
 
   const keyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (mentions.onKeyDown(e)) return // the mention menu's: Up/Down, Enter/Tab to insert, Esc
@@ -217,6 +241,7 @@ export function InputBar({
               onKeyDown={replyKeyDown}
               replied={replied}
               mention={mention}
+              draftKey={draftKey}
             />
           ) : null}
           <Textarea
