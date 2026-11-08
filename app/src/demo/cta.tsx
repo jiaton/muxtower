@@ -8,14 +8,15 @@ export function appUrl(doc: Document = document): string | null {
   return doc.querySelector<HTMLMetaElement>('meta[name="muxtower-app-url"]')?.content.trim() || null
 }
 
-/** A small card over the demo: these sessions are made up, and here is the app for your own daemon. */
+/** A small card over the demo: these sessions are made up, and here is the app for your own daemon. It sits
+ *  above the message box (and the phone's tab bar), never over a control. */
 export function DemoCta({ url }: { url: string }) {
   const [shown, setShown] = useState(true)
   if (!shown) return null
   return (
     <aside
       aria-label="About this demo"
-      className="fixed right-4 bottom-4 z-50 flex items-center gap-3 rounded-lg border border-border bg-surface py-2 pr-2 pl-4 text-sm shadow-card max-md:inset-x-3 max-md:bottom-20"
+      className="fixed right-4 bottom-20 z-50 flex items-center gap-3 rounded-lg border border-border bg-surface py-2 pr-2 pl-4 text-sm shadow-card max-md:inset-x-3"
     >
       <span className="flex-1 whitespace-nowrap text-fg-muted">
         Demo<span className="max-md:hidden">: made-up sessions.</span>
