@@ -10,8 +10,8 @@ export const nav = [
 
 export const hero = {
   eyebrow: 'Open source · self-hosted · no account',
-  title: 'Every machine. Every agent. One list.',
-  lead: 'muxtower lists the Claude Code and Codex sessions on all your computers on one hub you host. When one needs you, your phone says so, and you answer from there.',
+  title: 'Every agent, on\u00a0every machine. Live in any browser.', // `on every` stays together: the line breaks after the comma
+  lead: 'See what every Claude Code and Codex session is doing, on all your computers, live in any browser or on your phone. Tell any of them what to do next.',
   install: 'pipx install muxtower',
   tryApp: 'Try the live demo',
   tryAppNote: 'The real app on made-up sessions. Click anything.',

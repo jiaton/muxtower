@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { frameAt } from '../model/player'
 import { Phone } from './phone'
@@ -19,13 +19,13 @@ describe('Phone', () => {
     expect(screen.getByText(/Yes, staging first/)).toBeInTheDocument()
   })
 
-  it('approves inside the session, not on the lock screen', () => {
-    const lock = render(<Phone world={frameAt(25500).world} />)
-    expect(screen.getByText('Approve Bash: npm test -- payments')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Yes/ })).toBeNull()
-    lock.unmount()
-    render(<Phone world={frameAt(27000).world} />)
-    expect(screen.getByRole('button', { name: /don't ask again/ })).toBeInTheDocument()
+  it('shows the worker working, then done, in the list', () => {
+    const row = () => within(document.querySelector('[data-demo="phone-row-worker"]') as HTMLElement)
+    const working = render(<Phone world={frameAt(25500).world} />)
+    expect(row().getByRole('img', { name: 'Working' })).toBeInTheDocument()
+    working.unmount()
+    render(<Phone world={frameAt(28500).world} />)
+    expect(row().getByRole('img', { name: 'Finished, unread' })).toBeInTheDocument()
   })
 
   it('lists a fork under its parent and folds its side chat', () => {

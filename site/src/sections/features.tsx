@@ -228,6 +228,9 @@ export function Features() {
         <Cell icon={Bot} title={c.assistant.title} text={c.assistant.text}>
           <Assistant />
         </Cell>
+        <Cell icon={AudioLines} title={c.live.title} text={c.live.text} className="md:col-span-2 lg:col-span-3">
+          <Live />
+        </Cell>
         <Cell icon={Laptop} title={c.desk.title} text={c.desk.text}>
           <Desk />
         </Cell>
@@ -236,9 +239,6 @@ export function Features() {
         </Cell>
         <Cell icon={Code2} title={c.api.title} text={c.api.text}>
           <Api />
-        </Cell>
-        <Cell icon={AudioLines} title={c.live.title} text={c.live.text} className="md:col-span-2 lg:col-span-3">
-          <Live />
         </Cell>
       </div>
     </Section>

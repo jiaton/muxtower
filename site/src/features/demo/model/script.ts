@@ -69,9 +69,9 @@ export const BEATS: Beat[] = [
     start: 16000,
   },
   {
-    id: 'approve',
-    title: 'Approve',
-    caption: 'The worker wants to run its tests. The push opens the request; one tap picks the option.',
+    id: 'working',
+    title: 'Working',
+    caption: 'No need to watch it. The list shows each agent working, waiting or done, on every machine.',
     start: 25000,
   },
   {
@@ -209,45 +209,24 @@ export const STEPS: Step[] = [
 
   {
     at: 25200,
-    focus: both('phone-notification', 'It wants to run its tests'),
+    cursor: null,
+    focus: { wide: 'group-server', tall: 'phone-group-server', note: 'Working, on the server' },
     do: (w) => {
-      const pending = {
-        tool: 'Bash',
-        command: 'npm test -- payments',
-        options: ['Yes', "Yes, and don't ask again for npm test commands", 'No, and tell Claude what to do differently'],
-        recommended: 1,
-      }
-      patch(w, 'worker', { state: 'permission', last: 'Bash: npm test -- payments', pending })
-      w.phone = { ...w.phone, screen: 'lock', session: 'worker' }
-      w.phone.notification = { session: 'worker', title: 'shop', body: 'Approve Bash: npm test -- payments', where: 'server · ~/code/shop' }
+      patch(w, 'worker', { state: 'working', last: 'Running npm test -- payments' })
+      w.messages.worker.push({ id: 'w8', kind: 'tool', tool: 'Bash', text: 'npm test -- payments' })
+      w.phone = { ...w.phone, screen: 'list', notification: null }
       w.flash = 'row-worker'
     },
   },
-  { at: 26200, cursor: both('phone-notification') },
   {
-    at: 26800,
-    click: true,
-    focus: both('phone-approval', 'The exact command, from its hooks'),
-    do: (w) => void (w.phone = { ...w.phone, screen: 'session', session: 'worker', notification: null }),
-  },
-  { at: 27700, cursor: both('phone-approval-option-1') },
-  {
-    at: 28400,
-    click: true,
-    cursor: null,
-    focus: { wide: 'pane', tall: 'phone-screen' },
-    do: (w) => {
-      patch(w, 'worker', { state: 'working', last: 'Running npm test -- payments', pending: null })
-      w.messages.worker.push({ id: 'w8', kind: 'tool', tool: 'Bash', text: 'npm test -- payments' })
-    },
-  },
-  {
-    at: 29600,
+    at: 28000,
+    focus: { wide: 'group-server', tall: 'phone-group-server', note: 'Done, and unread' },
     do: (w) => {
       const run = w.messages.worker.find((m) => m.id === 'w8')
       if (run) run.output = ['Tests: 42 passed, 42 total']
       w.messages.worker.push({ id: 'w9', kind: 'agent', text: 'All 42 payment tests pass. A retried charge reuses its idempotency key.' })
       patch(w, 'worker', { state: 'unread', last: 'All 42 payment tests pass.' })
+      w.flash = 'row-worker'
     },
   },
 

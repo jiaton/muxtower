@@ -4,7 +4,7 @@ export const faqTitle = 'Questions'
 export const questions = [
   {
     q: 'Do I have to change how I run my agents?',
-    a: 'No. Agents in tmux are picked up as they are, approvals included, and Claude desktop and Codex app sessions are listed too. `muxtower run` is optional: it starts an agent in a tmux session of its own with its hooks pointed at the daemon.',
+    a: 'No. Agents in tmux are picked up as they are, and Claude desktop and Codex app sessions are listed too. `muxtower run` is optional: it starts an agent in a tmux session of its own with its hooks pointed at the daemon.',
   },
   {
     q: 'Does my code leave my machines?',

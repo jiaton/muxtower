@@ -33,7 +33,15 @@ export function Hero() {
             <span className="size-1.5 rounded-full bg-success" aria-hidden />
             {hero.eyebrow}
           </Badge>
-          <h1 className="text-hero font-semibold text-balance">{hero.title}</h1>
+          <h1 className="text-hero font-semibold text-balance">
+            {/* One sentence a line; the space stays for anything that reads the text. */}
+            {hero.title.split(/(?<=\.) /).map((line, i) => (
+              <span key={line} className="block">
+                {i ? ' ' : ''}
+                {line}
+              </span>
+            ))}
+          </h1>
           <p className="max-w-2xl text-lg leading-relaxed text-pretty text-muted-foreground sm:text-xl">{hero.lead}</p>
           <div className="flex flex-col items-center gap-3">
             <div className="flex flex-wrap items-center justify-center gap-3">
