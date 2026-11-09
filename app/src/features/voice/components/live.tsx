@@ -1,4 +1,4 @@
-import { AudioLines, Pause, Play, X } from 'lucide-react'
+import { AudioLines, Ear, Pause, Play, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,7 @@ const SHORTCUT = 'Alt+L'
 export function LiveButton() {
   const phase = useLive((s) => s.phase)
   const on = phase !== 'off' && phase !== 'error'
+  const commandsOnly = phase === 'paused'
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!e.altKey || e.ctrlKey || e.metaKey || e.code !== 'KeyL') return
@@ -30,21 +31,29 @@ export function LiveButton() {
     <Button
       variant={on ? 'secondary' : 'ghost'}
       size="icon"
-      className={cn('shrink-0', on && 'text-accent')}
-      aria-label={on ? 'Turn Live off' : 'Turn Live on'}
+      // Writing: the accent and the waveform. Commands only: muted, an ear (it listens, writes nothing).
+      className={cn('shrink-0', on && !commandsOnly && 'text-accent', commandsOnly && 'text-fg-muted')}
+      aria-label={!on ? 'Turn Live on' : commandsOnly ? 'Live: commands only. Turn Live off' : 'Live: writing. Turn Live off'}
       aria-pressed={on}
-      title={`Live: speak hands-free into the message box (${SHORTCUT})`}
+      title={
+        !on
+          ? `Live: speak hands-free into the message box (${SHORTCUT})`
+          : commandsOnly
+            ? `Live, commands only: nothing is written (${SHORTCUT} writes again)`
+            : `Live, writing what you say (${SHORTCUT} turns it off)`
+      }
       onPointerDown={(e) => e.preventDefault()} // keep the phone keyboard as it is
       onClick={() => void toggleLive()}
     >
-      <AudioLines />
+      {commandsOnly ? <Ear /> : <AudioLines />}
     </Button>
   )
 }
 
-/** What Live is doing, over the message box: listening (and hearing speech), paused (a big button to
- *  resume: only a tap or Alt+L does, nothing said is heard), or why it stopped. On a phone, once: it
- *  needs the page in front and the screen on. */
+/** What Live is doing, over the message box, in one of two looks: writing (the accent, what is said goes
+ *  into the box) or commands only (paused: muted, an ear, nothing written or uploaded; only "resume" is
+ *  heard, or a tap). Loading, transcribing and what became of the last thing heard show within it. On a
+ *  phone, once: it needs the page in front and the screen on. */
 export function LiveBar() {
   const { phase, speaking, pending, error, commands, heard } = useLive()
   const [, tick] = useState(0)
@@ -104,33 +113,62 @@ export function LiveBar() {
         <p className="px-1 text-xs text-fg-muted">Voice commands are off ({commands.note}): they are read from what is heard.</p>
       ) : null}
       {phase === 'paused' ? (
-        <Button variant="secondary" size="lg" className="w-full" onClick={resumeLive}>
-          <Play /> {commands.state === 'ready' ? `Paused: say ${words('继续', 'resume')}, or tap to resume` : 'Paused: tap to resume'}
-        </Button>
+        // Commands only: neutral, no accent, no pulse; nothing is written or uploaded.
+        <div className="flex flex-col gap-2 rounded-md border border-border bg-surface-muted px-3 py-2">
+          <div className="flex items-center gap-2 text-sm text-fg-muted">
+            {commands.state === 'ready' ? (
+              <Ear className="size-4 shrink-0" aria-hidden />
+            ) : (
+              <Pause className="size-4 shrink-0" aria-hidden />
+            )}
+            <span className="min-w-0 flex-1">
+              {commands.state === 'ready' ? (
+                <>
+                  <span className="font-medium text-fg">Commands only</span> · say {words('继续', 'resume')} to write again
+                </>
+              ) : (
+                <>
+                  <span className="font-medium text-fg">Paused</span> · tap to resume
+                </>
+              )}
+            </span>
+          </div>
+          <Button variant="secondary" size="lg" className="w-full" onClick={resumeLive}>
+            <Play /> {commands.state === 'ready' ? 'Tap to write again' : 'Tap to resume'}
+          </Button>
+        </div>
       ) : (
-        <div className="flex items-center gap-2 px-1 text-sm text-fg-muted">
+        // Writing: the accent, a dot that pulses only while speech is heard.
+        <div className="flex items-center gap-2 px-1 text-sm">
           <span
             aria-hidden
             className={cn(
               'size-2.5 shrink-0 rounded-full',
-              phase === 'starting' ? 'bg-state-idle' : 'bg-success',
+              phase === 'starting' ? 'bg-state-idle' : 'bg-accent',
               speaking && 'animate-pulse',
             )}
           />
-          <span className="min-w-0 flex-1 truncate">
-            {phase === 'starting'
-              ? 'Starting Live…'
-              : speaking
-                ? 'Hearing you…'
-                : `Listening · say ${words('发送', 'send')} to send, ${words('暂停', 'pause')} to pause${commands.state === 'ready' ? ' · commands on device' : ''}`}
-            {pending ? ` · transcribing ${pending}` : ''}
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className={cn('flex min-w-0 items-center gap-1.5 font-medium', phase === 'starting' ? 'text-fg-muted' : 'text-accent')}>
+              <AudioLines className="size-4 shrink-0" aria-hidden />
+              <span className="truncate">
+                {phase === 'starting' ? 'Starting Live…' : speaking ? 'Live · hearing you…' : 'Live · writing what you say'}
+              </span>
+            </span>
+            {phase === 'listening' ? (
+              <span className="truncate text-xs text-fg-muted">
+                say {words('发送', 'send')} to send, {words('暂停', 'pause')} to stop writing
+                {commands.state === 'ready' ? ' · commands on device' : ''}
+                {pending ? ` · transcribing ${pending}` : ''}
+              </span>
+            ) : null}
           </span>
           {phase === 'listening' ? (
             <Button
               variant="ghost"
               size="icon-sm"
-              aria-label="Pause Live"
-              title="Pause: nothing is heard until resumed"
+              aria-label="Stop writing (commands only)"
+              title="Stop writing: only commands are heard until you resume"
               onClick={pauseLive}
             >
               <Pause />
