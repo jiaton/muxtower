@@ -39,10 +39,13 @@ interface Deps {
   transcribe: (target: Target, audio: Blob, ask: Ask) => Promise<{ text: string; language: string | null }>
   ops: () => BoxOps
   cue: (cue: Cue) => void
-  /** The keyword spotter, on the device, once it is loaded: the command a short segment surely is, else null. */
-  spot?: (pcm: Float32Array) => Promise<Command | null>
+  /** The keyword spotter, on the device: the command a short segment surely is, null when it is not sure,
+   *  undefined when it is not loaded. */
+  spot?: (pcm: Float32Array) => Promise<Command | null | undefined>
   /** Something the owner should see changed (state, pending count, an error). */
   changed?: () => void
+  /** What became of the last thing heard, in a few words, for the owner to see ("send ✓ (on device)"). */
+  heard?: (line: string) => void
   count?: (what: 'segment' | 'uploaded' | 'dropped' | 'command' | 'spotted') => void
 }
 
@@ -91,11 +94,20 @@ export class LivePipeline {
     if (this.state === 'paused') {
       // Paused: nothing is uploaded. Only the spotter listens, and only for "resume".
       this.deps.count?.('dropped')
-      if (!spot) return this.applied
-      return spot().then((command) => void (command === 'resume' && this.resume()))
+      if (!spot) {
+        this.deps.heard?.('paused: not listening (tap to resume)')
+        return this.applied
+      }
+      return spot().then((command) => {
+        if (command === 'resume') {
+          this.deps.heard?.('resume ✓ (on device)')
+          this.resume()
+        } else this.deps.heard?.('paused: only "resume" is heard')
+      })
     }
     if (!target) {
       this.deps.count?.('dropped')
+      this.deps.heard?.('ignored: no session page open')
       return this.applied
     }
     this.pending += 1
@@ -103,7 +115,7 @@ export class LivePipeline {
     const upload = this.gate.then(async (): Promise<{ command: Command } | { text: string } | null> => {
       if (this.state === 'paused') return null // paused meanwhile, by a command spoken before it
       // Rule 1: a short segment the spotter is sure of is that command, and is not uploaded.
-      const spotted = spot ? await spot().catch(() => null) : null
+      const spotted = spot ? await spot().catch(() => undefined) : undefined
       if (spotted) {
         this.deps.count?.('spotted')
         return { command: spotted }
@@ -121,7 +133,7 @@ export class LivePipeline {
     })
     const landed = Promise.all([upload, this.applied]).then(([heard]) => {
       this.pending -= 1
-      if (heard && 'command' in heard) this.act(heard.command, target)
+      if (heard && 'command' in heard) this.act(heard.command, target, 'on device')
       else if (heard) this.land(target, segment.ms, heard.text)
       this.deps.changed?.()
     })
@@ -141,33 +153,46 @@ export class LivePipeline {
   }
 
   private land(target: Target, ms: number, text: string) {
-    if (!text.trim()) return
+    if (!text.trim()) return this.deps.heard?.('transcribed: nothing')
     const command = ms <= SHORT_MS ? commandIn(text) : null
-    if (command) return this.act(command, target)
+    if (command) return this.act(command, target, 'transcribed')
     const sending = ms > SHORT_MS ? trailingSend(text) : null
     if (sending !== null) {
       this.deps.ops().append(target, sending)
-      return this.act('send', target)
+      return this.act('send', target, 'transcribed')
     }
     this.error = null
     this.deps.ops().append(target, text.trim())
+    const said = text.trim()
+    const quoted = said.length > 28 ? `${said.slice(0, 27)}…` : said
+    this.deps.heard?.(ms <= SHORT_MS ? `transcribed: ${quoted} (not a command)` : `added: ${quoted}`)
   }
 
-  private act(command: Command, target: Target) {
+  private act(command: Command, target: Target, how: 'on device' | 'transcribed') {
     this.deps.count?.('command')
     const ops = this.deps.ops()
+    const done = (ok: boolean, otherwise: string) => this.deps.heard?.(ok ? `${command} ✓ (${how})` : `${command}: ${otherwise}`)
     switch (command) {
-      case 'send':
-        return this.deps.cue(ops.send(target) === 'sent' ? 'sent' : 'empty')
+      case 'send': {
+        const sent = ops.send(target) === 'sent'
+        done(sent, 'nothing to send')
+        return this.deps.cue(sent ? 'sent' : 'empty')
+      }
       case 'pause':
+        done(true, '')
         return this.pause()
       case 'resume':
+        done(true, '')
         return this.resume()
       case 'clear':
         ops.clear(target)
+        done(true, '')
         return this.deps.cue('cleared')
-      case 'undo':
-        return this.deps.cue(ops.undo(target) ? 'undone' : 'empty')
+      case 'undo': {
+        const undone = ops.undo(target)
+        done(undone, 'nothing to take back')
+        return this.deps.cue(undone ? 'undone' : 'empty')
+      }
     }
   }
 }

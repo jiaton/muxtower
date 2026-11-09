@@ -224,4 +224,22 @@ describe('LivePipeline', () => {
     expect(t.sent).toEqual([])
     expect(t.cues).toEqual(['paused', 'resumed'])
   })
+
+  it('a short segment the spotter is not sure of is still transcribed: a missed command is caught there', async () => {
+    const t = setup()
+    void t.say(300, A, null)
+    await t.flush()
+    await t.flush()
+    expect(t.transcribe).toHaveBeenCalledTimes(1)
+    t.uploads[0]!.resolve('Send.')
+    await t.flush()
+    expect(t.cues).toEqual(['empty']) // a send, with nothing in the box: said so
+  })
+
+  it('a tiny segment is still transcribed when no spotter is loaded', async () => {
+    const t = setup()
+    void t.say(300, A, undefined)
+    await t.flush()
+    expect(t.transcribe).toHaveBeenCalledTimes(1)
+  })
 })

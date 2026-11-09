@@ -8,6 +8,7 @@ import { pauseLive, resumeLive, stopLive, toggleLive, useLive } from '../live/en
 import { chosenLanguages } from '../live/kws'
 
 const NOTE_KEY = 'muxtower.live.phone-note'
+const HEARD_MS = 6000 // how long what became of the last thing heard stays
 const SHORTCUT = 'Alt+L'
 
 /** Turns Live on or off: hands-free speech into the message box. Alt+L does the same (and resumes it
@@ -45,7 +46,14 @@ export function LiveButton() {
  *  resume: only a tap or Alt+L does, nothing said is heard), or why it stopped. On a phone, once: it
  *  needs the page in front and the screen on. */
 export function LiveBar() {
-  const { phase, speaking, pending, error, commands } = useLive()
+  const { phase, speaking, pending, error, commands, heard } = useLive()
+  const [, tick] = useState(0)
+  useEffect(() => {
+    if (!heard) return
+    const timer = setTimeout(() => tick((n) => n + 1), HEARD_MS) // then it fades
+    return () => clearTimeout(timer)
+  }, [heard])
+  const recent = heard && Date.now() - heard.at < HEARD_MS ? heard.line : null
   const zh = chosenLanguages().includes('zh')
   const en = chosenLanguages().includes('en')
   const words = (cn: string, english: string) => [zh ? cn : null, en ? english : null].filter(Boolean).join(' / ')
@@ -86,6 +94,12 @@ export function LiveBar() {
         </Banner>
       ) : null}
       {loading ? <p className="px-1 text-xs text-fg-muted">{loading}</p> : null}
+      <p
+        aria-label="Last heard"
+        className={cn('min-h-4 truncate px-1 text-xs text-fg-muted transition-opacity duration-700', recent ? 'opacity-100' : 'opacity-0')}
+      >
+        {recent ?? heard?.line ?? ''}
+      </p>
       {commands.state === 'off' && commands.note ? (
         <p className="px-1 text-xs text-fg-muted">Voice commands are off ({commands.note}): they are read from what is heard.</p>
       ) : null}
@@ -108,7 +122,7 @@ export function LiveBar() {
               ? 'Starting Live…'
               : speaking
                 ? 'Hearing you…'
-                : `Listening · say ${words('发送', 'send')} to send, ${words('暂停', 'pause')} to pause`}
+                : `Listening · say ${words('发送', 'send')} to send, ${words('暂停', 'pause')} to pause${commands.state === 'ready' ? ' · commands on device' : ''}`}
             {pending ? ` · transcribing ${pending}` : ''}
           </span>
           {phase === 'listening' ? (

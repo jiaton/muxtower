@@ -22,7 +22,7 @@ const VAD_ASSETS = `https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@${VAD_VERSIO
 const ORT_ASSETS = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_VERSION}/dist/`
 
 const PAUSE_MS = 1000 // the silence that ends a segment
-const MIN_SPEECH_MS = 400 // shorter: a blip, dropped
+const MIN_SPEECH_MS = 200 // shorter: a blip, dropped (a crisp "send" is ~300 ms of speech: 400 dropped it)
 const MIN_LEVEL = 0.006 // RMS: quieter than this is not the owner talking to the phone
 const RATE = 16000 // the VAD's audio: 16 kHz mono
 const LEAD_MS = 300 // the VAD keeps this much before speech starts
@@ -38,6 +38,8 @@ interface LiveState {
   error: string | null
   /** The on-device voice commands: loading (with download progress, bytes), ready, or off (failed). */
   commands: { state: 'loading' | 'ready' | 'off'; received?: number; total?: number; note?: string }
+  /** What became of the last thing heard, and when (ms), shown a few seconds. */
+  heard: { line: string; at: number } | null
 }
 
 export const useLive = create<LiveState>(() => ({
@@ -46,7 +48,10 @@ export const useLive = create<LiveState>(() => ({
   pending: 0,
   error: null,
   commands: { state: 'off' },
+  heard: null,
 }))
+
+const heard = (line: string) => useLive.setState({ heard: { line, at: Date.now() } })
 
 let target: Target | null = null
 let ops: BoxOps | null = null
@@ -67,7 +72,8 @@ const pipeline = new LivePipeline({
   transcribe: (where, audio, ask) => transcribe(where, audio, ask),
   ops: () => ops ?? NO_OPS,
   cue: (cue) => playCue(cue),
-  spot: (pcm) => (spotter ? spotter.spot(pcm) : Promise.resolve(null)),
+  spot: (pcm) => (spotter ? spotter.spot(pcm) : Promise.resolve(undefined)), // undefined: not loaded
+  heard,
   changed: () =>
     useLive.setState((s) => ({
       pending: pipeline.pending,
@@ -114,13 +120,19 @@ export async function toggleLive() {
         started = target // where this segment belongs, wherever the owner goes before it ends
         useLive.setState({ speaking: true })
       },
-      onVADMisfire: () => useLive.setState({ speaking: false }),
+      onVADMisfire: () => {
+        useLive.setState({ speaking: false })
+        heard('ignored: too short')
+      },
       onSpeechEnd: (audio: Float32Array) => {
         useLive.setState({ speaking: false })
         // The segment holds the lead-in and the second of silence that ended it: its speech is what is between
         // (how long it was said decides whether it may be a command), and most of that silence is not sent.
         const said = audio.subarray(0, Math.max(0, audio.length - ((PAUSE_MS - TAIL_KEPT_MS) * RATE) / 1000))
-        if (rms(said) < MIN_LEVEL) return count('dropped')
+        if (rms(said) < MIN_LEVEL) {
+          heard('ignored: too quiet')
+          return count('dropped')
+        }
         const speechMs = (n: number) => Math.max(0, (n / RATE) * 1000 - LEAD_MS - TAIL_KEPT_MS)
         for (const part of parts(said)) {
           const ms = speechMs(part.length)
