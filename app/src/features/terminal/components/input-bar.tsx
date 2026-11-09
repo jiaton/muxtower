@@ -161,6 +161,17 @@ export function InputBar({
   }
 
   const mentions = useTokenMenu(mention, box, text, setText)
+  // Words written in from outside (Live mode): the box's border glows a moment, in place of an echo.
+  const landed = useDrafts((s) => s.landed[draftKey] ?? 0)
+  const [glow, setGlow] = useState(false)
+  const seenLanding = useRef(landed)
+  useEffect(() => {
+    if (landed === seenLanding.current) return
+    seenLanding.current = landed
+    setGlow(true)
+    const timer = setTimeout(() => setGlow(false), 900)
+    return () => clearTimeout(timer)
+  }, [landed])
 
   // Send from outside the page (Live mode's "send"), exactly as the Send button does.
   const submitNow = useRef<() => 'sent' | 'empty'>(() => 'empty')
@@ -222,7 +233,11 @@ export function InputBar({
         </Button>
         {/* One box: the pictures and what the message quotes on top, then what is typed. */}
         <div
-          className="flex min-w-0 flex-1 flex-col rounded-md border border-border bg-surface focus-within:outline-2 focus-within:outline-focus"
+          data-landed={glow || undefined}
+          className={cn(
+            'flex min-w-0 flex-1 flex-col rounded-md border bg-surface transition-colors duration-500 focus-within:outline-2 focus-within:outline-focus',
+            glow ? 'border-accent ring-2 ring-accent/40' : 'border-border',
+          )}
           onDragOver={(e) => images && e.dataTransfer.types.includes('Files') && e.preventDefault()}
           onDrop={(e) => {
             const dropped = images ? imagesIn(e.dataTransfer.files) : []

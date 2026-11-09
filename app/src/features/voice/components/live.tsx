@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/lib/use-media-query'
 import { pauseLive, resumeLive, stopLive, toggleLive, useLive } from '../live/engine'
+import { feedbackOf, liveDetails } from '../live/feedback'
 import { chosenLanguages } from '../live/kws'
 
 const NOTE_KEY = 'muxtower.live.phone-note'
-const HEARD_MS = 6000 // how long what became of the last thing heard stays
+const FEEDBACK_MS = 2000 // how long what became of the last thing heard stays in place of the hint
 const SHORTCUT = 'Alt+L'
 
 /** Turns Live on or off: hands-free speech into the message box. Alt+L does the same (and resumes it
@@ -50,29 +51,24 @@ export function LiveButton() {
   )
 }
 
-/** What Live is doing, over the message box, in one of two looks: writing (the accent, what is said goes
- *  into the box) or commands only (paused: muted, an ear, nothing written or uploaded; only "resume" is
- *  heard, or a tap). Loading, transcribing and what became of the last thing heard show within it. On a
- *  phone, once: it needs the page in front and the screen on. */
+/** What Live is doing, over the message box, in one row that never grows: writing (the accent, what is
+ *  said goes into the box) or commands only (paused: muted, an ear, nothing written or uploaded; only
+ *  "resume" is heard, or a tap). After its title, a hint; for a moment after something is heard, what
+ *  became of it instead ("✓ sent", "nothing to send"), then the hint again. Loading, downloading and
+ *  transcribing take the hint's place. On a phone, once: it needs the page in front and the screen on. */
 export function LiveBar() {
   const { phase, speaking, pending, error, commands, heard } = useLive()
   const [, tick] = useState(0)
   useEffect(() => {
     if (!heard) return
-    const timer = setTimeout(() => tick((n) => n + 1), HEARD_MS) // then it fades
+    const timer = setTimeout(() => tick((n) => n + 1), FEEDBACK_MS)
     return () => clearTimeout(timer)
   }, [heard])
-  const recent = heard && Date.now() - heard.at < HEARD_MS ? heard.line : null
+  const feedback = heard && Date.now() - heard.at < FEEDBACK_MS ? feedbackOf(heard.event, liveDetails()) : null
   const zh = chosenLanguages().includes('zh')
   const en = chosenLanguages().includes('en')
   const words = (cn: string, english: string) => [zh ? cn : null, en ? english : null].filter(Boolean).join(' / ')
   const mb = (bytes = 0) => (bytes / 1e6).toFixed(1)
-  const loading =
-    commands.state === 'loading'
-      ? commands.received
-        ? `Downloading voice commands, ${mb(commands.received)} of ${mb(commands.total)} MB (once)`
-        : 'Loading voice commands…'
-      : null
   const phone = useMediaQuery('(pointer: coarse)')
   const [note, setNote] = useState(() => {
     try {
@@ -92,8 +88,37 @@ export function LiveBar() {
       // storage blocked: shown again next time
     }
   }
+  const status =
+    commands.state === 'loading'
+      ? commands.received
+        ? `downloading voice commands, ${mb(commands.received)} of ${mb(commands.total)} MB (once)`
+        : 'loading voice commands…'
+      : commands.state === 'off' && commands.note
+        ? `voice commands off: ${commands.note}`
+        : null
+  const paused = phase === 'paused'
+  const hint = paused
+    ? commands.state === 'ready'
+      ? `say ${words('继续', 'resume')} to write again`
+      : 'tap to resume'
+    : [
+        phase === 'listening' ? `say ${words('发送', 'send')} to send, ${words('暂停', 'pause')} to stop writing` : null,
+        status ?? (commands.state === 'ready' && phase === 'listening' ? 'commands on device' : null),
+        pending ? `transcribing ${pending}` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+  const title = paused
+    ? commands.state === 'ready'
+      ? 'Commands only'
+      : 'Paused'
+    : phase === 'starting'
+      ? 'Starting Live…'
+      : speaking
+        ? 'Live · hearing you…'
+        : 'Live · writing what you say'
   return (
-    <div className="flex flex-col gap-1.5" role="status" aria-live="polite">
+    <div className="flex flex-col gap-1.5">
       {phone && note ? (
         <Banner tone="info">
           <span className="min-w-0 flex-1">Live works only with this page in front and the screen on.</span>
@@ -102,80 +127,57 @@ export function LiveBar() {
           </Button>
         </Banner>
       ) : null}
-      {loading ? <p className="px-1 text-xs text-fg-muted">{loading}</p> : null}
-      <p
-        aria-label="Last heard"
-        className={cn('min-h-4 truncate px-1 text-xs text-fg-muted transition-opacity duration-700', recent ? 'opacity-100' : 'opacity-0')}
+      {/* One row, its height set by its one line: nothing appears or disappears around it. */}
+      <div
+        role="status"
+        aria-live="polite"
+        className={cn(
+          'flex h-10 items-center gap-2 rounded-md px-2 text-sm',
+          paused ? 'border border-border bg-surface-muted text-fg-muted' : 'text-fg-muted',
+        )}
       >
-        {recent ?? heard?.line ?? ''}
-      </p>
-      {commands.state === 'off' && commands.note ? (
-        <p className="px-1 text-xs text-fg-muted">Voice commands are off ({commands.note}): they are read from what is heard.</p>
-      ) : null}
-      {phase === 'paused' ? (
-        // Commands only: neutral, no accent, no pulse; nothing is written or uploaded.
-        <div className="flex flex-col gap-2 rounded-md border border-border bg-surface-muted px-3 py-2">
-          <div className="flex items-center gap-2 text-sm text-fg-muted">
-            {commands.state === 'ready' ? (
-              <Ear className="size-4 shrink-0" aria-hidden />
-            ) : (
-              <Pause className="size-4 shrink-0" aria-hidden />
-            )}
-            <span className="min-w-0 flex-1">
-              {commands.state === 'ready' ? (
-                <>
-                  <span className="font-medium text-fg">Commands only</span> · say {words('继续', 'resume')} to write again
-                </>
-              ) : (
-                <>
-                  <span className="font-medium text-fg">Paused</span> · tap to resume
-                </>
+        {paused ? (
+          commands.state === 'ready' ? (
+            <Ear className="size-4 shrink-0" aria-hidden />
+          ) : (
+            <Pause className="size-4 shrink-0" aria-hidden />
+          )
+        ) : (
+          <>
+            <span
+              aria-hidden
+              className={cn(
+                'size-2.5 shrink-0 rounded-full',
+                phase === 'starting' ? 'bg-state-idle' : 'bg-accent',
+                speaking && 'animate-pulse',
               )}
-            </span>
-          </div>
-          <Button variant="secondary" size="lg" className="w-full" onClick={resumeLive}>
-            <Play /> {commands.state === 'ready' ? 'Tap to write again' : 'Tap to resume'}
+            />
+            <AudioLines className={cn('size-4 shrink-0', phase === 'starting' ? 'text-fg-muted' : 'text-accent')} aria-hidden />
+          </>
+        )}
+        <span className={cn('shrink-0 font-medium', paused ? 'text-fg' : phase === 'starting' ? 'text-fg-muted' : 'text-accent')}>
+          {title}
+        </span>
+        <span className={cn('min-w-0 flex-1 truncate', feedback ? 'text-fg' : 'text-xs')} title={feedback ?? hint}>
+          {feedback ?? (hint ? `· ${hint}` : '')}
+        </span>
+        {paused ? (
+          <Button variant="secondary" size="sm" className="shrink-0" onClick={resumeLive}>
+            <Play /> {commands.state === 'ready' ? 'Write again' : 'Resume'}
           </Button>
-        </div>
-      ) : (
-        // Writing: the accent, a dot that pulses only while speech is heard.
-        <div className="flex items-center gap-2 px-1 text-sm">
-          <span
-            aria-hidden
-            className={cn(
-              'size-2.5 shrink-0 rounded-full',
-              phase === 'starting' ? 'bg-state-idle' : 'bg-accent',
-              speaking && 'animate-pulse',
-            )}
-          />
-          <span className="flex min-w-0 flex-1 flex-col">
-            <span className={cn('flex min-w-0 items-center gap-1.5 font-medium', phase === 'starting' ? 'text-fg-muted' : 'text-accent')}>
-              <AudioLines className="size-4 shrink-0" aria-hidden />
-              <span className="truncate">
-                {phase === 'starting' ? 'Starting Live…' : speaking ? 'Live · hearing you…' : 'Live · writing what you say'}
-              </span>
-            </span>
-            {phase === 'listening' ? (
-              <span className="truncate text-xs text-fg-muted">
-                say {words('发送', 'send')} to send, {words('暂停', 'pause')} to stop writing
-                {commands.state === 'ready' ? ' · commands on device' : ''}
-                {pending ? ` · transcribing ${pending}` : ''}
-              </span>
-            ) : null}
-          </span>
-          {phase === 'listening' ? (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label="Stop writing (commands only)"
-              title="Stop writing: only commands are heard until you resume"
-              onClick={pauseLive}
-            >
-              <Pause />
-            </Button>
-          ) : null}
-        </div>
-      )}
+        ) : phase === 'listening' ? (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="shrink-0"
+            aria-label="Stop writing (commands only)"
+            title="Stop writing: only commands are heard until you resume"
+            onClick={pauseLive}
+          >
+            <Pause />
+          </Button>
+        ) : null}
+      </div>
     </div>
   )
 }

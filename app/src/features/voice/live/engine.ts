@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { createDaemonClient, unwrap } from '@/lib/api/client'
 import { useDaemonsStore } from '@/lib/daemons/store'
 import { chosenLanguages, startSpotter, type Spotter } from './kws'
-import { LivePipeline, SHORT_MS, type Ask, type BoxOps, type Cue, type Target } from './pipeline'
+import { LivePipeline, SHORT_MS, type Ask, type BoxOps, type Cue, type Heard, type Target } from './pipeline'
 
 /**
  * Live mode: the microphone stays open and what the owner says goes into the message box of the session
@@ -38,8 +38,8 @@ interface LiveState {
   error: string | null
   /** The on-device voice commands: loading (with download progress, bytes), ready, or off (failed). */
   commands: { state: 'loading' | 'ready' | 'off'; received?: number; total?: number; note?: string }
-  /** What became of the last thing heard, and when (ms), shown a few seconds. */
-  heard: { line: string; at: number } | null
+  /** What became of the last thing heard, and when (ms): shown in the status row for a moment. */
+  heard: { event: Heard; at: number } | null
 }
 
 export const useLive = create<LiveState>(() => ({
@@ -51,7 +51,7 @@ export const useLive = create<LiveState>(() => ({
   heard: null,
 }))
 
-const heard = (line: string) => useLive.setState({ heard: { line, at: Date.now() } })
+const heard = (event: Heard) => useLive.setState({ heard: { event, at: Date.now() } })
 
 let target: Target | null = null
 let ops: BoxOps | null = null
@@ -122,7 +122,7 @@ export async function toggleLive() {
       },
       onVADMisfire: () => {
         useLive.setState({ speaking: false })
-        heard('ignored: too short')
+        heard({ kind: 'ignored', why: 'too short' })
       },
       onSpeechEnd: (audio: Float32Array) => {
         useLive.setState({ speaking: false })
@@ -130,7 +130,7 @@ export async function toggleLive() {
         // (how long it was said decides whether it may be a command), and most of that silence is not sent.
         const said = audio.subarray(0, Math.max(0, audio.length - ((PAUSE_MS - TAIL_KEPT_MS) * RATE) / 1000))
         if (rms(said) < MIN_LEVEL) {
-          heard('ignored: too quiet')
+          heard({ kind: 'ignored', why: 'too quiet' })
           return count('dropped')
         }
         const speechMs = (n: number) => Math.max(0, (n / RATE) * 1000 - LEAD_MS - TAIL_KEPT_MS)
@@ -324,7 +324,11 @@ function count(what: Counted) {
     const all = JSON.parse(localStorage.getItem(COUNTS_KEY) ?? '{}') as Counts
     const day = new Date().toISOString().slice(0, 10)
     const today = { ...all[day], [what]: (all[day]?.[what] ?? 0) + 1 }
-    const kept = Object.fromEntries([...Object.entries({ ...all, [day]: today })].sort().slice(-30))
+    const kept = Object.fromEntries(
+      Object.entries({ ...all, [day]: today })
+        .sort()
+        .slice(-30),
+    )
     localStorage.setItem(COUNTS_KEY, JSON.stringify(kept))
   } catch {
     // storage blocked: not counted

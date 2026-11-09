@@ -2,6 +2,7 @@ import { Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
+import { liveDetails, setLiveDetails } from '../live/feedback'
 import { chooseLanguages, chosenLanguages, PACK, packDownloaded, removePack, type Language } from '../live/kws'
 
 const LANGUAGES: { id: Language; label: string; words: string }[] = [
@@ -14,6 +15,7 @@ const LANGUAGES: { id: Language; label: string; words: string }[] = [
 export function VoiceCommandsSettings() {
   const [languages, setLanguages] = useState(chosenLanguages)
   const [downloaded, setDownloaded] = useState<boolean | null>(null)
+  const [details, setDetails] = useState(liveDetails)
   useEffect(() => void packDownloaded().then(setDownloaded), [])
   const toggle = (id: Language, on: boolean) => {
     const next = on ? [...new Set([...languages, id])] : languages.filter((l) => l !== id)
@@ -54,6 +56,22 @@ export function VoiceCommandsSettings() {
           </Button>
         ) : null}
       </div>
+      <label className="flex items-start gap-2 text-sm">
+        <Checkbox
+          checked={details}
+          onChange={(e) => {
+            setDetails(e.target.checked)
+            setLiveDetails(e.target.checked)
+          }}
+          aria-label="Show Live details"
+        />
+        <span>
+          Show Live details{' '}
+          <span className="text-fg-muted">
+            · how each command was heard, short transcripts that were no command, and why something was ignored
+          </span>
+        </span>
+      </label>
     </section>
   )
 }

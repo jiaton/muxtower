@@ -18,6 +18,12 @@ export interface BoxOps {
 
 export type Cue = 'sent' | 'paused' | 'resumed' | 'cleared' | 'undone' | 'empty' | 'error'
 
+/** What became of something heard: a command done (or with nothing to do), words written, or why nothing was. */
+export type Heard =
+  | { kind: 'command'; command: Command; done: boolean; how: 'on device' | 'transcribed' }
+  | { kind: 'text'; text: string; short: boolean }
+  | { kind: 'ignored'; why: 'too short' | 'too quiet' | 'no session' | 'paused' | 'nothing said' | 'failed' }
+
 export const SHORT_MS = 1500 // a segment this short may be a command on its own
 
 export interface Segment {
@@ -44,8 +50,8 @@ interface Deps {
   spot?: (pcm: Float32Array) => Promise<Command | null | undefined>
   /** Something the owner should see changed (state, pending count, an error). */
   changed?: () => void
-  /** What became of the last thing heard, in a few words, for the owner to see ("send ✓ (on device)"). */
-  heard?: (line: string) => void
+  /** What became of the last thing heard (`feedbackOf` says it in a few words). */
+  heard?: (event: Heard) => void
   count?: (what: 'segment' | 'uploaded' | 'dropped' | 'command' | 'spotted') => void
 }
 
@@ -95,19 +101,19 @@ export class LivePipeline {
       // Paused: nothing is uploaded. Only the spotter listens, and only for "resume".
       this.deps.count?.('dropped')
       if (!spot) {
-        this.deps.heard?.('paused: not listening (tap to resume)')
+        this.deps.heard?.({ kind: 'ignored', why: 'paused' })
         return this.applied
       }
       return spot().then((command) => {
         if (command === 'resume') {
-          this.deps.heard?.('resume ✓ (on device)')
+          this.deps.heard?.({ kind: 'command', command: 'resume', done: true, how: 'on device' })
           this.resume()
-        } else this.deps.heard?.('paused: only "resume" is heard')
+        } else this.deps.heard?.({ kind: 'ignored', why: 'paused' })
       })
     }
     if (!target) {
       this.deps.count?.('dropped')
-      this.deps.heard?.('ignored: no session page open')
+      this.deps.heard?.({ kind: 'ignored', why: 'no session' })
       return this.applied
     }
     this.pending += 1
@@ -127,6 +133,7 @@ export class LivePipeline {
         (error: unknown) => {
           this.error = error instanceof Error ? error.message : String(error)
           this.deps.cue('error')
+          this.deps.heard?.({ kind: 'ignored', why: 'failed' })
           return null
         },
       )
@@ -153,7 +160,7 @@ export class LivePipeline {
   }
 
   private land(target: Target, ms: number, text: string) {
-    if (!text.trim()) return this.deps.heard?.('transcribed: nothing')
+    if (!text.trim()) return this.deps.heard?.({ kind: 'ignored', why: 'nothing said' })
     const command = ms <= SHORT_MS ? commandIn(text) : null
     if (command) return this.act(command, target, 'transcribed')
     const sending = ms > SHORT_MS ? trailingSend(text) : null
@@ -163,34 +170,32 @@ export class LivePipeline {
     }
     this.error = null
     this.deps.ops().append(target, text.trim())
-    const said = text.trim()
-    const quoted = said.length > 28 ? `${said.slice(0, 27)}…` : said
-    this.deps.heard?.(ms <= SHORT_MS ? `transcribed: ${quoted} (not a command)` : `added: ${quoted}`)
+    this.deps.heard?.({ kind: 'text', text: text.trim(), short: ms <= SHORT_MS })
   }
 
   private act(command: Command, target: Target, how: 'on device' | 'transcribed') {
     this.deps.count?.('command')
     const ops = this.deps.ops()
-    const done = (ok: boolean, otherwise: string) => this.deps.heard?.(ok ? `${command} ✓ (${how})` : `${command}: ${otherwise}`)
+    const done = (ok: boolean) => this.deps.heard?.({ kind: 'command', command, done: ok, how })
     switch (command) {
       case 'send': {
         const sent = ops.send(target) === 'sent'
-        done(sent, 'nothing to send')
+        done(sent)
         return this.deps.cue(sent ? 'sent' : 'empty')
       }
       case 'pause':
-        done(true, '')
+        done(true)
         return this.pause()
       case 'resume':
-        done(true, '')
+        done(true)
         return this.resume()
       case 'clear':
         ops.clear(target)
-        done(true, '')
+        done(true)
         return this.deps.cue('cleared')
       case 'undo': {
         const undone = ops.undo(target)
-        done(undone, 'nothing to take back')
+        done(undone)
         return this.deps.cue(undone ? 'undone' : 'empty')
       }
     }

@@ -50,6 +50,7 @@ export const draftBox = {
       state.setDraft(key, joined(state.drafts[key] ?? '', text))
     }
     appended.set(key, [...(appended.get(key) ?? []), { quote, text }])
+    state.land(key) // the box glows a moment: the words are there
   },
 
   clear(target: Target) {

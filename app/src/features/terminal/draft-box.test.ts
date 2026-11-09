@@ -43,3 +43,9 @@ it('sends through the shown box, as Send does; with no box shown, nothing is sen
   submitters.set('nas/s1', () => 'sent')
   expect(draftBox.send(A)).toBe('sent')
 })
+
+it('tells the box words landed, so it can show it a moment', () => {
+  const before = useDrafts.getState().landed['nas/s1'] ?? 0
+  draftBox.append(A, 'hi')
+  expect(useDrafts.getState().landed['nas/s1']).toBe(before + 1)
+})

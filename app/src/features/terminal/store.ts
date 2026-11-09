@@ -57,6 +57,10 @@ interface Drafts {
   /** Per session, the quote just replied to (not kept): its card opens, its own reply focused, on each Reply,
    *  even to a quote already there (`n` counts the Replies). */
   quoted: Record<string, { n: number; text: string }>
+  /** Per session, how many times words were written into the box from outside (Live mode; not kept):
+   *  the box shows it for a moment. */
+  landed: Record<string, number>
+  land: (key: string) => void
 }
 
 export const useDrafts = create<Drafts>()(
@@ -89,6 +93,8 @@ export const useDrafts = create<Drafts>()(
       },
       filled: {},
       quoted: {},
+      landed: {},
+      land: (key) => set((s) => ({ landed: { ...s.landed, [key]: (s.landed[key] ?? 0) + 1 } })),
     }),
     {
       name: 'muxtower.drafts',
