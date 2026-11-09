@@ -16,6 +16,8 @@ describe('Features', () => {
       expect(screen.getByRole('heading', { level: 3, name: title })).toBeInTheDocument()
     expect(screen.getByText('Approve Bash: npm test -- payments')).toBeInTheDocument()
     expect(screen.getByText('send ✓ (on device)')).toBeInTheDocument()
+    expect(screen.getByText('Live · writing what you say')).toBeInTheDocument()
+    expect(screen.getByText('Commands only')).toBeInTheDocument()
     expect(screen.getByText(/WS\s+\/v1\/stream/)).toBeInTheDocument()
   })
 })

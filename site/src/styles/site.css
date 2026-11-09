@@ -105,19 +105,25 @@
   }
 }
 
-/* Live mode's message box in the features (sections/features.tsx), one 10 s loop: "Hearing you…" while
-   a sentence is spoken, the sentence lands in the box ("added: …"), "send" is heard and it goes. With
-   reduced motion it holds still at the moment the sentence has landed. */
+/* Live mode's message box in the features (sections/features.tsx), one 12 s loop: "hearing you…" while
+   a sentence is spoken, it lands in the box ("added: …"), "send" is heard and it goes, "pause" is heard
+   and Live turns to commands only. Each class shows its thing for its stretch. With reduced motion it
+   holds still with the sentence in the box. Longhands only: the minifier turns a nameless `animation`
+   shorthand into `none`. */
 @layer components {
   .live-bubble,
   .live-added,
   .live-sent,
+  .live-paused,
+  .live-writing,
+  .live-commands,
   .live-dot,
-  .live-listening,
+  .live-quiet,
   .live-hearing,
+  .live-transcribing,
   .live-placeholder,
   .live-said {
-    animation-duration: 10s;
+    animation-duration: 12s;
     animation-timing-function: linear;
     animation-iteration-count: infinite;
   }
@@ -130,14 +136,26 @@
   .live-sent {
     animation-name: live-sent;
   }
+  .live-paused {
+    animation-name: live-paused;
+  }
+  .live-writing {
+    animation-name: live-writing;
+  }
+  .live-commands {
+    animation-name: live-commands;
+  }
   .live-dot {
     animation-name: live-dot;
   }
-  .live-listening {
-    animation-name: live-listening;
+  .live-quiet {
+    animation-name: live-quiet;
   }
   .live-hearing {
     animation-name: live-hearing;
+  }
+  .live-transcribing {
+    animation-name: live-transcribing;
   }
   .live-placeholder {
     animation-name: live-placeholder;
@@ -149,9 +167,13 @@
     .live-bubble,
     .live-added,
     .live-sent,
+    .live-paused,
+    .live-writing,
+    .live-commands,
     .live-dot,
-    .live-listening,
+    .live-quiet,
     .live-hearing,
+    .live-transcribing,
     .live-placeholder,
     .live-said {
       animation-delay: -4.2s;
@@ -160,139 +182,338 @@
   }
 }
 @keyframes live-hearing {
-  0%,
-  7% {
+  0% {
     opacity: 0;
   }
-  8%,
-  30% {
-    opacity: 1;
-  }
-  31%,
-  45% {
+  4% {
     opacity: 0;
   }
-  46%,
-  52% {
+  5% {
     opacity: 1;
   }
-  53%,
-  100% {
+  24% {
+    opacity: 1;
+  }
+  25% {
     opacity: 0;
   }
-}
-@keyframes live-listening {
-  0%,
-  7% {
-    opacity: 1;
-  }
-  8%,
-  30% {
+  35% {
     opacity: 0;
   }
-  31%,
-  45% {
+  36% {
     opacity: 1;
   }
-  46%,
-  52% {
+  41% {
+    opacity: 1;
+  }
+  42% {
     opacity: 0;
   }
-  53%,
-  100% {
-    opacity: 1;
-  }
-}
-@keyframes live-dot {
-  0%,
-  8%,
-  14%,
-  20%,
-  26%,
-  30%,
-  46%,
-  52%,
-  100% {
-    opacity: 1;
-  }
-  11%,
-  17%,
-  23%,
-  28%,
   49% {
-    opacity: 0.35;
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 1;
+  }
+  56% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes live-quiet {
+  0% {
+    opacity: 1;
+  }
+  4% {
+    opacity: 1;
+  }
+  5% {
+    opacity: 0;
+  }
+  24% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  35% {
+    opacity: 1;
+  }
+  36% {
+    opacity: 0;
+  }
+  41% {
+    opacity: 0;
+  }
+  42% {
+    opacity: 1;
+  }
+  49% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+  55% {
+    opacity: 0;
+  }
+  56% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes live-transcribing {
+  0% {
+    opacity: 0;
+  }
+  24% {
+    opacity: 0;
+  }
+  25% {
+    opacity: 1;
+  }
+  29% {
+    opacity: 1;
+  }
+  30% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
   }
 }
 @keyframes live-said {
-  0%,
-  34% {
+  0% {
     opacity: 0;
   }
-  36%,
-  58% {
+  29% {
+    opacity: 0;
+  }
+  30% {
     opacity: 1;
   }
-  60%,
+  42% {
+    opacity: 1;
+  }
+  43% {
+    opacity: 0;
+  }
   100% {
     opacity: 0;
   }
 }
 @keyframes live-placeholder {
-  0%,
-  34% {
+  0% {
     opacity: 1;
   }
-  36%,
-  58% {
+  29% {
+    opacity: 1;
+  }
+  30% {
     opacity: 0;
   }
-  60%,
+  42% {
+    opacity: 0;
+  }
+  43% {
+    opacity: 1;
+  }
   100% {
     opacity: 1;
   }
 }
 @keyframes live-added {
-  0%,
-  34% {
+  0% {
     opacity: 0;
   }
-  36%,
-  52% {
+  29% {
+    opacity: 0;
+  }
+  30% {
     opacity: 1;
   }
-  54%,
+  42% {
+    opacity: 1;
+  }
+  43% {
+    opacity: 0;
+  }
   100% {
     opacity: 0;
   }
 }
 @keyframes live-sent {
-  0%,
-  56% {
+  0% {
     opacity: 0;
   }
-  58%,
-  94% {
+  43% {
+    opacity: 0;
+  }
+  44% {
     opacity: 1;
+  }
+  57% {
+    opacity: 1;
+  }
+  58% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes live-paused {
+  0% {
+    opacity: 0;
+  }
+  58% {
+    opacity: 0;
+  }
+  59% {
+    opacity: 1;
+  }
+  93% {
+    opacity: 1;
+  }
+  94% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes live-commands {
+  0% {
+    opacity: 0;
+  }
+  58% {
+    opacity: 0;
+  }
+  59% {
+    opacity: 1;
+  }
+  95% {
+    opacity: 1;
+  }
+  96% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+@keyframes live-writing {
+  0% {
+    opacity: 1;
+  }
+  58% {
+    opacity: 1;
+  }
+  59% {
+    opacity: 0;
+  }
+  95% {
+    opacity: 0;
+  }
+  96% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+@keyframes live-bubble {
+  0%,
+  43% {
+    opacity: 0;
+    translate: 0 0.5rem;
+  }
+  46%,
+  95% {
+    opacity: 1;
+    translate: 0 0;
   }
   97%,
   100% {
     opacity: 0;
   }
 }
-@keyframes live-bubble {
-  0%,
-  58% {
-    opacity: 0;
-    translate: 0 0.5rem;
-  }
-  62%,
-  94% {
+/* The dot pulses while speech is heard (the windows of live-hearing). */
+@keyframes live-dot {
+  0% {
     opacity: 1;
-    translate: 0 0;
   }
-  97%,
+  5% {
+    opacity: 1;
+  }
+  7% {
+    opacity: 0.35;
+  }
+  9% {
+    opacity: 1;
+  }
+  11% {
+    opacity: 0.35;
+  }
+  13% {
+    opacity: 1;
+  }
+  15% {
+    opacity: 0.35;
+  }
+  17% {
+    opacity: 1;
+  }
+  19% {
+    opacity: 0.35;
+  }
+  21% {
+    opacity: 1;
+  }
+  23% {
+    opacity: 0.35;
+  }
+  24% {
+    opacity: 1;
+  }
+  36% {
+    opacity: 1;
+  }
+  38% {
+    opacity: 0.35;
+  }
+  40% {
+    opacity: 1;
+  }
+  41% {
+    opacity: 1;
+  }
+  42% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+  52% {
+    opacity: 0.35;
+  }
+  54% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 1;
+  }
+  56% {
+    opacity: 0.35;
+  }
   100% {
-    opacity: 0;
-    translate: 0 0;
+    opacity: 1;
   }
 }
