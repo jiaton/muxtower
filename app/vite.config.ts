@@ -33,11 +33,27 @@ const demoEntry = (): Plugin => ({
 /** The muxtower this app is part of (the daemon's package version), to tell when a daemon runs a newer one. */
 const APP_VERSION = /^version\s*=\s*"([^"]+)"/m.exec(readFileSync(new URL('../daemon/pyproject.toml', import.meta.url), 'utf8'))?.[1] ?? ''
 
+// Live mode's keyword spotter (`@sherpaw/kws`) fetches its 12 MB WebAssembly from next to itself: pointed
+// at the CDN instead (the version bundled, `features/voice/live/kws.ts`), it never becomes part of the app.
+const KWS_VERSION = (JSON.parse(readFileSync('node_modules/@sherpaw/kws/package.json', 'utf8')) as { version: string }).version
+function kwsWasmFromCdn(): Plugin {
+  const local = 'new URL("./prebuilt/kws.wasm", import.meta.url)'
+  const cdn = `new URL("https://cdn.jsdelivr.net/npm/@sherpaw/kws@${KWS_VERSION}/dist/prebuilt/kws.wasm")`
+  return {
+    name: 'kws-wasm-from-cdn',
+    enforce: 'pre',
+    transform: (code, id) => (id.includes('@sherpaw/kws') && code.includes(local) ? code.replaceAll(local, cdn) : null),
+  }
+}
+
 export default defineConfig(({ mode }) => ({
   base,
   define: { 'import.meta.env.VITE_APP_VERSION': JSON.stringify(APP_VERSION) },
   build: mode === 'demo' ? { outDir: 'dist-demo' } : undefined,
+  worker: { format: 'es', plugins: () => [kwsWasmFromCdn()] },
+  optimizeDeps: { exclude: ['@sherpaw/kws'] },
   plugins: [
+    kwsWasmFromCdn(),
     tanstackRouter({ target: 'react', autoCodeSplitting: true }),
     react(),
     tailwindcss(),

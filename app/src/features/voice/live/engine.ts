@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { createDaemonClient, unwrap } from '@/lib/api/client'
 import { useDaemonsStore } from '@/lib/daemons/store'
-import { LivePipeline, type BoxOps, type Cue, type Target } from './pipeline'
+import { chosenLanguages, startSpotter, type Spotter } from './kws'
+import { LivePipeline, SHORT_MS, type Ask, type BoxOps, type Cue, type Target } from './pipeline'
 
 /**
  * Live mode: the microphone stays open and what the owner says goes into the message box of the session
@@ -35,14 +36,23 @@ interface LiveState {
   speaking: boolean
   pending: number
   error: string | null
+  /** The on-device voice commands: loading (with download progress, bytes), ready, or off (failed). */
+  commands: { state: 'loading' | 'ready' | 'off'; received?: number; total?: number; note?: string }
 }
 
-export const useLive = create<LiveState>(() => ({ phase: 'off', speaking: false, pending: 0, error: null }))
+export const useLive = create<LiveState>(() => ({
+  phase: 'off',
+  speaking: false,
+  pending: 0,
+  error: null,
+  commands: { state: 'off' },
+}))
 
 let target: Target | null = null
 let ops: BoxOps | null = null
 let vad: { start: () => Promise<void>; pause: () => Promise<void>; destroy: () => Promise<void> } | null = null
 let wakeLock: { release: () => Promise<void> } | null = null
+let spotter: Spotter | null = null
 
 /** The session page in front (null when none is): a segment lands where its speech started. */
 export function setLiveTarget(next: Target | null) {
@@ -54,9 +64,10 @@ export function setLiveOps(next: BoxOps) {
 }
 
 const pipeline = new LivePipeline({
-  transcribe: (where, audio) => transcribe(where, audio),
+  transcribe: (where, audio, ask) => transcribe(where, audio, ask),
   ops: () => ops ?? NO_OPS,
   cue: (cue) => playCue(cue),
+  spot: (pcm) => (spotter ? spotter.spot(pcm) : Promise.resolve(null)),
   changed: () =>
     useLive.setState((s) => ({
       pending: pipeline.pending,
@@ -68,16 +79,17 @@ const pipeline = new LivePipeline({
 
 const NO_OPS: BoxOps = { append: () => {}, clear: () => {}, undo: () => false, send: () => 'empty' }
 
-async function transcribe(where: Target, audio: Blob): Promise<string> {
+async function transcribe(where: Target, audio: Blob, ask: Ask): Promise<{ text: string; language: string | null }> {
   const daemon = useDaemonsStore.getState().daemons.find((d) => d.id === where.daemonId)
   if (!daemon) throw new Error('that daemon is gone')
   const result = await createDaemonClient(daemon).POST('/v1/asr', {
-    params: { query: { source: 'live' } },
+    params: { query: { source: 'live', hint: ask.hint ?? null, language: ask.language ?? null } },
     body: audio as never,
     bodySerializer: (body: unknown) => body as Blob,
     headers: { 'Content-Type': 'audio/wav' },
   })
-  return unwrap(result).text.trim()
+  const said = unwrap(result)
+  return { text: said.text.trim(), language: said.language ?? null }
 }
 
 /** Turns Live on (asking for the microphone) or off (letting it go). */
@@ -85,6 +97,7 @@ export async function toggleLive() {
   if (useLive.getState().phase !== 'off') return stopLive()
   unlockCues()
   useLive.setState({ phase: 'starting', error: null })
+  void loadCommands()
   try {
     const { MicVAD } = await import('@ricky0123/vad-web')
     let started: Target | null = null
@@ -110,7 +123,8 @@ export async function toggleLive() {
         if (rms(said) < MIN_LEVEL) return count('dropped')
         const speechMs = (n: number) => Math.max(0, (n / RATE) * 1000 - LEAD_MS - TAIL_KEPT_MS)
         for (const part of parts(said)) {
-          void pipeline.segment({ target: started, audio: wav(part), ms: speechMs(part.length) })
+          const ms = speechMs(part.length)
+          void pipeline.segment({ target: started, audio: wav(part), ms, pcm: ms <= SHORT_MS ? part : undefined })
         }
       },
     })
@@ -128,9 +142,35 @@ export async function stopLive() {
   const was = vad
   vad = null
   await was?.destroy().catch(() => undefined) // the microphone is let go
+  spotter?.dispose() // the keyword spotter's Worker, its WebAssembly and model: nothing stays loaded
+  spotter = null
+  loading += 1 // a load still under way is dropped when it lands
+  useLive.setState({ commands: { state: 'off' } })
   await wakeLock?.release().catch(() => undefined)
   wakeLock = null
   useLive.setState({ phase: 'off', speaking: false })
+}
+
+let loading = 0
+
+/** The on-device voice commands, for the languages chosen: from the browser's cache (downloaded the first
+ *  time). Live works without them meanwhile, or if they fail: commands are then read off the transcript. */
+async function loadCommands() {
+  const run = ++loading
+  useLive.setState({ commands: { state: 'loading' } })
+  const started = performance.now()
+  try {
+    const ready = await startSpotter(chosenLanguages(), (received, total) => {
+      if (run === loading) useLive.setState({ commands: { state: 'loading', received, total } })
+    })
+    if (run !== loading) return ready.dispose() // Live was turned off meanwhile
+    spotter = ready
+    const seconds = ((performance.now() - started) / 1000).toFixed(1)
+    useLive.setState({ commands: { state: 'ready', note: `ready in ${seconds} s` } })
+  } catch (error) {
+    if (run !== loading) return
+    useLive.setState({ commands: { state: 'off', note: error instanceof Error ? error.message : String(error) } })
+  }
 }
 
 export function resumeLive() {
@@ -264,9 +304,10 @@ export function playCue(cue: Cue) {
 // --- usage: segments and uploads per day, on this browser ------------------------------------------------------
 
 const COUNTS_KEY = 'muxtower.live.counts'
-type Counts = Record<string, Partial<Record<'segment' | 'uploaded' | 'dropped' | 'command', number>>>
+type Counted = 'segment' | 'uploaded' | 'dropped' | 'command' | 'spotted'
+type Counts = Record<string, Partial<Record<Counted, number>>>
 
-function count(what: 'segment' | 'uploaded' | 'dropped' | 'command') {
+function count(what: Counted) {
   try {
     const all = JSON.parse(localStorage.getItem(COUNTS_KEY) ?? '{}') as Counts
     const day = new Date().toISOString().slice(0, 10)

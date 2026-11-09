@@ -41,7 +41,7 @@ def test_transcribes_and_audits_without_the_words(app: FastAPI) -> None:
     app.state.asr = AsrService(fake, language="zh", extra_prompt="Postgres, Redis")
     client, auth = _client(app)
     res = client.post("/v1/asr", content=WAV, headers={**auth, "Content-Type": "audio/wav"})
-    assert res.json() == {"text": "继续，然后跑测试"}
+    assert res.json() == {"text": "继续，然后跑测试", "language": "zh"}
     assert fake.calls == [(len(WAV), "audio/wav", "zh")]
     assert "简体中文" in fake.prompts[0] and fake.prompts[0].endswith(" Postgres, Redis")  # base, then the owner's words
     with app.state.audit.db.connect() as conn:
@@ -128,3 +128,18 @@ def test_a_source_is_kept_in_the_audit_for_counts(app: FastAPI) -> None:
         client.post("/v1/asr?source=../x", content=WAV, headers={**auth, "Content-Type": "audio/wav"}).status_code
         == 422
     )
+
+
+def test_a_command_hint_uses_the_command_prompt_and_the_configured_language_first(app: FastAPI) -> None:
+    from muxtower.asr.service import COMMAND_PROMPT
+
+    fake = FakeTranscriber()
+    app.state.asr = AsrService(fake, language=None)
+    client, auth = _client(app)
+    res = client.post("/v1/asr?hint=command&language=zh", content=WAV, headers={**auth, "Content-Type": "audio/wav"})
+    assert res.json()["language"] == "zh" and fake.calls[-1][2] == "zh" and fake.prompts[-1] == COMMAND_PROMPT
+    app.state.asr = AsrService(fake, language="en")  # configured: it wins for a command
+    res = client.post("/v1/asr?hint=command&language=zh", content=WAV, headers={**auth, "Content-Type": "audio/wav"})
+    assert res.json()["language"] == "en" and fake.calls[-1][2] == "en"
+    res = client.post("/v1/asr", content=WAV, headers={**auth, "Content-Type": "audio/wav"})  # no hint: as before
+    assert fake.prompts[-1] != COMMAND_PROMPT

@@ -24,6 +24,8 @@
     "@radix-ui/react-slot": "^1.4.0",
     "@radix-ui/react-switch": "^1.3.8",
     "@ricky0123/vad-web": "0.0.31",
+    "@sherpaw/kws": "0.3.0",
+    "@sherpaw/preloader": "0.3.0",
     "@tanstack/react-query": "^5.104.1",
     "@tanstack/react-router": "^1.170.41",
     "class-variance-authority": "^0.7.1",

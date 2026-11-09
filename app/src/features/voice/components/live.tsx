@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/lib/use-media-query'
 import { pauseLive, resumeLive, stopLive, toggleLive, useLive } from '../live/engine'
+import { chosenLanguages } from '../live/kws'
 
 const NOTE_KEY = 'muxtower.live.phone-note'
 const SHORTCUT = 'Alt+L'
@@ -44,7 +45,17 @@ export function LiveButton() {
  *  resume: only a tap or Alt+L does, nothing said is heard), or why it stopped. On a phone, once: it
  *  needs the page in front and the screen on. */
 export function LiveBar() {
-  const { phase, speaking, pending, error } = useLive()
+  const { phase, speaking, pending, error, commands } = useLive()
+  const zh = chosenLanguages().includes('zh')
+  const en = chosenLanguages().includes('en')
+  const words = (cn: string, english: string) => [zh ? cn : null, en ? english : null].filter(Boolean).join(' / ')
+  const mb = (bytes = 0) => (bytes / 1e6).toFixed(1)
+  const loading =
+    commands.state === 'loading'
+      ? commands.received
+        ? `Downloading voice commands, ${mb(commands.received)} of ${mb(commands.total)} MB (once)`
+        : 'Loading voice commands…'
+      : null
   const phone = useMediaQuery('(pointer: coarse)')
   const [note, setNote] = useState(() => {
     try {
@@ -74,9 +85,13 @@ export function LiveBar() {
           </Button>
         </Banner>
       ) : null}
+      {loading ? <p className="px-1 text-xs text-fg-muted">{loading}</p> : null}
+      {commands.state === 'off' && commands.note ? (
+        <p className="px-1 text-xs text-fg-muted">Voice commands are off ({commands.note}): they are read from what is heard.</p>
+      ) : null}
       {phase === 'paused' ? (
         <Button variant="secondary" size="lg" className="w-full" onClick={resumeLive}>
-          <Play /> Paused: tap to resume
+          <Play /> {commands.state === 'ready' ? `Paused: say ${words('继续', 'resume')}, or tap to resume` : 'Paused: tap to resume'}
         </Button>
       ) : (
         <div className="flex items-center gap-2 px-1 text-sm text-fg-muted">
@@ -93,7 +108,7 @@ export function LiveBar() {
               ? 'Starting Live…'
               : speaking
                 ? 'Hearing you…'
-                : 'Listening · say 发送 / send to send, 暂停 / pause to pause'}
+                : `Listening · say ${words('发送', 'send')} to send, ${words('暂停', 'pause')} to pause`}
             {pending ? ` · transcribing ${pending}` : ''}
           </span>
           {phase === 'listening' ? (

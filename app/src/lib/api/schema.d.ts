@@ -17,7 +17,9 @@ export interface paths {
          * Transcribe
          * @description Speech to text: the body is the recording (WAV from the glasses). `language` (e.g. `zh`, `en`)
          *     pins the language; without it the provider detects it. `source` names what asked (`live`: the app's
-         *     Live mode), for the audit log's counts. Nothing is stored.
+         *     Live mode), for the audit log's counts. `hint=command`: the recording may be only a spoken command
+         *     (send, pause…): transcribed with a prompt of those words, in the configured language if one is set.
+         *     Nothing is stored.
          */
         post: operations["transcribe_v1_asr_post"];
         delete?: never;
@@ -2262,6 +2264,11 @@ export interface components {
         };
         /** Transcript */
         Transcript: {
+            /**
+             * Language
+             * @description the language it was transcribed as (null: the provider detected it)
+             */
+            language?: string | null;
             /** Text */
             text: string;
         };
@@ -2367,6 +2374,7 @@ export interface operations {
             query?: {
                 language?: string | null;
                 source?: string | null;
+                hint?: "command" | null;
             };
             header?: never;
             path?: never;

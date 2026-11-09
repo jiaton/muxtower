@@ -24,15 +24,26 @@ export interface Segment {
   target: Target | null
   audio: Blob
   ms: number
+  /** The same audio as samples (16 kHz mono), for the keyword spotter: a short segment only. */
+  pcm?: Float32Array
+}
+
+/** How to transcribe: a short segment as a possible command (`hint: 'command'`), in a given language. */
+export interface Ask {
+  hint?: 'command'
+  language?: string
 }
 
 interface Deps {
-  transcribe: (target: Target, audio: Blob) => Promise<string>
+  /** The text, and the language it was taken as (null: detected), as the daemon says. */
+  transcribe: (target: Target, audio: Blob, ask: Ask) => Promise<{ text: string; language: string | null }>
   ops: () => BoxOps
   cue: (cue: Cue) => void
+  /** The keyword spotter, on the device, once it is loaded: the command a short segment surely is, else null. */
+  spot?: (pcm: Float32Array) => Promise<Command | null>
   /** Something the owner should see changed (state, pending count, an error). */
   changed?: () => void
-  count?: (what: 'segment' | 'uploaded' | 'dropped' | 'command') => void
+  count?: (what: 'segment' | 'uploaded' | 'dropped' | 'command' | 'spotted') => void
 }
 
 /**
@@ -75,29 +86,58 @@ export class LivePipeline {
   segment(segment: Segment): Promise<void> {
     this.deps.count?.('segment')
     const { target } = segment
-    if (this.state === 'paused' || !target) {
+    const short = segment.ms <= SHORT_MS
+    const spot = short && segment.pcm && this.deps.spot ? () => this.deps.spot!(segment.pcm!) : null
+    if (this.state === 'paused') {
+      // Paused: nothing is uploaded. Only the spotter listens, and only for "resume".
+      this.deps.count?.('dropped')
+      if (!spot) return this.applied
+      return spot().then((command) => void (command === 'resume' && this.resume()))
+    }
+    if (!target) {
       this.deps.count?.('dropped')
       return this.applied
     }
     this.pending += 1
     this.deps.changed?.()
-    const upload = this.gate.then(() => {
+    const upload = this.gate.then(async (): Promise<{ command: Command } | { text: string } | null> => {
       if (this.state === 'paused') return null // paused meanwhile, by a command spoken before it
+      // Rule 1: a short segment the spotter is sure of is that command, and is not uploaded.
+      const spotted = spot ? await spot().catch(() => null) : null
+      if (spotted) {
+        this.deps.count?.('spotted')
+        return { command: spotted }
+      }
       this.deps.count?.('uploaded')
-      return this.deps.transcribe(target, segment.audio).catch((error: unknown) => {
-        this.error = error instanceof Error ? error.message : String(error)
-        this.deps.cue('error')
-        return null
-      })
+      const heard = short ? this.short(target, segment.audio) : this.long(target, segment.audio)
+      return heard.then(
+        (text) => ({ text }),
+        (error: unknown) => {
+          this.error = error instanceof Error ? error.message : String(error)
+          this.deps.cue('error')
+          return null
+        },
+      )
     })
-    const landed = Promise.all([upload, this.applied]).then(([text]) => {
+    const landed = Promise.all([upload, this.applied]).then(([heard]) => {
       this.pending -= 1
-      if (text !== null) this.land(target, segment.ms, text)
+      if (heard && 'command' in heard) this.act(heard.command, target)
+      else if (heard) this.land(target, segment.ms, heard.text)
       this.deps.changed?.()
     })
     this.applied = landed
     if (segment.ms <= SHORT_MS) this.gate = landed
     return landed
+  }
+
+  private async long(target: Target, audio: Blob): Promise<string> {
+    return (await this.deps.transcribe(target, audio, {})).text
+  }
+
+  /** A short segment may be a command: transcribed with the command words as its prompt (and the daemon's
+   *  configured language), so a one-word clip is less often heard as something else. */
+  private async short(target: Target, audio: Blob): Promise<string> {
+    return (await this.deps.transcribe(target, audio, { hint: 'command' })).text
   }
 
   private land(target: Target, ms: number, text: string) {

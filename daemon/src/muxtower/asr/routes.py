@@ -1,5 +1,5 @@
 import asyncio
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Request
 
@@ -30,10 +30,13 @@ async def transcribe(
     request: Request, device: CurrentDevice, asr: Annotated[AsrService, Depends(_asr)], audit: Audit,
     language: str | None = None,
     source: Annotated[str | None, Query(pattern=r"^[a-z0-9-]{1,16}$")] = None,
+    hint: Literal["command"] | None = None,
 ) -> Transcript:  # fmt: skip
     """Speech to text: the body is the recording (WAV from the glasses). `language` (e.g. `zh`, `en`)
     pins the language; without it the provider detects it. `source` names what asked (`live`: the app's
-    Live mode), for the audit log's counts. Nothing is stored."""
+    Live mode), for the audit log's counts. `hint=command`: the recording may be only a spoken command
+    (send, pause…): transcribed with a prompt of those words, in the configured language if one is set.
+    Nothing is stored."""
     if int(request.headers.get("content-length") or 0) > MAX_AUDIO_BYTES:
         raise Invalid("recording too long")
     audio = bytearray()
@@ -42,7 +45,7 @@ async def transcribe(
         if len(audio) > MAX_AUDIO_BYTES:
             raise Invalid("recording too long")
     transcript = await asyncio.to_thread(
-        asr.transcribe, bytes(audio), request.headers.get("content-type", ""), language
+        asr.transcribe, bytes(audio), request.headers.get("content-type", ""), language, hint
     )
     # What was said is never logged.
     await asyncio.to_thread(

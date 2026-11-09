@@ -12,6 +12,9 @@ AUDIO_TYPES = ("audio/wav", "audio/x-wav", "audio/webm", "audio/ogg", "audio/mpe
 BASE_PROMPT = (
     "以下是对编程助手说的话，普通话夹杂英文，用简体中文。常用词：会话、批准、拒绝、中断、继续、Claude、tmux、approve。"
 )
+# For a recording that may be only a spoken command (Live mode's short segments): the words to expect,
+# in both languages, so a one-word clip is not heard as another language ("发送" as Portuguese "Façam").
+COMMAND_PROMPT = "发送 暂停 继续 清空 撤回上一句 send pause resume clear undo"
 # Groq refuses a prompt over 896 "characters", counted as UTF-8 bytes (a Chinese character is three).
 MAX_PROMPT_BYTES = 880
 
@@ -30,7 +33,7 @@ class AsrService:
     def available(self) -> bool:
         return self.transcriber is not None
 
-    def transcribe(self, audio: bytes, content_type: str, language: str | None) -> Transcript:
+    def transcribe(self, audio: bytes, content_type: str, language: str | None, hint: str | None = None) -> Transcript:
         if self.transcriber is None:
             raise Conflict("speech to text is not configured on this hub")
         kind = content_type.split(";", 1)[0].strip().lower()
@@ -40,7 +43,10 @@ class AsrService:
             raise Invalid("no audio")
         if len(audio) > MAX_AUDIO_BYTES:
             raise Invalid("recording too long")
-        return Transcript(text=self.transcriber.transcribe(audio, kind, language or self.language, self.prompt()))
+        # A command's language: the one configured, else the one asked for (the app tries zh, then en).
+        used = (self.language or language) if hint == "command" else (language or self.language)
+        prompt = COMMAND_PROMPT if hint == "command" else self.prompt()
+        return Transcript(text=self.transcriber.transcribe(audio, kind, used, prompt), language=used)
 
 
 def _fit(text: str) -> str:

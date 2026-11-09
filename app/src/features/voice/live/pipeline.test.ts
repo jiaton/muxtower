@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { commandIn, normalize, trailingSend } from './commands'
-import { LivePipeline, type BoxOps, type Target } from './pipeline'
+import { LivePipeline, type Ask, type BoxOps, type Target } from './pipeline'
 
 const A: Target = { daemonId: 'd', sessionId: 'a' }
 const B: Target = { daemonId: 'd', sessionId: 'b' }
@@ -10,7 +10,7 @@ function setup() {
   const boxes: Record<string, string[]> = {}
   const sent: string[] = []
   const cues: string[] = []
-  const uploads: { audio: Blob; resolve: (text: string) => void }[] = []
+  const uploads: { audio: Blob; ask: Ask; resolve: (text: string) => void }[] = []
   const ops: BoxOps = {
     append: (t, text) => (boxes[t.sessionId] = [...(boxes[t.sessionId] ?? []), text]),
     clear: (t) => (boxes[t.sessionId] = []),
@@ -22,11 +22,22 @@ function setup() {
       return 'sent'
     },
   }
-  const transcribe = vi.fn((_: Target, audio: Blob) => new Promise<string>((resolve) => uploads.push({ audio, resolve })))
-  const live = new LivePipeline({ transcribe, ops: () => ops, cue: (c) => cues.push(c) })
-  const say = (ms: number, target: Target | null = A) => live.segment({ target, audio: new Blob([String(ms)]), ms })
+  const transcribe = vi.fn(
+    (_: Target, audio: Blob, ask: Ask) =>
+      new Promise<{ text: string; language: string | null }>((resolve) =>
+        uploads.push({ audio, ask, resolve: (text) => resolve({ text, language: ask.language ?? null }) }),
+      ),
+  )
+  const spot = vi.fn(async (pcm: Float32Array) => (spotted.get(pcm) ?? null) as never)
+  const spotted = new Map<Float32Array, string | null>()
+  const live = new LivePipeline({ transcribe, ops: () => ops, cue: (c) => cues.push(c), spot })
+  const say = (ms: number, target: Target | null = A, kws?: string | null) => {
+    const pcm = new Float32Array(1)
+    if (kws !== undefined) spotted.set(pcm, kws)
+    return live.segment({ target, audio: new Blob([String(ms)]), ms, pcm: kws !== undefined ? pcm : undefined })
+  }
   const flush = () => new Promise((r) => setTimeout(r, 0))
-  return { live, boxes, sent, cues, uploads, transcribe, say, flush }
+  return { live, boxes, sent, cues, uploads, transcribe, say, flush, spot }
 }
 
 describe('commands', () => {
@@ -39,6 +50,13 @@ describe('commands', () => {
     expect(commandIn('清空')).toBe('clear')
     expect(commandIn('请发送这个')).toBeNull() // more than the command: text
     expect(normalize('  Um, SEND it! ')).toBe('send it')
+    // As Whisper mishears a one-word clip (seen in real use).
+    expect(commandIn('Façam!')).toBe('send')
+    expect(commandIn('Then send.')).toBe('send')
+    expect(commandIn('End.')).toBe('send')
+    expect(commandIn('发松')).toBe('send')
+    expect(commandIn('站停。')).toBe('pause')
+    expect(commandIn('the end')).toBeNull() // not all of it a command
   })
 
   it('only send may trail a sentence; it is stripped', () => {
@@ -169,5 +187,41 @@ describe('LivePipeline', () => {
     expect(t.boxes).toEqual({ a: ['给 a 的'], b: ['给 b 的'] })
     await t.say(3000, null) // spoken on no session page: dropped, not uploaded
     expect(t.transcribe).toHaveBeenCalledTimes(2)
+  })
+
+  it('rule 1: a short segment the spotter is sure of acts at once, and is not uploaded', async () => {
+    const t = setup()
+    void t.say(4000)
+    await t.flush()
+    t.uploads[0]!.resolve('修一下登录的测试')
+    await t.say(700, A, 'send')
+    expect(t.sent).toEqual(['a: 修一下登录的测试'])
+    expect(t.transcribe).toHaveBeenCalledTimes(1) // only the sentence
+  })
+
+  it('a short segment the spotter is not sure of is transcribed, and the transcript decides', async () => {
+    const t = setup()
+    void t.say(900, A, null)
+    await t.flush()
+    await t.flush()
+    expect(t.uploads).toHaveLength(1)
+    expect(t.uploads[0]!.ask).toEqual({ hint: 'command' })
+    t.uploads[0]!.resolve('好的')
+    await t.flush()
+    expect(t.boxes.a).toEqual(['好的'])
+  })
+
+  it('paused: the spotter alone listens, for "resume"; nothing is uploaded', async () => {
+    const t = setup()
+    await t.say(600, A, 'pause')
+    expect(t.live.state).toBe('paused')
+    await t.say(700, A, 'send') // heard, but paused: no command but resume
+    await t.say(5000, A) // long: not even spotted
+    expect(t.live.state).toBe('paused')
+    await t.say(700, A, 'resume')
+    expect(t.live.state).toBe('listening')
+    expect(t.transcribe).not.toHaveBeenCalled()
+    expect(t.sent).toEqual([])
+    expect(t.cues).toEqual(['paused', 'resumed'])
   })
 })
