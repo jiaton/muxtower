@@ -1,4 +1,19 @@
-import { ArrowDown, Bell, Bot, Check, Code2, Laptop, Quote, RefreshCw, Smartphone } from 'lucide-react'
+import {
+  ArrowDown,
+  AudioLines,
+  Bell,
+  Bot,
+  Check,
+  Code2,
+  Laptop,
+  Mic,
+  Plus,
+  Quote,
+  RefreshCw,
+  SendHorizontal,
+  Smartphone,
+} from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Section, SectionHeading } from '@/components/shared/section'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
@@ -115,6 +130,48 @@ function Updates() {
   )
 }
 
+/** The app's message box in Live mode, played on a loop by CSS (`.live-*` in site.css): a sentence is
+ *  heard and lands in the box, then "send" is heard on device and it goes. Frozen midway for reduced motion. */
+function Live() {
+  const l = c.live
+  return (
+    <div className="flex w-full max-w-xl flex-col gap-2 text-sm" aria-hidden>
+      <p className="live-bubble ml-auto max-w-[85%] rounded-xl bg-primary px-3 py-2 text-primary-foreground">{l.said}</p>
+      <div className="flex flex-col gap-1.5 rounded-xl border border-border bg-card p-2 shadow-card-soft">
+        <p className="grid min-h-4 px-1 text-xs text-muted-foreground *:col-start-1 *:row-start-1">
+          <span className="live-added">{l.added}</span>
+          <span className="live-sent">{l.sent}</span>
+        </p>
+        <p className="flex items-center gap-2 px-1 text-muted-foreground">
+          <span className="live-dot size-2.5 shrink-0 rounded-full bg-success" />
+          <span className="grid min-w-0 flex-1 *:col-start-1 *:row-start-1">
+            <span className="live-listening">{l.listening}</span>
+            <span className="live-hearing">{l.hearing}</span>
+          </span>
+        </p>
+        <div className="flex items-end gap-1">
+          <Button variant="ghost" size="icon" tabIndex={-1} className="max-sm:hidden">
+            <Plus />
+          </Button>
+          <p className="grid min-h-9 min-w-0 flex-1 items-center rounded-md border border-input px-3 py-1.5 *:col-start-1 *:row-start-1">
+            <span className="live-placeholder text-muted-foreground">{l.placeholder}</span>
+            <span className="live-said">{l.said}</span>
+          </p>
+          <Button variant="secondary" size="icon" tabIndex={-1} className="text-primary">
+            <AudioLines />
+          </Button>
+          <Button variant="ghost" size="icon" tabIndex={-1}>
+            <Mic />
+          </Button>
+          <Button size="icon" tabIndex={-1}>
+            <SendHorizontal />
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function Api() {
   return (
     <pre className="w-full rounded-lg bg-terminal-bg p-4 font-mono text-xs leading-relaxed text-terminal-fg">
@@ -145,6 +202,9 @@ export function Features() {
         </Cell>
         <Cell icon={Code2} title={c.api.title} text={c.api.text}>
           <Api />
+        </Cell>
+        <Cell icon={AudioLines} title={c.live.title} text={c.live.text} className="md:col-span-2 lg:col-span-3">
+          <Live />
         </Cell>
       </div>
     </Section>

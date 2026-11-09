@@ -25,6 +25,17 @@ export const featureCells = {
     version: '0.1.47',
     machines: ['server', 'vps', 'macbook', 'pc'],
   },
+  live: {
+    title: 'Talk instead of type',
+    text: 'Live writes what you say into the open session, and “send” sends it.',
+    // As the app words them (app/src/features/voice/components/live.tsx and live/pipeline.ts).
+    said: 'Run the migration on staging',
+    listening: 'Listening · say send to send, pause to pause · commands on device',
+    hearing: 'Hearing you…',
+    added: 'added: Run the migration on staging',
+    sent: 'send ✓ (on device)',
+    placeholder: 'Message the agent',
+  },
   api: {
     title: 'Build your own client',
     text: 'A typed HTTP and WebSocket API. A desk key, an e-ink frame, Home Assistant.',

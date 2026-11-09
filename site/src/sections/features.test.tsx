@@ -11,9 +11,11 @@ describe('Features', () => {
       'Start at your desk',
       'Update the hub only',
       'Build your own client',
+      'Talk instead of type',
     ])
       expect(screen.getByRole('heading', { level: 3, name: title })).toBeInTheDocument()
     expect(screen.getByText('Approve Bash: npm test -- payments')).toBeInTheDocument()
+    expect(screen.getByText('send ✓ (on device)')).toBeInTheDocument()
     expect(screen.getByText(/WS\s+\/v1\/stream/)).toBeInTheDocument()
   })
 })
