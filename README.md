@@ -4,7 +4,7 @@
 
 <h1 align="center">muxtower</h1>
 
-<p align="center"><b>Approve and drive the coding agents running on your machines, from your phone.</b></p>
+<p align="center"><b>See and direct the coding agents on all your machines, from any browser or your phone.</b></p>
 
 <p align="center">
   <a href="https://pypi.org/project/muxtower/"><img src="https://img.shields.io/pypi/v/muxtower?style=flat-square" alt="PyPI"></a>
@@ -19,12 +19,13 @@
 </p>
 
 <p align="center">
-  <img src="docs/media/hero.png" width="720" alt="Every machine. Every agent. One list. The sessions of every computer in one list, a conversation open beside it, and the same list on a phone">
+  <img src="docs/media/hero.png" width="720" alt="Every agent, on every machine. Live in any browser. The sessions of every computer in one list, a conversation open beside it, and the same list on a phone">
 </p>
 
-muxtower is a small daemon that runs next to your agents (Claude Code, Codex, …) in tmux. It knows which one is waiting on you and for what, and serves a web app for your phone: approve, answer, read and type into any session, on any of your computers.
+muxtower is a small daemon that runs next to your agents (Claude Code, Codex, …). It shows what every session on every computer is doing, live, in a web app that works in any browser and installs on your phone, and lets you talk to any of them from there.
 
-- **Knows what each agent is asking.** Claude Code and Codex report through their own hooks, so a permission prompt arrives with the exact command; anything else is read off the screen with rules you can edit.
+- **Every agent's state, live.** Working, waiting on you, or done. Claude Code and Codex report through their own hooks; other terminal agents are read with rules you can edit.
+- **Direct any of them from anywhere.** Read the conversation, reply to a line, type or speak (Live), and get a push when one is done or needs you.
 - **Teams of agents.** Each session has a role and a project; agents find each other with `my_team` and hand each other work with `send_task`, on one machine or across several.
 - **All your computers in one list.** Join them to one hub; a laptop needs no address of its own, and while the hub restarts the app reaches the others directly.
 - **Yours to host.** One `pipx install`, and the daemon serves the app itself. No account, no cloud service; every device has its own revocable token.
