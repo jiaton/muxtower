@@ -111,6 +111,8 @@
    holds still with the sentence in the box. Longhands only: the minifier turns a nameless `animation`
    shorthand into `none`. */
 @layer components {
+  .live-rows-writing,
+  .live-rows-commands,
   .live-bubble,
   .live-added,
   .live-sent,
@@ -126,6 +128,12 @@
     animation-duration: 12s;
     animation-timing-function: linear;
     animation-iteration-count: infinite;
+  }
+  .live-rows-writing {
+    animation-name: live-rows-writing;
+  }
+  .live-rows-commands {
+    animation-name: live-rows-commands;
   }
   .live-bubble {
     animation-name: live-bubble;
@@ -164,6 +172,8 @@
     animation-name: live-said;
   }
   @media (prefers-reduced-motion: reduce) {
+    .live-rows-writing,
+    .live-rows-commands,
     .live-bubble,
     .live-added,
     .live-sent,
@@ -515,5 +525,35 @@
   }
   100% {
     opacity: 1;
+  }
+}
+/* Each state's row: its full height while it shows, none while the other does (the switch is at once,
+   as in the app). Same stretches as live-writing and live-commands. */
+@keyframes live-rows-writing {
+  0%,
+  58% {
+    grid-template-rows: 1fr;
+  }
+  59%,
+  95% {
+    grid-template-rows: 0fr;
+  }
+  96%,
+  100% {
+    grid-template-rows: 1fr;
+  }
+}
+@keyframes live-rows-commands {
+  0%,
+  58% {
+    grid-template-rows: 0fr;
+  }
+  59%,
+  95% {
+    grid-template-rows: 1fr;
+  }
+  96%,
+  100% {
+    grid-template-rows: 0fr;
   }
 }
