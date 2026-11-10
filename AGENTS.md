@@ -23,3 +23,11 @@ muxtower: approve and drive coding agents running in tmux on a remote machine (a
 - English only, in UI strings and docs.
 - An API change lands in the same commit as its regenerated `openapi.json` and the app and glasses code that uses it.
 - No secret in logs, error messages, URLs written to logs, or git history.
+
+## Private terms
+
+`scripts/check-private.py` (first in `make check`, and a CI step) fails when a tracked file, or the message of
+a commit about to be pushed, holds one of the owner's private terms (names, projects, hosts, session ids). The
+list is never in this repository: it is the Actions secret `PRIVATE_TERMS` and, on the owner's machine,
+`~/.config/muxtower/private-terms.txt`; without one the check skips. A finding names the term by number only.
+Test data and examples use made-up names (acme/…, "Plan the launch", build-box).

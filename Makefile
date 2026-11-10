@@ -9,6 +9,7 @@ contract-check: contract
 	git diff --exit-code -- openapi.json app/src/lib/api/schema.d.ts glasses/src/hub/schema.d.ts
 
 check:
+	python3 scripts/check-private.py
 	cd daemon && poetry run ruff check . && poetry run ruff format --check . && poetry run mypy src && poetry run pytest -q
 	cd app && npm run lint && npm run typecheck && npm test
 	cd glasses && npm run lint && npm run typecheck && npm test

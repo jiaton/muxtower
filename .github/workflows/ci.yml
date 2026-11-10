@@ -9,6 +9,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the private-term check reads the messages of the commits pushed
+      # Private terms (the owner's names, projects, hosts) must not enter this public repository. The list
+      # is the PRIVATE_TERMS secret, never in the repository; without it (a fork's pull request) it skips.
+      - name: No private terms
+        env:
+          PRIVATE_TERMS: ${{ secrets.PRIVATE_TERMS }}
+          RANGE: ${{ github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000' && format('{0}..{1}', github.event.before, github.sha) || 'origin/main..HEAD' }}
+        run: python3 scripts/check-private.py "$RANGE"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
