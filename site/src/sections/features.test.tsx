@@ -12,11 +12,12 @@ describe('Features', () => {
       'Update the hub only',
       'Build your own client',
       'Talk instead of type',
+      'Reply without the mouse',
     ])
       expect(screen.getByRole('heading', { level: 3, name: title })).toBeInTheDocument()
     expect(screen.getByText('Done: retries with backoff, 3 attempts')).toBeInTheDocument()
-    expect(screen.getByText('Live · speak to write')).toBeInTheDocument()
-    expect(screen.getByText('Commands only')).toBeInTheDocument()
+    expect(screen.getByLabelText(/^Live: speaking/)).toHaveAttribute('poster', '/clips/live-voice.jpg')
+    expect(screen.getByLabelText(/on the live terminal$/)).toHaveAttribute('poster', '/clips/keyboard-flow.jpg')
     expect(screen.getByText(/WS\s+\/v1\/stream/)).toBeInTheDocument()
   })
 

@@ -1,4 +1,5 @@
 import { Check } from 'lucide-react'
+import { FeatureClip } from '@/components/shared/feature-clip'
 import { Section, SectionHeading } from '@/components/shared/section'
 import { team } from '@/content/page'
 import { TeamExamples } from './team-examples'
@@ -20,6 +21,7 @@ export function Team() {
         </div>
         <TeamExamples />
       </div>
+      <FeatureClip id="team-handoff" label={team.clip} className="mx-auto mt-14 max-w-5xl" />
     </Section>
   )
 }

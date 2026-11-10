@@ -1,7 +1,7 @@
 /** Makes the site's feature clips, all of them or those named: `npm run clips [-- live-list ...]`.
  *  1. builds the demo app (../../app, with the clip hook it has under `?clip`) and serves it here;
  *  2. records each clip's script in it (record.ts, scripts/);
- *  3. finishes each one with Remotion (remotion/) into an MP4 (H.264), a WebM (VP9) and a poster, muted;
+ *  3. finishes each one with Remotion (remotion/) into an MP4 (H.264) and a poster, muted (a VP9 WebM came out larger than the MP4);
  *  4. puts them in ../public/clips/, where the page loads them.
  *  CLIPS_REUSE=1 finishes the last recordings again without recording; CLIPS_STILLS=2,7.5 renders only
  *  those moments (seconds), as stills under public/raw/<id>/, for a look while working on one. */
@@ -114,17 +114,6 @@ for (const meta of metas) {
     muted: true,
     outputLocation: `${base}.mp4`,
   })
-  await renderMedia({
-    serveUrl,
-    composition,
-    inputProps,
-    browserExecutable,
-    codec: 'vp9',
-    scale,
-    crf: 38,
-    muted: true,
-    outputLocation: `${base}.webm`,
-  })
   // The poster: the clip's last moment, everything that happened in view.
   await renderStill({
     serveUrl,
@@ -137,5 +126,5 @@ for (const meta of metas) {
     jpegQuality: 82,
     output: `${base}.jpg`,
   })
-  for (const ext of ['mp4', 'webm', 'jpg']) console.log(`  ${meta.id}.${ext}: ${(statSync(`${base}.${ext}`).size / 1024).toFixed(0)} KB`)
+  for (const ext of ['mp4', 'jpg']) console.log(`  ${meta.id}.${ext}: ${(statSync(`${base}.${ext}`).size / 1024).toFixed(0)} KB`)
 }

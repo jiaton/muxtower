@@ -15,6 +15,8 @@ export const hero = {
   install: 'pipx install muxtower',
   tryApp: 'Try the live demo',
   tryAppNote: 'The real app on made-up sessions. Click anything.',
+  clip: 'Every session on every machine, its state changing live, in a browser and on a phone',
+  clipNote: 'Recorded in the live demo.',
 }
 
 export const hub = {
@@ -37,6 +39,7 @@ export const team = {
     'A project is its git remote, on any machine.',
     'A task waits while its receiver waits on you.',
   ],
+  clip: 'A team on two machines: the PM sets roles, the tech lead splits the work and watches, reports come back',
 }
 
 export const features = {

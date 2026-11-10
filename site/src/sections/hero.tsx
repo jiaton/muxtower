@@ -1,5 +1,6 @@
 import { ArrowUpRight, MousePointerClick } from 'lucide-react'
 import { CommandPill } from '@/components/shared/command-pill'
+import { FeatureClip } from '@/components/shared/feature-clip'
 import { Badge } from '@/components/ui/badge'
 import { BorderBeam } from '@/components/ui/border-beam'
 import { Button } from '@/components/ui/button'
@@ -56,6 +57,18 @@ export function Hero() {
           <BorderBeam size={140} duration={9} />
         </div>
       </div>
+    </section>
+  )
+}
+
+/** Under the hero: the real app recorded, every session's state changing live. */
+export function HeroClip() {
+  return (
+    <section aria-label={hero.clip} className="w-full">
+      <figure data-reveal className="mx-auto flex w-full max-w-5xl flex-col items-center gap-3 px-5 pb-8 sm:px-8">
+        <FeatureClip id="live-list" label={hero.clip} />
+        <figcaption className="text-sm text-muted-foreground">{hero.clipNote}</figcaption>
+      </figure>
     </section>
   )
 }

@@ -6,7 +6,7 @@ import { Faq } from '@/sections/faq'
 import { Features } from '@/sections/features'
 import { Footer } from '@/sections/footer'
 import { Header } from '@/sections/header'
-import { Hero } from '@/sections/hero'
+import { Hero, HeroClip } from '@/sections/hero'
 import { Hub } from '@/sections/hub'
 import { Install } from '@/sections/install'
 import { Security } from '@/sections/security'
@@ -22,9 +22,10 @@ import { Usage } from '@/sections/usage'
     <Header />
     <main>
       <Hero client:load />
+      <HeroClip client:visible />
       <Hub client:visible />
       <Team client:visible />
-      <Features />
+      <Features client:visible />
       <Usage />
       <Security />
       <Install client:visible />

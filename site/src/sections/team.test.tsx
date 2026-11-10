@@ -8,5 +8,6 @@ describe('Team', () => {
     expect(screen.getByRole('heading', { name: /team/ })).toBeInTheDocument()
     expect(screen.getByText('A role is plain text: pm, worker, reviewer.')).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: 'acme/shop' })).toBeInTheDocument()
+    expect(screen.getByLabelText(/^A team on two machines/)).toHaveAttribute('poster', '/clips/team-handoff.jpg')
   })
 })

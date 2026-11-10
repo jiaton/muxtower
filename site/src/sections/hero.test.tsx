@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { Hero } from './hero'
+import { Hero, HeroClip } from './hero'
 
 describe('Hero', () => {
   it('says what it is, how to install it, and plays the demo', () => {
@@ -11,5 +11,14 @@ describe('Hero', () => {
     expect(links).toHaveLength(1)
     for (const link of links) expect(link).toHaveAttribute('href', '/demo/')
     expect(screen.getByRole('region', { name: 'muxtower demo' })).toBeInTheDocument()
+  })
+
+  it('has the recorded app under it, its poster first', () => {
+    render(<HeroClip />)
+    expect(screen.getByLabelText(/^Every session on every machine/, { selector: 'video' })).toHaveAttribute(
+      'poster',
+      '/clips/live-list.jpg',
+    )
+    expect(screen.getByText('Recorded in the live demo.')).toBeInTheDocument()
   })
 })

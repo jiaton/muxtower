@@ -1,10 +1,10 @@
-import { ArrowDown, AudioLines, Bell, Bot, Check, Code2, Laptop, Quote, RefreshCw, Smartphone } from 'lucide-react'
+import { ArrowDown, AudioLines, Bell, Bot, Check, Code2, Keyboard, Laptop, Quote, RefreshCw, Smartphone } from 'lucide-react'
+import { FeatureClip } from '@/components/shared/feature-clip'
 import { Section, SectionHeading } from '@/components/shared/section'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { featureCells as c } from '@/content/features'
 import { features } from '@/content/page'
-import { LivePicture } from './features-live'
 import { cn } from '@/lib/utils'
 
 /** One cell of the bento: a picture on top, a title and one line under it. */
@@ -152,7 +152,10 @@ export function Features() {
           <Assistant />
         </Cell>
         <Cell icon={AudioLines} title={c.live.title} text={c.live.text} points={c.live.points} className="md:col-span-2 lg:col-span-3">
-          <LivePicture />
+          <FeatureClip id="live-voice" label={c.live.clip} className="max-w-4xl" />
+        </Cell>
+        <Cell icon={Keyboard} title={c.keys.title} text={c.keys.text} className="md:col-span-2">
+          <FeatureClip id="keyboard-flow" label={c.keys.clip} />
         </Cell>
         <Cell icon={Laptop} title={c.desk.title} text={c.desk.text}>
           <Desk />
@@ -160,7 +163,7 @@ export function Features() {
         <Cell icon={RefreshCw} title={c.updates.title} text={c.updates.text}>
           <Updates />
         </Cell>
-        <Cell icon={Code2} title={c.api.title} text={c.api.text}>
+        <Cell icon={Code2} title={c.api.title} text={c.api.text} className="md:col-span-2">
           <Api />
         </Cell>
       </div>
