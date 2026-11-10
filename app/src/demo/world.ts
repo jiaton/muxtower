@@ -142,7 +142,8 @@ export class World {
     return true
   }
 
-  private play(id: string, steps: Step[]) {
+  /** Plays steps on a session as its scene's `start` does (also the site's clip recorder, `install.ts`). */
+  play(id: string, steps: Step[]) {
     let at = 0
     for (const step of steps) {
       at += step.after

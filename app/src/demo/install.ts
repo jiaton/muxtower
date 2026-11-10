@@ -3,7 +3,7 @@ import { scenes } from './scenes'
 import { DEMO_DAEMON, NODE } from './scenes/session'
 import { respond } from './server'
 import { DemoSocket } from './socket'
-import { World } from './world'
+import { type Step, World } from './world'
 
 /** Where the demo's second computer answers itself (direct fallback, `?hub=down`). */
 export const DIRECT_URL = 'https://laptop.demo.invalid'
@@ -36,6 +36,11 @@ export function installDemo() {
   }
   Object.assign(DemoWebSocket, { CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 })
   globalThis.WebSocket = DemoWebSocket as unknown as typeof WebSocket
+
+  // The site's clip recorder (site/clips) scripts the story through this; only with `?clip` in the URL.
+  if (new URLSearchParams(location.search).has('clip')) {
+    Object.assign(window, { muxtowerClip: { play: (id: string, steps: Step[]) => world.play(id, steps), sessions: () => world.sessions() } })
+  }
 
   const laptop = { id: `${DEMO_DAEMON.id}~${NODE}`, name: NODE, url: DIRECT_URL, token: 'demo-direct', via: DEMO_DAEMON.id, node: NODE }
   useDaemonsStore.setState({ daemons: [{ ...DEMO_DAEMON, streamAuth: 'subprotocol' }, ...(hubDown ? [laptop] : [])] })
