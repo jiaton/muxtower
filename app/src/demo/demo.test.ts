@@ -135,6 +135,20 @@ describe('the demo daemon over HTTP', () => {
     expect([started.id, started.interrupted_at, started.capabilities.screen]).toEqual(['laptop~migrations', null, true])
     expect(await (await call(w, 'POST', '/v1/recovery', { session_ids: ['laptop~migrations'] })).json()).toEqual([])
   })
+
+  it('keeps a voice dictionary of made-up words, all of which fit in the prompt', async () => {
+    const { w } = world()
+    const kept = await (await call(w, 'GET', '/v1/asr/dictionary')).json()
+    expect(kept.words).toContain('acme-cli')
+    expect(kept.corrections).toContainEqual({ heard: '.acme', write: 'acme-cli' })
+    expect(kept.fit).toMatchObject({ words_in_prompt: kept.words.length, words: kept.words.length, budget: 224 })
+    const saved = await (
+      await call(w, 'PUT', '/v1/asr/dictionary', { words: [...kept.words, 'Frobnitz'], corrections: kept.corrections })
+    ).json()
+    expect(saved.words.at(-1)).toBe('Frobnitz')
+    expect(saved.fit.tokens).toBeGreaterThan(kept.fit.tokens)
+    await call(w, 'PUT', '/v1/asr/dictionary', { words: kept.words, corrections: kept.corrections }) // as it was, for the next test
+  })
 })
 
 describe('the demo stream', () => {

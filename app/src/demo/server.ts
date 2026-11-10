@@ -4,6 +4,7 @@ import type { MachineUsage, NodeInfo, RuntimeInfo, Session } from '@/lib/api/typ
 import { DEMO_DAEMON, HOME, NODE } from './scenes/session'
 import { plain } from './scenes/terminal'
 import { DemoSettings } from './settings'
+import { dictionary, saveDictionary } from './dictionary'
 import type { World } from './world'
 
 type Me = components['schemas']['Me']
@@ -183,6 +184,8 @@ const ROUTES: Record<string, (world: World, body: Record<string, unknown>, url: 
     return refused ? refuse(409, refused) : json(SETTINGS.list(url.searchParams.get('node') || DEMO_DAEMON.name))
   },
   'POST /v1/nodes/direct': () => json([{ node: NODE, url: 'https://laptop.demo.invalid', token: 'demo-direct' }]),
+  'GET /v1/asr/dictionary': () => json(dictionary()),
+  'PUT /v1/asr/dictionary': (_, body) => json(saveDictionary(body)),
   'GET /v1/recovery': (world) => json({ mode: 'ask', sessions: world.sessions().filter((s) => s.interrupted_at) }),
   'POST /v1/recovery': (world, body) =>
     json(world.recover(Array.isArray(body.session_ids) ? body.session_ids.filter((id) => typeof id === 'string') : [])),

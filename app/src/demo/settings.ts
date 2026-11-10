@@ -18,6 +18,13 @@ const ROWS: Row[] = [
     file: true,
   }),
   row('summaries.min_chars', 'Summaries', 'Summarize replies longer than (characters)', 'number', 'restart', 400),
+  row('asr.provider', 'Voice input', 'Speech recognition', 'choice', 'restart', 'off', {
+    choices: ['off', 'groq', 'openai'],
+    value: 'groq',
+    file: true,
+    help: 'its API key is set in the config file',
+  }),
+  row('asr.language', 'Voice input', 'Language', 'text', 'restart', '', { help: 'e.g. zh; empty: detected per recording' }),
   row('usage.cpu_percent', 'Usage alerts', 'CPU above (% of one core, 1 min)', 'number', 'now', 20),
   row('usage.rss_mb', 'Usage alerts', 'Memory above (MB)', 'number', 'now', 500),
 ]
