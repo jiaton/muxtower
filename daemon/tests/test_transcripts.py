@@ -152,3 +152,38 @@ def test_an_unreadable_transcript_is_told_of_once_an_hour_not_each_read(tmp_path
     followed.warned -= module.WARN_EVERY  # an hour on
     reader._read(followed)
     assert sum("cannot read transcript" in r.message for r in caplog.records) == 2
+
+
+def test_a_message_taken_in_mid_turn_and_pasted_text_read_as_typed(tmp_path: Path) -> None:
+    """Typed while Claude Code works, a message it takes in with a tool's result is recorded only as a
+    `queued_command` attachment; pasted text comes wrapped in `<pasted_content>` tags. Both read as typed."""
+    queued = {
+        "type": "attachment",
+        "uuid": "q1",
+        "timestamp": "2026-11-10T09:00:05Z",
+        "attachment": {
+            "type": "queued_command",
+            "prompt": [{"type": "text", "text": "also check the docs"}],
+            "commandMode": "prompt",
+            "origin": {"kind": "human"},
+        },
+    }
+    notice = {**queued, "attachment": {**queued["attachment"], "prompt": "<task-notification>done</task-notification>"}}
+    other = {"type": "attachment", "attachment": {"type": "hook_success", "content": "ok"}}
+    path = tmp_path / "s.jsonl"
+    path.write_text(
+        line("user", 'Before\n\n<pasted_content id="ab12">\nline one\n\nline two\n</pasted_content id="ab12">')
+        + json.dumps({"type": "queue-operation", "operation": "enqueue", "content": "also check the docs"}) + "\n"
+        + line("assistant", "Working on it")
+        + json.dumps(queued) + "\n"
+        + json.dumps(notice) + "\n"
+        + json.dumps(other) + "\n"
+        + line("assistant", "Docs checked too")
+    )  # fmt: skip
+    items = Transcripts().conversation("s1", str(path), 0, 100).items
+    assert [(i.kind, i.text) for i in items] == [
+        ("prompt", "Before\n\nline one\n\nline two"),
+        ("reply", "Working on it"),
+        ("prompt", "also check the docs"),
+        ("reply", "Docs checked too"),
+    ]

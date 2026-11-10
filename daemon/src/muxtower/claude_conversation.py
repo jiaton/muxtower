@@ -35,6 +35,8 @@ SYNTHETIC_PREFIXES = ("<command-", "<local-command", "<system-reminder", "<task-
 # A slash command as typed (`/loop 5m check the build`). What it expands to (a skill's prompt) comes in
 # the next event, marked `isSynthetic` (`isMeta` in a transcript), and is not shown.
 COMMAND = re.compile(r"<command-name>\s*(\S+?)\s*</command-name>(?:.*?<command-args>(.*?)</command-args>)?", re.S)
+# Claude Code records pasted text wrapped as `<pasted_content id="…">…</pasted_content id="…">`: shown as typed.
+PASTED = re.compile(r"\n?</?pasted_content\b[^>]*>\n?")
 QUESTION_TOOLS = {"AskUserQuestion"}
 UNLISTED_TOOLS = {"AskUserQuestion", "ExitPlanMode", *WRAP_UP_TOOLS}  # shown as their prompt, not as a tool call
 
@@ -73,7 +75,9 @@ def _typed(text: str) -> str | None:
     if command := COMMAND.search(text):
         name = command[1] if command[1].startswith("/") else f"/{command[1]}"
         return f"{name} {(command[2] or '').strip()}".strip()
-    return None if text.startswith(SYNTHETIC_PREFIXES) else text
+    if text.startswith(SYNTHETIC_PREFIXES):
+        return None
+    return PASTED.sub("\n", text).strip() if "<pasted_content" in text else text
 
 
 def _blocks(payload: dict[str, Any]) -> list[dict[str, Any]]:

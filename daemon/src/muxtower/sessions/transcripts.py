@@ -63,11 +63,29 @@ class _Followed:
         self.builder = builder_for(self.path)
 
 
+def _queued(payload: dict[str, Any]) -> dict[str, Any] | None:
+    """A message typed while Claude Code worked, that it took in mid-turn (with a tool's result): recorded
+    only as a `queued_command` attachment, not as a user message. As the user message it is."""
+    attachment = payload.get("attachment")
+    if not isinstance(attachment, dict) or attachment.get("type") != "queued_command":
+        return None
+    if attachment.get("commandMode") not in (None, "prompt") or not attachment.get("prompt"):
+        return None
+    return {
+        "type": "user",
+        "uuid": payload.get("uuid"),
+        "timestamp": payload.get("timestamp") or attachment.get("timestamp"),
+        "message": {"role": "user", "content": attachment["prompt"]},
+    }
+
+
 def _event(line: bytes, seq: int) -> RawEvent | None:
     try:
         payload: Any = json.loads(line)
     except ValueError:
         return None
+    if isinstance(payload, dict) and payload.get("type") == "attachment":
+        payload = _queued(payload)
     if not isinstance(payload, dict) or payload.get("type") not in KINDS:
         return None
     if payload.get("isSidechain") or payload.get("isMeta") or payload.get("isCompactSummary"):
