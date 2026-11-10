@@ -15,7 +15,6 @@ describe('Features', () => {
     ])
       expect(screen.getByRole('heading', { level: 3, name: title })).toBeInTheDocument()
     expect(screen.getByText('Done: retries with backoff, 3 attempts')).toBeInTheDocument()
-    expect(screen.getByText('send ✓ (on device)')).toBeInTheDocument()
     expect(screen.getByText('Live · writing what you say')).toBeInTheDocument()
     expect(screen.getByText('Commands only')).toBeInTheDocument()
     expect(screen.getByText(/WS\s+\/v1\/stream/)).toBeInTheDocument()

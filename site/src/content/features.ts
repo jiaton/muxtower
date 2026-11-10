@@ -28,18 +28,17 @@ export const featureCells = {
   live: {
     title: 'Talk instead of type',
     text: 'Live writes what you say into the open session, and “send” sends it.',
-    // As the app words them (app/src/features/voice/components/live.tsx and live/pipeline.ts).
+    // As the app words them (app/src/features/voice/components/live.tsx and live/feedback.ts).
     said: 'Run the migration on staging',
     writing: 'Live · writing what you say',
     hearing: 'Live · hearing you…',
-    hint: 'say send to send, pause to stop writing · commands on device',
+    hint: '· say send to send, pause to stop writing · commands on device',
     transcribing: ' · transcribing 1',
-    added: 'added: Run the migration on staging',
-    sent: 'send ✓ (on device)',
-    paused: 'pause ✓ (on device)',
+    sent: '✓ sent',
+    paused: '✓ paused',
     commandsOnly: 'Commands only',
-    resumeHint: ' · say resume to write again',
-    resume: 'Tap to write again',
+    resumeHint: '· say resume to write again',
+    resume: 'Write again',
     placeholder: 'Message the agent',
   },
   api: {

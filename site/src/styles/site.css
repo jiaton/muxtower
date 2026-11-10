@@ -105,87 +105,87 @@
   }
 }
 
-/* Live mode's message box in the features (sections/features.tsx), one 12 s loop: "hearing you…" while
-   a sentence is spoken, it lands in the box ("added: …"), "send" is heard and it goes, "pause" is heard
-   and Live turns to commands only. Each class shows its thing for its stretch. With reduced motion it
-   holds still with the sentence in the box. Longhands only: the minifier turns a nameless `animation`
-   shorthand into `none`. */
+/* Live mode's message box in the features (sections/features-live.tsx), one 12 s loop: "hearing you…"
+   while a sentence is spoken, it lands in the box (which glows), "send" is heard ("✓ sent") and it goes,
+   "pause" is heard ("✓ paused") and Live turns to commands only. Each class shows its thing for its
+   stretch. With reduced motion it holds still with the sentence in the box. Longhands only: the minifier
+   turns a nameless `animation` shorthand into `none`. */
 @layer components {
-  .live-rows-writing,
-  .live-rows-commands,
-  .live-bubble,
-  .live-added,
-  .live-sent,
-  .live-paused,
-  .live-writing,
-  .live-commands,
-  .live-dot,
-  .live-quiet,
   .live-hearing,
+  .live-quiet,
   .live-transcribing,
+  .live-said,
   .live-placeholder,
-  .live-said {
+  .live-sent,
+  .live-hint,
+  .live-paused,
+  .live-resume-hint,
+  .live-commands,
+  .live-writing,
+  .live-bubble,
+  .live-glow,
+  .live-dot {
     animation-duration: 12s;
     animation-timing-function: linear;
     animation-iteration-count: infinite;
   }
-  .live-rows-writing {
-    animation-name: live-rows-writing;
-  }
-  .live-rows-commands {
-    animation-name: live-rows-commands;
-  }
-  .live-bubble {
-    animation-name: live-bubble;
-  }
-  .live-added {
-    animation-name: live-added;
-  }
-  .live-sent {
-    animation-name: live-sent;
-  }
-  .live-paused {
-    animation-name: live-paused;
-  }
-  .live-writing {
-    animation-name: live-writing;
-  }
-  .live-commands {
-    animation-name: live-commands;
-  }
-  .live-dot {
-    animation-name: live-dot;
+  .live-hearing {
+    animation-name: live-hearing;
   }
   .live-quiet {
     animation-name: live-quiet;
   }
-  .live-hearing {
-    animation-name: live-hearing;
-  }
   .live-transcribing {
     animation-name: live-transcribing;
-  }
-  .live-placeholder {
-    animation-name: live-placeholder;
   }
   .live-said {
     animation-name: live-said;
   }
+  .live-placeholder {
+    animation-name: live-placeholder;
+  }
+  .live-sent {
+    animation-name: live-sent;
+  }
+  .live-hint {
+    animation-name: live-hint;
+  }
+  .live-paused {
+    animation-name: live-paused;
+  }
+  .live-resume-hint {
+    animation-name: live-resume-hint;
+  }
+  .live-commands {
+    animation-name: live-commands;
+  }
+  .live-writing {
+    animation-name: live-writing;
+  }
+  .live-bubble {
+    animation-name: live-bubble;
+  }
+  .live-glow {
+    animation-name: live-glow;
+  }
+  .live-dot {
+    animation-name: live-dot;
+  }
   @media (prefers-reduced-motion: reduce) {
-    .live-rows-writing,
-    .live-rows-commands,
-    .live-bubble,
-    .live-added,
-    .live-sent,
-    .live-paused,
-    .live-writing,
-    .live-commands,
-    .live-dot,
-    .live-quiet,
     .live-hearing,
+    .live-quiet,
     .live-transcribing,
+    .live-said,
     .live-placeholder,
-    .live-said {
+    .live-sent,
+    .live-hint,
+    .live-paused,
+    .live-resume-hint,
+    .live-commands,
+    .live-writing,
+    .live-bubble,
+    .live-glow,
+    .live-dot {
       animation-delay: -4.2s;
       animation-play-state: paused;
     }
@@ -194,89 +194,117 @@
 @keyframes live-hearing {
   0% {
     opacity: 0;
+    max-width: 0;
   }
   4% {
     opacity: 0;
+    max-width: 0;
   }
   5% {
     opacity: 1;
+    max-width: 20rem;
   }
   24% {
     opacity: 1;
+    max-width: 20rem;
   }
   25% {
     opacity: 0;
+    max-width: 0;
   }
   35% {
     opacity: 0;
+    max-width: 0;
   }
   36% {
     opacity: 1;
+    max-width: 20rem;
   }
   41% {
     opacity: 1;
+    max-width: 20rem;
   }
   42% {
     opacity: 0;
+    max-width: 0;
   }
   49% {
     opacity: 0;
+    max-width: 0;
   }
   50% {
     opacity: 1;
+    max-width: 20rem;
   }
   55% {
     opacity: 1;
+    max-width: 20rem;
   }
   56% {
     opacity: 0;
+    max-width: 0;
   }
   100% {
     opacity: 0;
+    max-width: 0;
   }
 }
 @keyframes live-quiet {
   0% {
     opacity: 1;
+    max-width: 20rem;
   }
   4% {
     opacity: 1;
+    max-width: 20rem;
   }
   5% {
     opacity: 0;
+    max-width: 0;
   }
   24% {
     opacity: 0;
+    max-width: 0;
   }
   25% {
     opacity: 1;
+    max-width: 20rem;
   }
   35% {
     opacity: 1;
+    max-width: 20rem;
   }
   36% {
     opacity: 0;
+    max-width: 0;
   }
   41% {
     opacity: 0;
+    max-width: 0;
   }
   42% {
     opacity: 1;
+    max-width: 20rem;
   }
   49% {
     opacity: 1;
+    max-width: 20rem;
   }
   50% {
     opacity: 0;
+    max-width: 0;
   }
   55% {
     opacity: 0;
+    max-width: 0;
   }
   56% {
     opacity: 1;
+    max-width: 20rem;
   }
   100% {
     opacity: 1;
+    max-width: 20rem;
   }
 }
 @keyframes live-transcribing {
@@ -309,10 +337,10 @@
   30% {
     opacity: 1;
   }
-  42% {
+  43% {
     opacity: 1;
   }
-  43% {
+  44% {
     opacity: 0;
   }
   100% {
@@ -329,34 +357,14 @@
   30% {
     opacity: 0;
   }
-  42% {
+  43% {
     opacity: 0;
   }
-  43% {
+  44% {
     opacity: 1;
   }
   100% {
     opacity: 1;
-  }
-}
-@keyframes live-added {
-  0% {
-    opacity: 0;
-  }
-  29% {
-    opacity: 0;
-  }
-  30% {
-    opacity: 1;
-  }
-  42% {
-    opacity: 1;
-  }
-  43% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 0;
   }
 }
 @keyframes live-sent {
@@ -369,14 +377,34 @@
   44% {
     opacity: 1;
   }
-  57% {
+  58% {
     opacity: 1;
   }
-  58% {
+  59% {
     opacity: 0;
   }
   100% {
     opacity: 0;
+  }
+}
+@keyframes live-hint {
+  0% {
+    opacity: 1;
+  }
+  43% {
+    opacity: 1;
+  }
+  44% {
+    opacity: 0;
+  }
+  58% {
+    opacity: 0;
+  }
+  59% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
   }
 }
 @keyframes live-paused {
@@ -389,14 +417,34 @@
   59% {
     opacity: 1;
   }
-  93% {
+  75% {
     opacity: 1;
   }
-  94% {
+  76% {
     opacity: 0;
   }
   100% {
     opacity: 0;
+  }
+}
+@keyframes live-resume-hint {
+  0% {
+    opacity: 1;
+  }
+  58% {
+    opacity: 1;
+  }
+  59% {
+    opacity: 0;
+  }
+  75% {
+    opacity: 0;
+  }
+  76% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 1;
   }
 }
 @keyframes live-commands {
@@ -455,7 +503,23 @@
     opacity: 0;
   }
 }
-/* The dot pulses while speech is heard (the windows of live-hearing). */
+/* live-quiet and live-hearing also fold their width, so the title takes only the room of the one shown. */
+/* Words written in: the box's border glows a moment (about 0.9 s), in place of an echo. */
+@keyframes live-glow {
+  0%,
+  29%,
+  38%,
+  100% {
+    border-color: var(--color-input);
+    box-shadow: none;
+  }
+  30%,
+  36% {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--color-primary) 40%, transparent);
+  }
+}
+/* The dot pulses while speech is heard (the stretches of live-hearing). */
 @keyframes live-dot {
   0% {
     opacity: 1;
@@ -525,35 +589,5 @@
   }
   100% {
     opacity: 1;
-  }
-}
-/* Each state's row: its full height while it shows, none while the other does (the switch is at once,
-   as in the app). Same stretches as live-writing and live-commands. */
-@keyframes live-rows-writing {
-  0%,
-  58% {
-    grid-template-rows: 1fr;
-  }
-  59%,
-  95% {
-    grid-template-rows: 0fr;
-  }
-  96%,
-  100% {
-    grid-template-rows: 1fr;
-  }
-}
-@keyframes live-rows-commands {
-  0%,
-  58% {
-    grid-template-rows: 0fr;
-  }
-  59%,
-  95% {
-    grid-template-rows: 1fr;
-  }
-  96%,
-  100% {
-    grid-template-rows: 0fr;
   }
 }
