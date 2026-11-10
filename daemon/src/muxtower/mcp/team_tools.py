@@ -32,6 +32,7 @@ muxtower runs the owner's coding agent sessions, on this machine and others, and
   yourself whom to ask for what, by their roles and what they are doing.
 - Your team is every session of your project; it has no name of its own. Your project and role stay as
   they are when you cd elsewhere or edit files in another repository.
+- Starting a teammate? Pass your project's exact name, as my_team prints it.
 - Wrong project? Move a session with set_project, or rename yours for all its sessions (rename=true).
 - Messages that start with "[muxtower task from …]" are work a teammate sent you; "[muxtower message from …]"
   is a teammate (or a device) writing to you, not the owner. Relaying the owner's words? Say so in the text.
@@ -66,7 +67,12 @@ class TaskArgs(BaseModel):
 
 
 class ProjectArgs(BaseModel):
-    project: str = Field(min_length=1, description="the project's name; a new name makes a new project")
+    project: str = Field(
+        min_length=1,
+        description=(
+            "the project's name, exactly as my_team prints it (e.g. owner/repo); any other spelling makes a new project"
+        ),
+    )
     session_id: str | None = Field(default=None, description="which session; default: yours")
     rename: bool = Field(default=False, description="rename its project, for every session in it, instead")
 

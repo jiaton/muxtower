@@ -37,7 +37,13 @@ class StartArgs(BaseModel):
         "one; it keeps the role and project it had",
     )
     role: str | None = Field(default=None, description="its role in its team (free text)")
-    project: str | None = Field(default=None, description="its project; default: worked out from its folder")
+    project: str | None = Field(
+        default=None,
+        description=(
+            "its project; to start a teammate, copy your project's exact name from my_team (e.g. owner/repo); "
+            "any other spelling makes a new project; default: worked out from its folder"
+        ),
+    )
     permission_mode: str | None = Field(
         default=None,
         description="one of the runtime's permission modes (list_runtimes… see the app); never above the owner's "
