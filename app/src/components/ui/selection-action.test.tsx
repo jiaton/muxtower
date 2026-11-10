@@ -1,11 +1,11 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { useRef } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { SelectionAction } from './selection-action'
+import { SelectionAction, type MoreAction } from './selection-action'
 
 afterEach(() => vi.useRealTimers())
 
-function Area({ onAction }: { onAction: (text: string) => void }) {
+function Area({ onAction, more }: { onAction: (text: string) => void; more?: MoreAction }) {
   const within = useRef<HTMLDivElement>(null)
   return (
     <>
@@ -13,7 +13,7 @@ function Area({ onAction }: { onAction: (text: string) => void }) {
         <p>Pick a date for round two</p>
       </div>
       <p>Elsewhere</p>
-      <SelectionAction within={within} label="Reply" icon={() => null} onAction={onAction} />
+      <SelectionAction within={within} label="Reply" icon={() => null} onAction={onAction} more={more} />
     </>
   )
 }
@@ -76,5 +76,19 @@ describe('SelectionAction', () => {
     select('Pick a date for round two')
     fireEvent.click(screen.getByRole('button', { name: 'Reply' }))
     expect(selectedWhileActing).toBe(0)
+  })
+
+  it('offers a further action only when given one, acting on the selected text', () => {
+    vi.useFakeTimers()
+    const more = vi.fn()
+    const { unmount } = render(<Area onAction={() => {}} />)
+    select('Pick a date for round two')
+    expect(screen.queryByRole('button', { name: /Add to dictionary/ })).toBeNull() // none given: as before
+    unmount()
+    render(<Area onAction={() => {}} more={{ label: 'Add to dictionary', icon: () => null, onAction: more }} />)
+    select('Pick a date for round two')
+    fireEvent.click(screen.getByRole('button', { name: 'Add to dictionary' }))
+    expect(more).toHaveBeenCalledWith('Pick a date for round two')
+    expect(screen.queryByRole('button', { name: 'Add to dictionary' })).toBeNull() // and the buttons go
   })
 })

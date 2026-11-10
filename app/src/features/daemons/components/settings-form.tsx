@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { FileLock2, RotateCcw } from 'lucide-react'
 import { useState } from 'react'
 import { Banner } from '@/components/ui/banner'
@@ -17,7 +18,8 @@ export function sectionsOf(settings: SettingView[]): { section: string; settings
 
 /** A machine's feature settings. Each change is sent as it is made; one the config file sets is shown
  *  as set there and cannot be changed here; one that needs a restart says so until the daemon restarts. */
-export function SettingsForm({ daemonId, node }: { daemonId: string; node?: string }) {
+/** `extras`: more of a section, by its name, from other features (the voice dictionary under "Voice input"). */
+export function SettingsForm({ daemonId, node, extras }: { daemonId: string; node?: string; extras?: Record<string, ReactNode> }) {
   const listed = useMachineSettings(daemonId, node)
   const change = useChangeSettings(daemonId, node)
   if (listed.error) return <Banner tone="error">{listed.error.message}</Banner>
@@ -46,6 +48,7 @@ export function SettingsForm({ daemonId, node }: { daemonId: string; node?: stri
               <SettingRow key={s.key} setting={s} busy={change.isPending} onChange={(value) => set(s.key, value)} />
             ))}
           </ul>
+          {extras?.[section]}
         </section>
       ))}
     </div>

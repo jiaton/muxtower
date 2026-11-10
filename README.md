@@ -51,7 +51,7 @@ To try it without a phone, open http://127.0.0.1:8731 on this machine; HTTPS is 
 | Feature | |
 |---|---|
 | Approve and answer | prompts and questions with their options, from the phone; push notifications when a session needs you |
-| Live terminal and conversation | each session's screen and its conversation, with an input bar, voice and pictures |
+| Live terminal and conversation | each session's screen and its conversation, with an input bar, voice and pictures; a voice dictionary of your words and corrections, kept on the hub |
 | Sessions you already run | agents started in plain tmux are found by themselves; Claude's Remote Control and Codex's app-server sessions are listed too |
 | [More than one computer](https://github.com/jiaton/muxtower/blob/main/docs/multi-machine.md) | one hub lists every computer's sessions; a node needs no address; direct fallback while the hub is down |
 | [Teams](https://github.com/jiaton/muxtower/blob/main/docs/teams.md) | roles, projects, `send_task`, watching another session, warnings when two write in one worktree; MCP tools and a concierge |

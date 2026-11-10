@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Pane, PaneBody, PaneHeader } from '@/components/ui/pane'
 import { SettingsForm } from '@/features/daemons/components/settings-form'
+import { DictionarySettings } from '@/features/voice/components/dictionary'
 import { useDaemon } from '@/lib/daemons/store'
 
 export const Route = createFileRoute('/daemons_/$daemonId/settings')({
@@ -31,7 +32,15 @@ function SettingsPage() {
       />
       <PaneBody>
         <div className="mx-auto w-full max-w-2xl p-4">
-          {daemon ? <SettingsForm daemonId={daemonId} node={node} /> : <p className="text-sm text-fg-muted">Unknown daemon.</p>}
+          {daemon ? (
+            <SettingsForm
+              daemonId={daemonId}
+              node={node}
+              extras={node ? undefined : { 'Voice input': <DictionarySettings daemonId={daemonId} /> }}
+            />
+          ) : (
+            <p className="text-sm text-fg-muted">Unknown daemon.</p>
+          )}
         </div>
       </PaneBody>
     </Pane>

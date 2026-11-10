@@ -1,3 +1,6 @@
+from collections.abc import Callable
+
+from muxtower.asr.dictionary import Dictionary, DictionaryFit, corrected, prompt_with, tokens
 from muxtower.asr.models import Transcript
 from muxtower.asr.ports import Transcriber
 from muxtower.errors import Conflict, Invalid
@@ -24,10 +27,20 @@ class AsrService:
         self.transcriber = transcriber
         self.language = language
         self.extra_prompt = extra_prompt
+        # The voice dictionary (`dictionary.py`), read each time: its words end the prompt, its corrections
+        # are applied to every transcript.
+        self.dictionary: Callable[[], Dictionary] = Dictionary
 
     def prompt(self) -> str:
-        """The base prompt, then the owner's extra words, within the provider's limit."""
-        return _fit(" ".join(p for p in (BASE_PROMPT, self.extra_prompt or "") if p))
+        """The base prompt, the owner's extra words, then the dictionary's words: within what Whisper reads
+        of a prompt and the provider's byte limit (`dictionary.prompt_with`)."""
+        return self.prompt_and_fit()[0]
+
+    def prompt_and_fit(self) -> tuple[str, DictionaryFit]:
+        words = self.dictionary().words
+        rest = " ".join(p for p in (BASE_PROMPT, self.extra_prompt or "") if p)
+        prompt, held = prompt_with(rest, words, max_bytes=MAX_PROMPT_BYTES)
+        return prompt, DictionaryFit(words_in_prompt=held, words=len(words), tokens=tokens(prompt))
 
     @property
     def available(self) -> bool:
@@ -49,7 +62,8 @@ class AsrService:
         # A command's language: the one configured, else the one asked for (the app tries zh, then en).
         used = (self.language or language) if hint == "command" else (language or self.language)
         prompt = command_prompt(words) if hint == "command" else self.prompt()
-        return Transcript(text=self.transcriber.transcribe(audio, kind, used, prompt), language=used)
+        text = self.transcriber.transcribe(audio, kind, used, prompt)
+        return Transcript(text=corrected(text, self.dictionary().corrections), language=used)
 
 
 def _fit(text: str) -> str:

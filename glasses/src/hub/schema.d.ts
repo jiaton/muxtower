@@ -28,6 +28,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/asr/dictionary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Dictionary
+         * @description The voice dictionary (kept on this daemon: the hub, for every device): its words, its corrections,
+         *     and how many of the words fit in what speech to text reads of its prompt.
+         */
+        get: operations["get_dictionary_v1_asr_dictionary_get"];
+        /**
+         * Put Dictionary
+         * @description Replaces it whole (at most 200 words and 200 corrections, each up to 80 characters).
+         */
+        put: operations["put_dictionary_v1_asr_dictionary_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/chip-groups": {
         parameters: {
             query?: never;
@@ -1138,6 +1163,19 @@ export interface components {
          * @enum {string}
          */
         ConversationItemKind: "prompt" | "reply" | "tool" | "approval" | "question" | "result" | "next_step";
+        /** Correction */
+        Correction: {
+            /**
+             * Heard
+             * @description what speech to text writes
+             */
+            heard: string;
+            /**
+             * Write
+             * @description what to write instead (literal; empty: drop it)
+             */
+            write: string;
+        };
         /** CreateSession */
         CreateSession: {
             /**
@@ -1200,6 +1238,53 @@ export interface components {
             last_used_at: string | null;
             /** Name */
             name: string;
+        };
+        /** Dictionary */
+        Dictionary: {
+            /**
+             * Corrections
+             * @description applied in order
+             */
+            corrections?: components["schemas"]["Correction"][];
+            /**
+             * Words
+             * @description in priority order
+             */
+            words?: string[];
+        };
+        /** DictionaryFit */
+        DictionaryFit: {
+            /**
+             * Budget
+             * @default 224
+             */
+            budget: number;
+            /**
+             * Tokens
+             * @description the prompt's estimated tokens
+             */
+            tokens: number;
+            /** Words */
+            words: number;
+            /**
+             * Words In Prompt
+             * @description how many of the words (the first ones) fit in what Whisper reads
+             */
+            words_in_prompt: number;
+        };
+        /** DictionaryView */
+        DictionaryView: {
+            /**
+             * Corrections
+             * @description applied in order
+             */
+            corrections?: components["schemas"]["Correction"][];
+            fit: components["schemas"]["DictionaryFit"];
+            /**
+             * Words
+             * @description in priority order
+             */
+            words?: string[];
         };
         /** DirectNode */
         DirectNode: {
@@ -2400,6 +2485,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Transcript"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_dictionary_v1_asr_dictionary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DictionaryView"];
+                };
+            };
+        };
+    };
+    put_dictionary_v1_asr_dictionary_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Dictionary"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DictionaryView"];
                 };
             };
             /** @description Validation Error */

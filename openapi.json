@@ -473,6 +473,29 @@
         "title": "ConversationItemKind",
         "type": "string"
       },
+      "Correction": {
+        "properties": {
+          "heard": {
+            "description": "what speech to text writes",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Heard",
+            "type": "string"
+          },
+          "write": {
+            "description": "what to write instead (literal; empty: drop it)",
+            "maxLength": 80,
+            "title": "Write",
+            "type": "string"
+          }
+        },
+        "required": [
+          "heard",
+          "write"
+        ],
+        "title": "Correction",
+        "type": "object"
+      },
       "CreateSession": {
         "properties": {
           "args": {
@@ -617,6 +640,90 @@
           "current"
         ],
         "title": "Device",
+        "type": "object"
+      },
+      "Dictionary": {
+        "properties": {
+          "corrections": {
+            "description": "applied in order",
+            "items": {
+              "$ref": "#/components/schemas/Correction"
+            },
+            "maxItems": 200,
+            "title": "Corrections",
+            "type": "array"
+          },
+          "words": {
+            "description": "in priority order",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "title": "Words",
+            "type": "array"
+          }
+        },
+        "title": "Dictionary",
+        "type": "object"
+      },
+      "DictionaryFit": {
+        "properties": {
+          "budget": {
+            "default": 224,
+            "title": "Budget",
+            "type": "integer"
+          },
+          "tokens": {
+            "description": "the prompt's estimated tokens",
+            "title": "Tokens",
+            "type": "integer"
+          },
+          "words": {
+            "title": "Words",
+            "type": "integer"
+          },
+          "words_in_prompt": {
+            "description": "how many of the words (the first ones) fit in what Whisper reads",
+            "title": "Words In Prompt",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "words_in_prompt",
+          "words",
+          "tokens"
+        ],
+        "title": "DictionaryFit",
+        "type": "object"
+      },
+      "DictionaryView": {
+        "properties": {
+          "corrections": {
+            "description": "applied in order",
+            "items": {
+              "$ref": "#/components/schemas/Correction"
+            },
+            "maxItems": 200,
+            "title": "Corrections",
+            "type": "array"
+          },
+          "fit": {
+            "$ref": "#/components/schemas/DictionaryFit"
+          },
+          "words": {
+            "description": "in priority order",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "title": "Words",
+            "type": "array"
+          }
+        },
+        "required": [
+          "fit"
+        ],
+        "title": "DictionaryView",
         "type": "object"
       },
       "DirectNode": {
@@ -3361,6 +3468,68 @@
           }
         },
         "summary": "Transcribe",
+        "tags": [
+          "voice"
+        ]
+      }
+    },
+    "/v1/asr/dictionary": {
+      "get": {
+        "description": "The voice dictionary (kept on this daemon: the hub, for every device): its words, its corrections,\nand how many of the words fit in what speech to text reads of its prompt.",
+        "operationId": "get_dictionary_v1_asr_dictionary_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DictionaryView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Dictionary",
+        "tags": [
+          "voice"
+        ]
+      },
+      "put": {
+        "description": "Replaces it whole (at most 200 words and 200 corrections, each up to 80 characters).",
+        "operationId": "put_dictionary_v1_asr_dictionary_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Dictionary"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DictionaryView"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Dictionary",
         "tags": [
           "voice"
         ]

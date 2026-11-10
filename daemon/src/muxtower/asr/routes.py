@@ -3,6 +3,7 @@ from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Request
 
+from muxtower.asr.dictionary import Dictionary, DictionaryView
 from muxtower.asr.models import Transcript
 from muxtower.asr.service import AUDIO_TYPES, MAX_AUDIO_BYTES, AsrService
 from muxtower.auth.deps import CurrentDevice
@@ -57,3 +58,23 @@ async def transcribe(
         f"bytes={len(audio)} chars={len(transcript.text)}" + (f" source={source}" if source else ""),
     )
     return transcript
+
+
+@router.get("/asr/dictionary")
+def get_dictionary(request: Request, _: CurrentDevice) -> DictionaryView:
+    """The voice dictionary (kept on this daemon: the hub, for every device): its words, its corrections,
+    and how many of the words fit in what speech to text reads of its prompt."""
+    return _view(request, request.app.state.asr_dictionary.load())
+
+
+@router.put("/asr/dictionary")
+def put_dictionary(body: Dictionary, request: Request, device: CurrentDevice, audit: Audit) -> DictionaryView:
+    """Replaces it whole (at most 200 words and 200 corrections, each up to 80 characters)."""
+    saved = request.app.state.asr_dictionary.replace(body)
+    audit.record(device.name, "asr dictionary", None, f"words={len(saved.words)} corrections={len(saved.corrections)}")
+    return _view(request, saved)
+
+
+def _view(request: Request, dictionary: Dictionary) -> DictionaryView:
+    asr: AsrService = request.app.state.asr
+    return DictionaryView(**dictionary.model_dump(), fit=asr.prompt_and_fit()[1])

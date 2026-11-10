@@ -88,7 +88,7 @@ def test_the_prompt_is_the_base_and_the_owners_words_only_within_groqs_limit_in_
 
     assert AsrService(FakeTranscriber(), None).prompt() == BASE_PROMPT
     long_extra = AsrService(FakeTranscriber(), None, extra_prompt="词" * 400).prompt()  # three bytes each
-    assert len(long_extra.encode()) <= 896 and long_extra.startswith(BASE_PROMPT)  # Groq counts bytes
+    assert len(long_extra.encode()) <= 896 and long_extra.endswith("词" * 20)  # Groq counts bytes; the end is kept
     app.state.sessions.create(CreateSession(runtime="claude", cwd=str(tmp_path), name="private-project"))
     fake = FakeTranscriber()
     app.state.asr = AsrService(fake, language=None)

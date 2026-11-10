@@ -15,6 +15,7 @@ from muxtower.agents.codex.processes import CodexProcesses
 from muxtower.agents.processes import AgentProcesses
 from muxtower.approval.auto import AutoApprover
 from muxtower.approval.service import ApprovalService
+from muxtower.asr.dictionary import DictionaryStore
 from muxtower.auth.pairing import PairingService
 from muxtower.auth.stream_cookie import StreamCookieSigner
 from muxtower.builders import (
@@ -125,6 +126,9 @@ def create_app(
     marks = SessionMarks(SqliteMarksRepository(db))
     transcripts = Transcripts()
     archive = SessionArchive(SqliteArchiveRepository(db), transcripts, lambda: settings.archive.hide_after_days)
+    dictionary_store = DictionaryStore(db)  # the voice dictionary: kept on this daemon (the hub)
+    asr = build_asr(settings)
+    asr.dictionary = dictionary_store.load  # read at each transcription: an edit applies at once
     if remote_control is not None:
         remote_control.archived = archive  # its archived forks, told apart once (`_place_archived`)
     audit = AuditLog(db)
@@ -259,7 +263,7 @@ def create_app(
         watches=watches,
         direct=DirectAccess(nodes, node_sessions.call), feature_settings=feature_settings,
         chip_groups=ChipGroupStore(db),
-        node_sessions=node_sessions, mcp=mcp, asr=build_asr(settings),
+        node_sessions=node_sessions, mcp=mcp, asr=asr, asr_dictionary=dictionary_store,
         diagnostics=DiagnosticsService(settings.state_dir / "diagnostics"),
         terminal=terminal, approvals=approvals, audit=audit, push=push,
         pairing=PairingService(db, tokens, settings.pairing, daemon_name),

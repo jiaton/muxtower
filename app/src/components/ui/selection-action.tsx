@@ -6,19 +6,28 @@ const SETTLE_MS = 120 // a selection still being dragged out is not ready to act
 const EDGE_PX = 96 // how near the screen's sides and bottom the buttons may come
 const COPIED_MS = 900 // how long "Copied" shows before the buttons go
 
+/** One more thing to do with selected text, after the main one (e.g. "Add to dictionary"). */
+export interface MoreAction {
+  label: string
+  icon: ComponentType<{ 'aria-hidden'?: boolean }>
+  onAction: (text: string) => void
+}
+
 /** Copy, and a button of its own (e.g. Reply), by text selected inside `within` once the selection rests:
  *  under it, since a phone draws its own menu (copy among many, look up) above it. They act on the text
- *  as it was selected, and the selection goes. */
+ *  as it was selected, and the selection goes. `more`: a further action, shown only when given. */
 export function SelectionAction({
   within,
   label,
   icon: Icon,
   onAction,
+  more,
 }: {
   within: RefObject<HTMLElement | null>
   label: string
   icon: ComponentType<{ 'aria-hidden'?: boolean }>
   onAction: (text: string) => void
+  more?: MoreAction | null
 }) {
   const [at, setAt] = useState<{ x: number; y: number; text: string } | null>(null)
   const [copied, setCopied] = useState(false)
@@ -109,6 +118,23 @@ export function SelectionAction({
         <Icon aria-hidden />
         {label}
       </Button>
+      {more ? (
+        <Button
+          size="sm"
+          variant="secondary"
+          className="shadow-card"
+          onPointerDown={press}
+          onClick={() => {
+            const text = at.text
+            document.getSelection()?.removeAllRanges()
+            more.onAction(text)
+            setAt(null)
+          }}
+        >
+          <more.icon aria-hidden />
+          {more.label}
+        </Button>
+      ) : null}
     </div>
   )
 }

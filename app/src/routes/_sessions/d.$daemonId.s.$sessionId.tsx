@@ -1,6 +1,6 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { History, MessagesSquare, Reply, SquareTerminal, Unplug } from 'lucide-react'
-import { useEffect, useMemo, useRef } from 'react'
+import { BookPlus, History, MessagesSquare, Reply, SquareTerminal, Unplug } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { QueryState } from '@/components/query-state'
 import { Banner } from '@/components/ui/banner'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -28,6 +28,8 @@ import { useSessionTerminal } from '@/features/terminal/hooks/use-session-termin
 import { draftKey, useDrafts, useTerminalPrefs } from '@/features/terminal/store'
 import { MicButton } from '@/features/voice/components/mic-button'
 import { LiveBar, LiveButton } from '@/features/voice/components/live'
+import { DictionaryQuickAdd } from '@/features/voice/components/dictionary'
+import { useLive } from '@/features/voice/live/engine'
 import { setLiveOps, setLiveTarget } from '@/features/voice/live/engine'
 import { draftBox } from '@/features/terminal/draft-box'
 import { VoiceBar } from '@/features/voice/components/voice-bar'
@@ -89,6 +91,9 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
   const { screen, conversation: hasConversation } = session.capabilities
   // `@` in the message box: the sessions to mention, from the same list the page already has.
   const mention = useMentionSource(daemonId, session, useDaemonSessions(daemonId).data)
+  // While Live is on, a word selected on screen can be added to the voice dictionary (`DictionaryQuickAdd`).
+  const liveOn = useLive((s) => s.phase !== 'off' && s.phase !== 'error')
+  const [dictionaryWord, setDictionaryWord] = useState<string | null>(null)
   const key = entryKey(daemonId, session.id)
   const chosen = useSessionViews((s) => s.views[key] ?? s.last)
   const choose = useSessionViews((s) => s.setView)
@@ -240,10 +245,19 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
       {writable ? (
         <>
           {/* Select what the agent wrote, then Reply: it waits above the message box as a quote. */}
-          <SelectionAction within={views} label="Reply" icon={Reply} onAction={(text) => addQuote(draftKey(daemonId, session.id), text)} />
+          <SelectionAction
+            within={views}
+            label="Reply"
+            icon={Reply}
+            onAction={(text) => addQuote(draftKey(daemonId, session.id), text)}
+            more={liveOn && dictation.available ? { label: 'Add to dictionary', icon: BookPlus, onAction: setDictionaryWord } : null}
+          />
           <footer className="shrink-0 border-t border-border bg-bg p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-3">
             {dictation.error ? <Banner tone="error">{dictation.error}</Banner> : null}
             {dictation.available ? <LiveBar /> : null}
+            {dictionaryWord !== null ? (
+              <DictionaryQuickAdd daemonId={daemonId} word={dictionaryWord} onClose={() => setDictionaryWord(null)} />
+            ) : null}
             <InputBar
               daemonId={daemonId}
               sessionId={session.id}
