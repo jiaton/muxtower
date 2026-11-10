@@ -30,10 +30,10 @@ export const featureCells = {
     text: 'Live writes what you say into the open session, and “send” sends it.',
     // As the app words them (app/src/features/voice/components/live.tsx and live/feedback.ts).
     said: 'Run the migration on staging',
-    writing: 'Live · writing what you say',
+    writing: 'Live · speak to write',
+    pending: 'Live · writing…',
     hearing: 'Live · hearing you…',
     hint: '· say send to send, pause to stop writing · commands on device',
-    transcribing: ' · transcribing 1',
     sent: '✓ sent',
     paused: '✓ paused',
     commandsOnly: 'Commands only',

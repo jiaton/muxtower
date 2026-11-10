@@ -113,7 +113,7 @@
 @layer components {
   .live-hearing,
   .live-quiet,
-  .live-transcribing,
+  .live-pending,
   .live-said,
   .live-placeholder,
   .live-sent,
@@ -135,8 +135,8 @@
   .live-quiet {
     animation-name: live-quiet;
   }
-  .live-transcribing {
-    animation-name: live-transcribing;
+  .live-pending {
+    animation-name: live-pending;
   }
   .live-said {
     animation-name: live-said;
@@ -174,7 +174,7 @@
   @media (prefers-reduced-motion: reduce) {
     .live-hearing,
     .live-quiet,
-    .live-transcribing,
+    .live-pending,
     .live-said,
     .live-placeholder,
     .live-sent,
@@ -263,10 +263,18 @@
     max-width: 0;
   }
   24% {
+    opacity: 1;
+    max-width: 20rem;
+  }
+  25% {
     opacity: 0;
     max-width: 0;
   }
-  25% {
+  29% {
+    opacity: 0;
+    max-width: 0;
+  }
+  30% {
     opacity: 1;
     max-width: 20rem;
   }
@@ -307,24 +315,30 @@
     max-width: 20rem;
   }
 }
-@keyframes live-transcribing {
+@keyframes live-pending {
   0% {
     opacity: 0;
+    max-width: 0;
   }
   24% {
     opacity: 0;
+    max-width: 0;
   }
   25% {
     opacity: 1;
+    max-width: 20rem;
   }
   29% {
     opacity: 1;
+    max-width: 20rem;
   }
   30% {
     opacity: 0;
+    max-width: 0;
   }
   100% {
     opacity: 0;
+    max-width: 0;
   }
 }
 @keyframes live-said {

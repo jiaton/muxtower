@@ -5,7 +5,15 @@ import { LivePicture } from './features-live'
 describe('LivePicture', () => {
   it('draws both of the app’s Live rows, with what each hears and answers', () => {
     render(<LivePicture />)
-    for (const text of ['Live · writing what you say', 'Live · hearing you…', 'Commands only', '✓ sent', '✓ paused', 'Write again'])
+    for (const text of [
+      'Live · speak to write',
+      'Live · hearing you…',
+      'Live · writing…',
+      'Commands only',
+      '✓ sent',
+      '✓ paused',
+      'Write again',
+    ])
       expect(screen.getByText(text)).toBeInTheDocument()
     expect(screen.getAllByText('Run the migration on staging')).toHaveLength(2) // in the box, then sent
   })

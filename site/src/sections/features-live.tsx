@@ -22,12 +22,10 @@ export function LivePicture() {
             <span className="flex shrink-0 font-medium whitespace-nowrap text-primary">
               <span className="live-quiet overflow-hidden">{l.writing}</span>
               <span className="live-hearing overflow-hidden">{l.hearing}</span>
+              <span className="live-pending overflow-hidden">{l.pending}</span>
             </span>
             <span className={cn(stack, 'min-w-0 flex-1')}>
-              <span className="live-hint truncate text-xs">
-                {l.hint}
-                <span className="live-transcribing">{l.transcribing}</span>
-              </span>
+              <span className="live-hint truncate text-xs">{l.hint}</span>
               <span className="live-sent truncate text-foreground">{l.sent}</span>
             </span>
             <Button variant="ghost" size="icon-sm" tabIndex={-1} className="shrink-0">
@@ -53,7 +51,7 @@ export function LivePicture() {
           </Button>
           <p className={cn(stack, 'live-glow min-h-9 min-w-0 flex-1 items-center rounded-md border border-input px-3 py-1.5')}>
             <span className="live-placeholder truncate text-muted-foreground">{l.placeholder}</span>
-            <span className="live-said">{l.said}</span>
+            <span className="live-said truncate">{l.said}</span>
           </p>
           <Button variant="secondary" size="icon" tabIndex={-1} className={cn(stack, 'place-items-center')}>
             <AudioLines className="live-writing text-primary" />
