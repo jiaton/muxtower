@@ -35,6 +35,7 @@ def history(at: str | None = None) -> list[RawEvent]:
 def source(port: FakeRemoteControl) -> RemoteControlSource:
     src = RemoteControlSource(port, {})
     src.tick()
+    src.searched()  # where copies came from is looked for beside the poll
     return src
 
 
@@ -304,3 +305,106 @@ def test_an_archived_fork_still_tagged_on_claude_ai_gets_its_parent_once() -> No
     src.archived = store
     src.tick()
     assert store.placed == {"cse_old_fork": "cse_01Parent"}
+
+
+def _written(event: RawEvent, timestamp: str) -> RawEvent:
+    """A copied message keeps the time it was written in the session it came from."""
+    return RawEvent(event.seq, event.created_at, event.source, {**event.payload, "timestamp": timestamp})
+
+
+def test_renamed_forks_and_a_renamed_fork_of_a_fork_still_find_their_parents() -> None:
+    """Claude desktop's forks renamed since (no "(fork)" left, no title shared): each found in the session
+    that was going when its first message was written. A session already over by then, or begun after, is
+    never read."""
+    port = FakeRemoteControl()
+    port.sessions = [
+        session("cse_acme", title="Acme onboarding", created_at="2026-10-20T17:43Z", last_event_at="2026-11-10T16:56Z"),
+        session("cse_over", title="Old notes", created_at="2026-10-01T09:00Z", last_event_at="2026-10-02T09:00Z"),
+        session("cse_first", title="first week", created_at="2026-11-06T19:57Z", last_event_at="2026-11-07T01:59Z"),
+        session("cse_later", title="Unrelated", created_at="2026-11-08T09:00Z", last_event_at="2026-11-10T09:00Z"),
+        session("cse_deep", title="security vendor", created_at="2026-11-09T18:17Z", last_event_at="2026-11-10T07:06Z"),
+    ]
+    port.events = {
+        "cse_acme": [
+            *history(),
+            say(1394, "2026-11-05T22:40:04Z", "user", "m1394"),
+            say(1395, "2026-11-05T22:40:08Z", "assistant", "m1395"),
+        ],
+        "cse_over": [say(1, "2026-10-01T09:00:01Z", "user", "o1"), say(2, "2026-10-01T09:00:05Z", "assistant", "o2")],
+        "cse_first": [
+            _written(say(1, "2026-11-06T19:57:47.929Z", "user", "m1394"), "2026-11-05T22:39:57.961Z"),
+            _written(say(2, "2026-11-06T19:57:47.929Z", "assistant", "m1395"), "2026-11-05T22:40:08.395Z"),
+            say(376, "2026-11-06T22:16:30Z", "user", "w376"),
+            say(377, "2026-11-06T22:16:36Z", "assistant", "w377"),
+        ],
+        "cse_later": [say(1, "2026-11-08T09:00:01Z", "user", "l1"), say(2, "2026-11-08T09:00:05Z", "assistant", "l2")],
+        "cse_deep": [
+            _written(say(1, "2026-11-09T18:17:44.869Z", "assistant", "w377"), "2026-11-06T22:16:30.785Z"),
+            _written(say(2, "2026-11-09T18:17:44.869Z", "assistant", "w378"), "2026-11-06T22:16:30.789Z"),
+            say(3, "2026-11-09T18:20:00Z", "user", "d1"),
+            say(4, "2026-11-09T18:20:09Z", "assistant", "d2"),
+        ],
+    }
+    searched: list[str] = []
+    events_before = port.events_before
+    port.events_before = lambda sid, before, limit: searched.append(sid) or events_before(sid, before, limit)  # type: ignore[method-assign]
+    views = {v.id: v.fork_of for v in source(port).views()}
+    assert views == {
+        "cse_acme": None, "cse_over": None, "cse_later": None,
+        "cse_first": "cse_acme",  # forked from the middle of it, renamed
+        "cse_deep": "cse_first",  # a fork of that fork, renamed too
+    }  # fmt: skip
+    assert "cse_over" not in searched and "cse_later" not in searched
+
+
+def test_a_long_log_is_read_back_only_to_when_the_copied_message_was_written() -> None:
+    port = FakeRemoteControl()
+    port.sessions = [
+        session("cse_long", title="Busy", created_at="2026-10-01T00:00:00Z", last_event_at="2026-11-09T00:00:00Z"),
+        session("cse_fork", title="renamed", created_at="2026-11-08T12:00:00Z"),
+    ]
+    long = [
+        say(i, f"2026-10-{1 + i // 200:02d}T00:00:00Z" if i <= 5700 else "2026-11-08T23:00:00Z", "user", f"b{i}")
+        for i in range(1, 6001)
+    ]  # 6000 events over October and the fork's day, none of them the fork's
+    port.events = {
+        "cse_long": long,
+        "cse_fork": [
+            _written(say(1, "2026-11-08T12:00:01Z", "user", "x1"), "2026-11-08T11:00:00Z"),
+            _written(say(2, "2026-11-08T12:00:01Z", "assistant", "x2"), "2026-11-08T11:00:05Z"),
+            say(3, "2026-11-08T12:05:00Z", "user", "f1"),
+        ],
+    }
+    pages: list[str] = []
+    events_before = port.events_before
+    port.events_before = lambda sid, before, limit: pages.append(sid) or events_before(sid, before, limit)  # type: ignore[method-assign]
+    assert {v.id: v.fork_of for v in source(port).views()}["cse_fork"] is None
+    assert 0 < len(pages) <= 2  # not all 30 pages
+
+
+def test_the_search_for_a_parent_never_holds_up_a_poll_and_the_next_poll_reports_it() -> None:
+    import threading
+
+    port = FakeRemoteControl()
+    port.sessions = [
+        session("cse_parent", title="Plan", created_at="2026-10-20T10:00:00Z"),
+        session("cse_fork", title="Plan (fork)", created_at="2026-11-05T09:00:00Z"),
+    ]
+    port.events = {
+        "cse_parent": [
+            *history(),
+            say(900, "2026-11-04T08:00:00Z", "user", "m900"),
+            say(901, "2026-11-04T08:00:05Z", "assistant", "m901"),
+        ],
+        "cse_fork": _fork_copy("2026-11-05T09:00:01.000Z", "m900", "m901"),
+    }
+    go = threading.Event()
+    events_before = port.events_before
+    port.events_before = lambda sid, before, limit: go.wait(5) and events_before(sid, before, limit)  # type: ignore[method-assign]
+    src = RemoteControlSource(port, {})
+    src.tick()  # returns while the search waits
+    assert src.get("cse_fork").fork_of is None
+    go.set()
+    src.searched(5)
+    assert src.tick().changed  # nothing else changed: the poll says the search placed it
+    assert src.get("cse_fork").fork_of == "cse_parent"

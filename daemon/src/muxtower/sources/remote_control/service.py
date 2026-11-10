@@ -50,6 +50,8 @@ class RemoteControlSource(RcActions):
         # before forks were told apart): `archived.unplaced` / `archived.place`.
         self.archived: Any = None
         self._backfilled = False
+        self._searching: threading.Thread | None = None  # where copies came from, looked for beside the polls
+        self._found = False  # it placed one since the last poll
 
     # --- reading ------------------------------------------------------------------------------
 
@@ -166,9 +168,17 @@ class RemoteControlSource(RcActions):
                     result.conversation[session_id] = items + result.conversation.get(session_id, [])
                     result.changed = True
             self._unsent.clear()
-            searches = lineage.to_search(lineage.listed(self.sessions))
-        if searches and self._search_copies(searches):
-            result.changed = True
+            active = {sid: str(rc.raw.get("last_event_at") or "") for sid, rc in self.sessions.items()}
+            searches = lineage.to_search(lineage.listed(self.sessions), active)
+        with self._lock:
+            if self._found:
+                self._found, result.changed = False, True
+        if searches and (self._searching is None or not self._searching.is_alive()):
+            # Reading other sessions' logs can take minutes: never in the poll (the next one says what it found).
+            self._searching = threading.Thread(
+                target=self._search_copies, args=(searches,), name="rc-lineage", daemon=True
+            )
+            self._searching.start()
         if not self._backfilled and self.archived is not None:
             self._backfilled = True
             result.changed = self._place_archived() or result.changed
@@ -187,16 +197,25 @@ class RemoteControlSource(RcActions):
                 placed = True
         return placed
 
-    def _search_copies(self, searches: dict[str, list[str]]) -> bool:
-        """Blocking (HTTP). Places the copies no first message did (`lineage.search`); True when one was."""
-        with self._lock:
-            firsts = {cid: rc.lineage.first for cid, rc in self.sessions.items() if cid in searches}
-        found = lineage.search(self.port.events_after, searches, firsts, self.port.events_before)
-        with self._lock:
-            for copy_id, parent in found.items():
-                if rc := self.sessions.get(copy_id):
-                    rc.lineage = replace(rc.lineage, searched=True, found_in=parent)
-        return any(found.values())
+    def searched(self, timeout: float | None = None) -> None:
+        """Waits for the search of where copies came from, if one is going (tests)."""
+        if self._searching is not None:
+            self._searching.join(timeout)
+
+    def _search_copies(self, searches: dict[str, list[str]]) -> None:
+        """Blocking (HTTP), in its own thread. Places the copies no first message did (`lineage.search`)."""
+        try:
+            with self._lock:
+                firsts = {cid: rc.lineage.first for cid, rc in self.sessions.items() if cid in searches}
+                written = {cid: rc.lineage.written for cid, rc in self.sessions.items() if cid in searches}
+            found = lineage.search(self.port.events_after, searches, firsts, self.port.events_before, written)
+            with self._lock:
+                for copy_id, parent in found.items():
+                    if rc := self.sessions.get(copy_id):
+                        rc.lineage = replace(rc.lineage, searched=True, found_in=parent)
+                self._found = self._found or any(found.values())
+        except Exception:
+            logger.exception("could not look for where copies came from")
 
     async def run_loop(self, bus: EventBus, interval: float) -> None:
         logger.info("Remote Control source polling every %ss", interval)

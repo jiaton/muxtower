@@ -12,12 +12,14 @@ Copies without the note count as forks of that parent. Claude desktop's fork car
 names no parent: `relations` is empty), and one made from the middle of a session starts at that message, not
 at the parent's first: such a copy's parent is the newest older session with its title, less the " (fork)"
 Claude desktop adds, whose log holds its first message (looked for once, `holds`, from the newest events
-back: a fork is mostly taken late in a long session)."""
+back: a fork is mostly taken late in a long session). Forks are often renamed, and then no title is shared:
+the sessions that were already there and still going when the copied message was written (a copy keeps
+each message's own `timestamp`) are searched too, after those of its title."""
 
 import logging
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Any
 
 from muxtower.errors import Unavailable
@@ -35,6 +37,7 @@ PAGE = 200
 MAX_PAGES = 10  # a copy as long as 2000 events is read to its end; longer, the note is not looked for
 HOLDS_PAGES = 100  # a log searched for a copy's first message: its last 20000 events (once per copy)
 FORK_SUFFIX = " (fork)"
+WRITTEN_SLACK = timedelta(hours=1)  # a log read back to this long before a copy's first message was written
 
 
 def base_title(title: str) -> str:
@@ -56,6 +59,7 @@ class Lineage:
     parent: str | None = None  # named by its tags (a fork)
     searched: bool = False  # a copy no first message places: the sessions of its title were searched
     found_in: str | None = None  # the session whose log holds its first message, when searched
+    written: str | None = None  # a copy's: when its first message was written, in the session it came from
 
 
 def tagged_parent(tags: Iterable[Any]) -> str | None:
@@ -97,21 +101,22 @@ def _read(events_after: Callable[[str, int, int], list[RawEvent]], session_id: s
     talk = [e for e in events if e.payload.get("type") in ("user", "assistant")]
     first = str(talk[0].payload.get("uuid") or "") or None if talk else None
     copied = len(talk) > 1 and talk[0].created_at is not None and talk[1].created_at == talk[0].created_at
+    written = str(talk[0].payload.get("timestamp") or "") or None if copied else None
     if copied:
         last, past = _at(talk[0]), False
         for _ in range(MAX_PAGES):
             for event in events:  # the note comes right after the copy
                 if event.payload.get("type") == "user" and any(SIDE_NOTE in t for t in _texts(event)):
-                    return Lineage(first, True, True, parent)
+                    return Lineage(first, True, True, parent, written=written)
                 at = _at(event)
                 past = past or bool(at and last and (at - last).total_seconds() > COPY_GAP)
                 if past and event.payload.get("type") == "assistant":
-                    return Lineage(first, True, False, parent)
+                    return Lineage(first, True, False, parent, written=written)
                 last = at or last
             if len(events) < PAGE:
                 break
             events = events_after(session_id, max(e.seq for e in events), PAGE)
-    return Lineage(first, copied, False, parent)
+    return Lineage(first, copied, False, parent, written=written)
 
 
 def listed(sessions: "dict[str, RcSession]") -> dict[str, tuple[Lineage, str, str]]:
@@ -126,27 +131,48 @@ def forks(sessions: "dict[str, RcSession]") -> dict[str, str]:
     return parents(listed(sessions))
 
 
-def to_search(lineages: dict[str, tuple[Lineage, str, str]]) -> dict[str, list[str]]:
+def _when(value: str | None) -> datetime | None:
+    try:
+        return datetime.fromisoformat(value) if value else None
+    except ValueError:
+        return None
+
+
+def _going(created: str, last: str | None, at: datetime) -> bool:
+    """Whether a session was already there, and still going, at that time."""
+    began, ended = _when(created), _when(last)
+    return bool(began and began <= at and (ended is None or ended >= at))
+
+
+def to_search(
+    lineages: dict[str, tuple[Lineage, str, str]], last_active: dict[str, str] | None = None
+) -> dict[str, list[str]]:
     """Copies that no first message places and that were not searched yet, each with the sessions that may
-    hold its first message: older ones with its title that are neither side chats nor tagged forks, newest
-    first ("(fork)" suffixes aside). Only one that does is its parent, so an equal title alone never makes
-    one."""
+    hold its first message, among those older that are neither side chats nor tagged forks: first those of
+    its title ("(fork)" suffixes aside), then (a fork renamed since) the others that were already there and
+    still going (`last_active`: each one's last event) when its first message was written; each newest
+    first. Only one that does is its parent, so an equal title alone never makes one."""
     placed = parents(lineages)
+    last_active = last_active or {}
     found: dict[str, list[str]] = {}
     for session_id, (lineage, created, title) in lineages.items():
         if not lineage.copied or lineage.side_chat or lineage.parent or lineage.searched or not lineage.first:
             continue
-        if session_id in placed or not title:
+        if session_id in placed:
             continue
         older = [
-            (c, sid) for sid, (other, c, t) in lineages.items()
-            if sid != session_id and base_title(t) == base_title(title) and c < created
-            and not other.side_chat and not other.parent
+            (c, sid) for sid, (other, c, _) in lineages.items()
+            if sid != session_id and c < created and not other.side_chat and not other.parent
         ]  # fmt: skip
+        same = [o for o in older if title and base_title(lineages[o[1]][2]) == base_title(title)]
         # The title it was forked from first (its own, one " (fork)" less: a fork of a fork names the fork),
-        # then the others of that base title; each newest first.
+        # then the others of that base title.
         named = title.strip().removesuffix(FORK_SUFFIX).rstrip()
-        ranked = sorted(older, key=lambda o: (lineages[o[1]][2].strip() == named, o[0]), reverse=True)
+        ranked = sorted(same, key=lambda o: (lineages[o[1]][2].strip() == named, o[0]), reverse=True)
+        written = _when(lineage.written)
+        if written is not None:
+            others = [o for o in older if o not in same and _going(o[0], last_active.get(o[1]), written)]
+            ranked += sorted(others, reverse=True)
         found[session_id] = [sid for _, sid in ranked]
     return found
 
@@ -156,16 +182,20 @@ def search(
     searches: dict[str, list[str]],
     firsts: dict[str, str | None],
     events_before: Callable[[str, int | None, int], list[RawEvent]] | None = None,
+    written: dict[str, str | None] | None = None,
 ) -> dict[str, str | None]:
     """Blocking (HTTP). For each copy to search (`to_search`) that has candidates, the first of them whose
-    log holds its first message, or None; a copy whose search failed is left out, to be searched again."""
+    log holds its first message, or None; a copy whose search failed is left out, to be searched again.
+    With when that message was written (`written`), a log is read back only to then."""
     found: dict[str, str | None] = {}
     for copy_id, candidates in searches.items():
         first = firsts.get(copy_id)
         if not first or not candidates:
             continue  # none to search yet: a parent listed later is still found
+        at = _when((written or {}).get(copy_id))
+        since = at - WRITTEN_SLACK if at else None
         try:
-            found[copy_id] = next((c for c in candidates if holds(events_after, c, first, events_before)), None)
+            found[copy_id] = next((c for c in candidates if holds(events_after, c, first, events_before, since)), None)
         except Unavailable as exc:
             logger.warning("could not look for where %s came from: %s", copy_id, exc)
     return found
@@ -176,10 +206,12 @@ def holds(
     session_id: str,
     message_id: str,
     events_before: Callable[[str, int | None, int], list[RawEvent]] | None = None,
+    since: datetime | None = None,
 ) -> bool:
     """Blocking (HTTP). Whether a session's log has that message: read from its newest events back (a fork
-    is mostly taken late in a long session), up to HOLDS_PAGES pages; without `events_before`, from its
-    oldest on, as far."""
+    is mostly taken late in a long session), up to HOLDS_PAGES pages, and (`since`: the message was written
+    after then) no further back than events from before then; without `events_before`, from its oldest
+    on, as far."""
     if events_before is not None:
         before: int | None = None
         for _ in range(HOLDS_PAGES):
@@ -187,6 +219,9 @@ def holds(
             if any(str(e.payload.get("uuid") or "") == message_id for e in events):
                 return True
             if len(events) < PAGE:
+                return False
+            oldest = min((t for e in events if (t := _at(e)) is not None), default=None)
+            if since is not None and oldest is not None and oldest < since:
                 return False
             before = min(e.seq for e in events)
         return False
