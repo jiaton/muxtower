@@ -26,6 +26,24 @@ it('shows what was sent and is not in the conversation yet at its end, and lets 
   expect(dismiss).toHaveBeenCalledWith('b')
 })
 
+it('says a message is queued while the agent works, and offers to send again one that did not go in', () => {
+  const resend = vi.fn()
+  const dismiss = vi.fn()
+  render(
+    <ConversationView
+      items={[{ seq: 1, kind: 'reply', text: 'Running the tests.' }]}
+      pending={[outgoing('a', 'then deploy', 'queued'), outgoing('b', 'and tag it', 'undelivered')]}
+      onDismiss={dismiss}
+      onResend={resend}
+    />,
+  )
+  const log = screen.getByRole('log', { name: 'Conversation' })
+  expect(log.textContent).toMatch(/then deploy.*Queued · goes in at the agent’s next step.*and tag it.*Not delivered/)
+  expect(screen.getAllByRole('button', { name: 'Dismiss' })).toHaveLength(1) // not the queued one
+  fireEvent.click(screen.getByRole('button', { name: 'Resend' }))
+  expect(resend).toHaveBeenCalledWith(expect.objectContaining({ id: 'b', text: 'and tag it' }))
+})
+
 it("offers the agent's next step as buttons that send its replies, until something is on its way", () => {
   const reply = vi.fn()
   const items = [

@@ -105,7 +105,9 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
   const terminal = useSessionTerminal(daemonId, session, screen)
   const conversation = useConversation(daemonId, session.id, hasConversation)
   // What was sent and is not in the conversation yet, shown at its end.
-  const outgoing = useOutgoing(daemonId, session.id, hasConversation ? conversation.data : undefined)
+  // Working (or stopped on a prompt mid-turn): what is sent waits in the agent's queue.
+  const active = session.state !== 'idle' && session.state !== 'error' && session.state !== 'unknown'
+  const outgoing = useOutgoing(daemonId, session.id, hasConversation ? conversation.data : undefined, active)
   const setFit = useTerminalPrefs((s) => s.setFit)
   const pullDrawer = useSessionDrawer((s) => s.pull)
   const both = screen && hasConversation
@@ -147,6 +149,11 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
   const reply = (text: string) => {
     const tracked = outgoing.track?.(text)
     send.mutate({ text, enter: true }, { onSuccess: tracked?.sent, onError: tracked?.failed })
+  }
+  // One that did not go in, sent again as a new message.
+  const resend = (message: { id: string; text: string }) => {
+    outgoing.dismiss(message.id)
+    reply(message.text)
   }
 
   return (
@@ -233,6 +240,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
                   items={conversation.data ?? []}
                   pending={outgoing.pending}
                   onDismiss={outgoing.dismiss}
+                  onResend={resend}
                   onReply={writable ? reply : undefined}
                   source={{ daemonId, sessionId: session.id }}
                 />

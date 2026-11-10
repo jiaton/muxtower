@@ -1,4 +1,4 @@
-import { ArrowDown, ChevronRight, CircleX, LoaderCircle, X } from 'lucide-react'
+import { ArrowDown, ChevronRight, CircleX, LoaderCircle, RotateCw, X } from 'lucide-react'
 import { useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Markdown } from '@/components/ui/markdown'
@@ -94,17 +94,46 @@ function ItemView({ item, source }: { item: ConversationItem; source?: Conversat
   )
 }
 
-/** A message sent that the conversation does not have yet: a prompt, faded until it does. One it has
- *  not had for a minute says so, and can be put away (its text stays readable until then). */
-function OutgoingView({ message, onDismiss }: { message: ShownOutgoing; onDismiss?: (id: string) => void }) {
-  const unconfirmed = message.state === 'unconfirmed'
+const OUTGOING_LABEL: Record<ShownOutgoing['state'], string> = {
+  sending: 'Sending',
+  queued: 'Queued · goes in at the agent’s next step',
+  waiting: 'Sent',
+  unconfirmed: 'Sent, not in the conversation yet',
+  undelivered: 'Not delivered',
+}
+
+/** A message sent that the conversation does not have yet: a prompt, faded until it does. Queued while the
+ *  agent works; one it did not take in (it stopped working without it) can be sent again; one either way
+ *  not in the conversation can be put away (its text stays readable until then). */
+function OutgoingView({
+  message,
+  onDismiss,
+  onResend,
+}: {
+  message: ShownOutgoing
+  onDismiss?: (id: string) => void
+  onResend?: (message: ShownOutgoing) => void
+}) {
+  const stuck = message.state === 'unconfirmed' || message.state === 'undelivered'
   return (
     <div className="flex flex-col items-end gap-1" data-outgoing={message.state}>
-      <p className="rounded-lg bg-accent px-3 py-2 whitespace-pre-wrap text-accent-fg opacity-50">{message.text}</p>
-      <p className="flex items-center gap-1 text-xs text-fg-muted">
+      <p
+        className={cn(
+          'rounded-lg px-3 py-2 whitespace-pre-wrap',
+          message.state === 'undelivered' ? 'border border-dashed border-border text-fg-muted' : 'bg-accent text-accent-fg opacity-50',
+        )}
+      >
+        {message.text}
+      </p>
+      <p className={cn('flex items-center gap-1 text-xs', message.state === 'undelivered' ? 'text-state-permission' : 'text-fg-muted')}>
         {message.state === 'sending' ? <LoaderCircle className="size-3 animate-spin" aria-hidden /> : null}
-        {message.state === 'sending' ? 'Sending' : unconfirmed ? 'Sent, not in the conversation yet' : 'Sent'}
-        {unconfirmed && onDismiss ? (
+        {OUTGOING_LABEL[message.state]}
+        {message.state === 'undelivered' && onResend ? (
+          <Button size="sm" variant="ghost" className="h-6 px-1.5 text-xs" onClick={() => onResend(message)}>
+            <RotateCw className="size-3" aria-hidden /> Resend
+          </Button>
+        ) : null}
+        {stuck && onDismiss ? (
           <button type="button" aria-label="Dismiss" className="rounded-sm p-0.5 hover:text-fg" onClick={() => onDismiss(message.id)}>
             <X className="size-3" aria-hidden />
           </button>
@@ -122,12 +151,14 @@ export function ConversationView({
   items,
   pending = [],
   onDismiss,
+  onResend,
   onReply,
   source,
 }: {
   items: ConversationItem[]
   pending?: ShownOutgoing[]
   onDismiss?: (id: string) => void
+  onResend?: (message: ShownOutgoing) => void
   onReply?: (text: string) => void
   source?: ConversationSource
 }) {
@@ -170,7 +201,7 @@ export function ConversationView({
           ),
         )}
         {pending.map((message) => (
-          <OutgoingView key={message.id} message={message} onDismiss={onDismiss} />
+          <OutgoingView key={message.id} message={message} onDismiss={onDismiss} onResend={onResend} />
         ))}
       </div>
       {behind ? (
