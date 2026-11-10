@@ -19,4 +19,10 @@ describe('Features', () => {
     expect(screen.getByText('Commands only')).toBeInTheDocument()
     expect(screen.getByText(/WS\s+\/v1\/stream/)).toBeInTheDocument()
   })
+
+  it('says in a few points what sets Live apart', () => {
+    render(<Features />)
+    for (const point of ['Follows you from session to session', 'Silence uploads nothing'])
+      expect(screen.getByText(point)).toBeInTheDocument()
+  })
 })

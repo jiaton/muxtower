@@ -27,7 +27,13 @@ export const featureCells = {
   },
   live: {
     title: 'Talk instead of type',
-    text: 'Live writes what you say into the open session, and “send” sends it.',
+    text: 'Live writes what you say into the open session.',
+    points: [
+      'Follows you from session to session',
+      'Say “send”, “pause”, “resume”: no tapping',
+      'Silence uploads nothing',
+      'Commands are heard on the device, never typed',
+    ],
     // As the app words them (app/src/features/voice/components/live.tsx and live/feedback.ts).
     said: 'Run the migration on staging',
     writing: 'Live · speak to write',

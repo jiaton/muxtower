@@ -19,7 +19,9 @@ export const DIRECT_URL = 'https://laptop.demo.invalid'
  * hub's machine is restarting, and the laptop answers at its own address, as a hub's node does then.
  */
 export function installDemo() {
-  const world = new World(scenes())
+  // The clip recorder can hold the demo's own story (its scenes' timed steps), so that only it moves things.
+  let held = false
+  const world = new World(scenes(), (run, ms) => void setTimeout(() => held || run(), ms))
   const origin = new URL(DEMO_DAEMON.url).origin
   const at = (url: string, place: string) => new URL(url).origin.replace(/^ws/, 'http') === place
   const hubDown = new URLSearchParams(location.search).get('hub') === 'down'
@@ -45,6 +47,7 @@ export function installDemo() {
   if (new URLSearchParams(location.search).has('clip')) {
     Object.assign(window, {
       muxtowerClip: {
+        hold: () => void (held = true),
         play: (id: string, steps: Step[]) => world.play(id, steps),
         setItems: (id: string, items: ConversationItem[]) => world.setItems(id, items),
         setReply: (id: string, steps: Step[]) => world.setReply(id, steps),

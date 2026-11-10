@@ -12,12 +12,15 @@ function Cell({
   icon: Icon,
   title,
   text,
+  points,
   className,
   children,
 }: {
   icon: typeof Bell
   title: string
   text: string
+  /** What sets it apart, a few words each. */
+  points?: readonly string[]
   className?: string
   children: React.ReactNode
 }) {
@@ -30,6 +33,16 @@ function Cell({
           {title}
         </h3>
         <p className="text-sm leading-relaxed text-muted-foreground">{text}</p>
+        {points ? (
+          <ul className="mt-1 grid gap-x-6 gap-y-1 text-sm text-muted-foreground sm:grid-cols-2">
+            {points.map((point) => (
+              <li key={point} className="flex items-center gap-2">
+                <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+                {point}
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
     </Card>
   )
@@ -138,7 +151,7 @@ export function Features() {
         <Cell icon={Bot} title={c.assistant.title} text={c.assistant.text}>
           <Assistant />
         </Cell>
-        <Cell icon={AudioLines} title={c.live.title} text={c.live.text} className="md:col-span-2 lg:col-span-3">
+        <Cell icon={AudioLines} title={c.live.title} text={c.live.text} points={c.live.points} className="md:col-span-2 lg:col-span-3">
           <LivePicture />
         </Cell>
         <Cell icon={Laptop} title={c.desk.title} text={c.desk.text}>

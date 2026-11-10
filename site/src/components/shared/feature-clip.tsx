@@ -30,7 +30,7 @@ export function FeatureClip({ id, label, className }: { id: string; label: strin
   return (
     <video
       ref={video}
-      className={cn('block h-auto w-full', className)}
+      className={cn('block aspect-video h-auto w-full', className)}
       poster={`${src}.jpg`}
       aria-label={label}
       muted
