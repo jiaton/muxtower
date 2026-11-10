@@ -1,3 +1,7 @@
+import type { ConversationItem } from '@/lib/api/types'
+import { draftBox } from '@/features/terminal/draft-box'
+import { useLive } from '@/features/voice/live/engine'
+import type { Heard } from '@/features/voice/live/pipeline'
 import { useDaemonsStore } from '@/lib/daemons/store'
 import { scenes } from './scenes'
 import { DEMO_DAEMON, NODE } from './scenes/session'
@@ -39,7 +43,19 @@ export function installDemo() {
 
   // The site's clip recorder (site/clips) scripts the story through this; only with `?clip` in the URL.
   if (new URLSearchParams(location.search).has('clip')) {
-    Object.assign(window, { muxtowerClip: { play: (id: string, steps: Step[]) => world.play(id, steps), sessions: () => world.sessions() } })
+    Object.assign(window, {
+      muxtowerClip: {
+        play: (id: string, steps: Step[]) => world.play(id, steps),
+        setItems: (id: string, items: ConversationItem[]) => world.setItems(id, items),
+        setReply: (id: string, steps: Step[]) => world.setReply(id, steps),
+        sessions: () => world.sessions(),
+        // Live mode as the recorder tells it: what it is doing, and what it heard (no microphone, no ASR).
+        live: (state: Partial<ReturnType<typeof useLive.getState>>) => useLive.setState(state),
+        heard: (event: Heard) => useLive.setState({ heard: { event, at: Date.now() } }),
+        land: (sessionId: string, text: string) => draftBox.append({ daemonId: DEMO_DAEMON.id, sessionId }, text),
+        send: (sessionId: string) => draftBox.send({ daemonId: DEMO_DAEMON.id, sessionId }),
+      },
+    })
   }
 
   const laptop = { id: `${DEMO_DAEMON.id}~${NODE}`, name: NODE, url: DIRECT_URL, token: 'demo-direct', via: DEMO_DAEMON.id, node: NODE }

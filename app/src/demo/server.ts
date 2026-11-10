@@ -21,7 +21,8 @@ const ME: Me = {
   daemon_name: DEMO_DAEMON.name,
   version: APP_VERSION || null,
   default_folder: `${HOME}/code`,
-  features: { summaries: false, asr: false },
+  // Voice (Live) shows only for the site's clip recorder, which drives it without a microphone (install.ts).
+  features: { summaries: false, asr: typeof location !== 'undefined' && new URLSearchParams(location.search).has('clip') },
   claude_login_expired: false,
 }
 const RUNTIMES: RuntimeInfo[] = [

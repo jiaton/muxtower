@@ -15,6 +15,12 @@ export interface Recorder {
   click(target: Locator, pause?: number): Promise<void>
   type(target: Locator, text: string, ms: number): Promise<void>
   wait(ms: number): Promise<void>
+  /** Words said aloud, shown for `ms` (the clip is muted). */
+  say(text: string, ms: number): void
+  /** A staged browser an agent drives, over `over`, for `ms`. */
+  browser(over: Locator | Rect, ms: number, label: string, url: string): Promise<void>
+  /** Calls the demo's clip hook (`window.muxtowerClip`). */
+  hook(name: string, ...args: unknown[]): Promise<unknown>
   /** Changes sessions the way the demo's scenes do (`World.play`). */
   play(id: string, steps: unknown[]): Promise<void>
 }
@@ -108,6 +114,12 @@ export async function record(script: ClipScript, demoUrl: string, outDir: string
       await target.pressSequentially(text, { delay: ms / text.length })
     },
     wait: (ms) => page.waitForTimeout(ms),
+    say: (text, ms) => void events.push({ t: now(), kind: 'say', text, ms }),
+    async browser(over, ms, label, url) {
+      events.push({ t: now(), kind: 'browser', ms, rect: 'x' in over ? over : await rectOf(over), label, url })
+    },
+    hook: (name, ...args) =>
+      page.evaluate(([name, args]) => (window as never as Hook).muxtowerClip[name as string]!(...(args as unknown[])), [name, args] as const),
     async play(id, steps) {
       await page.evaluate(([id, steps]) => (window as never as Clip).muxtowerClip.play(id as string, steps as unknown[]), [id, steps])
     },
@@ -139,4 +151,7 @@ export async function record(script: ClipScript, demoUrl: string, outDir: string
 
 interface Clip {
   muxtowerClip: { play(id: string, steps: unknown[]): void }
+}
+interface Hook {
+  muxtowerClip: Record<string, (...args: unknown[]) => unknown>
 }

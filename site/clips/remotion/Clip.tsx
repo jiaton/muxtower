@@ -78,12 +78,14 @@ export function Clip({ meta }: ClipProps) {
             }}
           >
             <Img src={staticFile(`raw/${meta.id}/${meta.frames[Math.min(frame, meta.frames.length - 1)]}`)} style={{ width: vw, height: vh }} />
-            <Spotlight events={meta.events} t={t} />
+            <Spotlight events={meta.events} t={t} vw={vw} />
+            <Browser events={meta.events} t={t} />
             <Pointer events={meta.events} t={t} phone={phone} />
           </div>
         </div>
       </div>
       <Caption events={meta.events} t={t} phone={phone} />
+      <Said events={meta.events} t={t} top={fy + (sh + 2 * bezel) * 0.5} />
     </AbsoluteFill>
   )
 }
@@ -114,7 +116,7 @@ function camera(events: ClipEvent[], t: number, vw: number, vh: number, phone: b
 }
 
 /** Everything but the focus, dimmed, and a ring round it; it fades in, moves along, and fades out. */
-function Spotlight({ events, t }: { events: ClipEvent[]; t: number }) {
+function Spotlight({ events, t, vw }: { events: ClipEvent[]; t: number; vw: number }) {
   const focuses = events.filter((e): e is Extract<ClipEvent, { kind: 'focus' }> => e.kind === 'focus' && e.t <= t)
   const last = focuses.at(-1)
   if (!last) return null
@@ -132,14 +134,16 @@ function Spotlight({ events, t }: { events: ClipEvent[]; t: number }) {
     height: from.height + (rect.height - from.height) * p,
   }
   if (shown <= 0) return null
+  // A full-width row is ringed just inside its edges; anything narrower gets a little room round it.
+  const pad = r.width >= vw - 24 ? -4 : 8
   return (
     <div
       style={{
         position: 'absolute',
-        left: r.x + 4,
-        top: r.y + 2,
-        width: r.width - 8,
-        height: r.height - 4,
+        left: Math.max(2, r.x - pad),
+        top: r.y - pad / 2,
+        width: Math.min(vw - 4, r.width + 2 * pad),
+        height: r.height + pad,
         borderRadius: 12,
         opacity: shown,
         boxShadow: `0 0 0 2px ${C.accent}, 0 0 0 9999px rgba(30,34,46,.32)`,
@@ -271,6 +275,113 @@ function Caption({ events, t, phone }: { events: ClipEvent[]; t: number; phone: 
         }}
       >
         {text}
+      </div>
+    </div>
+  )
+}
+
+/** Words said aloud, in a bubble over the phone: the clip is muted. */
+function Said({ events, t, top }: { events: ClipEvent[]; t: number; top: number }) {
+  const said = [...events].reverse().find((e): e is Extract<ClipEvent, { kind: 'say' }> => e.kind === 'say' && e.t <= t)
+  if (!said) return null
+  const since = t - said.t
+  const end = said.ms / 1000
+  if (since > end + 0.3) return null
+  const shown = interpolate(since, [0, 0.25, end, end + 0.3], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+  return (
+    <div style={{ position: 'absolute', left: 0, right: 0, top, display: 'flex', justifyContent: 'center', opacity: shown }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 14,
+          maxWidth: 600,
+          padding: '18px 28px',
+          borderRadius: 28,
+          background: C.fg,
+          color: '#fff',
+          fontSize: 34,
+          fontWeight: 500,
+          lineHeight: 1.25,
+          boxShadow: '0 20px 50px -18px rgba(20,25,40,.6)',
+          transform: `translateY(${(1 - shown) * 12}px)`,
+        }}
+      >
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="9" y="2" width="6" height="12" rx="3" />
+          <path d="M5 10v1a7 7 0 0 0 14 0v-1M12 18v4" />
+        </svg>
+        <span>“{said.text}”</span>
+      </div>
+    </div>
+  )
+}
+
+/** A browser an agent drives, staged: a small checkout page whose Pay goes through on the retry. Drawn in
+ *  page pixels over the part of the screen the script named. */
+function Browser({ events, t }: { events: ClipEvent[]; t: number }) {
+  const b = [...events].reverse().find((e): e is Extract<ClipEvent, { kind: 'browser' }> => e.kind === 'browser' && e.t <= t)
+  if (!b) return null
+  const since = t - b.t
+  const end = b.ms / 1000
+  if (since > end + 0.35) return null
+  const shown = interpolate(since, [0, 0.35, end, end + 0.35], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' })
+  const p = since / end
+  const pressed = p > 0.35
+  const paid = p > 0.62
+  const { x, y, width, height } = b.rect
+  const w = Math.min(width - 48, 460)
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        left: x + (width - w) / 2,
+        top: y + Math.max(24, (height - 330) / 2),
+        width: w,
+        borderRadius: 12,
+        overflow: 'hidden',
+        background: '#fff',
+        border: `1px solid ${C.border}`,
+        boxShadow: '0 30px 60px -24px rgba(20,25,40,.45)',
+        opacity: shown,
+        transform: `scale(${0.96 + 0.04 * shown})`,
+        fontSize: 14,
+        color: C.fg,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: '#eef0f3', borderBottom: `1px solid ${C.border}` }}>
+        {[0, 1, 2].map((i) => (
+          <span key={i} style={{ width: 9, height: 9, borderRadius: 9, background: '#cfd3da' }} />
+        ))}
+        <span style={{ flex: 1, marginLeft: 8, padding: '3px 10px', borderRadius: 6, background: '#fff', color: C.muted, fontSize: 12 }}>{b.url}</span>
+      </div>
+      <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ fontSize: 18, fontWeight: 600 }}>Checkout</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', color: C.muted }}>
+          <span>Order 1042 · 2 items</span>
+          <span style={{ fontVariantNumeric: 'tabular-nums' }}>$48.00</span>
+        </div>
+        <div
+          style={{
+            marginTop: 4,
+            padding: '10px 0',
+            borderRadius: 8,
+            textAlign: 'center',
+            fontWeight: 600,
+            color: '#fff',
+            background: paid ? '#1f8f5a' : C.accent,
+            transform: `scale(${pressed && !paid && p < 0.42 ? 0.97 : 1})`,
+          }}
+        >
+          {paid ? 'Paid ✓' : pressed ? 'Paying…' : 'Pay $48.00'}
+        </div>
+        <div style={{ minHeight: 18, fontSize: 13, color: paid ? '#1f8f5a' : C.muted }}>
+          {paid ? 'Went through on the retry, same idempotency key' : pressed ? 'Card network timed out · retrying once' : ''}
+        </div>
+      </div>
+      <div style={{ padding: '7px 12px', borderTop: `1px solid ${C.border}`, fontSize: 12, color: C.muted, display: 'flex', gap: 6 }}>
+        <span style={{ width: 8, height: 8, marginTop: 4, borderRadius: 8, background: C.accent }} />
+        {b.label}
       </div>
     </div>
   )

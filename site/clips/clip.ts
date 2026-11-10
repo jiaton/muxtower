@@ -15,6 +15,10 @@ export type ClipEvent =
   | { t: number; kind: 'focus'; rect: Rect | null }
   /** A tap or a click: the cursor is there at `t`. */
   | { t: number; kind: 'click'; x: number; y: number }
+  /** Words spoken aloud (the clip is muted): shown as a speech bubble from `t` for `ms`. */
+  | { t: number; kind: 'say'; text: string; ms: number }
+  /** A browser an agent drives, staged (no real browser): drawn over `rect` from `t` for `ms`. */
+  | { t: number; kind: 'browser'; ms: number; rect: Rect; label: string; url: string }
   /** Words typed, from `t` for `ms`. */
   | { t: number; kind: 'type'; x: number; y: number; ms: number }
 

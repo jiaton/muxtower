@@ -13,8 +13,10 @@ import { renderMedia, renderStill, selectComposition } from '@remotion/renderer'
 import { chromium } from 'playwright'
 import { record, type ClipScript } from './record.ts'
 import { liveList } from './scripts/live-list.ts'
+import { teamHandoff } from './scripts/team-handoff.ts'
+import { liveVoice } from './scripts/live-voice.ts'
 
-const SCRIPTS: ClipScript[] = [liveList]
+const SCRIPTS: ClipScript[] = [liveList, teamHandoff, liveVoice]
 
 const here = fileURLToPath(new URL('.', import.meta.url))
 const app = join(here, '../../app')
@@ -59,8 +61,8 @@ for (const meta of metas) {
   const composition = await selectComposition({ serveUrl, id: 'Clip', inputProps, browserExecutable })
   const base = join(out, meta.id)
   console.log(`rendering ${meta.id}: ${composition.width}x${composition.height}, ${(composition.durationInFrames / composition.fps).toFixed(1)} s`)
-  await renderMedia({ serveUrl, composition, inputProps, browserExecutable, codec: 'h264', crf: 25, x264Preset: 'veryslow', muted: true, outputLocation: `${base}.mp4` })
-  await renderMedia({ serveUrl, composition, inputProps, browserExecutable, codec: 'vp9', crf: 36, muted: true, outputLocation: `${base}.webm` })
+  await renderMedia({ serveUrl, composition, inputProps, browserExecutable, codec: 'h264', crf: meta.frame === 'desktop' ? 29 : 25, x264Preset: 'veryslow', muted: true, outputLocation: `${base}.mp4` })
+  await renderMedia({ serveUrl, composition, inputProps, browserExecutable, codec: 'vp9', crf: meta.frame === 'desktop' ? 42 : 36, muted: true, outputLocation: `${base}.webm` })
   // The poster: the clip's last moment, everything that happened in view.
   await renderStill({ serveUrl, composition, inputProps, browserExecutable, frame: composition.durationInFrames - 20, imageFormat: 'jpeg', jpegQuality: 82, output: `${base}.jpg` })
   for (const ext of ['mp4', 'webm', 'jpg']) console.log(`  ${meta.id}.${ext}: ${(statSync(`${base}.${ext}`).size / 1024).toFixed(0)} KB`)

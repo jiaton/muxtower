@@ -142,6 +142,18 @@ export class World {
     return true
   }
 
+  /** Gives a session other earlier work, before anyone has opened it (the site's clip recorder). */
+  setItems(id: string, items: ConversationItem[]) {
+    const scene = this.scenes.get(id)
+    if (scene) scene.items = [...items]
+  }
+
+  /** How a session answers what it is sent from now on (the site's clip recorder). */
+  setReply(id: string, steps: Step[]) {
+    const scene = this.scenes.get(id)
+    if (scene) scene.reply = () => steps
+  }
+
   /** Plays steps on a session as its scene's `start` does (also the site's clip recorder, `install.ts`). */
   play(id: string, steps: Step[]) {
     let at = 0
