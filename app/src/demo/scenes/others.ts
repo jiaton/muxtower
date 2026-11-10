@@ -168,6 +168,56 @@ export function releaseNotesFork(): Scene {
   }
 }
 
+const SHORTEST = 'Even shorter: "2.4: usage chart, payment retries, refund tax fix."'
+const POST = 'A draft post for 2.4: "Charts and steadier payments", one paragraph per change, the tax fix last.'
+
+/** A fork of the fork: three levels, so the list draws its tree's joined rails. */
+export function changelogFork(): Scene {
+  const scene = releaseNotesFork()
+  return {
+    ...scene,
+    session: {
+      ...scene.session,
+      id: 'changelog-fork',
+      name: 'Changelog line, shorter',
+      remote_id: 'cse_demo_fork_2',
+      fork_of: 'release-notes-fork',
+      unread: false,
+      last_message: SHORTEST,
+      created_at: ago(11),
+      updated_at: ago(9),
+    },
+    items: [
+      ...scene.items,
+      prompt(NOTES_EARLIER.next + 3, { text: 'Shorter still, under 60 characters.', at: ago(10) }),
+      reply(NOTES_EARLIER.next + 4, { text: SHORTEST, at: ago(9) }),
+    ],
+  }
+}
+
+/** A second fork of the release notes, the last one under them. */
+export function releasePostFork(): Scene {
+  const scene = releaseNotes()
+  return {
+    ...scene,
+    session: {
+      ...scene.session,
+      id: 'release-post-fork',
+      name: 'Release post draft',
+      remote_id: 'cse_demo_fork_3',
+      fork_of: 'release-notes',
+      last_message: POST,
+      created_at: ago(22),
+      updated_at: ago(18),
+    },
+    items: [
+      ...scene.items,
+      prompt(NOTES_EARLIER.next + 1, { text: 'Turn these into a short blog post.', at: ago(20) }),
+      reply(NOTES_EARLIER.next + 2, { text: POST, at: ago(18) }),
+    ],
+  }
+}
+
 /** A session in the folder that holds the repositories: a plain folder, which nests them. */
 export function tidyUp(): Scene {
   return {

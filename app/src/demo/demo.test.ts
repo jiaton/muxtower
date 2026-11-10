@@ -51,7 +51,7 @@ describe('the demo world', () => {
 
   // The story sessions join partway through their work; the small ones other stories add (a plain
   // folder, an interrupted session) need no history.
-  const STORIES = ['shop-api', 'web-app', 'docs', 'laptop~infra', 'release-notes', 'release-notes-fork']
+  const STORIES = ['shop-api', 'web-app', 'docs', 'laptop~infra', 'release-notes', 'release-notes-fork', 'changelog-fork', 'release-post-fork']
 
   it('keeps every conversation in order, and joins each story session mid-task: earlier work in order, the screen and conversation alike', () => {
     const { w } = world()
@@ -117,6 +117,8 @@ describe('the demo daemon over HTTP', () => {
       'laptop~infra',
       'release-notes',
       'release-notes-fork',
+      'changelog-fork',
+      'release-post-fork',
       'tidy-up',
       'laptop~migrations',
       'old-1',
