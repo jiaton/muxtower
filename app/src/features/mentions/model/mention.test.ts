@@ -38,19 +38,19 @@ describe('mentionAt', () => {
 
 describe('what is inserted', () => {
   it('is @role@project (id), the name standing in for no role; and reads back', () => {
-    const worker = s('a1b2c3d4e5f6', { team_role: 'worker', project: 'jiaton/muxtower', name: 'Muxtower Worker' })
-    expect(mentionOf(worker)).toBe('@worker@jiaton/muxtower (a1b2c3d4e5f6)')
+    const worker = s('a1b2c3d4e5f6', { team_role: 'worker', project: 'acme/web', name: 'Web Worker' })
+    expect(mentionOf(worker)).toBe('@worker@acme/web (a1b2c3d4e5f6)')
     const unnamed = s('c1', { name: 'Home  assistant', project: 'ha' })
     expect(mentionOf(unnamed)).toBe('@Home assistant@ha (c1)')
     expect(mentionOf(s('mac~0a1b2c3d4e5f', { name: 'job', project: null }))).toBe('@job (mac~0a1b2c3d4e5f)')
-    const pm = s('0f1e2d3c4b5a', { team_role: 'PM — read-only: answers the owner's questions', project: 'acme/billing' })
+    const pm = s('0f1e2d3c4b5a', { team_role: "PM — read-only: answers the owner's questions", project: 'acme/billing' })
     expect(mentionOf(pm)).toBe('@PM@acme/billing (0f1e2d3c4b5a)') // a role's title, not all it says
     expect(mentionOf(s('g2', { team_role: 'g2 worker: glasses/ client', project: 'm' }))).toBe('@g2 worker@m (g2)')
-    expect(mentionOf(s('t', { team_role: 'Guide (temporary, mac)— read-only', project: 'q' }))).toBe('@Guide (temporary, mac)@q (t)')
+    expect(mentionOf(s('t', { team_role: 'Guide (temporary, mac)— read-only', project: 'q' }))).toBe('@Guide (temporary, mac)@q (t)') // a dash with no space before it
     expect(mentionOf(s('w', { team_role: 'billing-api worker', project: 'q' }))).toBe('@billing-api worker@q (w)')
     expect(mentionOf(s('x', { name: 'a'.repeat(40) }))).toBe(`@${'a'.repeat(31)}… (x)`)
-    expect(mentionsIn('ask @worker@jiaton/muxtower (a1b2c3d4e5f6) and @job (mac~0a1b2c3d4e5f) now')).toEqual([
-      { handle: 'worker', project: 'jiaton/muxtower', id: 'a1b2c3d4e5f6' },
+    expect(mentionsIn('ask @worker@acme/web (a1b2c3d4e5f6) and @job (mac~0a1b2c3d4e5f) now')).toEqual([
+      { handle: 'worker', project: 'acme/web', id: 'a1b2c3d4e5f6' },
       { handle: 'job', project: null, id: 'mac~0a1b2c3d4e5f' },
     ])
   })

@@ -4,11 +4,10 @@ import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { liveDetails, setLiveDetails } from '../live/feedback'
 import { chooseLanguages, chosenLanguages, PACK, packDownloaded, removePack, type Language } from '../live/kws'
+import { PACKS } from '../live/packs'
 
-const LANGUAGES: { id: Language; label: string; words: string }[] = [
-  { id: 'en', label: 'English', words: 'send, pause, resume, clear, undo' },
-  { id: 'zh', label: '中文', words: '发送、暂停、继续、清空、撤回上一句' },
-]
+// Each language's commands, as its pack says them.
+const LANGUAGES = PACKS.map((p) => ({ id: p.id, label: p.name, words: Object.values(p.say).join(', ') }))
 
 /** This browser's Live voice commands: the languages listened for, and the model they need (its size,
  *  whether it is downloaded, and removing it). */

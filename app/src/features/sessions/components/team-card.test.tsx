@@ -26,7 +26,7 @@ function members(daemonId: string): SessionEntry[] {
     key: `${daemonId}/${id}`,
     daemon,
     session: {
-      id, name: id, project: 'jiaton/muxtower', state: 'idle', needs_attention: false, machine: 'nas',
+      id, name: id, project: 'acme/muxtower', state: 'idle', needs_attention: false, machine: 'nas',
       cwd: '/home/me/projects/muxtower', updated_at: '2026-11-05T10:00:00Z', ...over,
     } as Session, // prettier-ignore
   })
@@ -43,8 +43,8 @@ function show() {
   const clicked = vi.fn()
   const root = createRootRoute({
     component: () => (
-      <TeamCard project="jiaton/muxtower" entries={entries} device="nas">
-        <button onClick={clicked}>jiaton/muxtower</button>
+      <TeamCard project="acme/muxtower" entries={entries} device="nas">
+        <button onClick={clicked}>acme/muxtower</button>
       </TeamCard>
     ),
   })
@@ -75,11 +75,11 @@ it('on hover, after a moment: the whole team, on every device, with the last tas
     ),
   )
   show()
-  const row = await screen.findByRole('button', { name: 'jiaton/muxtower' })
+  const row = await screen.findByRole('button', { name: 'acme/muxtower' })
   fireEvent.pointerEnter(row.parentElement!, { pointerType: 'mouse' })
   expect(screen.queryByRole('menu')).toBeNull() // not at once
   const card = await screen.findByRole('menu', {}, { timeout: 2000 })
-  expect(within(card).getByText('jiaton/muxtower · 2 sessions')).toBeInTheDocument()
+  expect(within(card).getByText('acme/muxtower · 2 sessions')).toBeInTheDocument()
   expect(within(card).getAllByText('research')).toHaveLength(2) // its name, and its role
   expect(within(card).getByText('no role')).toBeInTheDocument()
   expect(within(card).getByText('· mac')).toBeInTheDocument() // the member on the other device
@@ -96,7 +96,7 @@ it('a right click shows it with its actions; Rename renames the project for all 
     }),
   )
   show()
-  fireEvent.contextMenu(await screen.findByRole('button', { name: 'jiaton/muxtower' }))
+  fireEvent.contextMenu(await screen.findByRole('button', { name: 'acme/muxtower' }))
   const card = await screen.findByRole('menu')
   expect(within(card).getByRole('menuitem', { name: 'New session here…' })).toBeInTheDocument()
   fireEvent.click(within(card).getByRole('menuitem', { name: 'Rename project…' }))
@@ -108,7 +108,7 @@ it('a right click shows it with its actions; Rename renames the project for all 
 
 it('a long press shows it too, and the row does not open', async () => {
   const clicked = show()
-  const row = await screen.findByRole('button', { name: 'jiaton/muxtower' })
+  const row = await screen.findByRole('button', { name: 'acme/muxtower' })
   vi.useFakeTimers()
   fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 10, clientY: 10 })
   act(() => vi.advanceTimersByTime(600))
@@ -121,7 +121,7 @@ it('a long press shows it too, and the row does not open', async () => {
 
 it('a short tap opens the row as before', async () => {
   const clicked = show()
-  const row = await screen.findByRole('button', { name: 'jiaton/muxtower' })
+  const row = await screen.findByRole('button', { name: 'acme/muxtower' })
   fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 10, clientY: 10 })
   fireEvent.pointerUp(row, { pointerType: 'touch' })
   fireEvent.click(row)
@@ -131,8 +131,8 @@ it('a short tap opens the row as before', async () => {
 
 it('"New session here…" starts one in the project’s folder, with a role to give it', async () => {
   show()
-  fireEvent.contextMenu(await screen.findByRole('button', { name: 'jiaton/muxtower' }))
+  fireEvent.contextMenu(await screen.findByRole('button', { name: 'acme/muxtower' }))
   fireEvent.click(await screen.findByRole('menuitem', { name: 'New session here…' }))
-  expect(await screen.findByText(/Role in jiaton\/muxtower/)).toBeInTheDocument()
+  expect(await screen.findByText(/Role in acme\/muxtower/)).toBeInTheDocument()
   expect(screen.getByDisplayValue('/home/me/projects/muxtower')).toBeInTheDocument()
 })

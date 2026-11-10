@@ -40,34 +40,28 @@ function setup() {
   return { live, boxes, sent, cues, uploads, transcribe, say, flush, spot }
 }
 
-describe('commands', () => {
+describe('commands (English, the default)', () => {
   it('a segment that is only a command, fillers and punctuation aside', () => {
-    expect(commandIn('发送。')).toBe('send')
-    expect(commandIn('嗯，发送')).toBe('send')
     expect(commandIn('Send.')).toBe('send')
-    expect(commandIn('暂停')).toBe('pause')
-    expect(commandIn('撤回上一句。')).toBe('undo')
-    expect(commandIn('清空')).toBe('clear')
-    expect(commandIn('请发送这个')).toBeNull() // more than the command: text
+    expect(commandIn('um, send')).toBe('send')
+    expect(commandIn('Pause')).toBe('pause')
+    expect(commandIn('undo.')).toBe('undo')
+    expect(commandIn('clear')).toBe('clear')
+    expect(commandIn('please send this')).toBeNull() // more than the command: text
     expect(normalize('  Um, SEND it! ')).toBe('send it')
     // As Whisper mishears a one-word clip (seen in real use).
-    expect(commandIn('Façam!')).toBe('send')
     expect(commandIn('Then send.')).toBe('send')
     expect(commandIn('End.')).toBe('send')
-    expect(commandIn('发松')).toBe('send')
-    expect(commandIn('站停。')).toBe('pause')
     expect(commandIn('the end')).toBeNull() // not all of it a command
   })
 
-  it('only send may trail a sentence; it is stripped', () => {
-    expect(trailingSend('修一下这个测试，发送。')).toBe('修一下这个测试')
-    expect(trailingSend('fix the test and send')).toBe('fix the test') // the joining word goes with it
-    expect(trailingSend('修一下测试，然后发送')).toBe('修一下测试')
+  it('only send may trail a sentence; it is stripped, with the word that joins it', () => {
+    expect(trailingSend('fix the test and send')).toBe('fix the test')
     expect(trailingSend('send the logs to bob and then send')).toBe('send the logs to bob')
     expect(trailingSend('fix the test, send.')).toBe('fix the test')
     expect(trailingSend('please resend')).toBeNull() // not the word send
-    expect(trailingSend('先暂停一下')).toBeNull()
-    expect(trailingSend('发送')).toBeNull() // nothing before it
+    expect(trailingSend('pause the deploy first')).toBeNull()
+    expect(trailingSend('send')).toBeNull() // nothing before it
   })
 })
 
@@ -77,11 +71,11 @@ describe('LivePipeline', () => {
     void t.say(4000)
     void t.say(800)
     await t.flush()
-    t.uploads[0]!.resolve('修一下登录的测试')
+    t.uploads[0]!.resolve('fix the login test')
     await t.flush()
-    t.uploads[1]!.resolve('发送')
+    t.uploads[1]!.resolve('send')
     await t.flush()
-    expect(t.sent).toEqual(['a: 修一下登录的测试'])
+    expect(t.sent).toEqual(['a: fix the login test'])
     expect(t.cues).toEqual(['sent'])
   })
 
@@ -89,9 +83,9 @@ describe('LivePipeline', () => {
     const t = setup()
     void t.say(1200)
     await t.flush()
-    t.uploads[0]!.resolve('好的，清空吧')
+    t.uploads[0]!.resolve('ok, clear it then')
     await t.flush()
-    expect(t.boxes.a).toEqual(['好的，清空吧'])
+    expect(t.boxes.a).toEqual(['ok, clear it then'])
     expect(t.cues).toEqual([])
   })
 
@@ -99,29 +93,29 @@ describe('LivePipeline', () => {
     const t = setup()
     void t.say(5000)
     await t.flush()
-    t.uploads[0]!.resolve('先暂停一下部署，然后清空缓存，发送。')
+    t.uploads[0]!.resolve('pause the deploy first, then clear the cache, send.')
     await t.flush()
-    expect(t.sent).toEqual(['a: 先暂停一下部署，然后清空缓存'])
+    expect(t.sent).toEqual(['a: pause the deploy first, then clear the cache'])
     expect(t.live.state).toBe('listening')
   })
 
   it('clear, undo and pause act only as a segment of their own', async () => {
     const t = setup()
     for (const [ms, text] of [
-      [3000, '第一句'],
-      [3000, '第二句'],
-      [700, '撤回上一句'],
-      [3000, '然后撤回上一句也算文字'],
+      [3000, 'first part'],
+      [3000, 'second part'],
+      [700, 'undo'],
+      [3000, 'and then undo counts as text'],
     ] as const) {
       void t.say(ms)
       await t.flush()
       t.uploads.at(-1)!.resolve(text)
       await t.flush()
     }
-    expect(t.boxes.a).toEqual(['第一句', '然后撤回上一句也算文字'])
+    expect(t.boxes.a).toEqual(['first part', 'and then undo counts as text'])
     void t.say(600)
     await t.flush()
-    t.uploads.at(-1)!.resolve('清空')
+    t.uploads.at(-1)!.resolve('clear')
     await t.flush()
     expect(t.boxes.a).toEqual([])
     expect(t.cues).toEqual(['undone', 'cleared'])
@@ -131,7 +125,7 @@ describe('LivePipeline', () => {
     const t = setup()
     void t.say(600)
     await t.flush()
-    t.uploads[0]!.resolve('发送')
+    t.uploads[0]!.resolve('send')
     await t.flush()
     expect(t.sent).toEqual([])
     expect(t.cues).toEqual(['empty'])
@@ -144,14 +138,14 @@ describe('LivePipeline', () => {
     const sending = t.say(700)
     await t.flush()
     expect(t.uploads).toHaveLength(3) // all three upload at once (no short one before them to wait for)
-    t.uploads[2]!.resolve('发送') // the send is back first…
-    t.uploads[1]!.resolve('第二段') // …then the second
+    t.uploads[2]!.resolve('send') // the send is back first…
+    t.uploads[1]!.resolve('second part') // …then the second
     await t.flush()
     await t.flush()
     expect(t.sent).toEqual([]) // the first has not landed: nothing sent yet
-    t.uploads[0]!.resolve('第一段')
+    t.uploads[0]!.resolve('first part')
     await sending
-    expect(t.sent).toEqual(['a: 第一段 第二段'])
+    expect(t.sent).toEqual(['a: first part second part'])
   })
 
   it('paused: nothing is uploaded, ever; resuming listens again', async () => {
@@ -160,7 +154,7 @@ describe('LivePipeline', () => {
     void t.say(4000) // said after "pause": must not leave the device
     await t.flush()
     expect(t.uploads).toHaveLength(1) // held behind the short one
-    t.uploads[0]!.resolve('暂停')
+    t.uploads[0]!.resolve('pause')
     await t.flush()
     await t.flush()
     expect(t.live.state).toBe('paused')
@@ -180,11 +174,11 @@ describe('LivePipeline', () => {
     void t.say(4000, A) // started on session a
     void t.say(3000, B) // the owner moved to b
     await t.flush()
-    t.uploads[1]!.resolve('给 b 的')
-    t.uploads[0]!.resolve('给 a 的')
+    t.uploads[1]!.resolve('for b')
+    t.uploads[0]!.resolve('for a')
     await t.flush()
     await t.flush()
-    expect(t.boxes).toEqual({ a: ['给 a 的'], b: ['给 b 的'] })
+    expect(t.boxes).toEqual({ a: ['for a'], b: ['for b'] })
     await t.say(3000, null) // spoken on no session page: dropped, not uploaded
     expect(t.transcribe).toHaveBeenCalledTimes(2)
   })
@@ -193,9 +187,9 @@ describe('LivePipeline', () => {
     const t = setup()
     void t.say(4000)
     await t.flush()
-    t.uploads[0]!.resolve('修一下登录的测试')
+    t.uploads[0]!.resolve('fix the login test')
     await t.say(700, A, 'send')
-    expect(t.sent).toEqual(['a: 修一下登录的测试'])
+    expect(t.sent).toEqual(['a: fix the login test'])
     expect(t.transcribe).toHaveBeenCalledTimes(1) // only the sentence
   })
 
@@ -206,9 +200,9 @@ describe('LivePipeline', () => {
     await t.flush()
     expect(t.uploads).toHaveLength(1)
     expect(t.uploads[0]!.ask).toEqual({ hint: 'command' })
-    t.uploads[0]!.resolve('好的')
+    t.uploads[0]!.resolve('okay')
     await t.flush()
-    expect(t.boxes.a).toEqual(['好的'])
+    expect(t.boxes.a).toEqual(['okay'])
   })
 
   it('paused: the spotter alone listens, for "resume"; nothing is uploaded', async () => {

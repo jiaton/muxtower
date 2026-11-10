@@ -31,12 +31,13 @@ async def transcribe(
     language: str | None = None,
     source: Annotated[str | None, Query(pattern=r"^[a-z0-9-]{1,16}$")] = None,
     hint: Literal["command"] | None = None,
+    words: Annotated[list[str] | None, Query(max_length=20)] = None,
 ) -> Transcript:  # fmt: skip
     """Speech to text: the body is the recording (WAV from the glasses). `language` (e.g. `zh`, `en`)
     pins the language; without it the provider detects it. `source` names what asked (`live`: the app's
     Live mode), for the audit log's counts. `hint=command`: the recording may be only a spoken command
-    (send, pause…): transcribed with a prompt of those words, in the configured language if one is set.
-    Nothing is stored."""
+    (send, pause…): transcribed with a prompt of those words (`words`: the app's, in the languages it
+    listens for; else the English ones), in the configured language if one is set. Nothing is stored."""
     if int(request.headers.get("content-length") or 0) > MAX_AUDIO_BYTES:
         raise Invalid("recording too long")
     audio = bytearray()
@@ -45,7 +46,7 @@ async def transcribe(
         if len(audio) > MAX_AUDIO_BYTES:
             raise Invalid("recording too long")
     transcript = await asyncio.to_thread(
-        asr.transcribe, bytes(audio), request.headers.get("content-type", ""), language, hint
+        asr.transcribe, bytes(audio), request.headers.get("content-type", ""), language, hint, words
     )
     # What was said is never logged.
     await asyncio.to_thread(

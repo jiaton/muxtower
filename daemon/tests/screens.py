@@ -319,7 +319,7 @@ ERROR_SCROLLED_UP = """\
 
 ✻ Churned for 7m 4s · done 6:11 PM
 
-❯ API Error: Output blocked by content filtering policy 是什么意思
+❯ API Error: Output blocked by content filtering policy, what does that mean
 
 ● The API's output filter blocked that reply; it is not the project. Carrying on with made-up lyrics.
 

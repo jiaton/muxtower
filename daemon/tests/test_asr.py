@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from muxtower.asr.openai_compatible import OpenAICompatibleTranscriber
-from muxtower.asr.service import AsrService
+from muxtower.asr.service import BASE_PROMPT, AsrService
 from muxtower.errors import Unavailable
 
 WAV = b"RIFF" + b"\0" * 64
@@ -21,7 +21,7 @@ class FakeTranscriber:
     def transcribe(self, audio: bytes, content_type: str, language: str | None, prompt: str | None) -> str:
         self.calls.append((len(audio), content_type, language))
         self.prompts.append(prompt or "")
-        return "继续，然后跑测试"
+        return "go on, then run the tests"
 
 
 def _client(app: FastAPI) -> tuple[TestClient, dict[str, str]]:
@@ -41,12 +41,12 @@ def test_transcribes_and_audits_without_the_words(app: FastAPI) -> None:
     app.state.asr = AsrService(fake, language="zh", extra_prompt="Postgres, Redis")
     client, auth = _client(app)
     res = client.post("/v1/asr", content=WAV, headers={**auth, "Content-Type": "audio/wav"})
-    assert res.json() == {"text": "继续，然后跑测试", "language": "zh"}
+    assert res.json() == {"text": "go on, then run the tests", "language": "zh"}
     assert fake.calls == [(len(WAV), "audio/wav", "zh")]
-    assert "简体中文" in fake.prompts[0] and fake.prompts[0].endswith(" Postgres, Redis")  # base, then the owner's words
+    assert fake.prompts[0].startswith(BASE_PROMPT) and fake.prompts[0].endswith(" Postgres, Redis")  # then the owner's
     with app.state.audit.db.connect() as conn:
         rows = [dict(r) for r in conn.execute("SELECT * FROM audit_log WHERE action = 'asr'")]
-    assert len(rows) == 1 and "继续" not in str(rows[0])
+    assert len(rows) == 1 and "go on" not in str(rows[0])
     assert client.post("/v1/asr", content=b"x", headers={**auth, "Content-Type": "text/plain"}).status_code == 400
     assert client.post("/v1/asr", content=WAV, headers={"Content-Type": "audio/wav"}).status_code == 401
     too_long = b"\0" * (4 * 1024 * 1024 + 1)
@@ -89,7 +89,7 @@ def test_the_prompt_is_the_base_and_the_owners_words_only_within_groqs_limit_in_
     assert AsrService(FakeTranscriber(), None).prompt() == BASE_PROMPT
     long_extra = AsrService(FakeTranscriber(), None, extra_prompt="词" * 400).prompt()  # three bytes each
     assert len(long_extra.encode()) <= 896 and long_extra.startswith(BASE_PROMPT)  # Groq counts bytes
-    app.state.sessions.create(CreateSession(runtime="claude", cwd=str(tmp_path), name="私人项目"))
+    app.state.sessions.create(CreateSession(runtime="claude", cwd=str(tmp_path), name="private-project"))
     fake = FakeTranscriber()
     app.state.asr = AsrService(fake, language=None)
     client, auth = _client(app)
@@ -130,16 +130,17 @@ def test_a_source_is_kept_in_the_audit_for_counts(app: FastAPI) -> None:
     )
 
 
-def test_a_command_hint_uses_the_command_prompt_and_the_configured_language_first(app: FastAPI) -> None:
-    from muxtower.asr.service import COMMAND_PROMPT
-
+def test_a_command_hint_uses_the_apps_command_words_and_the_configured_language_first(app: FastAPI) -> None:
     fake = FakeTranscriber()
     app.state.asr = AsrService(fake, language=None)
     client, auth = _client(app)
-    res = client.post("/v1/asr?hint=command&language=zh", content=WAV, headers={**auth, "Content-Type": "audio/wav"})
-    assert res.json()["language"] == "zh" and fake.calls[-1][2] == "zh" and fake.prompts[-1] == COMMAND_PROMPT
+    asked = "/v1/asr?hint=command&language=fr&words=envoyer&words=pause&words=send"
+    res = client.post(asked, content=WAV, headers={**auth, "Content-Type": "audio/wav"})
+    assert res.json()["language"] == "fr" and fake.calls[-1][2] == "fr" and fake.prompts[-1] == "envoyer pause send"
+    client.post("/v1/asr?hint=command", content=WAV, headers={**auth, "Content-Type": "audio/wav"})
+    assert fake.prompts[-1] == "send pause resume clear undo"  # no words given: the English ones
     app.state.asr = AsrService(fake, language="en")  # configured: it wins for a command
-    res = client.post("/v1/asr?hint=command&language=zh", content=WAV, headers={**auth, "Content-Type": "audio/wav"})
+    res = client.post(asked, content=WAV, headers={**auth, "Content-Type": "audio/wav"})
     assert res.json()["language"] == "en" and fake.calls[-1][2] == "en"
-    res = client.post("/v1/asr", content=WAV, headers={**auth, "Content-Type": "audio/wav"})  # no hint: as before
-    assert fake.prompts[-1] != COMMAND_PROMPT
+    client.post("/v1/asr", content=WAV, headers={**auth, "Content-Type": "audio/wav"})  # no hint: as before
+    assert fake.prompts[-1].startswith(BASE_PROMPT)

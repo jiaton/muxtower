@@ -6,18 +6,28 @@ import { LiveBar, LiveButton } from './live'
 beforeEach(() => vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} })))
 afterEach(() => useLive.setState({ phase: 'off', speaking: false, pending: 0, error: null, commands: { state: 'off' }, heard: null }))
 
-it('writing: says so, in the accent, with the commands to say', () => {
-  useLive.setState({ phase: 'listening', commands: { state: 'ready' }, pending: 2 })
-  render(
+it('writing: its title follows the moment; the commands to say after it', () => {
+  useLive.setState({ phase: 'listening', commands: { state: 'ready' } })
+  const { rerender } = render(
     <>
       <LiveBar />
       <LiveButton />
     </>,
   )
-  expect(screen.getByText('Live · writing what you say')).toBeInTheDocument()
-  expect(screen.getByRole('status').textContent).toBe(
-    'Live · writing what you say· say send to send, pause to stop writing · commands on device · transcribing 2',
+  const hint = '· say send to send, pause to stop writing · commands on device'
+  expect(screen.getByRole('status').textContent).toBe(`Live · speak to write${hint}`)
+  act(() => useLive.setState({ speaking: true }))
+  rerender(
+    <>
+      <LiveBar />
+      <LiveButton />
+    </>,
   )
+  expect(screen.getByRole('status').textContent).toBe(`Live · hearing you…${hint}`)
+  act(() => useLive.setState({ speaking: false, pending: 1 }))
+  expect(screen.getByRole('status').textContent).toBe(`Live · writing…${hint}`)
+  act(() => useLive.setState({ pending: 2 }))
+  expect(screen.getByRole('status').textContent).toBe(`Live · writing… (2)${hint}`)
   expect(screen.getByRole('button', { name: 'Live: writing. Turn Live off' })).toBeInTheDocument()
 })
 
@@ -50,7 +60,7 @@ it("what was heard takes the hint's place in the same row, then the hint comes b
     heard: { event: { kind: 'command', command: 'send', done: true, how: 'on device' }, at: Date.now() },
   })
   render(<LiveBar />)
-  expect(screen.getByRole('status').textContent).toBe('Live · writing what you say✓ sent')
+  expect(screen.getByRole('status').textContent).toBe('Live · speak to write✓ sent')
   expect(screen.queryByLabelText('Last heard')).toBeNull() // no row of its own
   act(() => void vi.advanceTimersByTime(2100))
   expect(screen.getByRole('status').textContent).toContain('say send to send')

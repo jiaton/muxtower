@@ -62,7 +62,7 @@ interface Deps {
  * nothing is uploaded at all: segments are dropped, and only `resume` (a tap, a key) listens again.
  *
  * A short segment may be "pause", so the segments after it are not uploaded until it is known not to be:
- * nothing said after "暂停" leaves the device. Long ones hold nothing up.
+ * nothing said after "pause" leaves the device. Long ones hold nothing up.
  */
 export class LivePipeline {
   state: 'listening' | 'paused' = 'listening'

@@ -23,7 +23,7 @@ export function mentionAt(value: string, caret: number): { start: number; query:
 const MAX_HANDLE = 32
 
 /** What a session is called in a mention: its role, else its name, on one line. A role is free text, often
- *  a title and what it does ("PM — 只读：…", "g2 worker: glasses/ client"): its title is enough, the id in
+ *  a title and what it does ("PM — read-only: answers…", "g2 worker: glasses/ client"): its title is enough, the id in
  *  the mention says which session it is (`send_task` takes the id first). */
 export function handleOf(s: Session): string {
   const role = s.team_role?.split(/\s*[—–]\s*|\s+-\s+|[:：]/)[0]?.trim() // a dash (a hyphen only spaced), a colon

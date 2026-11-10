@@ -205,7 +205,7 @@ def test_a_mid_session_fork_named_with_a_fork_suffix_finds_its_parent() -> None:
 
 def test_a_second_fork_of_a_session_is_placed_under_it_not_under_the_first_fork() -> None:
     """Both forks hold the second's start (the first copied past it), but its title says it was forked from
-    the session itself: one " (fork)", not two. Seen live: two Plan the launch forks a day apart."""
+    the session itself: one " (fork)", not two. Seen live: two forks a day apart."""
     port = FakeRemoteControl()
     port.sessions = [
         session("cse_parent", title="Plan the launch", created_at="2026-10-20T17:43:26Z"),

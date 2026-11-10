@@ -7,10 +7,10 @@ import { layout } from './session'
 const voice = (phase: Voice['phase'], text = '', mode: Voice['mode'] = 'tap'): Voice => ({ session: 'a', mode, phase, text })
 
 it('a reply shows what was heard and sends it on tap', () => {
-  const state = appState([session('a')], { voice: voice('ready', '继续，然后跑测试') })
-  expect(view(state, 0).screen.body.join('')).toContain('继续，然后跑测试')
+  const state = appState([session('a')], { voice: voice('ready', 'go on, then run the tests') })
+  expect(view(state, 0).screen.body.join('')).toContain('go on, then run the tests')
   const sent = act(state, 'select', 0)
-  expect(sent.command).toEqual({ type: 'input', id: 'a', text: '继续，然后跑测试' })
+  expect(sent.command).toEqual({ type: 'input', id: 'a', text: 'go on, then run the tests' })
   expect(sent.voice).toBeNull()
 })
 

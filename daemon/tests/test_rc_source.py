@@ -87,9 +87,9 @@ def test_messages_keys_and_nothing_to_answer() -> None:
     port, src = make()
     port.sessions = [session("cse_1")]
     src.tick()
-    src.send_text("cse_1", "继续")
+    src.send_text("cse_1", "continue")
     src.send_key("cse_1", "Escape")
-    assert port.calls == [("message", "cse_1", "继续"), ("interrupt", "cse_1")]
+    assert port.calls == [("message", "cse_1", "continue"), ("interrupt", "cse_1")]
     with pytest.raises(Conflict):
         src.send_key("cse_1", "Up")
     with pytest.raises(Conflict):

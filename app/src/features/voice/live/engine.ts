@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { createDaemonClient, unwrap } from '@/lib/api/client'
 import { useDaemonsStore } from '@/lib/daemons/store'
 import { chosenLanguages, startSpotter, type Spotter } from './kws'
+import { enabledPacks } from './packs'
 import { LivePipeline, SHORT_MS, type Ask, type BoxOps, type Cue, type Heard, type Target } from './pipeline'
 
 /**
@@ -89,7 +90,15 @@ async function transcribe(where: Target, audio: Blob, ask: Ask): Promise<{ text:
   const daemon = useDaemonsStore.getState().daemons.find((d) => d.id === where.daemonId)
   if (!daemon) throw new Error('that daemon is gone')
   const result = await createDaemonClient(daemon).POST('/v1/asr', {
-    params: { query: { source: 'live', hint: ask.hint ?? null, language: ask.language ?? null } },
+    params: {
+      query: {
+        source: 'live',
+        hint: ask.hint ?? null,
+        language: ask.language ?? null,
+        // A possible command: the words of the languages listened for are its prompt.
+        words: ask.hint === 'command' ? enabledPacks().flatMap((p) => Object.values(p.say)) : null,
+      },
+    },
     body: audio as never,
     bodySerializer: (body: unknown) => body as Blob,
     headers: { 'Content-Type': 'audio/wav' },

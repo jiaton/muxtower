@@ -1,73 +1,58 @@
+import { enabledPacks, type CommandPack } from './packs'
+
 /**
- * The words Live mode acts on, told from what is said by the transcript: a segment that is only a command
- * (`commandIn`), or a long one ending in "send" (`trailingSend`). A command inside a sentence is text.
+ * The words Live mode acts on, told from what is said by the transcript, in the languages chosen (their
+ * packs, `packs/`): a segment that is only a command (`commandIn`), or a long one ending in "send"
+ * (`trailingSend`). A command inside a sentence is text.
  */
 
 export type Command = 'send' | 'pause' | 'resume' | 'clear' | 'undo'
 
-// Each command as Whisper writes it, and as it mishears a one-word clip (seen: 发送 as "Façam", send as
-// "end", "then send"): near-misses in sound, matched only when that is all a short segment says.
-const WORDS: Record<Command, string[]> = {
-  send: [
-    '发送',
-    '发松',
-    '罚送',
-    '法送',
-    '发宋',
-    '发诵',
-    '花送',
-    'fa song',
-    'fasong',
-    'façam',
-    'fassão',
-    'send',
-    'send it',
-    'sent',
-    'end',
-    'sand',
-    'sen',
-  ],
-  pause: ['暂停', '站停', '暂定', '战停', '赞停', 'zan ting', 'zanting', 'pause', 'paws', 'pose', 'pass'],
-  resume: ['继续', '机续', '继序', 'ji xu', 'jixu', 'resume', 'continue'],
-  clear: ['清空', '请空', '亲空', '清控', 'qing kong', 'qingkong', 'clear', 'clare', 'clea'],
-  undo: ['撤回上一句', '撤回', '撤回上一个', '车回', 'che hui', 'undo', 'and do', 'undue'],
-}
-// A word Whisper puts before a lone command ("Then send.", "OK, pause"): not part of it.
-const LEAD = /^(?:then|and|ok|okay|so|那|好|好的|那就)\s*/u
-
-// Fillers Whisper writes around a short command, and punctuation: not part of what was meant.
-const FILLERS = /(?:^|\s)(?:嗯+|啊+|呃+|哦+|额+|um+|uh+|ah+|oh)(?=\s|$)|[嗯啊呃哦额]+/giu
 const PUNCTUATION = /[\p{P}\p{S}]/gu
+const escape = (word: string) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+const anyOf = (words: string[]) => words.map(escape).join('|')
 
 /** A transcript without punctuation, fillers or case, its spaces collapsed. */
-export function normalize(text: string): string {
-  return text.toLowerCase().replace(PUNCTUATION, ' ').replace(FILLERS, ' ').replace(/\s+/g, ' ').trim()
+export function normalize(text: string, packs: CommandPack[] = enabledPacks()): string {
+  const fillers = packs.flatMap((p) => p.fillers)
+  const spaced = new RegExp(`(?:^|\\s)(?:${anyOf(fillers)})+(?=\\s|$)`, 'giu')
+  const bare = packs.filter((p) => p.unspaced).flatMap((p) => p.fillers)
+  let said = text.toLowerCase().replace(PUNCTUATION, ' ')
+  if (fillers.length) said = said.replace(spaced, ' ')
+  if (bare.length) said = said.replace(new RegExp(`(?:${anyOf(bare)})+`, 'gu'), ' ') // between words, unspaced
+  return said.replace(/\s+/g, ' ').trim()
 }
 
-/** The command a whole (short) segment is, or null: it must be nothing but the command. */
-export function commandIn(text: string): Command | null {
-  const said = normalize(text).replace(LEAD, '').trim()
-  for (const [command, words] of Object.entries(WORDS) as [Command, string[]][]) {
-    if (words.includes(said)) return command
+/** The command a whole (short) segment is, or null: it must be nothing but the command (a lead word aside). */
+export function commandIn(text: string, packs: CommandPack[] = enabledPacks()): Command | null {
+  const leads = packs.flatMap((p) => p.leads)
+  const lead = leads.length ? new RegExp(`^(?:${anyOf(leads)})\\s*`, 'u') : null
+  const said = (lead ? normalize(text, packs).replace(lead, '') : normalize(text, packs)).trim()
+  for (const pack of packs) {
+    for (const [command, forms] of Object.entries(pack.heard) as [Command, string[]][]) {
+      if (forms.includes(said)) return command
+    }
   }
   return null
 }
 
-/** A long segment that ends in "send" (发送): what comes before it, to append and then send; else null.
- *  Only send may trail a sentence. */
-export function trailingSend(text: string): string | null {
+/** A long segment that ends in "send": what comes before it (and the word joining them), to append and
+ *  then send; else null. Only send may trail a sentence. */
+export function trailingSend(text: string, packs: CommandPack[] = enabledPacks()): string | null {
   const trimmed = text.replace(/[\s\p{P}]+$/u, '')
-  for (const word of ['发送', 'send']) {
-    const tail = new RegExp(`(?:^|[\\s\\p{P}]|(?<=[^\\x00-\\x7F]))${word}$`, 'iu')
-    if (word === 'send' && !tail.test(trimmed)) continue
-    if (!trimmed.toLowerCase().endsWith(word)) continue
-    // The word that joins it to the sentence goes with it ("…and send", "…然后发送").
-    const rest = trimmed
-      .slice(0, trimmed.length - word.length)
-      .replace(/[\s,，、。]+$/u, '')
-      .replace(/(?:\s+(?:and then|and|then)|然后|再|就)$/iu, '')
-      .replace(/[\s,，、。]+$/u, '')
-    return rest.trim() ? rest.trim() : null
+  for (const pack of packs) {
+    for (const word of pack.trailingSend) {
+      if (!trimmed.toLowerCase().endsWith(word.toLowerCase())) continue
+      const before = trimmed.slice(0, trimmed.length - word.length)
+      if (!pack.unspaced && before && !/[\s\p{P}]$/u.test(before)) continue // "resend": not the word
+      const joiners = pack.unspaced ? anyOf(pack.joiners) : `\\s+(?:${anyOf(pack.joiners)})`
+      const rest = before
+        .replace(/[\s\p{P}]+$/u, '')
+        .replace(new RegExp(`(?:${joiners})$`, 'iu'), '')
+        .replace(/[\s\p{P}]+$/u, '')
+        .trim()
+      return rest || null
+    }
   }
   return null
 }

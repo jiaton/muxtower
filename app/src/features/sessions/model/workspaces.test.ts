@@ -19,7 +19,7 @@ const repo = (id: string, name: string) =>
   entry(id, {
     cwd: `/home/me/projects/${name}`,
     git: git(`/home/me/projects/${name}`),
-    project: `jiaton/${name}`,
+    project: `acme/${name}`,
     project_source: 'git remote',
     project_anchor: `/home/me/projects/${name}`,
   })
@@ -43,7 +43,7 @@ describe('a folder holding repositories is a workspace', () => {
     expect(project('loose')).toBe(OTHER)
     expect(project('notes')).toBe('notes')
     expect(project('set')).toBe('release')
-    expect(project('m1')).toBe('jiaton/muxtower')
+    expect(project('m1')).toBe('acme/muxtower')
     expect(chipProject(entries[3].session)).toBe('projects') // without the others to tell: its folder's name
   })
 
@@ -55,7 +55,7 @@ describe('a folder holding repositories is a workspace', () => {
     expect(row('~/projects').total).toBe(5)
     const under = tree.filter((n) => n.parent === '~/projects').map((n) => [n.name, n.total])
     expect(under.at(-1)).toEqual(['Other', 1])
-    expect(under.map(([name]) => name)).toEqual(expect.arrayContaining(['jiaton/muxtower', 'jiaton/voice', 'release']))
+    expect(under.map(([name]) => name)).toEqual(expect.arrayContaining(['acme/muxtower', 'acme/voice', 'release']))
     expect(row('~/notes').total).toBe(1)
   })
 

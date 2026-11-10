@@ -10,7 +10,7 @@ it('sends the recording as it is, typed by its format, and returns the words', a
   server.use(
     http.post(`${DAEMON_URL}/v1/asr`, async ({ request }) => {
       seen = { type: request.headers.get('content-type'), size: (await request.arrayBuffer()).byteLength }
-      return HttpResponse.json({ text: ' 继续，然后跑测试 ' })
+      return HttpResponse.json({ text: ' go on, then run the tests ' })
     }),
   )
   const { id } = addDaemon('good')
@@ -19,6 +19,6 @@ it('sends the recording as it is, typed by its format, and returns the words', a
   await act(async () => {
     text = await result.current.mutateAsync(new Blob([new Uint8Array(1200)], { type: 'audio/webm;codecs=opus' }))
   })
-  expect(text).toBe('继续，然后跑测试')
+  expect(text).toBe('go on, then run the tests')
   await waitFor(() => expect(seen).toEqual({ type: 'audio/webm', size: 1200 }))
 })

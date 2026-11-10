@@ -6,7 +6,8 @@ import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/lib/use-media-query'
 import { pauseLive, resumeLive, stopLive, toggleLive, useLive } from '../live/engine'
 import { feedbackOf, liveDetails } from '../live/feedback'
-import { chosenLanguages } from '../live/kws'
+import type { Command } from '../live/commands'
+import { enabledPacks } from '../live/packs'
 
 const NOTE_KEY = 'muxtower.live.phone-note'
 const FEEDBACK_MS = 2000 // how long what became of the last thing heard stays in place of the hint
@@ -52,7 +53,7 @@ export function LiveButton() {
 }
 
 /** What Live is doing, over the message box, in one row that never grows: writing (the accent, what is
- *  said goes into the box) or commands only (paused: muted, an ear, nothing written or uploaded; only
+ *  said goes into the box; its title follows the moment: speak to write, hearing you, writing…) or commands only (paused: muted, an ear, nothing written or uploaded; only
  *  "resume" is heard, or a tap). After its title, a hint; for a moment after something is heard, what
  *  became of it instead ("✓ sent", "nothing to send"), then the hint again. Loading, downloading and
  *  transcribing take the hint's place. On a phone, once: it needs the page in front and the screen on. */
@@ -65,9 +66,11 @@ export function LiveBar() {
     return () => clearTimeout(timer)
   }, [heard])
   const feedback = heard && Date.now() - heard.at < FEEDBACK_MS ? feedbackOf(heard.event, liveDetails()) : null
-  const zh = chosenLanguages().includes('zh')
-  const en = chosenLanguages().includes('en')
-  const words = (cn: string, english: string) => [zh ? cn : null, en ? english : null].filter(Boolean).join(' / ')
+  // A command as its words in the languages chosen ("send", or one per language, joined by " / ").
+  const say = (command: Command) =>
+    enabledPacks()
+      .map((p) => p.say[command])
+      .join(' / ')
   const mb = (bytes = 0) => (bytes / 1e6).toFixed(1)
   const phone = useMediaQuery('(pointer: coarse)')
   const [note, setNote] = useState(() => {
@@ -99,12 +102,11 @@ export function LiveBar() {
   const paused = phase === 'paused'
   const hint = paused
     ? commands.state === 'ready'
-      ? `say ${words('继续', 'resume')} to write again`
+      ? `say ${say('resume')} to write again`
       : 'tap to resume'
     : [
-        phase === 'listening' ? `say ${words('发送', 'send')} to send, ${words('暂停', 'pause')} to stop writing` : null,
+        phase === 'listening' ? `say ${say('send')} to send, ${say('pause')} to stop writing` : null,
         status ?? (commands.state === 'ready' && phase === 'listening' ? 'commands on device' : null),
-        pending ? `transcribing ${pending}` : null,
       ]
         .filter(Boolean)
         .join(' · ')
@@ -116,7 +118,9 @@ export function LiveBar() {
       ? 'Starting Live…'
       : speaking
         ? 'Live · hearing you…'
-        : 'Live · writing what you say'
+        : pending
+          ? `Live · writing…${pending > 1 ? ` (${pending})` : ''}`
+          : 'Live · speak to write'
   return (
     <div className="flex flex-col gap-1.5">
       {phone && note ? (

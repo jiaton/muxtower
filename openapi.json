@@ -3217,7 +3217,7 @@
   "paths": {
     "/v1/asr": {
       "post": {
-        "description": "Speech to text: the body is the recording (WAV from the glasses). `language` (e.g. `zh`, `en`)\npins the language; without it the provider detects it. `source` names what asked (`live`: the app's\nLive mode), for the audit log's counts. `hint=command`: the recording may be only a spoken command\n(send, pause\u2026): transcribed with a prompt of those words, in the configured language if one is set.\nNothing is stored.",
+        "description": "Speech to text: the body is the recording (WAV from the glasses). `language` (e.g. `zh`, `en`)\npins the language; without it the provider detects it. `source` names what asked (`live`: the app's\nLive mode), for the audit log's counts. `hint=command`: the recording may be only a spoken command\n(send, pause\u2026): transcribed with a prompt of those words (`words`: the app's, in the languages it\nlistens for; else the English ones), in the configured language if one is set. Nothing is stored.",
         "operationId": "transcribe_v1_asr_post",
         "parameters": [
           {
@@ -3268,6 +3268,26 @@
                 }
               ],
               "title": "Hint"
+            }
+          },
+          {
+            "in": "query",
+            "name": "words",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "maxItems": 20,
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Words"
             }
           }
         ],

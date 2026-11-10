@@ -1,4 +1,7 @@
 import type { Command } from './commands'
+import { packOf, type Language } from './packs'
+
+export { chooseLanguages, chosenLanguages, type Language } from './packs'
 
 /**
  * Live mode's spoken commands, heard on the device: a keyword spotter (sherpa-onnx KWS, `kws.worker.ts`)
@@ -12,8 +15,6 @@ import type { Command } from './commands'
  * terminates its Worker, which frees all of it.
  */
 
-export type Language = 'en' | 'zh'
-
 const COMMIT = '1770a4b22db32184c110ac43c601db17cc9c93f8'
 const BASE = `https://huggingface.co/moeru-ai/sherpa-onnx-kws-zipformer-zh-en-3M-2025-12-20/resolve/${COMMIT}/install/bin/wasm`
 export const PACK = {
@@ -24,58 +25,22 @@ export const PACK = {
 }
 const CACHE = 'muxtower-kws-v1' // the URLs are versioned (a commit): a new pack is a new URL, not a new cache
 
-// Each command as the model's tokens: ARPAbet phones for English, pinyin initials and toned finals for Chinese.
-type Words = Partial<Record<Command, string[][]>>
-const WORDS: Record<Language, Words> = {
-  en: {
-    send: [['S', 'EH1', 'N', 'D']],
-    pause: [['P', 'AO1', 'Z']],
-    resume: [
-      ['R', 'IH0', 'Z', 'UW1', 'M'],
-      ['R', 'IY0', 'Z', 'UW1', 'M'],
-    ],
-    clear: [['K', 'L', 'IH1', 'R']],
-    undo: [
-      ['AH0', 'N', 'D', 'UW1'],
-      ['AH1', 'N', 'D', 'UW1'],
-    ],
-  },
-  zh: {
-    send: [['f', 'ā', 's', 'òng']],
-    pause: [['z', 'àn', 't', 'íng']],
-    resume: [['j', 'ì', 'x', 'ù']],
-    clear: [['q', 'īng', 'k', 'ōng']],
-    undo: [['ch', 'è', 'h', 'uí', 'sh', 'àng', 'y', 'í', 'j', 'ù']],
-  },
-}
-// Words close to "send" (a false send is the costliest mistake): heard as one of these, it is no command.
-const DECOYS: Record<Language, string[][]> = {
-  en: [
-    ['S', 'P', 'EH1', 'N', 'D'],
-    ['S', 'AE1', 'N', 'D'],
-    ['S', 'EH1', 'N', 'T'],
-    ['S', 'P', 'EH1', 'N', 'T'],
-    ['EH1', 'N', 'D'],
-  ],
-  zh: [
-    ['f', 'ā', 's', 'ōng'],
-    ['f', 'ā', 'sh', 'āo'],
-  ],
-}
 const SEND_THRESHOLD = 0.35 // stricter than the others' 0.25: sending by mistake is worse than missing it
 const DECOY = '~'
 
+/** The spotter's vocabulary for the languages chosen: each command as their packs' tokens, and their
+ *  decoys (words close to "send": heard as one, it is no command). */
 export function keywordsFor(languages: Language[]) {
   const entries: { label: string; threshold?: number; matches: { tokens: string[] }[] }[] = []
-  for (const language of languages) {
-    for (const [command, sounds] of Object.entries(WORDS[language]) as [Command, string[][]][]) {
+  for (const pack of languages.map((l) => packOf(l)).filter((p) => !!p)) {
+    for (const [command, sounds] of Object.entries(pack.tokens) as [Command, string[][]][]) {
       entries.push({
-        label: `${command}:${language}`,
+        label: `${command}:${pack.id}`,
         threshold: command === 'send' ? SEND_THRESHOLD : undefined,
         matches: sounds.map((tokens) => ({ tokens })),
       })
     }
-    DECOYS[language].forEach((tokens, i) => entries.push({ label: `${DECOY}${language}${i}`, matches: [{ tokens }] }))
+    pack.decoys.forEach((tokens, i) => entries.push({ label: `${DECOY}${pack.id}${i}`, matches: [{ tokens }] }))
   }
   return entries
 }
@@ -85,28 +50,6 @@ export function commandOf(labels: string[]): Command | null {
   if (!labels.length || labels.some((l) => l.startsWith(DECOY))) return null
   const commands = new Set(labels.map((l) => l.split(':')[0] as Command))
   return commands.size === 1 ? [...commands][0]! : null
-}
-
-// --- the languages chosen, per browser ------------------------------------------------------------------
-
-const LANGUAGES_KEY = 'muxtower.live.languages'
-
-export function chosenLanguages(): Language[] {
-  try {
-    const saved = JSON.parse(localStorage.getItem(LANGUAGES_KEY) ?? 'null') as Language[] | null
-    const valid = saved?.filter((l) => l === 'en' || l === 'zh') ?? []
-    return valid.length ? valid : ['en']
-  } catch {
-    return ['en']
-  }
-}
-
-export function chooseLanguages(languages: Language[]) {
-  try {
-    localStorage.setItem(LANGUAGES_KEY, JSON.stringify(languages.length ? languages : ['en']))
-  } catch {
-    // storage blocked: English, as by default
-  }
 }
 
 // --- the pack: downloaded once, kept in Cache Storage ----------------------------------------------------
