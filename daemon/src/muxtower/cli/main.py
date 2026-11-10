@@ -12,6 +12,7 @@ muxtower --version       this install's version, and the hub links it speaks
 import argparse
 import os
 import shutil
+import sqlite3
 import sys
 
 from muxtower import __version__
@@ -21,7 +22,9 @@ from muxtower.cli.pair import cmd_pair
 from muxtower.cli.recover import offer, start_again
 from muxtower.cli.serve import add_serve_parser
 from muxtower.config import load_settings
+from muxtower.infra.db import Database
 from muxtower.nodes.protocol import OLDEST, PROTOCOL
+from muxtower.sources.remote_control.lineage_store import SqliteLineageStore
 
 
 def _attach(session: dict[str, str]) -> int:
@@ -106,6 +109,24 @@ def cmd_attach(args: argparse.Namespace, daemon: LocalDaemon) -> int:
     return _attach(sessions[0])
 
 
+def cmd_forget_lineage(args: argparse.Namespace, _: LocalDaemon) -> int:
+    """Forgets where Remote Control sessions came from (a fork placed wrong): worked out again at the next
+    start. Works on this daemon's database directly; restart it after."""
+    if not args.session_id and not args.all:
+        print("muxtower: name a session id, or --all", file=sys.stderr)
+        return 2
+    db = Database(load_settings().db_path)
+    try:
+        gone = SqliteLineageStore(db).forget(None if args.all else args.session_id)
+    except sqlite3.OperationalError as exc:
+        print(f"muxtower: {exc}", file=sys.stderr)
+        return 1
+    finally:
+        db.close()
+    print(f"forgot {gone} session lineage{'s' if gone != 1 else ''}; restart the daemon to work them out again")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> None:
     p = argparse.ArgumentParser(prog="muxtower", description="Approve and drive coding agents from your phone.")
     links = str(PROTOCOL) if OLDEST == PROTOCOL else f"{OLDEST}..{PROTOCOL}"
@@ -131,6 +152,13 @@ def main(argv: list[str] | None = None) -> None:
     pair.add_argument("--code", help="with --join: a pairing code made on the hub (`muxtower pair` there)")
     pair.add_argument("--leave", action="store_true", help="stop reporting to the hub this daemon joined")
     pair.set_defaults(func=cmd_pair)
+
+    forget = sub.add_parser(
+        "forget-lineage", help="forget where Remote Control sessions came from (a fork placed wrong); then restart"
+    )
+    forget.add_argument("session_id", nargs="?", help="its id (cse_…)")
+    forget.add_argument("--all", action="store_true", help="every session's")
+    forget.set_defaults(func=cmd_forget_lineage)
 
     add_expose_parser(sub)
 

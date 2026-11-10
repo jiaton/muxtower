@@ -26,6 +26,7 @@ Detach with the usual tmux keys (`Ctrl-b d`); the agent keeps running. Agents yo
 | `muxtower attach [NAME]` | open a session in this terminal (one a restart interrupted is started again first) |
 | `muxtower pair` | add a device with a one-time code (and a QR code when the address is known: `--url` or `public_url`). `--revoke NAME` removes one. `--join HUB --code CODE` joins this daemon to another as a node; `--leave` stops |
 | `muxtower expose tailscale` | serve the daemon over HTTPS on your tailnet (`tailscale serve`) and set `public_url` to that address; `--off` undoes it |
+| `muxtower forget-lineage SESSION_ID` | forget where a Remote Control session came from (a fork shown under the wrong session): it is worked out again when the daemon restarts; `--all` for every session |
 | `muxtower serve` | run the daemon in the foreground (systemd, Docker). `muxtower run` starts it for you otherwise |
 
 ## Reach it from your phone over HTTPS

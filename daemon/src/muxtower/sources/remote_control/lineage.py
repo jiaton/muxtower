@@ -60,6 +60,7 @@ class Lineage:
     searched: bool = False  # a copy no first message places: the sessions of its title were searched
     found_in: str | None = None  # the session whose log holds its first message, when searched
     written: str | None = None  # a copy's: when its first message was written, in the session it came from
+    complete: bool = True  # False: its log could not be read (not kept: read again on the next start)
 
 
 def tagged_parent(tags: Iterable[Any]) -> str | None:
@@ -93,7 +94,7 @@ def read(events_after: Callable[[str, int, int], list[RawEvent]], session_id: st
         return _read(events_after, session_id, parent)
     except Unavailable as exc:
         logger.warning("could not read where %s came from: %s", session_id, exc)
-        return Lineage(parent=parent)
+        return Lineage(parent=parent, complete=parent is not None)  # a tag says it all
 
 
 def _read(events_after: Callable[[str, int, int], list[RawEvent]], session_id: str, parent: str | None) -> Lineage:

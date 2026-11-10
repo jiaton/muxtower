@@ -75,6 +75,7 @@ from muxtower.sessions.watches import SessionWatches
 from muxtower.settings.service import SettingsService
 from muxtower.sources.codex.service import CodexSource
 from muxtower.sources.codex.shared import SharedCodexSource
+from muxtower.sources.remote_control.lineage_store import SqliteLineageStore
 from muxtower.sources.remote_control.service import RemoteControlSource
 from muxtower.teams import placing
 from muxtower.teams.repository import SqliteTaskRepository, SqliteTeamRepository
@@ -131,6 +132,7 @@ def create_app(
     asr.dictionary = dictionary_store.load  # read at each transcription: an edit applies at once
     if remote_control is not None:
         remote_control.archived = archive  # its archived forks, told apart once (`_place_archived`)
+        remote_control.lineages = SqliteLineageStore(db)  # where its sessions came from: worked out once, kept
     audit = AuditLog(db)
     # Daemons joined to this one (nodes): their sessions are one more source.
     nodes = Nodes(SqliteNodeRepository(db), bus)

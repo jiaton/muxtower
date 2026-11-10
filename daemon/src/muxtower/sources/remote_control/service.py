@@ -20,7 +20,8 @@ from muxtower.infra.bus import EventBus
 from muxtower.sessions.models import Conversation, ConversationItem, Session
 from muxtower.sources.remote_control import lineage
 from muxtower.sources.remote_control.actions import EVENTS_PER_PAGE, RcActions
-from muxtower.sources.remote_control.ports import RawEvent, RemoteControlPort
+from muxtower.sources.remote_control.lineage import Lineage
+from muxtower.sources.remote_control.ports import LineageStore, RawEvent, RemoteControlPort
 from muxtower.sources.remote_control.view import RcSession, to_session
 
 logger = logging.getLogger("muxtower.remote_control")
@@ -52,6 +53,8 @@ class RemoteControlSource(RcActions):
         self._backfilled = False
         self._searching: threading.Thread | None = None  # where copies came from, looked for beside the polls
         self._found = False  # it placed one since the last poll
+        self.lineages: LineageStore | None = None  # where sessions came from, kept: never worked out twice
+        self._kept: dict[str, Lineage] | None = None  # what it held at start
 
     # --- reading ------------------------------------------------------------------------------
 
@@ -139,10 +142,12 @@ class RemoteControlSource(RcActions):
                 if known is not None and known.fingerprint == fingerprint:
                     continue
                 seq = known.builder.latest_event_seq if known is not None else None
-            lineage_ = None
+            lineage_, fresh = None, False
             if seq is None:
                 events = self.port.recent_events(session_id, FIRST_LOAD_EVENTS)
-                lineage_ = lineage.read(self.port.events_after, session_id, raw)
+                lineage_ = self._kept_lineage(session_id)
+                if lineage_ is None:
+                    lineage_, fresh = lineage.read(self.port.events_after, session_id, raw), True
             else:
                 events = self._events_after(session_id, seq)
             detail = self.port.get_session(session_id)
@@ -159,6 +164,8 @@ class RemoteControlSource(RcActions):
                 if entered and before is not None:  # not on first sight: no alerts for old prompts at startup
                     result.attention.append(session_id)
             result.changed = True
+            if fresh and lineage_ is not None:
+                self._keep(session_id, lineage_)
         with self._lock:
             for gone in set(self.sessions) - {str(raw["id"]) for raw in listed}:
                 del self.sessions[gone]
@@ -197,6 +204,28 @@ class RemoteControlSource(RcActions):
                 placed = True
         return placed
 
+    def _kept_lineage(self, session_id: str) -> Lineage | None:
+        """Where it came from, as kept (read once, at the first poll)."""
+        if self.lineages is None:
+            return None
+        if self._kept is None:
+            try:
+                self._kept = self.lineages.load()
+            except Exception:
+                logger.exception("could not read the lineages kept")
+                self._kept = {}
+        return self._kept.get(session_id)
+
+    def _keep(self, session_id: str, lineage_: Lineage) -> None:
+        if self.lineages is None or not lineage_.complete:
+            return
+        try:
+            self.lineages.save(session_id, lineage_)
+            if self._kept is not None:
+                self._kept[session_id] = lineage_  # listed again later (unarchived): not read again either
+        except Exception:
+            logger.exception("could not keep where %s came from", session_id)
+
     def searched(self, timeout: float | None = None) -> None:
         """Waits for the search of where copies came from, if one is going (tests)."""
         if self._searching is not None:
@@ -210,10 +239,14 @@ class RemoteControlSource(RcActions):
                 written = {cid: rc.lineage.written for cid, rc in self.sessions.items() if cid in searches}
             found = lineage.search(self.port.events_after, searches, firsts, self.port.events_before, written)
             with self._lock:
+                done = []
                 for copy_id, parent in found.items():
                     if rc := self.sessions.get(copy_id):
                         rc.lineage = replace(rc.lineage, searched=True, found_in=parent)
+                        done.append((copy_id, rc.lineage))
                 self._found = self._found or any(found.values())
+            for copy_id, searched in done:
+                self._keep(copy_id, searched)
         except Exception:
             logger.exception("could not look for where copies came from")
 
