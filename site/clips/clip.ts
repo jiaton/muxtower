@@ -26,6 +26,10 @@ export type ClipEvent =
   | { t: number; kind: 'say'; view?: string; text: string; ms: number }
   /** A browser an agent drives, staged (no real browser): drawn over `rect` from `t` for `ms`. */
   | { t: number; kind: 'browser'; view?: string; ms: number; rect: Rect; label: string; url: string }
+  /** Work handed from one row to another (a teammate's task): an arrow between them, with `label`. */
+  | { t: number; kind: 'arrow'; view?: string; from: Rect; to: Rect; label: string; ms: number }
+  /** A machine's part of the screen (its group of rows, top to bottom): a bracket beside the window, named. */
+  | { t: number; kind: 'machine'; view?: string; rect: Rect; label: string; note?: string }
   /** A key pressed, shown as a key cap (`label`, e.g. "⏎ Enter"). */
   | { t: number; kind: 'key'; label: string }
   /** A line that appears in the drawn terminal. */
@@ -43,7 +47,8 @@ export interface ViewMeta {
 /** Where a thing sits in the 1920×1080 picture: its outer box's top left, and its height there (a
  *  screen's width follows from its page's shape). Later layers lie on top. */
 export type Layer =
-  | { view: string; x: number; y: number; height: number; url?: string }
+  /** `still`: the camera does not move in to what the script points at (the spotlight alone points). */
+  | { view: string; x: number; y: number; height: number; url?: string; still?: boolean }
   /** A terminal window, drawn (no real terminal), showing the clip's `term` lines. */
   | { terminal: string; x: number; y: number; width: number; height: number }
 

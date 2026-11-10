@@ -136,6 +136,12 @@ export class World {
     return started.map((id) => this.scenes.get(id)!.session)
   }
 
+  /** A session more, as a scene with nothing played yet (the site's clip recorder stages its own cast). */
+  add(scene: Scene) {
+    this.scenes.set(scene.session.id, { ...scene, session: { ...scene.session }, items: [...scene.items] })
+    this.emit({ type: 'sessions', sessions: this.sessions() })
+  }
+
   remove(id: string) {
     if (!this.scenes.delete(id)) return false
     this.emit({ type: 'sessions', sessions: this.sessions() })

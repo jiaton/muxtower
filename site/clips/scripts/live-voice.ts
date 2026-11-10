@@ -122,17 +122,32 @@ async function run(r: Recorder) {
   await r.wait(900)
 
   r.caption('Open another session: Live is still on')
+  // The whole window in view first: the pointer goes to the other row, the highlight moves, the title and
+  // the conversation change, and the Live bar at the foot stays on through it.
   await r.focus(null)
-  await r.click(
+  await r.wait(400)
+  const rowOf = (name: string) =>
     page
       .getByRole('link')
-      .filter({ has: page.getByText(B, { exact: true }) })
+      .filter({ has: page.getByText(name, { exact: true }) })
       .filter({ visible: true })
-      .first(),
-    500,
-  )
-  await r.focus(footer)
+      .first()
+  // Both rows in view, the one open and the one to open.
+  await rowOf(B).evaluate((el) => {
+    let list = el.parentElement
+    while (list && !/auto|scroll/.test(getComputedStyle(list).overflowY)) list = list.parentElement
+    list?.scrollBy({ top: 130, behavior: 'smooth' })
+  })
   await r.wait(500)
+  const [a, b] = [await rowOf(A).boundingBox(), await rowOf(B).boundingBox()]
+  const top = Math.min(a!.y, b!.y)
+  await r.focus({ x: 0, y: top, width: a!.width, height: Math.max(a!.y + a!.height, b!.y + b!.height) - top })
+  await r.wait(900)
+  await r.click(rowOf(B), 300)
+  await r.focus(null)
+  await r.wait(1500)
+  await r.focus(footer)
+  await r.wait(600)
   await dictate(B, SAID_B, 1700)
   await r.wait(300)
   await command('send')

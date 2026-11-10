@@ -1,10 +1,10 @@
-import type { ConversationItem } from '@/lib/api/types'
+import type { ConversationItem, Session, TeamTask } from '@/lib/api/types'
 import { draftBox } from '@/features/terminal/draft-box'
 import { useLive } from '@/features/voice/live/engine'
 import type { Heard } from '@/features/voice/live/pipeline'
 import { useDaemonsStore } from '@/lib/daemons/store'
 import { scenes } from './scenes'
-import { DEMO_DAEMON, NODE } from './scenes/session'
+import { DEMO_DAEMON, NODE, demoSession } from './scenes/session'
 import { respond } from './server'
 import { DemoSocket } from './socket'
 import { type Step, World } from './world'
@@ -48,6 +48,12 @@ export function installDemo() {
     Object.assign(window, {
       muxtowerClip: {
         hold: () => void (held = true),
+        // Its own cast: sessions added (a demo session with these fields) and the demo's own removed.
+        add: (fields: Parameters<typeof demoSession>[0], tasks?: TeamTask[]) =>
+          world.add({ session: demoSession(fields), history: [], footer: [], items: [], tasks }),
+        remove: (id: string) => world.remove(id),
+        // A change that keeps the session's place in the list (its time stays): rows that stay put.
+        mark: (id: string, patch: Partial<Session>) => world.mark(id, patch),
         play: (id: string, steps: Step[]) => world.play(id, steps),
         setItems: (id: string, items: ConversationItem[]) => world.setItems(id, items),
         setReply: (id: string, steps: Step[]) => world.setReply(id, steps),

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ServerFrame } from '@/lib/api/types'
 import { scenes } from './scenes'
-import { DEMO_DAEMON } from './scenes/session'
+import { DEMO_DAEMON, demoSession } from './scenes/session'
 import { WIDTH, plain } from './scenes/terminal'
 import { respond } from './server'
 import { DemoSocket } from './socket'
@@ -72,6 +72,17 @@ describe('the demo world', () => {
       }
       if (screen) expect(plain(screen).split('\n').length).toBeGreaterThan(40)
     }
+  })
+
+  it('takes a cast of its own: sessions added and removed, and marks that keep a row in its place', () => {
+    const { w, frames } = world()
+    for (const s of w.sessions()) w.remove(s.id)
+    w.add({ session: demoSession({ id: 'pm', name: 'Order tracking', cwd: '/home/dev/code/acme-shop' }), history: [], footer: [], items: [] })
+    expect(w.sessions().map((s) => s.id)).toEqual(['pm'])
+    const at = w.session('pm')!.updated_at
+    w.mark('pm', { team_role: 'pm', state: 'busy' })
+    expect(w.session('pm')).toMatchObject({ team_role: 'pm', state: 'busy', updated_at: at })
+    expect(frames.at(-1)).toMatchObject({ type: 'sessions' })
   })
 
   it('redraws a screen at the width it is resized to, and back once released', () => {

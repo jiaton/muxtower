@@ -3,6 +3,7 @@
  *  pressed or clicked. */
 import { Img, interpolate, staticFile } from 'remotion'
 import type { ClipEvent, Layer, Rect, ViewMeta } from '../clip.ts'
+import { Arrows } from './Arrow'
 import { Browser } from './Browser'
 import { C, CAMERA, MOVE, ease, only } from './theme'
 
@@ -36,11 +37,20 @@ export function screenBox(view: ViewMeta, at: Extract<Layer, { view: string }>):
   }
 }
 
-export function Screen(props: { id: string; view: ViewMeta; box: Box; url?: string; events: ClipEvent[]; frame: number; t: number }) {
-  const { id, view, box, url, events, frame, t } = props
+export function Screen(props: {
+  id: string
+  view: ViewMeta
+  box: Box
+  url?: string
+  still?: boolean
+  events: ClipEvent[]
+  frame: number
+  t: number
+}) {
+  const { id, view, box, url, still, events, frame, t } = props
   const phone = view.kind === 'phone'
   const { width: vw, height: vh } = view.viewport
-  const cam = camera(events, t, vw, vh, phone)
+  const cam = camera(events, t, vw, vh, phone || Boolean(still))
   return (
     <div
       style={{
@@ -73,6 +83,7 @@ export function Screen(props: { id: string; view: ViewMeta; box: Box; url?: stri
         >
           <Img src={staticFile(`raw/${id}/${view.frames[Math.min(frame, view.frames.length - 1)]}`)} style={{ width: vw, height: vh }} />
           <Spotlight events={events} t={t} vw={vw} />
+          <Arrows events={events} t={t} />
           <Browser events={events} t={t} />
           <Pointer events={events} t={t} phone={phone} />
         </div>
@@ -82,11 +93,12 @@ export function Screen(props: { id: string; view: ViewMeta; box: Box; url?: stri
 }
 
 /** The camera at `t`: a zoom `z` and the page point at the screen's top left, easing from one focus to
- *  the next. A phone's rows are its whole width, so it does not zoom: the spotlight alone points. */
-function camera(events: ClipEvent[], t: number, vw: number, vh: number, phone: boolean) {
+ *  the next. A phone's rows are its whole width, so it does not zoom (nor a `still` screen): the
+ *  spotlight alone points. */
+function camera(events: ClipEvent[], t: number, vw: number, vh: number, fixed: boolean) {
   const whole = { z: 1, x: 0, y: 0 }
   const view = (rect: Rect | null) => {
-    if (!rect || phone) return whole
+    if (!rect || fixed) return whole
     const z = Math.min(1.6, Math.max(1, Math.min((vw * 0.8) / rect.width, (vh * 0.7) / rect.height)))
     const cx = rect.x + rect.width / 2
     const cy = rect.y + rect.height / 2

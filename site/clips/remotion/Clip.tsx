@@ -3,6 +3,7 @@
 import '@fontsource-variable/geist'
 import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from 'remotion'
 import type { ClipMeta } from '../clip.ts'
+import { Machines } from './Machines'
 import { Caption, Keys, Said } from './Overlays'
 import { Screen, screenBox } from './Screen'
 import { Terminal } from './Terminal'
@@ -33,8 +34,21 @@ export function Clip({ meta }: ClipProps) {
         if ('terminal' in layer) return <Terminal key={i} layer={layer} events={meta.events} t={t} />
         const view = meta.views.find((v) => v.name === layer.view)!
         const events = meta.events.filter((e) => ('view' in e && e.view ? e.view : first) === view.name)
-        return <Screen key={i} id={meta.id} view={view} box={boxes[view.name]!} url={layer.url} events={events} frame={frame} t={t} />
+        return (
+          <Screen
+            key={i}
+            id={meta.id}
+            view={view}
+            box={boxes[view.name]!}
+            url={layer.url}
+            still={layer.still}
+            events={events}
+            frame={frame}
+            t={t}
+          />
+        )
       })}
+      <Machines events={meta.events} t={t} boxes={boxes} first={first} />
       <Caption events={meta.events} t={t} />
       <Said events={meta.events} t={t} boxes={boxes} first={first} />
       <Keys events={meta.events} t={t} />

@@ -27,6 +27,10 @@ export interface Screen {
   say(text: string, ms: number): void
   /** A staged browser an agent drives, over `over`, for `ms`. */
   browser(over: Locator | Rect, ms: number, label: string, url: string): Promise<void>
+  /** An arrow from `from` to `to`, labelled, shown for `ms` (who handed work to whom). */
+  arrow(from: Locator, to: Locator, label: string, ms: number): Promise<void>
+  /** Names a machine beside the window: the part from `top` to `bottom` (its group of rows) is on it. */
+  machine(top: Locator, bottom: Locator, label: string, note?: string): Promise<void>
   /** Calls the demo's clip hook (`window.muxtowerClip`). */
   hook(name: string, ...args: unknown[]): Promise<unknown>
   /** Changes sessions the way the demo's scenes do (`World.play`). */
@@ -227,6 +231,15 @@ export async function record(script: ClipScript, demoUrl: string, outDir: string
       say: (text, ms) => void events.push({ t: now(), kind: 'say', ...at, text, ms }),
       async browser(over, ms, label, url) {
         events.push({ t: now(), kind: 'browser', ...at, ms, rect: 'x' in over ? over : await rectOf(over), label, url })
+      },
+      async arrow(from, to, label, ms) {
+        const [a, b] = await Promise.all([rectOf(from), rectOf(to)])
+        events.push({ t: now(), kind: 'arrow', ...at, from: a, to: b, label, ms })
+      },
+      async machine(top, bottom, label, note) {
+        const [a, b] = await Promise.all([rectOf(top), rectOf(bottom)])
+        const rect = { x: a.x, y: a.y, width: a.width, height: b.y + b.height - a.y }
+        events.push({ t: now(), kind: 'machine', ...at, rect, label, note })
       },
       hook: (name, ...args) =>
         page.evaluate(([name, args]) => (window as never as Hook).muxtowerClip[name as string]!(...(args as unknown[])), [
