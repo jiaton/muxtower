@@ -1,5 +1,5 @@
 import { ArrowDown, ChevronRight, CircleX, LoaderCircle, RotateCw, X } from 'lucide-react'
-import { useLayoutEffect, useRef, useState } from 'react'
+import { memo, useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Markdown } from '@/components/ui/markdown'
 import type { ConversationItem } from '@/lib/api/types'
@@ -17,6 +17,15 @@ export interface ConversationSource {
   sessionId: string
 }
 
+// A row is drawn again only when what it shows changed (items that did not keep their objects, `mergeItems`):
+// a new item at the end of a long conversation does not parse every reply's Markdown again.
+const sameSource = (a?: ConversationSource, b?: ConversationSource) =>
+  a === b || (!!a && !!b && a.daemonId === b.daemonId && a.sessionId === b.sessionId)
+const sameItem = (a: { item: ConversationItem; source?: ConversationSource }, b: typeof a) =>
+  a.item === b.item && sameSource(a.source, b.source)
+const sameRun = (a: { tools: ConversationItem[]; source?: ConversationSource }, b: typeof a) =>
+  a.tools.length === b.tools.length && a.tools.every((t, i) => t === b.tools[i]) && sameSource(a.source, b.source)
+
 function Images({ source, items }: { source?: ConversationSource; items: ConversationItem[] }) {
   const paths = [...new Set(items.flatMap((item) => item.images ?? []))]
   return source ? <ConversationImages daemonId={source.daemonId} sessionId={source.sessionId} paths={paths} /> : null
@@ -24,7 +33,7 @@ function Images({ source, items }: { source?: ConversationSource; items: Convers
 
 /** A run of tool calls as one line ("Ran 4 commands (2 failed)", or a single call's own description)
  *  that opens to the calls themselves, so the prose stays readable. */
-function ToolRun({ tools, source }: { tools: ConversationItem[]; source?: ConversationSource }) {
+const ToolRun = memo(function ToolRun({ tools, source }: { tools: ConversationItem[]; source?: ConversationSource }) {
   const [open, setOpen] = useState(false)
   const summary = toolRunSummary(tools)
   return (
@@ -66,9 +75,9 @@ function ToolRun({ tools, source }: { tools: ConversationItem[]; source?: Conver
       </div>
     </div>
   )
-}
+}, sameRun)
 
-function ItemView({ item, source }: { item: ConversationItem; source?: ConversationSource }) {
+const ItemView = memo(function ItemView({ item, source }: { item: ConversationItem; source?: ConversationSource }) {
   if (item.kind === 'prompt')
     return (
       <div className="flex flex-col items-end gap-2">
@@ -92,7 +101,7 @@ function ItemView({ item, source }: { item: ConversationItem; source?: Conversat
       {item.text ? <pre className="mt-1 font-mono text-xs whitespace-pre-wrap">{item.text}</pre> : null}
     </div>
   )
-}
+}, sameItem)
 
 const OUTGOING_LABEL: Record<ShownOutgoing['state'], string> = {
   sending: 'Sending',
