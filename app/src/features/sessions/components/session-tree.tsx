@@ -90,12 +90,7 @@ export const RowView = memo(function RowView({ node, selectedKey, context, extra
   const under = extra?.(entry)
   return (
     <>
-      <div
-        data-flip={entry.key}
-        data-row={entry.key}
-        className="relative"
-        style={depth ? { paddingLeft: `${depth * FORK_INDENT_REM}rem` } : undefined}
-      >
+      <div data-row={entry.key} className="relative" style={depth ? { paddingLeft: `${depth * FORK_INDENT_REM}rem` } : undefined}>
         <SessionListRow entry={entry} selected={entry.key === selectedKey} context={depth ? { ...context, nested: true } : context}>
           {under || node.sideChats || node.forkCount ? (
             <>

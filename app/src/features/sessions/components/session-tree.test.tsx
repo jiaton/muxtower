@@ -44,7 +44,7 @@ async function renderTree() {
   await screen.findByText('Polish the post')
 }
 
-const rowOf = (name: string) => screen.getByText(name).closest('[data-flip]') as HTMLElement
+const rowOf = (name: string) => screen.getByText(name).closest('[data-row]') as HTMLElement
 const joins = (name: string) => [...rowOf(name).querySelectorAll('[data-join]')].map((e) => e.getAttribute('data-join'))
 const railsAt = (name: string) =>
   [...rowOf(name).querySelectorAll(':scope > span[aria-hidden].top-0.bottom-0')].map((e) => (e as HTMLElement).style.left)

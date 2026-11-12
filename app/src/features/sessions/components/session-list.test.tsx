@@ -81,3 +81,32 @@ it('moves focus inside a folder that folds to its header', () => {
   expect(screen.queryByText('Acme onboarding')).toBeNull()
   expect(document.activeElement).toBe(header)
 })
+
+it('slides only a row that moved to another group; the rows that follow and the headers stay still', () => {
+  const animated: string[] = []
+  const animate = vi.fn(function (this: HTMLElement, frames: Keyframe[]) {
+    animated.push(`${this.dataset.row ?? this.tagName}:${'transform' in frames[0]! ? 'move' : 'fade'}`)
+    return { onfinish: null, oncancel: null } as unknown as Animation
+  })
+  const restore = [
+    Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetParent'),
+    HTMLElement.prototype.getBoundingClientRect,
+  ] as const
+  Object.defineProperty(HTMLElement.prototype, 'offsetParent', { configurable: true, get: () => document.body })
+  HTMLElement.prototype.getBoundingClientRect = function (this: HTMLElement) {
+    const rows = [...document.querySelectorAll('[data-row]')]
+    return { top: rows.indexOf(this) * 50 } as DOMRect // each row 50 px below the one before
+  }
+  HTMLElement.prototype.animate = animate as never
+  try {
+    const flat = (key: string, entries: SessionEntry[]): Group => ({ key, label: key, implies, entries })
+    const [a, b, c] = [entry('Acme onboarding'), entry('Acme pricing'), entry('Weekly notes')]
+    const { rerender } = render(<SessionList groups={[flat('working', [a, b]), flat('idle', [c])]} />)
+    rerender(<SessionList groups={[flat('working', [b]), flat('idle', [a, c])]} />) // Acme onboarding finished
+    expect(animated).toEqual(['d1/Acme onboarding:move'])
+  } finally {
+    if (restore[0]) Object.defineProperty(HTMLElement.prototype, 'offsetParent', restore[0])
+    HTMLElement.prototype.getBoundingClientRect = restore[1]
+    delete (HTMLElement.prototype as { animate?: unknown }).animate
+  }
+})

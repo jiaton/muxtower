@@ -3,8 +3,8 @@ import { memo, useCallback, useEffect, useRef, type MouseEvent, type ReactNode }
 import { Badge } from '@/components/ui/badge'
 import { Fold } from '@/components/ui/fold'
 import { cn } from '@/lib/cn'
-import { useFlip } from '@/lib/use-flip'
 import { useFoldAnchor } from '../hooks/use-fold-anchor'
+import { useRowMoves } from '../hooks/use-row-moves'
 import { buildList, type GroupNode, type Held, type RowNode, type SectionNode } from '../model/list'
 import type { Group } from '../model/query'
 import { useListPrefs } from '../store'
@@ -137,18 +137,12 @@ function Children({ nodes, drawn }: { nodes: SectionNode['children']; drawn: Dra
   )
 }
 
-/** Every row under a node, folded or not, with the group or folder it is in. */
-function placed(node: GroupNode | SectionNode | RowNode, where: string): string[] {
-  if (node.kind === 'row') return [`${node.key}@${where}`, ...node.forks.flatMap((f) => placed(f, where))]
+/** Every row under a node, folded or not, with the group or folder it is in (`[row key, where]`). */
+function placed(node: GroupNode | SectionNode | RowNode, where: string): [string, string][] {
+  if (node.kind === 'row') return [[node.key, where], ...node.forks.flatMap((f) => placed(f, where))]
   const here = node.kind === 'section' ? node.key : node.id
   return node.children.flatMap((child) => placed(child, here))
 }
-/** Which rows are in which group or folder: what a move between them changes, and a fold does not. */
-const membership = (tree: GroupNode[]) =>
-  tree
-    .flatMap((g) => placed(g, g.id))
-    .sort()
-    .join('|')
 
 /** Sessions in groups with sticky headers; a device group lists its folders as sections (`model/list.ts`).
  *  A header folds what is under it, remembered per `foldScope` (the grouping); while `unfolded` (a
@@ -201,7 +195,7 @@ export function SessionList({
     instant.current = null // only for the change it was set for
   })
   const tree = buildList(groups, held, { scope: foldScope, collapsed, foldedFirst, unfolded })
-  useFlip(root, membership(tree))
+  useRowMoves(root, new Map(tree.flatMap((g) => placed(g, g.id))))
 
   return (
     <div ref={root} className="flex flex-col">
