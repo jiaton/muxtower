@@ -3,6 +3,7 @@ from collections.abc import Callable
 from muxtower.asr.dictionary import Dictionary, DictionaryFit, corrected, prompt_with, tokens
 from muxtower.asr.models import Transcript
 from muxtower.asr.ports import Transcriber
+from muxtower.asr.repeats import unrepeated
 from muxtower.errors import Conflict, Invalid
 
 MAX_AUDIO_BYTES = 4 * 1024 * 1024  # ~2 minutes of 16 kHz mono 16-bit WAV
@@ -63,7 +64,8 @@ class AsrService:
         used = (self.language or language) if hint == "command" else (language or self.language)
         prompt = command_prompt(words) if hint == "command" else self.prompt()
         text = self.transcriber.transcribe(audio, kind, used, prompt)
-        return Transcript(text=corrected(text, self.dictionary().corrections), language=used)
+        # Once, then corrected: a correction never makes a repeat, nor hides one.
+        return Transcript(text=corrected(unrepeated(text), self.dictionary().corrections), language=used)
 
 
 def _fit(text: str) -> str:
