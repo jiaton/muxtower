@@ -20,6 +20,12 @@ interface Props {
 }
 
 const BOTTOM_SLACK = 24
+/** A change of this many rows or fewer (a bar shown over the view a moment: Live's) neither lays the
+ *  lines out again nor resizes the pane (which has the agent repaint its whole screen): the view just stays
+ *  at the bottom. A real change (the keyboard, the window) is more. */
+const SMALL_ROWS = 2
+/** Lines pushed off the top kept in place while the reader is scrolled up, at most. */
+const KEPT_ABOVE = 2000
 /**
  * The pane's output as selectable text in a natively scrolling box (pixel scrolling with momentum,
  * no tmux copy mode). Each snapshot is diffed line by line against what is shown: lines pushed off
@@ -31,6 +37,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
   const body = useRef<HTMLDivElement>(null)
   const probe = useRef<HTMLDivElement>(null)
   const shown = useRef<string[]>([])
+  const above = useRef(0) // lines pushed off the top, still shown above `shown` while the reader is scrolled up
   const atBottom = useRef(true)
   const [behind, setBehind] = useState(false)
   const [tooWide, setTooWide] = useState(false)
@@ -52,10 +59,19 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
     const { removeTop, insertTop } = align(prev, lines)
     let delta = 0
 
-    for (let i = 0; i < removeTop && el.firstElementChild; i++) {
-      delta -= (el.firstElementChild as HTMLElement).offsetHeight
-      el.firstElementChild.remove()
+    // Lines pushed off the top: gone at once at the bottom. Scrolled up, they stay where they are, so the
+    // reader's place does not move and nothing writes the scroll position mid-gesture (which stops a
+    // trackpad's or a phone's momentum); they go once the reader is back at the bottom.
+    const keep = !atBottom.current && insertTop === 0 && above.current + removeTop <= KEPT_ABOVE
+    if (keep) above.current += removeTop
+    else {
+      for (let i = 0; i < above.current + removeTop && el.firstElementChild; i++) {
+        delta -= (el.firstElementChild as HTMLElement).offsetHeight
+        el.firstElementChild.remove()
+      }
+      above.current = 0
     }
+    const top = above.current // children before the lines of `lines`
     const inserted: HTMLElement[] = []
     for (let i = insertTop - 1; i >= 0; i--) {
       const div = document.createElement('div')
@@ -70,9 +86,9 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
     const children = el.children
     let changedBelow = removeTop > 0
     for (let i = insertTop; i < lines.length; i++) {
-      if (i < children.length) {
+      if (top + i < children.length) {
         if (current[i] !== lines[i]) {
-          children[i].innerHTML = lines[i]
+          children[top + i].innerHTML = lines[i]
           changedBelow = true
         }
       } else {
@@ -82,7 +98,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
         changedBelow = true
       }
     }
-    while (children.length > lines.length) {
+    while (children.length > top + lines.length) {
       el.lastElementChild!.remove()
       changedBelow = true
     }
@@ -91,7 +107,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
     setTooWide(box.scrollWidth > box.clientWidth + 2)
     if (atBottom.current) box.scrollTop = box.scrollHeight
     else {
-      box.scrollTop += delta
+      if (delta) box.scrollTop += delta // only a real correction: a write mid-gesture stops its momentum
       if (changedBelow) setBehind(true)
     }
   }, [lines])
@@ -107,8 +123,10 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
     const box = scroller.current
     if (!box || !onFit) return
     let timer: ReturnType<typeof setTimeout> | undefined
-    let sent = ''
+    let sent: { cols: number; rows: number } | null = null
     const measure = () => {
+      // At the bottom, it stays there through the change at once (not a moment later, its last lines hidden).
+      if (atBottom.current) box.scrollTop = box.scrollHeight
       clearTimeout(timer)
       timer = setTimeout(() => {
         const line = probe.current!.getBoundingClientRect()
@@ -117,9 +135,9 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
         const height = box.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
         const cols = Math.max(20, Math.floor((width - 1) / (line.width / 10)))
         const rows = Math.min(200, Math.max(5, Math.floor(height / line.height)))
+        if (sent && sent.cols === cols && Math.abs(sent.rows - rows) <= SMALL_ROWS) return
+        sent = { cols, rows }
         setViewRows(rows)
-        if (`${cols}x${rows}` === sent) return
-        sent = `${cols}x${rows}`
         onFit({ cols, rows })
       }, 250)
     }
