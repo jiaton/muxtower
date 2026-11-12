@@ -35,6 +35,14 @@ export function Diagnostics() {
     ],
     ['Page elements', known(web.domNodes, '') + times(web.domGrowth)],
     ['Open for', age(web.ageMs)],
+    [
+      'Drawing with',
+      web.renderer === null
+        ? 'unknown here'
+        : web.renderer.software
+          ? `software (${web.renderer.name}): the browser lost GPU acceleration, restart it`
+          : web.renderer.name,
+    ],
   ]
   return (
     <section className="flex flex-col gap-2" aria-label="Diagnostics">

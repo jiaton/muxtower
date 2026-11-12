@@ -1,5 +1,16 @@
 import { beforeEach, expect, it } from 'vitest'
-import { countFrame, countInput, countLongFrame, countRender, resetDiagnostics, sample, snapshot, webAlerts } from './diagnostics'
+import {
+  checkRenderer,
+  countFrame,
+  countInput,
+  countLongFrame,
+  countRender,
+  resetDiagnostics,
+  sample,
+  snapshot,
+  softwareRenderer,
+  webAlerts,
+} from './diagnostics'
 
 beforeEach(resetDiagnostics)
 
@@ -68,4 +79,15 @@ it('keeps hours of samples bounded, with the first ones', () => {
   const usage = snapshot(2000 * 60_000)
   expect(usage.domNodes).toBe(2999)
   expect(usage.domGrowth).toBeGreaterThan(2.5) // still measured against the page as it was loaded
+})
+
+it('says when the browser draws without its GPU', () => {
+  expect(softwareRenderer('ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)), SwiftShader driver)')).toBe(true)
+  expect(softwareRenderer('llvmpipe (LLVM 15.0.7, 256 bits)')).toBe(true)
+  expect(softwareRenderer('ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Pro, Unspecified Version)')).toBe(false)
+  checkRenderer('ANGLE (Apple, ANGLE Metal Renderer: Apple M3 Pro, Unspecified Version)')
+  expect(metrics(0)).toEqual([])
+  checkRenderer('Google SwiftShader')
+  expect(snapshot().renderer).toEqual({ name: 'Google SwiftShader', software: true })
+  expect(metrics(0)).toEqual(['gpu'])
 })

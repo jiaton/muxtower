@@ -22,6 +22,8 @@ export function alertText(alert: UsageAlert | WebAlert): string {
       return `The page was blocked ${Math.round(alert.value * 100)}% of the last minute (limit ${Math.round(alert.threshold * 100)}%)`
     case 'dom-growth':
       return `The page has ${alert.value}× the elements it had when loaded: reload it (limit ${alert.threshold}×)`
+    case 'gpu':
+      return 'The browser lost GPU acceleration and draws in software: restart the browser (reloading the page is not enough)'
     case 'heap-growth':
       return `JS heap is ${alert.value}× what it was when loaded: reload it (limit ${alert.threshold}×)`
     default:

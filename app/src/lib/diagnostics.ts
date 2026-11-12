@@ -36,6 +36,31 @@ export interface Sample {
   heapMb: number | null
 }
 const samples: Sample[] = []
+let renderer: { name: string; software: boolean } | null = null
+
+/** Whether the browser draws without its GPU (it lost it, or never had it): then everything the page
+ *  repaints costs the CPU, and only restarting the browser (not reloading the page) brings the GPU back. */
+export function softwareRenderer(name: string): boolean {
+  return /swiftshader|llvmpipe|softpipe|software|basic render driver|microsoft basic/i.test(name)
+}
+
+/** The GPU the browser draws with, as WebGL names it (checked now and then: a GPU can be lost later). */
+export function checkRenderer(name = rendererName()) {
+  renderer = name === null ? null : { name, software: softwareRenderer(name) }
+}
+
+function rendererName(): string | null {
+  try {
+    const gl = document.createElement('canvas').getContext('webgl')
+    if (!gl) return 'none (WebGL unavailable: software)'
+    const info = gl.getExtension('WEBGL_debug_renderer_info')
+    const name = String(gl.getParameter(info ? info.UNMASKED_RENDERER_WEBGL : gl.RENDERER))
+    gl.getExtension('WEBGL_lose_context')?.loseContext() // let it go at once
+    return name
+  } catch {
+    return null
+  }
+}
 
 export function countFrame(bytes: number, at = Date.now()) {
   frames.push({ at, bytes })
@@ -113,6 +138,8 @@ export interface WebUsage {
   heapGrowth: number | null
   /** Since the page was loaded. */
   ageMs: number
+  /** The GPU the browser draws with (null: not known), and whether it is software. */
+  renderer: { name: string; software: boolean } | null
 }
 
 export function snapshot(now = Date.now()): WebUsage {
@@ -136,11 +163,12 @@ export function snapshot(now = Date.now()): WebUsage {
     domGrowth: growth(samples.map((s) => s.dom)),
     heapGrowth: growth(samples.map((s) => s.heapMb)),
     ageMs: Math.round(performance.now()),
+    renderer,
   }
 }
 
 export interface WebAlert {
-  metric: 'render' | 'heap' | 'input' | 'input-slow' | 'blocking' | 'dom-growth' | 'heap-growth'
+  metric: 'render' | 'heap' | 'input' | 'input-slow' | 'blocking' | 'dom-growth' | 'heap-growth' | 'gpu'
   value: number
   threshold: number
 }
@@ -161,6 +189,7 @@ export function webAlerts(usage: WebUsage): WebAlert[] {
     found.push({ metric: 'dom-growth', value: usage.domGrowth, threshold: L.growth })
   if (usage.heapGrowth !== null && (usage.heapMb ?? 0) >= MIN_HEAP_FOR_GROWTH_MB && usage.heapGrowth >= L.growth)
     found.push({ metric: 'heap-growth', value: usage.heapGrowth, threshold: L.growth })
+  if (usage.renderer?.software) found.push({ metric: 'gpu', value: 0, threshold: 0 })
   return found
 }
 
@@ -193,8 +222,12 @@ export function watchPage() {
     new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) countLongFrame(Math.round(entry.duration))
     }).observe({ type: long, buffered: true })
-  setTimeout(() => sample(), 5000)
+  setTimeout(() => {
+    sample()
+    checkRenderer()
+  }, 5000)
   setInterval(() => sample(), SAMPLE_EVERY_MS)
+  setInterval(() => checkRenderer(), 10 * SAMPLE_EVERY_MS)
 }
 
 /** For tests. */
@@ -204,4 +237,5 @@ export function resetDiagnostics() {
   inputs.length = 0
   longFrames.length = 0
   samples.length = 0
+  renderer = null
 }
