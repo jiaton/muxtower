@@ -127,6 +127,11 @@ export async function toggleLive() {
       model: 'v5',
       baseAssetPath: VAD_ASSETS,
       onnxWASMBasePath: ORT_ASSETS,
+      // A model this small needs no threads: none of their workers and shared memory stay with the page.
+      ortConfig: (ort: { env: { logLevel?: string; wasm: { numThreads?: number } } }) => {
+        ort.env.logLevel = 'error'
+        ort.env.wasm.numThreads = 1
+      },
       redemptionMs: PAUSE_MS,
       minSpeechMs: MIN_SPEECH_MS,
       preSpeechPadMs: LEAD_MS,
