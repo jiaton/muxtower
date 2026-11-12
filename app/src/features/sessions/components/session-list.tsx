@@ -1,9 +1,11 @@
 import { ChevronRight, Monitor } from 'lucide-react'
-import { memo, useRef, type ReactNode } from 'react'
+import { memo, useCallback, useEffect, useRef, type MouseEvent, type ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
+import { Fold } from '@/components/ui/fold'
 import { cn } from '@/lib/cn'
 import { useFlip } from '@/lib/use-flip'
-import { buildList, shownRows, type GroupNode, type Held, type SectionNode } from '../model/list'
+import { useFoldAnchor } from '../hooks/use-fold-anchor'
+import { buildList, type GroupNode, type Held, type RowNode, type SectionNode } from '../model/list'
 import type { Group } from '../model/query'
 import { useListPrefs } from '../store'
 import { AgentMark } from './agent-mark'
@@ -31,7 +33,7 @@ function FoldButton({
   children,
 }: {
   folded: boolean
-  onToggle?: () => void
+  onToggle?: (header: HTMLButtonElement) => void
   className: string
   /** Extra room on the left, in rem (a nested folder). */
   indent?: number
@@ -41,7 +43,7 @@ function FoldButton({
     <button
       type="button"
       aria-expanded={!folded}
-      onClick={onToggle}
+      onClick={onToggle ? (e: MouseEvent<HTMLButtonElement>) => onToggle(e.currentTarget) : undefined}
       disabled={!onToggle}
       className={cn('flex w-full items-center text-left', className)}
       style={indent ? { paddingLeft: `calc(0.75rem + ${indent}rem)` } : undefined}
@@ -54,16 +56,17 @@ function FoldButton({
 
 const INDENT_REM = 1 // per level of a folder inside another
 
-type Toggle = (key: string) => void
+/** Folds or unfolds what the header (the button clicked) holds, keeping that header where it is on screen. */
+type Toggle = (key: string, header: HTMLButtonElement) => void
 
 /** A group's sticky header. Drawn again only when what it says changed (not when another part folds). */
 const GroupHeader = memo(
   function GroupHeader({ node, toggle }: { node: GroupNode; toggle: Toggle }) {
     return (
-      <h3 data-flip={`group:${node.id}`} className="sticky top-0 z-10">
+      <h3 className="sticky top-0 z-10">
         <FoldButton
           folded={node.folded}
-          onToggle={node.foldable ? () => toggle(node.key) : undefined}
+          onToggle={node.foldable ? (header) => toggle(node.key, header) : undefined}
           className="gap-2 border-b border-border bg-bg px-3 py-1.5 text-xs font-medium tracking-wide text-fg-muted uppercase hover:text-fg sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0"
         >
           {node.sectioned ? <Monitor aria-hidden /> : node.implies.agent ? <AgentMark decorative agent={node.label} /> : null}
@@ -84,10 +87,10 @@ const GroupHeader = memo(
 const SectionHeader = memo(
   function SectionHeader({ node, toggle }: { node: SectionNode; toggle: Toggle }) {
     return (
-      <h4 data-flip={`section:${node.key}`} title={node.title}>
+      <h4 title={node.title}>
         <FoldButton
           folded={node.folded}
-          onToggle={node.foldable ? () => toggle(node.key) : undefined}
+          onToggle={node.foldable ? (header) => toggle(node.key, header) : undefined}
           className="gap-1.5 bg-surface-muted px-3 py-1 text-xs text-fg-muted hover:text-fg sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0"
           indent={node.depth * INDENT_REM}
         >
@@ -117,7 +120,9 @@ function SectionView({ node, drawn }: { node: SectionNode; drawn: Drawn }) {
   return (
     <section aria-label={node.label}>
       <SectionHeader node={node} toggle={drawn.toggle} />
-      {node.folded ? null : <Children nodes={node.children} drawn={drawn} />}
+      <Fold open={!node.folded}>
+        <Children nodes={node.children} drawn={drawn} />
+      </Fold>
     </section>
   )
 }
@@ -132,15 +137,17 @@ function Children({ nodes, drawn }: { nodes: SectionNode['children']; drawn: Dra
   )
 }
 
-/** The rows shown, by group, and which groups and sections are folded: what a move or a fold changes. */
-const shape = (tree: GroupNode[]) =>
+/** Every row under a node, folded or not, with the group or folder it is in. */
+function placed(node: GroupNode | SectionNode | RowNode, where: string): string[] {
+  if (node.kind === 'row') return [`${node.key}@${where}`, ...node.forks.flatMap((f) => placed(f, where))]
+  const here = node.kind === 'section' ? node.key : node.id
+  return node.children.flatMap((child) => placed(child, here))
+}
+/** Which rows are in which group or folder: what a move between them changes, and a fold does not. */
+const membership = (tree: GroupNode[]) =>
   tree
-    .map(
-      (g) =>
-        `${g.id}${g.folded ? '-' : ':'}${shownRows([g])
-          .map((r) => r.key)
-          .sort()}`,
-    )
+    .flatMap((g) => placed(g, g.id))
+    .sort()
     .join('|')
 
 /** Sessions in groups with sticky headers; a device group lists its folders as sections (`model/list.ts`).
@@ -170,10 +177,31 @@ export function SessionList({
   foldedFirst?: boolean
 }) {
   const root = useRef<HTMLDivElement>(null)
+  const spacer = useRef<HTMLDivElement>(null)
   const collapsed = useListPrefs((s) => s.collapsed)
-  const toggle = useListPrefs((s) => s.toggleCollapsed)
+  const toggleCollapsed = useListPrefs((s) => s.toggleCollapsed)
+  const hold = useFoldAnchor(root, spacer)
+  const toggle = useCallback<Toggle>(
+    (key, header) => {
+      // Focus in what is about to fold away goes to its header.
+      const region = header.closest('section')
+      const focused = document.activeElement
+      if (focused && focused !== header && region?.contains(focused)) header.focus()
+      // A group's sticky header stuck at the top (the group starts above the view): its group folds at once,
+      // the header kept where it is. Played, the header comes unstuck midway and jumps.
+      const top = header.closest('h3')
+      if (top && region && region.getBoundingClientRect().top < top.getBoundingClientRect().top - 1) instant.current = key
+      hold(header)
+      toggleCollapsed(key)
+    },
+    [hold, toggleCollapsed],
+  )
+  const instant = useRef<string | null>(null)
+  useEffect(() => {
+    instant.current = null // only for the change it was set for
+  })
   const tree = buildList(groups, held, { scope: foldScope, collapsed, foldedFirst, unfolded })
-  useFlip(root, shape(tree))
+  useFlip(root, membership(tree))
 
   return (
     <div ref={root} className="flex flex-col">
@@ -194,10 +222,14 @@ export function SessionList({
         return (
           <section key={group.id} aria-label={group.label}>
             <GroupHeader node={group} toggle={toggle} />
-            {group.folded ? null : <Children nodes={group.children} drawn={drawn} />}
+            <Fold open={!group.folded} still={instant.current === group.key}>
+              <Children nodes={group.children} drawn={drawn} />
+            </Fold>
           </section>
         )
       })}
+      {/* Room at the end while a fold plays near it (`useFoldAnchor`), cut again once scrolled past. */}
+      <div ref={spacer} aria-hidden />
     </div>
   )
 }

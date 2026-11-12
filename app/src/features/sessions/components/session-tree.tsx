@@ -1,5 +1,6 @@
 import { ChevronRight, GitFork } from 'lucide-react'
 import { memo, type ReactNode } from 'react'
+import { Fold } from '@/components/ui/fold'
 import { cn } from '@/lib/cn'
 import type { SessionEntry } from '../model/facets'
 import type { RowNode } from '../model/list'
@@ -113,9 +114,13 @@ export const RowView = memo(function RowView({ node, selectedKey, context, extra
         </SessionListRow>
         <TreeLines depth={depth} rails={node.rails} last={node.last} open={node.forksOpen} />
       </div>
-      {node.forksOpen
-        ? node.forks.map((fork) => <RowView key={fork.key} node={fork} selectedKey={selectedKey} context={context} extra={extra} />)
-        : null}
+      {node.forkCount ? (
+        <Fold open={node.forksOpen}>
+          {node.forks.map((fork) => (
+            <RowView key={fork.key} node={fork} selectedKey={selectedKey} context={context} extra={extra} />
+          ))}
+        </Fold>
+      ) : null}
     </>
   )
 }, sameRowProps)

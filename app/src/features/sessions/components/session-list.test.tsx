@@ -69,3 +69,15 @@ it('counts a folded folder and says how many need you', () => {
   expect(header).toHaveAttribute('aria-expanded', 'false')
   expect(header.textContent).toMatch(/1 need you\s*2/)
 })
+
+it('moves focus inside a folder that folds to its header', () => {
+  const acme = [entry('Acme onboarding')]
+  render(<SessionList groups={[device({ '~/acme': acme, '~/notes': [entry('Weekly notes')] })]} foldScope="device" />)
+  const inside = screen.getByText('Acme onboarding')
+  inside.tabIndex = 0
+  inside.focus()
+  const header = screen.getByRole('button', { name: /acme/ })
+  fireEvent.click(header)
+  expect(screen.queryByText('Acme onboarding')).toBeNull()
+  expect(document.activeElement).toBe(header)
+})
