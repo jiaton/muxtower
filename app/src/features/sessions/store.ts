@@ -18,7 +18,7 @@ interface ListPrefs {
 
 /** Names a list group, or one of its sections, for `collapsed`: per grouping, so collapsing "Idle" by
  *  status leaves a device of that name alone. */
-export const foldKey = (...parts: string[]) => parts.join('\u0000')
+export { foldKey } from './model/list'
 
 const toggle = (list: string[], item: string) => (list.includes(item) ? list.filter((i) => i !== item) : [...list, item])
 
