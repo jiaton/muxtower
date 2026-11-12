@@ -237,3 +237,36 @@ describe('LivePipeline', () => {
     expect(t.transcribe).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('a command spotted as soon as its speaker paused', () => {
+  it('is done at once when nothing waits, and nothing is uploaded', async () => {
+    const { live, boxes, sent, transcribe } = setup()
+    boxes.a = ['fix the flaky test']
+    await live.spotted('send', A)
+    expect(sent).toEqual(['a: fix the flaky test'])
+    expect(transcribe).not.toHaveBeenCalled()
+  })
+
+  it('waits for the words said before it, saying so, then sends them', async () => {
+    const { live, sent, say, uploads, flush } = setup()
+    void say(4000)
+    await flush()
+    const sending = live.spotted('send', A)
+    expect(live.then).toBe('send') // "writing… then sending"
+    expect(sent).toEqual([])
+    uploads[0]!.resolve('update the changelog')
+    await sending
+    expect(sent).toEqual(['a: update the changelog'])
+    expect(live.then).toBeNull()
+  })
+
+  it('paused, only resume is heard', async () => {
+    const { live, boxes, sent } = setup()
+    boxes.a = ['draft']
+    live.pause()
+    await live.spotted('send', A)
+    expect(sent).toEqual([])
+    await live.spotted('resume', A)
+    expect(live.state).toBe('listening')
+  })
+})

@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { createDaemonClient, unwrap } from '@/lib/api/client'
 import { useDaemonsStore } from '@/lib/daemons/store'
+import type { Command } from './commands'
 import { chosenLanguages, startSpotter, type Spotter } from './kws'
 import { enabledPacks } from './packs'
 import { LivePipeline, SHORT_MS, type Ask, type BoxOps, type Cue, type Heard, type Target } from './pipeline'
@@ -36,6 +37,8 @@ interface LiveState {
   phase: Phase
   speaking: boolean
   pending: number
+  /** A command heard on its own, waiting for the words before it to land. */
+  then: Command | null
   error: string | null
   /** The on-device voice commands: loading (with download progress, bytes), ready, or off (failed). */
   commands: { state: 'loading' | 'ready' | 'off'; received?: number; total?: number; note?: string }
@@ -47,6 +50,7 @@ export const useLive = create<LiveState>(() => ({
   phase: 'off',
   speaking: false,
   pending: 0,
+  then: null,
   error: null,
   commands: { state: 'off' },
   heard: null,
@@ -78,6 +82,7 @@ const pipeline = new LivePipeline({
   changed: () =>
     useLive.setState((s) => ({
       pending: pipeline.pending,
+      then: pipeline.then,
       error: pipeline.error,
       phase: s.phase === 'off' || s.phase === 'starting' ? s.phase : pipeline.state,
     })),
@@ -117,6 +122,7 @@ export async function toggleLive() {
   try {
     const { MicVAD } = await import('@ricky0123/vad-web')
     let started: Target | null = null
+    const utterance = new Utterance()
     const made = await MicVAD.new({
       model: 'v5',
       baseAssetPath: VAD_ASSETS,
@@ -126,11 +132,23 @@ export async function toggleLive() {
       preSpeechPadMs: LEAD_MS,
       positiveSpeechThreshold: 0.5,
       negativeSpeechThreshold: 0.35,
+      onFrameProcessed: (p: { isSpeech: number }, frame: Float32Array) => {
+        const pcm = utterance.frame(p.isSpeech, frame)
+        if (!pcm || !spotter) return
+        // Short, then a pause: a command said on its own is done now, not after the segment's end.
+        const where = started
+        void spotter.spot(pcm).then((command) => {
+          if (!command || !utterance.claim(pcm)) return // not a command, or the speaker went on meanwhile
+          void pipeline.spotted(command, where)
+        })
+      },
       onSpeechStart: () => {
+        utterance.start()
         started = target // where this segment belongs, wherever the owner goes before it ends
         useLive.setState({ speaking: true })
       },
       onVADMisfire: () => {
+        utterance.end()
         useLive.setState({ speaking: false })
         heard({ kind: 'ignored', why: 'too short' })
       },
@@ -138,7 +156,12 @@ export async function toggleLive() {
         useLive.setState({ speaking: false })
         // The segment holds the lead-in and the second of silence that ended it: its speech is what is between
         // (how long it was said decides whether it may be a command), and most of that silence is not sent.
-        const said = audio.subarray(0, Math.max(0, audio.length - ((PAUSE_MS - TAIL_KEPT_MS) * RATE) / 1000))
+        // A command already taken from its start (`claim`): only what was said after it is left, if anything.
+        const taken = utterance.end()
+        if (taken === null) return
+        const whole = audio.subarray(0, Math.max(0, audio.length - ((PAUSE_MS - TAIL_KEPT_MS) * RATE) / 1000))
+        const said = taken ? whole.subarray(Math.min(whole.length, (LEAD_MS * RATE) / 1000 + taken)) : whole
+        if (taken && said.length < (MIN_SPEECH_MS * RATE) / 1000) return
         if (rms(said) < MIN_LEVEL) {
           heard({ kind: 'ignored', why: 'too quiet' })
           return count('dropped')
@@ -178,6 +201,91 @@ export async function stopLive() {
   await wakeLock?.release().catch(() => undefined)
   wakeLock = null
   useLive.setState({ phase: 'off', speaking: false })
+}
+
+// --- a command said on its own, caught at the speaker's pause -----------------------------------------------
+
+export const EARLY_PAUSE_MS = 300 // the pause after which a short utterance is spotted (the segment ends at 1000)
+export const EARLY_MAX_MS = 1200 // spoken for longer, it is no command said on its own
+const SPEECH_AT = 0.35 // a frame this likely to be speech counts as speech (the VAD's own end threshold)
+
+/**
+ * The utterance being said, frame by frame, to catch a command said on its own without waiting for the
+ * segment's end: once its speaker pauses `EARLY_PAUSE_MS` after at most `EARLY_MAX_MS` of speech, `frame`
+ * hands its audio (with the lead-in before it) to the keyword spotter, once. If the spotter hears a command
+ * and the speaker has not gone on meanwhile, `claim` takes that audio: the command is done, and of the
+ * segment the VAD ends with later, only what was said after it is left (`end`).
+ */
+export class Utterance {
+  private ring: Float32Array[] = [] // the last LEAD_MS of audio before speech, for the lead-in
+  private frames: Float32Array[] = []
+  private lead = 0 // samples of lead-in at the start of `frames`
+  private speaking = false
+  private elapsedMs = 0
+  private quietMs = 0
+  private offered: Float32Array | null = null // handed to the spotter, not claimed yet
+  private offeredAt = 0 // samples since the speech began, when offered
+  private claimed: number | null = null // samples since the speech began that a command took
+  private after = false // speech after the claimed part
+
+  start() {
+    this.speaking = true
+    this.frames = [...this.ring]
+    this.lead = this.ring.reduce((n, f) => n + f.length, 0)
+    this.elapsedMs = this.quietMs = 0
+    this.offered = null
+    this.claimed = null
+    this.after = false
+  }
+
+  /** Each frame the VAD read: the audio to spot, when it is the moment; else null. */
+  frame(isSpeech: number, frame: Float32Array): Float32Array | null {
+    frame = frame.slice() // the VAD may reuse its buffer
+    const ms = (frame.length / RATE) * 1000
+    if (!this.speaking) {
+      this.ring.push(frame)
+      while (this.ring.length > 1 && (this.ring.length - 1) * ms >= LEAD_MS) this.ring.shift()
+      return null
+    }
+    this.frames.push(frame)
+    this.elapsedMs += ms
+    if (isSpeech >= SPEECH_AT) {
+      this.quietMs = 0
+      this.offered = null // going on: what was offered is not a command said on its own
+      if (this.claimed !== null) this.after = true
+      return null
+    }
+    this.quietMs += ms
+    const spoken = this.elapsedMs - this.quietMs
+    if (this.claimed !== null || this.offered || this.quietMs < EARLY_PAUSE_MS || spoken > EARLY_MAX_MS) return null
+    if (this.quietMs - ms >= EARLY_PAUSE_MS) return null // offered at this pause already
+    const pcm = new Float32Array(this.frames.reduce((n, f) => n + f.length, 0))
+    let at = 0
+    for (const f of this.frames) {
+      pcm.set(f, at)
+      at += f.length
+    }
+    this.offered = pcm
+    this.offeredAt = at - this.lead
+    return pcm
+  }
+
+  /** The spotter heard a command in what was offered: true when it may act (nothing was said since). */
+  claim(pcm: Float32Array): boolean {
+    if (this.offered !== pcm) return false
+    this.offered = null
+    this.claimed = this.offeredAt
+    return true
+  }
+
+  /** The segment ended: 0 when no command was taken from it (all of it is for the pipeline), null when one
+   *  took all of it, else how many samples since the speech began it took. */
+  end(): number | null {
+    this.speaking = false
+    this.offered = null
+    if (this.claimed === null) return 0
+    return this.after ? this.claimed : null
+  }
 }
 
 let loading = 0

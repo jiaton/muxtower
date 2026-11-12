@@ -67,6 +67,8 @@ interface Deps {
 export class LivePipeline {
   state: 'listening' | 'paused' = 'listening'
   pending = 0
+  /** A command heard on its own that waits for the words said before it to land (then done). */
+  then: Command | null = null
   error: string | null = null
   private applied: Promise<void> = Promise.resolve() // the last segment's result, landed
   private gate: Promise<void> = Promise.resolve() // what a new upload waits for: the short ones before it
@@ -146,6 +148,36 @@ export class LivePipeline {
     })
     this.applied = landed
     if (segment.ms <= SHORT_MS) this.gate = landed
+    return landed
+  }
+
+  /**
+   * A command the keyword spotter heard said on its own, as soon as its speaker paused (before the segment's
+   * end): done once what was said before it has landed, nothing uploaded. Paused, only "resume" is heard.
+   */
+  spotted(command: Command, target: Target | null): Promise<void> {
+    this.deps.count?.('segment')
+    this.deps.count?.('spotted')
+    if (this.state === 'paused' && command !== 'resume') {
+      this.deps.heard?.({ kind: 'ignored', why: 'paused' })
+      return this.applied
+    }
+    if (!target && command !== 'pause' && command !== 'resume') {
+      this.deps.heard?.({ kind: 'ignored', why: 'no session' })
+      return this.applied
+    }
+    const waits = this.pending > 0
+    if (waits) {
+      this.then = command
+      this.deps.changed?.()
+    }
+    const landed = this.applied.then(() => {
+      if (this.then === command) this.then = null
+      this.act(command, target ?? { daemonId: '', sessionId: '' }, 'on device')
+      this.deps.changed?.()
+    })
+    this.applied = landed
+    this.gate = landed
     return landed
   }
 

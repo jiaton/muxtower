@@ -58,7 +58,7 @@ export function LiveButton() {
  *  became of it instead ("✓ sent", "nothing to send"), then the hint again. Loading, downloading and
  *  transcribing take the hint's place. On a phone, once: it needs the page in front and the screen on. */
 export function LiveBar() {
-  const { phase, speaking, pending, error, commands, heard } = useLive()
+  const { phase, speaking, pending, then, error, commands, heard } = useLive()
   const [, tick] = useState(0)
   useEffect(() => {
     if (!heard) return
@@ -119,7 +119,7 @@ export function LiveBar() {
       : speaking
         ? 'Live · hearing you…'
         : pending
-          ? `Live · writing…${pending > 1 ? ` (${pending})` : ''}`
+          ? `Live · writing…${pending > 1 ? ` (${pending})` : ''}${then === 'send' ? ' then sending' : ''}`
           : 'Live · speak to write'
   return (
     <div className="flex flex-col gap-1.5">
