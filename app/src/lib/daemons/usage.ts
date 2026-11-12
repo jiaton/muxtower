@@ -14,6 +14,16 @@ export function alertText(alert: UsageAlert | WebAlert): string {
       return `Drawing a terminal screen takes ${alert.value} ms (limit ${alert.threshold} ms)`
     case 'heap':
       return `JS heap ${alert.value} MB (limit ${alert.threshold} MB)`
+    case 'input':
+      return `Answering a key or a tap takes ${alert.value} ms (p75; limit ${alert.threshold} ms)`
+    case 'input-slow':
+      return `${alert.value} keys or taps took over ${alert.threshold} ms in the last few minutes`
+    case 'blocking':
+      return `The page was blocked ${Math.round(alert.value * 100)}% of the last minute (limit ${Math.round(alert.threshold * 100)}%)`
+    case 'dom-growth':
+      return `The page has ${alert.value}× the elements it had when loaded: reload it (limit ${alert.threshold}×)`
+    case 'heap-growth':
+      return `JS heap is ${alert.value}× what it was when loaded: reload it (limit ${alert.threshold}×)`
     default:
       return `${alert.metric}: ${alert.value} (limit ${alert.threshold})`
   }

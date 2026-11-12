@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createHashHistory, createRouter } from '@tanstack/react-router'
 import { StrictMode } from 'react'
+import { watchPage } from '@/lib/diagnostics'
 import { createRoot } from 'react-dom/client'
 import { listenForInstall } from './features/install/store'
 import { queryClient } from './lib/query'
@@ -22,6 +23,7 @@ declare module '@tanstack/react-router' {
 listenForInstall()
 watchForUpdates()
 
+watchPage() // input latency, long frames, the page's growth: Daemons › Diagnostics
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
