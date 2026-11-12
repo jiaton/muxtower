@@ -1,24 +1,23 @@
 import { ChevronRight, Monitor } from 'lucide-react'
-import { useRef, type ReactNode } from 'react'
+import { memo, useRef, type ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/cn'
 import { useFlip } from '@/lib/use-flip'
-import { shortFolderNames, type SessionEntry } from '../model/facets'
-import type { Group, Section } from '../model/query'
-import { foldKey, useListPrefs } from '../store'
+import { buildList, shownRows, type GroupNode, type Held, type SectionNode } from '../model/list'
+import type { Group } from '../model/query'
+import { useListPrefs } from '../store'
 import { AgentMark } from './agent-mark'
 import { PlaceIcon } from './place-icon'
 import type { RowContext } from './session-row'
-import { Rows, withForks, type Extra, type Held } from './session-tree'
+import { RowView, type Extra } from './session-tree'
 
 /** What a header says beside its name: how many sessions, and, while folded, how many of them need you
  *  (so folding a group never hides a prompt). */
-function HeaderCount({ entries, folded, className }: { entries: SessionEntry[]; folded: boolean; className?: string }) {
-  const needs = folded ? entries.filter((e) => e.session.needs_attention).length : 0
+function HeaderCount({ count, needs, className }: { count: number; needs: number; className?: string }) {
   return (
     <span className={cn('flex items-center gap-1.5 tabular-nums', className)}>
       {needs ? <Badge tone="permission">{needs} need you</Badge> : null}
-      {entries.length}
+      {count}
     </span>
   )
 }
@@ -55,53 +54,101 @@ function FoldButton({
 
 const INDENT_REM = 1 // per level of a folder inside another
 
-/** A device's folder: a quieter, non-sticky second level under the device's sticky header, indented
- *  when it lies inside another listed folder. Folded, it counts what it holds with the folders inside. */
-function SectionHeader({
-  section,
-  label,
-  held,
-  folded,
-  onToggle,
-}: {
-  section: Section
-  label: string
-  held: SessionEntry[]
-  folded: boolean
-  onToggle?: () => void
-}) {
+type Toggle = (key: string) => void
+
+/** A group's sticky header. Drawn again only when what it says changed (not when another part folds). */
+const GroupHeader = memo(
+  function GroupHeader({ node, toggle }: { node: GroupNode; toggle: Toggle }) {
+    return (
+      <h3 data-flip={`group:${node.id}`} className="sticky top-0 z-10">
+        <FoldButton
+          folded={node.folded}
+          onToggle={node.foldable ? () => toggle(node.key) : undefined}
+          className="gap-2 border-b border-border bg-bg px-3 py-1.5 text-xs font-medium tracking-wide text-fg-muted uppercase hover:text-fg sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0"
+        >
+          {node.sectioned ? <Monitor aria-hidden /> : node.implies.agent ? <AgentMark decorative agent={node.label} /> : null}
+          <span className="truncate">{node.label}</span>
+          <HeaderCount count={node.count} needs={node.needs} className="normal-case" />
+        </FoldButton>
+      </h3>
+    )
+  },
+  (a, b) =>
+    a.toggle === b.toggle &&
+    (['key', 'id', 'label', 'sectioned', 'folded', 'foldable', 'count', 'needs'] as const).every((k) => a.node[k] === b.node[k]) &&
+    a.node.implies.agent === b.node.implies.agent,
+)
+
+/** A device's folder: a quieter, non-sticky second level under the device's sticky header, indented when it
+ *  lies inside another listed folder. Folded, it counts what it holds with the folders inside. */
+const SectionHeader = memo(
+  function SectionHeader({ node, toggle }: { node: SectionNode; toggle: Toggle }) {
+    return (
+      <h4 data-flip={`section:${node.key}`} title={node.title}>
+        <FoldButton
+          folded={node.folded}
+          onToggle={node.foldable ? () => toggle(node.key) : undefined}
+          className="gap-1.5 bg-surface-muted px-3 py-1 text-xs text-fg-muted hover:text-fg sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0"
+          indent={node.depth * INDENT_REM}
+        >
+          <PlaceIcon kind={node.placeKind} />
+          <span className="min-w-0 truncate font-medium text-fg">{node.label}</span>
+          <HeaderCount count={node.count} needs={node.needs} className="ml-auto" />
+        </FoldButton>
+      </h4>
+    )
+  },
+  (a, b) =>
+    a.toggle === b.toggle &&
+    (['key', 'label', 'title', 'placeKind', 'depth', 'folded', 'foldable', 'count', 'needs'] as const).every(
+      (k) => a.node[k] === b.node[k],
+    ),
+)
+
+interface Drawn {
+  selectedKey?: string
+  context: RowContext
+  extra?: Extra
+  toggle: Toggle
+}
+
+/** A folder: its header, then (unless folded) its rows and the folders inside it. */
+function SectionView({ node, drawn }: { node: SectionNode; drawn: Drawn }) {
   return (
-    <h4 data-flip={`section:${section.key}`} title={section.title ?? section.label}>
-      <FoldButton
-        folded={folded}
-        onToggle={onToggle}
-        className="gap-1.5 bg-surface-muted px-3 py-1 text-xs text-fg-muted hover:text-fg sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0"
-        indent={(section.depth ?? 0) * INDENT_REM}
-      >
-        <PlaceIcon kind={section.kind} />
-        <span className="min-w-0 truncate font-medium text-fg">{label}</span>
-        <HeaderCount entries={folded ? held : section.entries} folded={folded} className="ml-auto" />
-      </FoldButton>
-    </h4>
+    <section aria-label={node.label}>
+      <SectionHeader node={node} toggle={drawn.toggle} />
+      {node.folded ? null : <Children nodes={node.children} drawn={drawn} />}
+    </section>
   )
 }
 
-/** A section's entries with those of the folders inside it (they follow it, deeper, in tree order). */
-function heldBy(sections: Section[], index: number): SessionEntry[] {
-  const depth = sections[index].depth ?? 0
-  const end = sections.findIndex((s, i) => i > index && (s.depth ?? 0) <= depth)
-  return sections.slice(index, end === -1 ? undefined : end).flatMap((s) => s.entries)
+function Children({ nodes, drawn }: { nodes: SectionNode['children']; drawn: Drawn }) {
+  return nodes.map((child) =>
+    child.kind === 'row' ? (
+      <RowView key={child.key} node={child} selectedKey={drawn.selectedKey} context={drawn.context} extra={drawn.extra} />
+    ) : (
+      <SectionView key={child.key} node={child} drawn={drawn} />
+    ),
+  )
 }
 
-/** Which rows each group holds, whatever their order within it, and which are folded away. */
-const membership = (groups: Group[], folded: string[]) =>
-  `${groups.map((g) => `${g.key}:${g.entries.map((e) => e.key).sort()}`).join('|')}#${folded.join('|')}`
+/** The rows shown, by group, and which groups and sections are folded: what a move or a fold changes. */
+const shape = (tree: GroupNode[]) =>
+  tree
+    .map(
+      (g) =>
+        `${g.id}${g.folded ? '-' : ':'}${shownRows([g])
+          .map((r) => r.key)
+          .sort()}`,
+    )
+    .join('|')
 
-/** Sessions in groups with sticky headers; a device group lists its folders as sections. A header folds
- *  what is under it, remembered per `foldScope` (the grouping); while `unfolded` (a search) everything
- *  shows. Rows leave out what their group already says, and slide to their new place when they change
- *  groups (a session that finished, one kept at the end once opened). `extra` renders a slot under a row
- *  (quick actions); `held` is what each row holds: side chats folded under it, forks listed under it. */
+/** Sessions in groups with sticky headers; a device group lists its folders as sections (`model/list.ts`).
+ *  A header folds what is under it, remembered per `foldScope` (the grouping); while `unfolded` (a
+ *  search) everything shows. Rows leave out what their group already says, and slide to their new place
+ *  when they change groups (a session that finished, one kept at the end once opened). `extra` renders a
+ *  slot under a row (quick actions); `held` is what each row holds: side chats folded under it, forks
+ *  listed under it. */
 export function SessionList({
   groups,
   selectedKey,
@@ -125,73 +172,29 @@ export function SessionList({
   const root = useRef<HTMLDivElement>(null)
   const collapsed = useListPrefs((s) => s.collapsed)
   const toggle = useListPrefs((s) => s.toggleCollapsed)
-  const foldable = foldScope !== undefined && !unfolded
-  const keyOf = (...parts: string[]) => foldKey(foldScope ?? '', ...parts)
-  const isFolded = (key: string) => foldable && collapsed.includes(key) !== foldedFirst
-  const onToggle = (key: string) => (foldable ? () => toggle(key) : undefined)
-  const folded = foldable
-    ? groups
-        .map((g) => keyOf(g.key))
-        .filter(isFolded)
-        .concat(foldedFirst ? [] : collapsed)
-    : []
-  useFlip(root, membership(groups, folded))
+  const tree = buildList(groups, held, { scope: foldScope, collapsed, foldedFirst, unfolded })
+  useFlip(root, shape(tree))
 
   return (
     <div ref={root} className="flex flex-col">
-      {groups.map((group) => {
-        const rowContext: RowContext = {
-          ...context,
-          hideDevice: context.hideDevice || group.implies.device,
-          hideFolder: context.hideFolder || group.implies.folder,
-          hideSource: context.hideSource || group.implies.source,
-          showAccount: context.showAccount && !group.implies.account,
-          showAgent: context.showAgent && !group.implies.agent,
+      {tree.map((group) => {
+        const drawn: Drawn = {
+          selectedKey,
+          extra,
+          toggle,
+          context: {
+            ...context,
+            hideDevice: context.hideDevice || group.implies.device,
+            hideFolder: context.hideFolder || group.implies.folder,
+            hideSource: context.hideSource || group.implies.source,
+            showAccount: context.showAccount && !group.implies.account,
+            showAgent: context.showAgent && !group.implies.agent,
+          },
         }
-        const names = group.sections ? shortFolderNames(group.sections.filter((s) => !s.depth).map((s) => s.label)) : null
-        const closed = new Set<string>() // folded sections, and every one inside them
-        const groupKey = keyOf(group.key)
-        const groupFolded = isFolded(groupKey)
         return (
-          <section key={group.key} aria-label={group.label}>
-            <h3 data-flip={`group:${group.key}`} className="sticky top-0 z-10">
-              <FoldButton
-                folded={groupFolded}
-                onToggle={onToggle(groupKey)}
-                className="gap-2 border-b border-border bg-bg px-3 py-1.5 text-xs font-medium tracking-wide text-fg-muted uppercase hover:text-fg sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0"
-              >
-                {group.sections ? <Monitor aria-hidden /> : group.implies.agent ? <AgentMark decorative agent={group.label} /> : null}
-                <span className="truncate">{group.label}</span>
-                <HeaderCount entries={withForks(group.entries, held.forks)} folded={groupFolded} className="normal-case" />
-              </FoldButton>
-            </h3>
-            {groupFolded ? null : group.sections && names ? (
-              group.sections.map((section, index, sections) => {
-                if (section.parent && closed.has(section.parent)) {
-                  closed.add(section.key)
-                  return null
-                }
-                const sectionKey = keyOf(group.key, section.key)
-                const sectionFolded = foldable && collapsed.includes(sectionKey) // only groups start folded
-                if (sectionFolded) closed.add(section.key)
-                return (
-                  <section key={section.key} aria-label={section.label}>
-                    <SectionHeader
-                      section={section}
-                      label={section.depth ? (section.name ?? section.label) : (names.get(section.label) ?? section.label)}
-                      held={withForks(heldBy(sections, index), held.forks)}
-                      folded={sectionFolded}
-                      onToggle={onToggle(sectionKey)}
-                    />
-                    {sectionFolded ? null : (
-                      <Rows entries={section.entries} selectedKey={selectedKey} context={rowContext} extra={extra} held={held} />
-                    )}
-                  </section>
-                )
-              })
-            ) : (
-              <Rows entries={group.entries} selectedKey={selectedKey} context={rowContext} extra={extra} held={held} />
-            )}
+          <section key={group.id} aria-label={group.label}>
+            <GroupHeader node={group} toggle={toggle} />
+            {group.folded ? null : <Children nodes={group.children} drawn={drawn} />}
           </section>
         )
       })}

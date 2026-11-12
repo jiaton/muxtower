@@ -7,7 +7,7 @@ import { wrapper } from '@/test/render'
 import type { SessionEntry } from '../model/facets'
 import { foldForks } from '../model/forks'
 import { useListPrefs } from '../store'
-import { Rows } from './session-tree'
+import { SessionList } from './session-list'
 
 const daemon = { id: 'd1', name: 'hub', url: 'http://hub.test', token: 't' } as Daemon
 const entry = (id: string, name: string, forkOf?: string): SessionEntry => ({
@@ -31,7 +31,9 @@ async function renderTree() {
     entry('budget', 'Check the budget', 'plan'),
     entry('notes', 'Weekly notes'),
   ])
-  const root = createRootRoute({ component: () => <Rows entries={shown} context={{}} held={{ forks }} /> })
+  const implies = { device: false, folder: false, source: false, account: false, agent: false }
+  const groups = [{ key: 'all', label: 'All', implies, entries: shown }]
+  const root = createRootRoute({ component: () => <SessionList groups={groups} held={{ forks }} /> })
   const router = createRouter({ routeTree: root, history: createMemoryHistory() })
   const Wrapper = wrapper()
   render(
