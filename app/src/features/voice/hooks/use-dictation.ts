@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { ApiError } from '@/lib/api/client'
 import { useTranscribe } from '../api/use-transcribe'
 import { canRecord, useRecorder } from './use-recorder'
@@ -9,13 +9,29 @@ export function useDictation(daemonId: string, enabled: boolean, onText: (text: 
   const recorder = useRecorder()
   const transcribe = useTranscribe(daemonId)
   const [heard, setHeard] = useState<string | null>(null) // why nothing came back, when nothing did
+  const finishing = useRef(false)
+  const written = useRef(new Set<number>())
+  const recordings = useRef(0)
+  /** Stops and writes what was said: once per recording, however often Stop is pressed meanwhile. */
   const finish = useCallback(async () => {
+    if (finishing.current) return
+    finishing.current = true
     setHeard(null)
-    const audio = await recorder.stop()
-    if (audio)
-      transcribe.mutate(audio, {
-        onSuccess: (text) => (text ? onText(text) : setHeard('Heard nothing: try again, a little closer.')),
-      })
+    const recording = ++recordings.current
+    try {
+      const audio = await recorder.stop()
+      if (audio)
+        transcribe.mutate(audio, {
+          onSuccess: (text) => {
+            if (written.current.has(recording)) return
+            written.current.add(recording)
+            if (text) onText(text)
+            else setHeard('Heard nothing: try again, a little closer.')
+          },
+        })
+    } finally {
+      finishing.current = false
+    }
   }, [recorder, transcribe, onText])
   const start = useCallback(() => {
     setHeard(null)

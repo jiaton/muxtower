@@ -113,10 +113,11 @@ export async function toggleLive() {
   unlockCues()
   useLive.setState({ phase: 'starting', error: null })
   void loadCommands()
+  const run = ++runs // turned off (and maybe on again) before it started: this start is dropped
   try {
     const { MicVAD } = await import('@ricky0123/vad-web')
     let started: Target | null = null
-    vad = await MicVAD.new({
+    const made = await MicVAD.new({
       model: 'v5',
       baseAssetPath: VAD_ASSETS,
       onnxWASMBasePath: ORT_ASSETS,
@@ -143,12 +144,18 @@ export async function toggleLive() {
           return count('dropped')
         }
         const speechMs = (n: number) => Math.max(0, (n / RATE) * 1000 - LEAD_MS - TAIL_KEPT_MS)
+        if (seen(said)) return // the same speech handed over again: it is written once
         for (const part of parts(said)) {
           const ms = speechMs(part.length)
           void pipeline.segment({ target: started, audio: wav(part), ms, pcm: ms <= SHORT_MS ? part : undefined })
         }
       },
     })
+    if (run !== runs) {
+      await made.destroy().catch(() => undefined) // never two listening at once, each writing what it hears
+      return
+    }
+    vad = made
     await vad.start()
     pipeline.state = 'listening'
     useLive.setState({ phase: 'listening' })
@@ -160,6 +167,7 @@ export async function toggleLive() {
 }
 
 export async function stopLive() {
+  runs += 1
   const was = vad
   vad = null
   await was?.destroy().catch(() => undefined) // the microphone is let go
@@ -173,6 +181,19 @@ export async function stopLive() {
 }
 
 let loading = 0
+let runs = 0 // each start of Live, and each stop: a start that lands after a newer one is dropped
+
+const recent: string[] = [] // the last segments handed over, by their audio
+/** Whether this speech was handed over just before (the VAD giving one segment twice). */
+export function seen(audio: Float32Array): boolean {
+  let sum = 0
+  for (let i = 0; i < audio.length; i += 97) sum += audio[i]! * (i + 1)
+  const key = `${audio.length}:${sum.toFixed(6)}`
+  if (recent.includes(key)) return true
+  recent.push(key)
+  if (recent.length > 8) recent.shift()
+  return false
+}
 
 /** The on-device voice commands, for the languages chosen: from the browser's cache (downloaded the first
  *  time). Live works without them meanwhile, or if they fail: commands are then read off the transcript. */
