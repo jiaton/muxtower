@@ -8,26 +8,59 @@ export interface Alignment {
   insertTop: number
 }
 
-const WINDOW = 3
 const MAX_SHIFT = 2000
+const ANCHOR_SEARCH = 60 // lines from the top in which to find a line to anchor on
+const MAX_CANDIDATES = 40
+const COMPARED = 300 // lines compared to score an offset
+const SURE = 0.6 // of the lines compared, how many must match for an offset to be taken
 
-function startsAt(haystack: string[], needle: string[], at: number, length: number): boolean {
-  for (let i = 0; i < length; i++) if (haystack[at + i] !== needle[i]) return false
-  return true
+const TAG = /<[^>]*>/g
+const RULE = /^[\s\u2500-\u257f\u2580-\u259f\-_=~·•.…*]*$/ // box drawing, blocks, dashes: a rule or a frame
+/** A line that tells one place in the output from another: not blank, not a rule. */
+function telling(html: string): boolean {
+  const text = html.replace(TAG, '').replace(/&nbsp;/g, ' ')
+  return !RULE.test(text)
 }
 
+/** How many of the lines that overlap match, from `a[shift]` against `b[0]`, as a share. */
+function score(a: string[], b: string[], shift: number): number {
+  const overlap = Math.min(a.length - shift, b.length, COMPARED)
+  if (overlap <= 0) return 0
+  let same = 0
+  for (let i = 0; i < overlap; i++) if (a[shift + i] === b[i]) same++
+  return same / overlap
+}
+
+/** The offsets at which `within` holds the first telling line of `of` (near its top), as shifts of `of`. */
+function candidates(of: string[], within: string[], max: number): number[] {
+  const j = of.slice(0, ANCHOR_SEARCH).findIndex(telling)
+  if (j < 0) return []
+  const found: number[] = []
+  for (let p = 0; p < within.length && found.length < MAX_CANDIDATES; p++) {
+    if (within[p] === of[j] && p - j >= 0 && p - j <= max) found.push(p - j)
+  }
+  return found
+}
+
+/**
+ * Which shift lines the new snapshot up with the old: matched on a line that tells places apart (blank
+ * lines and rules repeat all over an agent's output, and matching on them put the view at the wrong place),
+ * each possible shift scored by how much of the overlap then matches. Taken only when one is clearly best;
+ * when unsure, no shift (the lines are redrawn where they are, and the reader's place is not moved).
+ */
 export function align(prev: string[], next: string[]): Alignment {
-  const length = Math.min(WINDOW, prev.length, next.length)
-  if (length === 0) return { removeTop: 0, insertTop: 0 }
-  // Lines scrolled off the top: next begins somewhere inside prev.
-  for (let k = 0; k <= Math.min(MAX_SHIFT, prev.length - length); k++) {
-    if (startsAt(prev, next, k, length)) return { removeTop: k, insertTop: 0 }
-  }
+  if (!prev.length || !next.length) return { removeTop: 0, insertTop: 0 }
+  const scored: { at: Alignment; score: number }[] = []
+  // Lines scrolled off the top: next begins somewhere inside prev (0: in place).
+  for (const k of new Set([0, ...candidates(next, prev, MAX_SHIFT)]))
+    scored.push({ at: { removeTop: k, insertTop: 0 }, score: score(prev, next, k) })
   // Older history added on top: prev begins somewhere inside next.
-  for (let k = 1; k <= Math.min(MAX_SHIFT * 3, next.length - length); k++) {
-    if (startsAt(next, prev, k, length)) return { removeTop: 0, insertTop: k }
-  }
-  return { removeTop: 0, insertTop: 0 }
+  for (const k of candidates(prev, next, MAX_SHIFT * 3))
+    if (k > 0) scored.push({ at: { removeTop: 0, insertTop: k }, score: score(next, prev, k) })
+  scored.sort((a, b) => b.score - a.score)
+  const [best, second] = scored
+  if (!best || best.score < SURE || (second && second.score === best.score)) return { removeTop: 0, insertTop: 0 }
+  return best.at
 }
 
 /** Whether a line of HTML shows nothing but spaces: tags skipped, stopping at the first character shown
@@ -58,7 +91,7 @@ export function collapseGap(lines: string[], viewRows: number | undefined, paneR
   const screen = lines.length - start
   if (screen <= viewRows) return lines
   let best = { at: -1, length: 0 }
-  for (let i = start; i < lines.length; ) {
+  for (let i = start; i < lines.length;) {
     if (!blank(lines[i])) {
       i++
       continue

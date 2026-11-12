@@ -15,6 +15,27 @@ describe('align', () => {
   it('treats a redraw in place as no shift', () => {
     expect(align(lines('a', 'b', 'c'), lines('a', 'b', 'x'))).toEqual({ removeTop: 0, insertTop: 0 })
   })
+
+  // An agent's output repeats blank lines and rules: matching on the top three lines alone, the first match
+  // was often the wrong place, and the reader's view moved by the wrong amount.
+  const RULE = '<span class="fg-8">────────────────────</span>'
+  it('does not anchor on blank lines and rules that repeat everywhere', () => {
+    const prev = lines('', RULE, '', 'Read file a.ts', '', RULE, '', 'Edited b.ts', '', RULE, '', 'Ran the tests')
+    const next = [...prev.slice(4), '', RULE, '', 'All green']
+    // The old matcher took shift 0 ('', RULE, '' is also at the top of prev).
+    expect(align(prev, next)).toEqual({ removeTop: 4, insertTop: 0 })
+  })
+
+  it('finds the shift when the top of the new snapshot is blank or a rule', () => {
+    const body = Array.from({ length: 30 }, (_, i) => (i % 3 === 0 ? '' : i % 3 === 1 ? RULE : `step ${i}`))
+    expect(align(body, body.slice(7))).toEqual({ removeTop: 7, insertTop: 0 })
+    expect(align(body.slice(9), body)).toEqual({ removeTop: 0, insertTop: 9 })
+  })
+
+  it('shifts nothing when it cannot tell: a screen repainted whole, or nothing that tells places apart', () => {
+    expect(align(lines('one', 'two', 'three', 'four'), lines('alpha', 'beta', 'gamma', 'delta'))).toEqual({ removeTop: 0, insertTop: 0 })
+    expect(align(lines('', RULE, '', RULE, ''), lines(RULE, '', RULE, '', ''))).toEqual({ removeTop: 0, insertTop: 0 })
+  })
 })
 
 describe('collapseGap', () => {
