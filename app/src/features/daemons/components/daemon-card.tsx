@@ -14,6 +14,7 @@ import { useDaemonMe } from '../api/use-daemon-me'
 import { DevicesList } from './devices-list'
 import { MachinesList } from './nodes-list'
 import { UsageList } from './usage-list'
+import { textRole } from '@/components/ui/styles'
 
 function useStatus(daemon: Daemon) {
   const me = useDaemonMe(daemon.id)
@@ -50,8 +51,8 @@ export function DaemonCard({ daemon, actions }: { daemon: Daemon; actions?: Reac
           <StatusDot tone={status.tone} label={status.text} />
           <span className="flex min-w-0 flex-1 flex-col">
             <span className="truncate font-medium">{daemon.name}</span>
-            <span className="truncate text-sm text-fg-muted">{status.text}</span>
-            <span className="truncate font-mono text-xs text-fg-muted">{daemon.url}</span>
+            <span className={`${textRole.hint} truncate`}>{status.text}</span>
+            <span className={`${textRole.meta} truncate font-mono`}>{daemon.url}</span>
           </span>
           <ChevronDown className={cn('size-4 shrink-0 text-fg-muted transition-transform', open && 'rotate-180')} aria-hidden />
         </button>
@@ -78,7 +79,7 @@ export function DaemonCard({ daemon, actions }: { daemon: Daemon; actions?: Reac
         </div>
       </div>
       {open ? (
-        <div className="flex flex-col gap-5 border-t border-border px-4 pt-4 pb-4">
+        <div className="flex flex-col gap-4 border-t border-border px-4 pt-4 pb-4">
           {actions}
           {paired ? <MachinesList daemonId={daemon.id} url={daemon.url} /> : null}
           {paired ? <DevicesList daemonId={daemon.id} /> : null}

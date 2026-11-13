@@ -5,6 +5,7 @@ import { cn } from '@/lib/cn'
 import { ago } from '@/lib/time'
 import type { SessionEntry } from '../model/facets'
 import { StatusIcon } from './status-icon'
+import { textRole } from '@/components/ui/styles'
 
 /** What a side chat is about: its last word, else that it is one (its name is its parent's). */
 const aboutOf = ({ session }: SessionEntry) =>
@@ -22,7 +23,7 @@ export function SideChats({ entries, selectedKey }: { entries: SessionEntry[]; s
         type="button"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 py-1 text-xs text-fg-muted hover:text-fg"
+        className={`${textRole.meta} flex items-center gap-1.5 py-1 hover:text-fg`}
       >
         <MessageSquareText className="size-3.5" aria-hidden />
         {entries.length} side chat{entries.length === 1 ? '' : 's'}
@@ -47,7 +48,7 @@ export function SideChats({ entries, selectedKey }: { entries: SessionEntry[]; s
                 <span className={cn('min-w-0 flex-1 truncate', entry.session.unread ? 'font-medium text-fg' : 'text-fg-muted')}>
                   {aboutOf(entry)}
                 </span>
-                <time className="shrink-0 text-xs text-fg-muted tabular-nums" dateTime={entry.session.updated_at}>
+                <time className={`${textRole.meta} shrink-0 tabular-nums`} dateTime={entry.session.updated_at}>
                   {ago(entry.session.updated_at)}
                 </time>
               </Link>

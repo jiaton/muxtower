@@ -5,6 +5,7 @@ import { cn } from '@/lib/cn'
 import { alertText, known, usageParts } from '@/lib/daemons/usage'
 import { useDaemonClient } from '@/lib/daemons/use-daemon-client'
 import { daemonKey } from '@/lib/query'
+import { textRole } from '@/components/ui/styles'
 
 /** One machine's line: CPU over a minute and ten, memory, threads, open files, the capture loop, its
  *  children. Unknown is said so, never 0. */
@@ -17,11 +18,11 @@ function MachineLine({ usage }: { usage: MachineUsage }) {
         <span className="font-medium">{usage.machine}</span>
         {usage.stale ? <span className="text-fg-muted"> · last heard a while ago</span> : null}
       </p>
-      <p className="text-xs text-fg-muted">{parts.join(' · ')}</p>
+      <p className={textRole.meta}>{parts.join(' · ')}</p>
       {usage.children === null ? (
-        <p className="text-xs text-fg-muted">Its child processes: unknown on this system</p>
+        <p className={textRole.meta}>Its child processes: unknown on this system</p>
       ) : usage.children?.length ? (
-        <p className="text-xs text-fg-muted">
+        <p className={textRole.meta}>
           {usage.children.map((c) => `${c.name} ${known(c.cpu_percent, '%')} ${known(c.rss_mb, ' MB')}`).join(' · ')}
         </p>
       ) : null}
@@ -48,7 +49,7 @@ export function UsageList({ daemonId }: { daemonId: string }) {
   if (!usage.data?.length) return null
   return (
     <section aria-label="Usage" className="flex flex-col gap-1">
-      <h3 className="text-sm font-medium">Usage</h3>
+      <h3 className={textRole.label}>Usage</h3>
       <ul className="flex flex-col divide-y divide-border">
         {usage.data.map((u) => (
           <MachineLine key={u.machine} usage={u} />

@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useClaim, type ClaimOutcome } from '../api/use-pairing'
 import { guessDeviceName, type PairTarget } from '../pair-link'
+import { Label } from '@/components/ui/label'
+import { surface, textRole } from '@/components/ui/styles'
 
 /** Confirms which daemons a pairing link adds, then redeems the codes. */
 export function PairClaim({ targets, onDone }: { targets: PairTarget[]; onDone: (outcomes: ClaimOutcome[]) => void }) {
@@ -17,7 +19,7 @@ export function PairClaim({ targets, onDone }: { targets: PairTarget[]; onDone: 
         {targets.map((t, i) => {
           const outcome = outcomes?.[i]
           return (
-            <li key={t.url} className="flex items-center gap-2 rounded-md border border-border px-3 py-2">
+            <li key={t.url} className={`${surface.outlined} flex items-center gap-2 px-3 py-2`}>
               {outcome ? (
                 outcome.ok ? (
                   <CircleCheck className="size-4 text-success" aria-label="Paired" />
@@ -27,7 +29,7 @@ export function PairClaim({ targets, onDone }: { targets: PairTarget[]; onDone: 
               ) : null}
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{t.name ?? new URL(t.url).host}</p>
-                <p className="truncate text-sm text-fg-muted">{outcome ? outcome.message : t.url}</p>
+                <p className={`${textRole.hint} truncate`}>{outcome ? outcome.message : t.url}</p>
               </div>
             </li>
           )
@@ -43,10 +45,10 @@ export function PairClaim({ targets, onDone }: { targets: PairTarget[]; onDone: 
             claim.mutate({ targets, deviceName: deviceName.trim() || 'device' })
           }}
         >
-          <label className="flex flex-col gap-1.5 text-sm font-medium">
+          <Label>
             Name this device
             <Input value={deviceName} onChange={(e) => setDeviceName(e.target.value)} maxLength={60} />
-          </label>
+          </Label>
           <Button type="submit" disabled={claim.isPending}>
             {claim.isPending ? 'Pairing…' : targets.length > 1 ? `Pair ${targets.length} daemons` : 'Pair'}
           </Button>

@@ -24,6 +24,8 @@ import { AgentMark } from './agent-mark'
  *  "New session here…"): where, and the project it joins, with a role to give it; opened by `open`. */
 import { splitArgs } from '../model/launch'
 import { LaunchOptions } from './launch-options'
+import { Label } from '@/components/ui/label'
+import { textRole } from '@/components/ui/styles'
 export interface NewSessionPreset {
   daemonId: string
   node: string | null
@@ -127,7 +129,7 @@ export function NewSessionDialog({
         >
           {daemons.length > 1 ? (
             <fieldset className="flex flex-col gap-1.5">
-              <legend className="mb-1.5 text-sm font-medium">Daemon</legend>
+              <legend className={`${textRole.label} mb-1.5`}>Daemon</legend>
               <div className="flex flex-wrap gap-2">
                 {daemons.map((d) => (
                   <button
@@ -147,7 +149,7 @@ export function NewSessionDialog({
           ) : null}
           {nodes.length ? (
             <fieldset className="flex flex-col gap-1.5">
-              <legend className="mb-1.5 text-sm font-medium">Computer</legend>
+              <legend className={`${textRole.label} mb-1.5`}>Computer</legend>
               <div className="flex flex-wrap gap-2">
                 <button type="button" className={chip(node === null)} onClick={() => setNodeName(null)}>
                   {current?.name}
@@ -161,7 +163,7 @@ export function NewSessionDialog({
             </fieldset>
           ) : null}
           <fieldset>
-            <legend className="mb-1.5 text-sm font-medium">Agent</legend>
+            <legend className={`${textRole.label} mb-1.5`}>Agent</legend>
             <div className="flex flex-wrap gap-2">
               {(runtimes.data ?? []).map((r) => (
                 <button
@@ -179,15 +181,15 @@ export function NewSessionDialog({
             </div>
           </fieldset>
           {canRunHeadless ? (
-            <label className="flex items-center justify-between gap-3 text-sm font-medium">
+            <label className={`${textRole.label} flex items-center justify-between gap-3`}>
               <span className="flex flex-col">
                 Headless
-                <span className="font-normal text-fg-muted">No terminal; its approvals and replies come here</span>
+                <span className={textRole.aside}>No terminal; its approvals and replies come here</span>
               </span>
               <Switch checked={headless} onCheckedChange={setHeadless} aria-label="Headless" />
             </label>
           ) : null}
-          <label className="flex flex-col gap-1.5 text-sm font-medium">
+          <Label>
             Directory
             <SuggestInput
               required={!fallback}
@@ -197,16 +199,16 @@ export function NewSessionDialog({
               suggestions={folders.map((f) => ({ value: f.label, hint: `${f.count} session${f.count === 1 ? '' : 's'}` }))}
               className="font-mono"
             />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm font-medium">
-            Name <span className="font-normal text-fg-muted">optional, defaults to the directory name</span>
+          </Label>
+          <Label>
+            Name <span className={textRole.aside}>optional, defaults to the directory name</span>
             <Input value={name} onChange={(e) => setName(e.target.value)} />
-          </label>
+          </Label>
           {preset ? (
-            <label className="flex flex-col gap-1.5 text-sm font-medium">
-              Role in {preset.project} <span className="font-normal text-fg-muted">optional</span>
+            <Label>
+              Role in {preset.project} <span className={textRole.aside}>optional</span>
               <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="e.g. reviewer" />
-            </label>
+            </Label>
           ) : null}
           {asHeadless ? null : (
             <LaunchOptions

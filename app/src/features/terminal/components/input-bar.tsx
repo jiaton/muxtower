@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/input'
+import { focusWithinRing } from '@/components/ui/styles'
 import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/lib/use-media-query'
 import type { Track } from '@/lib/use-outbox'
@@ -235,7 +236,8 @@ export function InputBar({
         <div
           data-landed={glow || undefined}
           className={cn(
-            'flex min-w-0 flex-1 flex-col rounded-md border bg-surface transition-colors duration-500 focus-within:outline-2 focus-within:outline-focus',
+            'flex min-w-0 flex-1 flex-col rounded-md border bg-surface transition-colors duration-500',
+            focusWithinRing,
             glow ? 'border-accent ring-2 ring-accent/40' : 'border-border',
           )}
           onDragOver={(e) => images && e.dataTransfer.types.includes('Files') && e.preventDefault()}

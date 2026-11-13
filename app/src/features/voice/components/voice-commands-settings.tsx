@@ -5,6 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { liveDetails, setLiveDetails } from '../live/feedback'
 import { chooseLanguages, chosenLanguages, PACK, packDownloaded, removePack, type Language } from '../live/kws'
 import { PACKS } from '../live/packs'
+import { surface, textRole } from '@/components/ui/styles'
 
 // Each language's commands, as its pack says them.
 const LANGUAGES = PACKS.map((p) => ({ id: p.id, label: p.name, words: Object.values(p.say).join(', ') }))
@@ -24,10 +25,10 @@ export function VoiceCommandsSettings() {
   }
   return (
     <section aria-labelledby="voice-commands" className="flex flex-col gap-2">
-      <h2 id="voice-commands" className="text-sm font-medium">
+      <h2 id="voice-commands" className={textRole.label}>
         Voice commands in Live mode (this browser)
       </h2>
-      <p className="text-sm text-fg-muted">
+      <p className={textRole.hint}>
         Heard on this device, without uploading: say a command on its own. Changes apply the next time Live starts.
       </p>
       <ul className="flex flex-col gap-2">
@@ -42,7 +43,7 @@ export function VoiceCommandsSettings() {
           </li>
         ))}
       </ul>
-      <div className="flex flex-wrap items-center gap-2 rounded-md border border-border px-3 py-2 text-sm">
+      <div className={`${surface.outlined} flex flex-wrap items-center gap-2 px-3 py-2 text-sm`}>
         <span className="min-w-0 flex-1">
           {PACK.name} · {(PACK.bytes / 1e6).toFixed(1)} MB ·{' '}
           <span className="text-fg-muted">

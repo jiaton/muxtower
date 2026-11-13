@@ -8,6 +8,7 @@ import { useListPrefs } from '../store'
 import { SessionListRow } from './session-list-row'
 import { SideChats } from './side-chats'
 import type { RowContext } from './session-row'
+import { textRole } from '@/components/ui/styles'
 
 /** A slot under a row (quick actions). What it shows must depend on the entry alone: a row is drawn again
  *  only when its entry changed, not when this function did. */
@@ -64,7 +65,7 @@ function ForkToggle({ count, unread, open, onToggle }: { count: number; unread: 
       aria-expanded={open}
       onClick={onToggle}
       disabled={!onToggle}
-      className="-mt-1.5 flex items-center gap-1.5 py-1 text-xs text-fg-muted enabled:hover:text-fg"
+      className={`${textRole.meta} -mt-1.5 flex items-center gap-1.5 py-1 enabled:hover:text-fg`}
     >
       <GitFork className="size-3.5" aria-hidden />
       {count} fork{count === 1 ? '' : 's'}

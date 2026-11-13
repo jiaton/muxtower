@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { installOption } from '../model/install'
 import { promptInstall, useInstallStore } from '../store'
+import { textRole } from '@/components/ui/styles'
 
 const standalone = () => matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true
 const brands = () => (navigator as { userAgentData?: { brands: { brand: string }[] } }).userAgentData?.brands.map((b) => b.brand)
@@ -18,31 +19,35 @@ export function InstallApp() {
   if (installed && !running) return <Section>Installed. Open muxtower from the home screen or the app list.</Section>
   if (option === 'prompt')
     return (
-      <Section action={<Button className="self-start" onClick={() => void promptInstall()}><Download /> Install app</Button>}>
-        Install muxtower as an app: it opens without the browser's bars, and its notifications show its own name
-        and icon.
+      <Section
+        action={
+          <Button className="self-start" onClick={() => void promptInstall()}>
+            <Download /> Install app
+          </Button>
+        }
+      >
+        Install muxtower as an app: it opens without the browser's bars, and its notifications show its own name and icon.
       </Section>
     )
   if (option === 'ios')
     return (
       <Section>
-        To get notifications on iPhone, add muxtower to the Home Screen: tap Share, then Add to Home Screen, and
-        open it from there.
+        To get notifications on iPhone, add muxtower to the Home Screen: tap Share, then Add to Home Screen, and open it from there.
       </Section>
     )
   if (option === 'menu')
     return (
       <Section>
-        Install muxtower as an app so that its notifications show its own name and icon: in Chrome's ⋮ menu, tap
-        Install app (or Add to home screen, then Install). Installed already? Open it from the home screen.
+        Install muxtower as an app so that its notifications show its own name and icon: in Chrome's ⋮ menu, tap Install app (or Add to home
+        screen, then Install). Installed already? Open it from the home screen.
       </Section>
     )
   if (option === 'shortcut')
     return (
       <Section>
-        This browser can put muxtower on the home screen only as a shortcut, so its notifications show the
-        browser's name and icon. To install it as an app, open this page in Chrome and pair it there: on this
-        device, Add another device › Copy link, then open the link in Chrome.
+        This browser can put muxtower on the home screen only as a shortcut, so its notifications show the browser's name and icon. To
+        install it as an app, open this page in Chrome and pair it there: on this device, Add another device › Copy link, then open the link
+        in Chrome.
       </Section>
     )
   return null
@@ -51,8 +56,8 @@ export function InstallApp() {
 function Section({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
-      <h2 className="text-sm font-medium">App</h2>
-      <p className="text-sm text-fg-muted">{children}</p>
+      <h2 className={textRole.label}>App</h2>
+      <p className={textRole.hint}>{children}</p>
       {action}
     </section>
   )

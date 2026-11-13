@@ -9,6 +9,8 @@ import type { Session, TeamTask } from '@/lib/api/types'
 import { ago } from '@/lib/time'
 import { useSessionTasks, useUpdateTeam } from '../api/use-team'
 import { useSessionEntries } from '../hooks/use-session-entries'
+import { textRole } from '@/components/ui/styles'
+import { Label } from '@/components/ui/label'
 
 const count = (n: number) => `${n} session${n === 1 ? '' : 's'}`
 
@@ -27,7 +29,7 @@ function TaskLine({ task, sessionId }: { task: TeamTask; sessionId: string }) {
       <Icon className="mt-0.5 size-4 shrink-0 text-fg-muted" aria-label={sent ? 'Sent' : 'Received'} />
       <div className="min-w-0 flex-1">
         <p className="line-clamp-2">{task.text}</p>
-        <p className="text-xs text-fg-muted">
+        <p className={textRole.meta}>
           {sent ? `to ${task.to_id}` : `from ${task.from_label.split(' · ')[0]}`} · {ago(task.at)} · {task.status}
         </p>
       </div>
@@ -49,7 +51,10 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
   // Sent only when changed: one muxtower worked out stays its own (and moves with git) until someone sets it.
   const moved = project.trim() && project.trim() !== session.project
   const save = () =>
-    update.mutate({ role: role.trim(), note: note.trim(), rename_project: false, ...(moved ? { project: project.trim() } : {}) }, { onSuccess: onClose })
+    update.mutate(
+      { role: role.trim(), note: note.trim(), rename_project: false, ...(moved ? { project: project.trim() } : {}) },
+      { onSuccess: onClose },
+    )
 
   return (
     <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
@@ -64,7 +69,7 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
             save()
           }}
         >
-          <label className="flex flex-col gap-1.5 text-sm font-medium">
+          <Label>
             Role
             <SuggestInput
               placeholder="worker"
@@ -73,20 +78,20 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
               maxLength={60}
               suggestions={tally(sessions.map((s) => s.team_role))}
             />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm font-medium">
-            Note <span className="font-normal text-fg-muted">optional</span>
+          </Label>
+          <Label>
+            Note <span className={textRole.aside}>optional</span>
             <Input
               placeholder="Implements what research agreed on"
               value={note}
               onChange={(e) => setNote(e.target.value)}
               maxLength={300}
             />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm font-medium">
+          </Label>
+          <Label>
             <span>
               Project{' '}
-              {session.project_auto && !moved ? <span className="font-normal text-fg-muted">· auto, from {session.project_source}</span> : null}
+              {session.project_auto && !moved ? <span className={textRole.aside}>· auto, from {session.project_source}</span> : null}
             </span>
             <SuggestInput
               placeholder="owner/repo"
@@ -95,7 +100,7 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
               maxLength={120}
               suggestions={tally(sessions.map((s) => s.project))}
             />
-          </label>
+          </Label>
           {update.error ? <Banner tone="error">{update.error.message}</Banner> : null}
           <div className="flex justify-end">
             <Button type="submit" disabled={update.isPending}>
@@ -104,7 +109,7 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
           </div>
         </form>
         <section aria-label="Tasks" className="mt-2 border-t border-border pt-3">
-          <h3 className="text-xs font-medium tracking-wide text-fg-muted uppercase">Tasks</h3>
+          <h3 className={textRole.eyebrow}>Tasks</h3>
           {tasks.data?.length ? (
             <ul className="flex flex-col divide-y divide-border">
               {tasks.data.map((task) => (
@@ -112,7 +117,7 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
               ))}
             </ul>
           ) : (
-            <p className="py-2 text-sm text-fg-muted">{tasks.isLoading ? 'Loading…' : 'No tasks sent or received yet.'}</p>
+            <p className={`${textRole.hint} py-2`}>{tasks.isLoading ? 'Loading…' : 'No tasks sent or received yet.'}</p>
           )}
         </section>
       </DialogContent>

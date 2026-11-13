@@ -8,6 +8,7 @@ import { useState } from 'react'
 import { useSessionNames } from '../api/use-session-names'
 import { useUpdateSession } from '../api/use-session-mutations'
 import { agentOf } from '../model/facets'
+import { textRole } from '@/components/ui/styles'
 
 /** Where a name it went by came from, as the dialog says it. */
 const FROM: Record<string, string> = {
@@ -26,7 +27,11 @@ export interface Suggestion {
 
 /** The names to offer: the ones it went by (latest first), or, from a daemon that keeps none, the one its
  *  agent gives it; never the name in the box. */
-export function suggestions(session: Session, names: { name: string; source: string; last_seen: string }[] | undefined, typed: string): Suggestion[] {
+export function suggestions(
+  session: Session,
+  names: { name: string; source: string; last_seen: string }[] | undefined,
+  typed: string,
+): Suggestion[] {
   const offered: Suggestion[] = names
     ? names.map((n) => ({ name: n.name, from: FROM[n.source] ?? n.source, at: n.last_seen }))
     : session.agent_name
@@ -54,7 +59,7 @@ export function RenameDialog({ daemonId, session, onClose }: { daemonId: string;
           <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} required aria-label="Session name" autoFocus />
           {offered.length ? (
             <section aria-label="Other names" className="-mt-1 flex flex-col">
-              <h3 className="text-xs text-fg-muted">Other names it went by</h3>
+              <h3 className={textRole.meta}>Other names it went by</h3>
               <ul className="flex flex-col">
                 {offered.map((s) => (
                   <li key={s.name}>
@@ -64,7 +69,7 @@ export function RenameDialog({ daemonId, session, onClose }: { daemonId: string;
                       onClick={() => setName(s.name)}
                     >
                       <span className="min-w-0 flex-1 text-sm break-words text-accent">{s.name}</span>
-                      <span className="shrink-0 text-xs text-fg-muted">
+                      <span className={`${textRole.meta} shrink-0`}>
                         {s.from}
                         {s.at ? ` · ${ago(s.at)}` : ''}
                       </span>

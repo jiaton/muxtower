@@ -1,5 +1,6 @@
 import { WEB_LIMITS } from '@/lib/diagnostics'
 import { useWebUsage } from '@/lib/use-web-usage'
+import { textRole } from '@/components/ui/styles'
 
 const known = (value: number | null, unit: string) => (value === null ? 'unknown here' : `${value}${unit}`)
 const times = (growth: number | null) => (growth === null ? '' : `, ${growth}× since the page was loaded`)
@@ -46,7 +47,7 @@ export function Diagnostics() {
   ]
   return (
     <section className="flex flex-col gap-2" aria-label="Diagnostics">
-      <h2 className="text-sm font-medium">Diagnostics</h2>
+      <h2 className={textRole.label}>Diagnostics</h2>
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
         {rows.map(([name, value]) => (
           <div key={name} className="contents">

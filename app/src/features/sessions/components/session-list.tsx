@@ -12,6 +12,7 @@ import { AgentMark } from './agent-mark'
 import { PlaceIcon } from './place-icon'
 import type { RowContext } from './session-row'
 import { RowView, type Extra } from './session-tree'
+import { textRole } from '@/components/ui/styles'
 
 /** What a header says beside its name: how many sessions, and, while folded, how many of them need you
  *  (so folding a group never hides a prompt). */
@@ -67,7 +68,7 @@ const GroupHeader = memo(
         <FoldButton
           folded={node.folded}
           onToggle={node.foldable ? (header) => toggle(node.key, header) : undefined}
-          className="gap-2 border-b border-border bg-bg px-3 py-1.5 text-xs font-medium tracking-wide text-fg-muted uppercase hover:text-fg sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0"
+          className={`${textRole.eyebrow} gap-2 border-b border-border bg-bg px-3 py-1.5 hover:text-fg sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0`}
         >
           {node.sectioned ? <Monitor aria-hidden /> : node.implies.agent ? <AgentMark decorative agent={node.label} /> : null}
           <span className="truncate">{node.label}</span>
@@ -91,7 +92,7 @@ const SectionHeader = memo(
         <FoldButton
           folded={node.folded}
           onToggle={node.foldable ? (header) => toggle(node.key, header) : undefined}
-          className="gap-1.5 bg-surface-muted px-3 py-1 text-xs text-fg-muted hover:text-fg sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0"
+          className={`${textRole.meta} gap-1.5 bg-surface-muted px-3 py-1 hover:text-fg sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0`}
           indent={node.depth * INDENT_REM}
         >
           <PlaceIcon kind={node.placeKind} />

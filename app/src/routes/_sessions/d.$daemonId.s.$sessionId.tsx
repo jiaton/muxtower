@@ -39,6 +39,7 @@ import type { Session } from '@/lib/api/types'
 import { useOutgoing } from '@/lib/use-outbox'
 import { directPlace, useFallback } from '@/lib/daemons/fallback'
 import { useDaemonsStore } from '@/lib/daemons/store'
+import { textRole } from '@/components/ui/styles'
 
 export const Route = createFileRoute('/_sessions/d/$daemonId/s/$sessionId')({ component: SessionPage })
 
@@ -216,7 +217,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
                   <button
                     type="button"
                     onClick={() => setView('conversation')}
-                    className="flex shrink-0 items-center gap-2 border-b border-border bg-surface-muted px-3 py-1.5 text-left text-xs text-fg-muted hover:text-fg sm:px-4"
+                    className={`${textRole.meta} flex shrink-0 items-center gap-2 border-b border-border bg-surface-muted px-3 py-1.5 text-left hover:text-fg sm:px-4`}
                   >
                     <History className="size-3.5 shrink-0" aria-hidden />
                     <span className="min-w-0 flex-1 truncate">Full-screen app: earlier output is in the conversation</span>

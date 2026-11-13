@@ -13,6 +13,7 @@ import { AddDaemonDialog } from '@/features/pairing/components/add-daemon-dialog
 import { ShareDevicesDialog } from '@/features/pairing/components/share-devices-dialog'
 import { PushToggle } from '@/features/push/components/push-toggle'
 import { useOwnDaemons, usePairedDaemons } from '@/lib/daemons/store'
+import { textRole } from '@/components/ui/styles'
 
 export const Route = createFileRoute('/daemons')({ component: DaemonsPage })
 
@@ -33,7 +34,7 @@ function DaemonsPage() {
         }
       />
       <PaneBody>
-        <div className="mx-auto flex w-full max-w-2xl flex-col gap-5 p-4">
+        <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
           <PresetWarning />
           {daemons.length ? (
             <div className="flex flex-col gap-3">
@@ -63,8 +64,8 @@ function DaemonsPage() {
           <VoiceCommandsSettings />
           {paired.length ? (
             <section className="flex flex-col gap-2">
-              <h2 className="text-sm font-medium">Other devices</h2>
-              <p className="text-sm text-fg-muted">
+              <h2 className={textRole.label}>Other devices</h2>
+              <p className={textRole.hint}>
                 Show a QR code that pairs another phone or computer with every daemon here, without typing anything.
               </p>
               <ShareDevicesDialog />

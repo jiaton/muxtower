@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import type { Dictation } from '../hooks/use-dictation'
 import { MAX_SECONDS } from '../hooks/use-recorder'
+import { textRole } from '@/components/ui/styles'
 
 const BARS = 48 // the last ~2.4 s of loudness, newest on the right
 const TICK_MS = 50
@@ -73,14 +74,14 @@ export function VoiceBar({ dictation }: { dictation: Dictation }) {
         <X />
       </Button>
       {transcribing ? (
-        <p className="flex min-w-0 flex-1 items-center gap-2 text-sm text-fg-muted">
+        <p className={`${textRole.hint} flex min-w-0 flex-1 items-center gap-2`}>
           <LoaderCircle className="size-4 animate-spin" aria-hidden /> Transcribing…
         </p>
       ) : (
         <>
           <span className="size-2 shrink-0 animate-pulse rounded-full bg-danger" aria-hidden />
           <canvas ref={canvas} className="h-7 min-w-0 flex-1 text-accent" aria-hidden />
-          <span ref={time} className="shrink-0 text-xs text-fg-muted tabular-nums">
+          <span ref={time} className={`${textRole.meta} shrink-0 tabular-nums`}>
             0:00
           </span>
         </>

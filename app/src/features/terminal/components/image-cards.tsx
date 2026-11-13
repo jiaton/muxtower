@@ -1,5 +1,6 @@
 import { LoaderCircle, X } from 'lucide-react'
 import type { Attachment } from '../images'
+import { surface } from '@/components/ui/styles'
 
 /** The pictures a message carries, above what is typed, each with its own remove; a placeholder for each
  *  still being made small. */
@@ -8,7 +9,7 @@ export function ImageCards({ items, pending = 0, onRemove }: { items: Attachment
     <ul aria-label="Pictures" className="flex gap-2 overflow-x-auto px-2 pt-2">
       {items.map((item, i) => (
         <li key={item.id} className="relative shrink-0">
-          <img src={item.preview} alt={`Picture ${i + 1}`} className="size-14 rounded-md border border-border object-cover" />
+          <img src={item.preview} alt={`Picture ${i + 1}`} className={`${surface.outlined} size-14 object-cover`} />
           <button
             type="button"
             aria-label={`Remove picture ${i + 1}`}
@@ -22,7 +23,7 @@ export function ImageCards({ items, pending = 0, onRemove }: { items: Attachment
       ))}
       {Array.from({ length: pending }, (_, i) => (
         <li key={`pending-${i}`} aria-label="Adding a picture" className="shrink-0">
-          <div className="flex size-14 animate-pulse items-center justify-center rounded-md border border-border bg-surface-muted">
+          <div className={`${surface.muted} flex size-14 animate-pulse items-center justify-center`}>
             <LoaderCircle className="size-5 animate-spin text-fg-muted" aria-hidden />
           </div>
         </li>

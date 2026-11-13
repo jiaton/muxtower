@@ -8,6 +8,7 @@ import type { ShownOutgoing } from '@/lib/outbox'
 import { conversationRows, toolName, toolRunSummary } from '../model/rows'
 import { ConversationImages } from './conversation-images'
 import { NextStepCard } from './next-step-card'
+import { textRole } from '@/components/ui/styles'
 
 const BOTTOM_SLACK = 24
 
@@ -55,7 +56,7 @@ const ToolRun = memo(function ToolRun({ tools, source }: { tools: ConversationIt
         <ul className="mt-2 flex flex-col gap-2 border-l border-border pl-3">
           {tools.map((tool) => (
             <li key={tool.seq} className="flex flex-col gap-1">
-              <p className="flex items-center gap-1.5 text-xs text-fg-muted">
+              <p className={`${textRole.meta} flex items-center gap-1.5`}>
                 {tool.status === 'running' ? <LoaderCircle className="size-3.5 animate-spin" aria-label="Running" /> : null}
                 {tool.status === 'error' ? <CircleX className="size-3.5 text-danger" aria-label="Failed" /> : null}
                 <span className="font-medium">{toolName(tool)}</span>

@@ -4,6 +4,7 @@ import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useDictionary, useSaveDictionary, type Dictionary } from '../api/use-dictionary'
+import { surface, textRole } from '@/components/ui/styles'
 
 /**
  * The voice dictionary, under "Voice input" in the hub's settings: words speech to text should know (they
@@ -39,17 +40,17 @@ export function DictionarySettings({ daemonId }: { daemonId: string }) {
     put({ corrections: corrections.map((c, j) => (j === i ? { ...c, ...change } : c)) })
 
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-border px-3 py-3" aria-label="Dictionary">
+    <div className={`${surface.outlined} flex flex-col gap-3 px-3 py-3`} aria-label="Dictionary">
       <div>
-        <h3 className="text-sm font-medium">Dictionary</h3>
-        <p className="text-xs text-fg-muted">
+        <h3 className={textRole.label}>Dictionary</h3>
+        <p className={textRole.meta}>
           Words speech to text should know, and corrections of what it still writes wrong. Kept on this hub, for every device.
         </p>
       </div>
       {save.isError ? <Banner tone="error">{save.error.message}</Banner> : null}
 
       <section aria-label="Words" className="flex flex-col gap-2">
-        <h4 className="text-xs font-medium text-fg-muted">Words</h4>
+        <h4 className={`${textRole.meta} font-medium`}>Words</h4>
         {words.length ? (
           <ul className="flex flex-wrap gap-1.5">
             {words.map((w) => (
@@ -81,7 +82,7 @@ export function DictionarySettings({ daemonId }: { daemonId: string }) {
             <Plus /> Add
           </Button>
         </form>
-        <p className={fit.words_in_prompt < fit.words ? 'text-xs text-state-permission' : 'text-xs text-fg-muted'}>
+        <p className={fit.words_in_prompt < fit.words ? 'text-xs text-state-permission' : textRole.meta}>
           {fit.words_in_prompt < fit.words
             ? `Only the first ${fit.words_in_prompt} of ${fit.words} words fit in what speech to text reads of its prompt; the rest are left out. Put the most important first.`
             : fit.words
@@ -91,7 +92,7 @@ export function DictionarySettings({ daemonId }: { daemonId: string }) {
       </section>
 
       <section aria-label="Corrections" className="flex flex-col gap-2">
-        <h4 className="text-xs font-medium text-fg-muted">Corrections, applied in order</h4>
+        <h4 className={`${textRole.meta} font-medium`}>Corrections, applied in order</h4>
         <ul className="flex flex-col gap-1.5">
           {corrections.map((c, i) => (
             <li key={`${i}:${c.heard}`} className="flex items-center gap-2">
@@ -140,9 +141,7 @@ export function DictionarySettings({ daemonId }: { daemonId: string }) {
             <Plus /> Add
           </Button>
         </form>
-        <p className="text-xs text-fg-muted">
-          Case aside, whole words or phrases (in Chinese or Japanese, anywhere); each part is replaced once.
-        </p>
+        <p className={textRole.meta}>Case aside, whole words or phrases (in Chinese or Japanese, anywhere); each part is replaced once.</p>
       </section>
     </div>
   )
@@ -164,17 +163,13 @@ export function DictionaryQuickAdd({ daemonId, word: selected, onClose }: { daem
     save.mutate({ words: [...(current.words ?? []), word.trim()], corrections }, { onSuccess: onClose })
   }
   return (
-    <form
-      aria-label="Add to dictionary"
-      className="flex flex-wrap items-end gap-2 rounded-md border border-border bg-surface-muted px-2 py-2 text-sm"
-      onSubmit={submit}
-    >
+    <form aria-label="Add to dictionary" className={`${surface.muted} flex flex-wrap items-end gap-2 px-2 py-2 text-sm`} onSubmit={submit}>
       <label className="flex min-w-32 flex-1 flex-col gap-1">
-        <span className="text-xs text-fg-muted">Word</span>
+        <span className={textRole.meta}>Word</span>
         <Input value={word} onChange={(e) => setWord(e.target.value)} maxLength={80} autoFocus />
       </label>
       <label className="flex min-w-32 flex-1 flex-col gap-1">
-        <span className="text-xs text-fg-muted">Often heard as (optional)</span>
+        <span className={textRole.meta}>Often heard as (optional)</span>
         <Input value={heard} onChange={(e) => setHeard(e.target.value)} maxLength={80} placeholder="what it writes instead" />
       </label>
       <div className="flex gap-1">

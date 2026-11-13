@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { NodeInfo } from '@/lib/api/types'
 import { useSetNodeAddress } from '../api/use-nodes'
+import { textRole } from '@/components/ui/styles'
 
 /** Where this device reaches a node itself while the hub is down: the address it reports (its
  *  `public_url`, or what `tailscale serve` serves it at), or one the owner sets here. https only. */
@@ -37,12 +38,18 @@ export function NodeAddress({ daemonId, node }: { daemonId: string; node: NodeIn
       </form>
     )
   return (
-    <span className="flex items-center gap-1 text-xs text-fg-muted">
+    <span className={`${textRole.meta} flex items-center gap-1`}>
       <span className="min-w-0 truncate">
         {shown ? `direct: ${shown}${node.direct_url ? '' : ' (reported)'}` : 'no direct address: not reachable while the hub is down'}
       </span>
       {http ? <span className="shrink-0 text-state-permission">· http cannot be reached from the app (https only)</span> : null}
-      <Button variant="ghost" size="icon-sm" aria-label={`Set the direct address of ${node.name}`} title="Set its address" onClick={() => setEditing(true)}>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={`Set the direct address of ${node.name}`}
+        title="Set its address"
+        onClick={() => setEditing(true)}
+      >
         <Pencil />
       </Button>
     </span>

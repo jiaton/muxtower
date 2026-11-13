@@ -10,6 +10,8 @@ import { useSessionEntries } from '../hooks/use-session-entries'
 import { NO_ENVIRONMENT, deviceOf, folderOf } from '../model/facets'
 import { foldersAround } from '../model/folders'
 import { facetsOf } from '../model/counts'
+import { textRole } from '@/components/ui/styles'
+import { Label } from '@/components/ui/label'
 
 const count = (n: number) => `${n} session${n === 1 ? '' : 's'}`
 
@@ -26,12 +28,18 @@ export function PlaceDialog({ daemonId, session, onClose }: { daemonId: string; 
   const [folder, setFolder] = useState(session.placement?.folder ?? folderOf(session) ?? '')
   const folders = devices.find((d) => d.label === device.trim())?.folders ?? []
   // Folders already listed on that device that this one lies in: one tap files it there, with the rest.
-  const around = foldersAround(folderOf({ ...session, cwd: folder.trim() }) ?? folder.trim(), folders.map((f) => f.label))
+  const around = foldersAround(
+    folderOf({ ...session, cwd: folder.trim() }) ?? folder.trim(),
+    folders.map((f) => f.label),
+  )
   const save = () => place.mutate({ machine: device.trim() || null, folder: folder.trim() || null }, { onSuccess: onClose })
 
   return (
     <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent title={`Where ${session.name} runs`} description="Its source does not say. Placed here, it is listed there on every device.">
+      <DialogContent
+        title={`Where ${session.name} runs`}
+        description="Its source does not say. Placed here, it is listed there on every device."
+      >
         <form
           className="flex flex-col gap-3"
           onSubmit={(e) => {
@@ -39,7 +47,7 @@ export function PlaceDialog({ daemonId, session, onClose }: { daemonId: string; 
             save()
           }}
         >
-          <label className="flex flex-col gap-1.5 text-sm font-medium">
+          <Label>
             Device
             <SuggestInput
               placeholder="Mac"
@@ -48,9 +56,9 @@ export function PlaceDialog({ daemonId, session, onClose }: { daemonId: string; 
               maxLength={80}
               suggestions={devices.map((d) => ({ value: d.label, hint: count(d.count) }))}
             />
-          </label>
-          <label className="flex flex-col gap-1.5 text-sm font-medium">
-            Folder <span className="font-normal text-fg-muted">optional</span>
+          </Label>
+          <Label>
+            Folder <span className={textRole.aside}>optional</span>
             <SuggestInput
               placeholder="~/code/project"
               value={folder}
@@ -59,9 +67,9 @@ export function PlaceDialog({ daemonId, session, onClose }: { daemonId: string; 
               suggestions={folders.map((f) => ({ value: f.label, hint: count(f.count) }))}
               className="font-mono"
             />
-          </label>
+          </Label>
           {around.length ? (
-            <div className="flex flex-wrap items-center gap-1.5 text-xs text-fg-muted">
+            <div className={`${textRole.meta} flex flex-wrap items-center gap-1.5`}>
               Inside
               {around.map((parent) => (
                 <Button key={parent} type="button" variant="secondary" size="sm" className="font-mono" onClick={() => setFolder(parent)}>
@@ -80,7 +88,7 @@ export function PlaceDialog({ daemonId, session, onClose }: { daemonId: string; 
             >
               <ScanSearch /> {detect.isPending ? 'Reading its log…' : 'Detect the folder'}
             </Button>
-            <p className="text-xs text-fg-muted">
+            <p className={textRole.meta}>
               {detect.data
                 ? detect.data.folder
                   ? `Its tool calls ran in ${detect.data.folder}. Save to place it there.`

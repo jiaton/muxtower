@@ -8,6 +8,7 @@ import { alsoWritingText } from '../model/writes'
 import { AgentMark } from './agent-mark'
 import { NOTIFY_LEVELS } from './notify-items'
 import { StatusIcon } from './status-icon'
+import { textRole } from '@/components/ui/styles'
 
 export interface RowContext {
   /** The list is already narrowed to one device / folder: do not repeat it on every row. */
@@ -103,7 +104,7 @@ export function SessionRow({
               {ago(session.updated_at)}
             </time>
           </div>
-          <p className="flex items-center gap-1 text-xs text-fg-muted">
+          <p className={`${textRole.meta} flex items-center gap-1`}>
             {context.showAgent ? <AgentMark agent={agentOf(session)} className="text-fg" /> : null}
             <span className="min-w-0 truncate">
               {session.offline ? <span className="font-medium text-fg">Offline · </span> : null}

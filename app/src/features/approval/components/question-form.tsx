@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { PendingQuestion } from '@/lib/api/types'
 import { cn } from '@/lib/cn'
+import { textRole } from '@/components/ui/styles'
 
 /** Whether a prompt's questions need a form: more than one, or one taking several answers. A single
  *  choice is one tap on its option instead. */
@@ -34,9 +35,9 @@ export function QuestionForm({
       {questions.map((q, index) => (
         <fieldset key={`${index}-${q.question}`} className="flex flex-col gap-2">
           <legend className="mb-1 flex flex-col gap-0.5">
-            {q.header ? <span className="text-xs font-medium tracking-wide text-fg-muted uppercase">{q.header}</span> : null}
+            {q.header ? <span className={textRole.eyebrow}>{q.header}</span> : null}
             <span className="font-medium">{q.question}</span>
-            {q.multi_select ? <span className="text-xs text-fg-muted">Pick any</span> : null}
+            {q.multi_select ? <span className={textRole.meta}>Pick any</span> : null}
           </legend>
           {q.options.map((option) => {
             const on = picked[index].includes(option.label)
@@ -58,7 +59,7 @@ export function QuestionForm({
                 <span className="flex min-w-0 flex-col">
                   <span>{option.label}</span>
                   {option.description && option.description !== option.label ? (
-                    <span className="text-xs text-fg-muted">{option.description}</span>
+                    <span className={textRole.meta}>{option.description}</span>
                   ) : null}
                 </span>
               </button>

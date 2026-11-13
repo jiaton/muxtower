@@ -8,6 +8,7 @@ import { Segmented } from '@/components/ui/segmented'
 import { Switch } from '@/components/ui/switch'
 import type { SettingView } from '@/lib/api/types'
 import { useChangeSettings, useMachineSettings } from '../api/use-settings'
+import { surface, textRole } from '@/components/ui/styles'
 
 /** The settings in their sections, in the order the daemon lists them. */
 export function sectionsOf(settings: SettingView[]): { section: string; settings: SettingView[] }[] {
@@ -23,27 +24,27 @@ export function SettingsForm({ daemonId, node, extras }: { daemonId: string; nod
   const listed = useMachineSettings(daemonId, node)
   const change = useChangeSettings(daemonId, node)
   if (listed.error) return <Banner tone="error">{listed.error.message}</Banner>
-  if (!listed.data) return <p className="text-sm text-fg-muted">Loading…</p>
+  if (!listed.data) return <p className={textRole.hint}>Loading…</p>
   const { machine, settings } = listed.data
   const pending = settings.filter((s) => s.pending)
   const set = (key: string, value: unknown) => change.mutate({ [key]: value })
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       {pending.length ? (
         <Banner tone="warning">
           <RotateCcw />
           <span>
-            {pending.length === 1 ? `${pending[0].label} applies` : `${pending.length} changes apply`} when muxtower restarts on {machine}
-            : restart its service, or stop <code className="font-mono">muxtower serve</code> and start it again.
+            {pending.length === 1 ? `${pending[0].label} applies` : `${pending.length} changes apply`} when muxtower restarts on {machine}:
+            restart its service, or stop <code className="font-mono">muxtower serve</code> and start it again.
           </span>
         </Banner>
       ) : null}
       {change.error ? <Banner tone="error">{change.error.message}</Banner> : null}
       {sectionsOf(settings).map(({ section, settings: list }) => (
         <section key={section} aria-label={section} className="flex flex-col gap-1">
-          <h2 className="text-xs font-medium tracking-wide text-fg-muted uppercase">{section}</h2>
-          <ul className="flex flex-col divide-y divide-border rounded-md border border-border bg-surface">
+          <h2 className={textRole.eyebrow}>{section}</h2>
+          <ul className={`${surface.list} flex flex-col bg-surface`}>
             {list.map((s) => (
               <SettingRow key={s.key} setting={s} busy={change.isPending} onChange={(value) => set(s.key, value)} />
             ))}
@@ -61,7 +62,7 @@ function SettingRow({ setting: s, busy, onChange }: { setting: SettingView; busy
     <li className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:gap-4">
       <div className="min-w-0 flex-1">
         <p className="text-sm">{s.label}</p>
-        <p className="text-xs text-fg-muted">
+        <p className={textRole.meta}>
           {locked ? (
             <span className="inline-flex items-center gap-1">
               <FileLock2 className="size-3" aria-hidden /> Set by the config file (<code className="font-mono">{s.key}</code>)
@@ -74,7 +75,13 @@ function SettingRow({ setting: s, busy, onChange }: { setting: SettingView; busy
       <div className="flex shrink-0 items-center gap-1">
         <Control setting={s} disabled={locked || busy} onChange={onChange} />
         {s.source === 'app' ? (
-          <Button variant="ghost" size="icon-sm" aria-label={`Back to the default for ${s.label}`} title="Back to the default" onClick={() => onChange(null)}>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`Back to the default for ${s.label}`}
+            title="Back to the default"
+            onClick={() => onChange(null)}
+          >
             <RotateCcw />
           </Button>
         ) : null}
@@ -84,13 +91,17 @@ function SettingRow({ setting: s, busy, onChange }: { setting: SettingView; busy
 }
 
 function Control({ setting: s, disabled, onChange }: { setting: SettingView; disabled: boolean; onChange: (value: unknown) => void }) {
-  if (s.kind === 'bool')
-    return <Switch checked={Boolean(s.value)} disabled={disabled} onCheckedChange={onChange} aria-label={s.label} />
+  if (s.kind === 'bool') return <Switch checked={Boolean(s.value)} disabled={disabled} onCheckedChange={onChange} aria-label={s.label} />
   if (s.kind === 'choice')
     return disabled ? (
       <span className="text-sm">{String(s.value)}</span>
     ) : (
-      <Segmented aria-label={s.label} value={String(s.value)} options={s.choices.map((c) => ({ value: c, label: c }))} onChange={onChange} />
+      <Segmented
+        aria-label={s.label}
+        value={String(s.value)}
+        options={s.choices.map((c) => ({ value: c, label: c }))}
+        onChange={onChange}
+      />
     )
   return <TextControl key={String(s.value)} setting={s} disabled={disabled} onChange={onChange} />
 }

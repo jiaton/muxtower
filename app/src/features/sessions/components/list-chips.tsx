@@ -6,6 +6,8 @@ import type { Facets } from '../model/counts'
 import { AgentMark } from './agent-mark'
 import { ASIDE_VIEWS, VIEWS, type SessionQuery, type View } from '../model/query'
 import { scopeSearch, type ListSearch, type Scope } from '../model/search'
+import { Divider } from '@/components/ui/divider'
+import { textRole } from '@/components/ui/styles'
 
 const VIEW_CHIP: Partial<Record<View, string>> = { all: 'All', needs: 'Needs you', unread: 'Unread', working: 'Working' }
 
@@ -55,14 +57,14 @@ export function ListChips({
             {VIEW_CHIP[view]}
           </Chip>
         ))}
-        {devices.length ? <span aria-hidden className="my-1.5 w-px shrink-0 bg-border" /> : null}
+        {devices.length ? <Divider vertical /> : null}
         {devices.map((d) => (
           <Chip key={d.label} search={search} scope={{ device: d.label }} current={deviceOnly && query.device === d.label} count={d.count}>
             <Monitor className="size-3.5 shrink-0" aria-hidden />
             <span className="max-w-32 truncate">{d.label}</span>
           </Chip>
         ))}
-        {facets.agents.length ? <span aria-hidden className="my-1.5 w-px shrink-0 bg-border" /> : null}
+        {facets.agents.length ? <Divider vertical /> : null}
         {facets.agents.map((a) => (
           <Chip key={a.label} search={search} scope={{ agent: a.label }} current={agentOnly && query.agent === a.label} count={a.count}>
             <AgentMark decorative agent={a.label} />
@@ -98,7 +100,7 @@ export function Chip({
       aria-current={current}
       className={cn(
         rest.className,
-        'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-sm font-medium whitespace-nowrap transition-colors',
+        `${textRole.label} inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 whitespace-nowrap transition-colors`,
         current ? 'border-fg bg-fg text-bg' : 'border-border bg-surface text-fg hover:bg-surface-muted',
       )}
     >

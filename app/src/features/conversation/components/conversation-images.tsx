@@ -2,6 +2,7 @@ import { ImageOff, LoaderCircle } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { useSessionImage } from '../api/use-session-image'
+import { surface, textRole } from '@/components/ui/styles'
 
 const baseName = (path: string) => path.split('/').pop() ?? path
 
@@ -18,7 +19,9 @@ function SessionImage({ daemonId, sessionId, path }: { daemonId: string; session
   const [open, setOpen] = useState(false)
   if (!url)
     return (
-      <span className="flex h-24 w-32 flex-col items-center justify-center gap-1 rounded-md border border-border bg-surface-muted px-2 text-center text-xs text-fg-muted">
+      <span
+        className={`${textRole.meta} flex h-24 w-32 flex-col items-center justify-center gap-1 rounded-md border border-border bg-surface-muted px-2 text-center`}
+      >
         {image.isError ? <ImageOff className="size-4" aria-hidden /> : <LoaderCircle className="size-4 animate-spin" aria-hidden />}
         <span className="w-full truncate">{image.isError ? `${baseName(path)} not available` : baseName(path)}</span>
       </span>
@@ -26,7 +29,7 @@ function SessionImage({ daemonId, sessionId, path }: { daemonId: string; session
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button type="button" title={path} className="overflow-hidden rounded-md border border-border bg-surface-muted">
+        <button type="button" title={path} className={`${surface.muted} overflow-hidden`}>
           <img src={url} alt={baseName(path)} className="block max-h-48 max-w-full object-contain" />
         </button>
       </DialogTrigger>

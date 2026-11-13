@@ -10,6 +10,7 @@ import { cn } from '@/lib/cn'
 import { groupPicks } from '../model/chip-picks'
 import { MAX_NAME, projectLabel, type ChipGroup, type ChipMembers } from '../model/chip-groups'
 import type { SessionEntry } from '../model/facets'
+import { textRole } from '@/components/ui/styles'
 
 const TONE: Record<string, 'warn' | 'error' | 'ok'> = { needs: 'warn', error: 'error', working: 'ok' }
 
@@ -92,7 +93,7 @@ export function ChipGroupDialog({
                         onChange={() => setPicks(picks.toggleProject(project))}
                       />
                       <span className="min-w-0 flex-1 truncate">{projectLabel(project)}</span>
-                      <span className="text-xs text-fg-muted tabular-nums">{picks.sessionsOf(project).length}</span>
+                      <span className={`${textRole.meta} tabular-nums`}>{picks.sessionsOf(project).length}</span>
                     </label>
                   </div>
                   {expanded
@@ -108,14 +109,14 @@ export function ChipGroupDialog({
                           />
                           <StatusDot tone={TONE[picks.status(session)] ?? 'idle'} label={picks.status(session)} />
                           <span className="min-w-0 flex-1 truncate">{session.name}</span>
-                          <span className="max-w-24 shrink-0 truncate text-xs text-fg-muted">{session.machine ?? daemon.name}</span>
+                          <span className={`${textRole.meta} max-w-24 shrink-0 truncate`}>{session.machine ?? daemon.name}</span>
                         </label>
                       ))
                     : null}
                 </div>
               )
             })}
-            {!shown.length ? <p className="px-2 py-3 text-sm text-fg-muted">Nothing matches.</p> : null}
+            {!shown.length ? <p className={`${textRole.hint} px-2 py-3`}>Nothing matches.</p> : null}
           </div>
           {error ? <Banner tone="error">{error.message}</Banner> : null}
           <Button type="submit" disabled={pending || !name.trim() || picks.empty()}>
