@@ -1,4 +1,4 @@
-import { ArrowDown, ChevronRight, CircleX, LoaderCircle, RotateCw, X } from 'lucide-react'
+import { ArrowDown, CircleX, RotateCw, X } from 'lucide-react'
 import { memo, useLayoutEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Markdown } from '@/components/ui/markdown'
@@ -8,7 +8,8 @@ import type { ShownOutgoing } from '@/lib/outbox'
 import { conversationRows, toolName, toolRunSummary } from '../model/rows'
 import { ConversationImages } from './conversation-images'
 import { NextStepCard } from './next-step-card'
-import { textRole } from '@/components/ui/styles'
+import { box, text, textRole } from '@/components/ui/styles'
+import { Chevron, Spinner } from '@/components/ui/indicators'
 
 const BOTTOM_SLACK = 24
 
@@ -39,31 +40,33 @@ const ToolRun = memo(function ToolRun({ tools, source }: { tools: ConversationIt
   const summary = toolRunSummary(tools)
   return (
     <div>
-      <button
-        type="button"
+      <Button
+        variant="plain"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className="flex max-w-full items-start gap-1.5 text-left text-fg-muted hover:text-fg"
+        className={`${text({ tone: 'muted', hoverFg: true })} flex max-w-full items-start gap-1.5 text-left`}
       >
-        {summary.running ? <LoaderCircle className="mt-0.5 size-4 shrink-0 animate-spin" aria-hidden /> : null}
+        {summary.running ? <Spinner className="mt-0.5" /> : null}
         <span className="min-w-0">
           {summary.text}
-          {summary.failed ? <span className="text-danger"> ({summary.failed} failed)</span> : null}
+          {summary.failed ? <span className={text({ tone: 'danger' })}> ({summary.failed} failed)</span> : null}
         </span>
-        <ChevronRight className={cn('mt-0.5 size-4 shrink-0 transition-transform', open && 'rotate-90')} aria-hidden />
-      </button>
+        <Chevron open={open} className="mt-0.5 size-4" />
+      </Button>
       {open ? (
-        <ul className="mt-2 flex flex-col gap-2 border-l border-border pl-3">
+        <ul className={`${box({ edge: 'left' })} mt-2 flex flex-col gap-2 pl-3`}>
           {tools.map((tool) => (
             <li key={tool.seq} className="flex flex-col gap-1">
               <p className={`${textRole.meta} flex items-center gap-1.5`}>
-                {tool.status === 'running' ? <LoaderCircle className="size-3.5 animate-spin" aria-label="Running" /> : null}
-                {tool.status === 'error' ? <CircleX className="size-3.5 text-danger" aria-label="Failed" /> : null}
-                <span className="font-medium">{toolName(tool)}</span>
+                {tool.status === 'running' ? <Spinner className="size-3.5" label="Running" /> : null}
+                {tool.status === 'error' ? <CircleX className={`${text({ tone: 'danger' })} size-3.5`} aria-label="Failed" /> : null}
+                <span className={text({ weight: 'medium' })}>{toolName(tool)}</span>
                 {tool.description ? <span className="min-w-0 truncate">{tool.description}</span> : null}
               </p>
               {tool.text ? (
-                <pre className="max-h-40 overflow-auto rounded-sm bg-surface-muted px-2 py-1 font-mono text-xs break-all whitespace-pre-wrap">
+                <pre
+                  className={`${box({ radius: 'sm', ground: 'muted' })} ${text({ mono: true, size: 'xs' })} max-h-40 overflow-auto px-2 py-1 break-all whitespace-pre-wrap`}
+                >
                   {tool.text}
                 </pre>
               ) : null}
@@ -82,7 +85,9 @@ const ItemView = memo(function ItemView({ item, source }: { item: ConversationIt
   if (item.kind === 'prompt')
     return (
       <div className="flex flex-col items-end gap-2">
-        <p className="rounded-lg bg-accent px-3 py-2 whitespace-pre-wrap text-accent-fg">{item.text}</p>
+        <p className={`${box({ radius: 'lg', ground: 'accent' })} ${text({ tone: 'onAccent' })} px-3 py-2 whitespace-pre-wrap`}>
+          {item.text}
+        </p>
         <Images source={source} items={[item]} />
       </div>
     )
@@ -95,11 +100,11 @@ const ItemView = memo(function ItemView({ item, source }: { item: ConversationIt
     )
   const label = item.kind === 'question' ? 'Question' : (item.tool_name ?? 'Approval')
   return (
-    <div className="rounded-md border border-state-permission px-3 py-2 text-sm">
-      <p className="font-medium">
-        {label} · <span className="text-fg-muted">{item.status}</span>
+    <div className={`${box({ outline: 'warning', radius: 'md' })} ${text({ size: 'sm' })} px-3 py-2`}>
+      <p className={text({ weight: 'medium' })}>
+        {label} · <span className={text({ tone: 'muted' })}>{item.status}</span>
       </p>
-      {item.text ? <pre className="mt-1 font-mono text-xs whitespace-pre-wrap">{item.text}</pre> : null}
+      {item.text ? <pre className={`${text({ mono: true, size: 'xs' })} mt-1 whitespace-pre-wrap`}>{item.text}</pre> : null}
     </div>
   )
 }, sameItem)
@@ -129,24 +134,36 @@ function OutgoingView({
     <div className="flex flex-col items-end gap-1" data-outgoing={message.state}>
       <p
         className={cn(
-          'rounded-lg px-3 py-2 whitespace-pre-wrap',
-          message.state === 'undelivered' ? 'border border-dashed border-border text-fg-muted' : 'bg-accent text-accent-fg opacity-50',
+          `${box({ radius: 'lg' })} px-3 py-2 whitespace-pre-wrap`,
+          message.state === 'undelivered'
+            ? `${box({ outline: 'default', dashed: true })} ${text({ tone: 'muted' })}`
+            : `${box({ ground: 'accent', faded: 'half' })} ${text({ tone: 'onAccent' })}`,
         )}
       >
         {message.text}
       </p>
-      <p className={cn('flex items-center gap-1 text-xs', message.state === 'undelivered' ? 'text-state-permission' : 'text-fg-muted')}>
-        {message.state === 'sending' ? <LoaderCircle className="size-3 animate-spin" aria-hidden /> : null}
+      <p
+        className={cn(
+          `${text({ size: 'xs' })} flex items-center gap-1`,
+          message.state === 'undelivered' ? text({ tone: 'warning' }) : text({ tone: 'muted' }),
+        )}
+      >
+        {message.state === 'sending' ? <Spinner className="size-3" /> : null}
         {OUTGOING_LABEL[message.state]}
         {message.state === 'undelivered' && onResend ? (
-          <Button size="sm" variant="ghost" className="h-6 px-1.5 text-xs" onClick={() => onResend(message)}>
+          <Button size="sm" variant="ghost" className={`${text({ size: 'xs' })} h-6 px-1.5`} onClick={() => onResend(message)}>
             <RotateCw className="size-3" aria-hidden /> Resend
           </Button>
         ) : null}
         {stuck && onDismiss ? (
-          <button type="button" aria-label="Dismiss" className="rounded-sm p-0.5 hover:text-fg" onClick={() => onDismiss(message.id)}>
+          <Button
+            variant="plain"
+            aria-label="Dismiss"
+            className={`${box({ radius: 'sm' })} ${text({ hoverFg: true })} p-0.5`}
+            onClick={() => onDismiss(message.id)}
+          >
             <X className="size-3" aria-hidden />
-          </button>
+          </Button>
         ) : null}
       </p>
     </div>
@@ -172,33 +189,33 @@ export function ConversationView({
   onReply?: (text: string) => void
   source?: ConversationSource
 }) {
-  const box = useRef<HTMLDivElement>(null)
+  const scroller = useRef<HTMLDivElement>(null)
   const atBottom = useRef(true)
   const [behind, setBehind] = useState(false)
   const shown = conversationRows(items)
 
   useLayoutEffect(() => {
-    const el = box.current
+    const el = scroller.current
     if (!el) return
     if (atBottom.current) el.scrollTop = el.scrollHeight
     else setBehind(true)
   }, [items, pending.length])
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-surface">
+    <div className={`${box({ ground: 'surface' })} relative flex min-h-0 flex-1 flex-col overflow-hidden`}>
       <div
-        ref={box}
+        ref={scroller}
         role="log"
         aria-label="Conversation"
         tabIndex={0}
-        className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-y-contain p-3 text-sm"
+        className={`${text({ size: 'sm' })} flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-y-contain p-3`}
         onScroll={() => {
-          const el = box.current!
+          const el = scroller.current!
           atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < BOTTOM_SLACK
           if (atBottom.current) setBehind(false)
         }}
       >
-        {shown.length === 0 && pending.length === 0 ? <p className="text-fg-muted">No messages yet.</p> : null}
+        {shown.length === 0 && pending.length === 0 ? <p className={text({ tone: 'muted' })}>No messages yet.</p> : null}
         {shown.map((row) =>
           row.kind === 'tools' ? (
             <ToolRun key={`t${row.items[0].seq}`} tools={row.items} source={source} />
@@ -218,9 +235,9 @@ export function ConversationView({
         <Button
           size="sm"
           variant="secondary"
-          className="absolute right-3 bottom-3 shadow-card"
+          className={`${box({ shadow: 'card' })} absolute right-3 bottom-3`}
           onClick={() => {
-            const el = box.current!
+            const el = scroller.current!
             el.scrollTop = el.scrollHeight
             atBottom.current = true
             setBehind(false)

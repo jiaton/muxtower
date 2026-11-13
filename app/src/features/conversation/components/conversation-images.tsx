@@ -1,8 +1,10 @@
-import { ImageOff, LoaderCircle } from 'lucide-react'
+import { ImageOff } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { useSessionImage } from '../api/use-session-image'
-import { surface, textRole } from '@/components/ui/styles'
+import { box, surface, textRole } from '@/components/ui/styles'
+import { Spinner } from '@/components/ui/indicators'
+import { Button } from '@/components/ui/button'
 
 const baseName = (path: string) => path.split('/').pop() ?? path
 
@@ -20,18 +22,18 @@ function SessionImage({ daemonId, sessionId, path }: { daemonId: string; session
   if (!url)
     return (
       <span
-        className={`${textRole.meta} flex h-24 w-32 flex-col items-center justify-center gap-1 rounded-md border border-border bg-surface-muted px-2 text-center`}
+        className={`${box({ outline: 'default', radius: 'md', ground: 'muted' })} ${textRole.meta} flex h-24 w-32 flex-col items-center justify-center gap-1 px-2 text-center`}
       >
-        {image.isError ? <ImageOff className="size-4" aria-hidden /> : <LoaderCircle className="size-4 animate-spin" aria-hidden />}
+        {image.isError ? <ImageOff className="size-4" aria-hidden /> : <Spinner />}
         <span className="w-full truncate">{image.isError ? `${baseName(path)} not available` : baseName(path)}</span>
       </span>
     )
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button type="button" title={path} className={`${surface.muted} overflow-hidden`}>
+        <Button variant="plain" title={path} className={`${surface.muted} overflow-hidden`}>
           <img src={url} alt={baseName(path)} className="block max-h-48 max-w-full object-contain" />
-        </button>
+        </Button>
       </DialogTrigger>
       <DialogContent title={baseName(path)} description={path} className="sm:max-w-4xl">
         <img src={url} alt={baseName(path)} className="mx-auto max-h-[75dvh] max-w-full object-contain" />

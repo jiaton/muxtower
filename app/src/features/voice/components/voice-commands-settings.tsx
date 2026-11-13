@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { liveDetails, setLiveDetails } from '../live/feedback'
 import { chooseLanguages, chosenLanguages, PACK, packDownloaded, removePack, type Language } from '../live/kws'
 import { PACKS } from '../live/packs'
-import { surface, textRole } from '@/components/ui/styles'
+import { surface, text, textRole } from '@/components/ui/styles'
 
 // Each language's commands, as its pack says them.
 const LANGUAGES = PACKS.map((p) => ({ id: p.id, label: p.name, words: Object.values(p.say).join(', ') }))
@@ -34,19 +34,19 @@ export function VoiceCommandsSettings() {
       <ul className="flex flex-col gap-2">
         {LANGUAGES.map((l) => (
           <li key={l.id}>
-            <label className="flex items-start gap-2 text-sm">
+            <label className={`${text({ size: 'sm' })} flex items-start gap-2`}>
               <Checkbox checked={languages.includes(l.id)} onChange={(e) => toggle(l.id, e.target.checked)} aria-label={l.label} />
               <span>
-                {l.label} <span className="text-fg-muted">· {l.words}</span>
+                {l.label} <span className={text({ tone: 'muted' })}>· {l.words}</span>
               </span>
             </label>
           </li>
         ))}
       </ul>
-      <div className={`${surface.outlined} flex flex-wrap items-center gap-2 px-3 py-2 text-sm`}>
+      <div className={`${text({ size: 'sm' })} ${surface.outlined} flex flex-wrap items-center gap-2 px-3 py-2`}>
         <span className="min-w-0 flex-1">
           {PACK.name} · {(PACK.bytes / 1e6).toFixed(1)} MB ·{' '}
-          <span className="text-fg-muted">
+          <span className={text({ tone: 'muted' })}>
             {downloaded === null ? '…' : downloaded ? 'downloaded' : 'downloaded when Live first starts'}
           </span>
         </span>
@@ -56,7 +56,7 @@ export function VoiceCommandsSettings() {
           </Button>
         ) : null}
       </div>
-      <label className="flex items-start gap-2 text-sm">
+      <label className={`${text({ size: 'sm' })} flex items-start gap-2`}>
         <Checkbox
           checked={details}
           onChange={(e) => {
@@ -67,7 +67,7 @@ export function VoiceCommandsSettings() {
         />
         <span>
           Show Live details{' '}
-          <span className="text-fg-muted">
+          <span className={text({ tone: 'muted' })}>
             · how each command was heard, short transcripts that were no command, and why something was ignored
           </span>
         </span>

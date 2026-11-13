@@ -1,4 +1,4 @@
-import { ArrowDown, LoaderCircle, MoveHorizontal } from 'lucide-react'
+import { ArrowDown, MoveHorizontal } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { countRender } from '@/lib/diagnostics'
 import { Button } from '@/components/ui/button'
@@ -6,6 +6,8 @@ import { ansiToLines } from '@/lib/ansi'
 import { MAX_ROWS } from '../hooks/use-session-terminal'
 import { align, collapseGap } from '../lines'
 import { useTerminalPrefs } from '../store'
+import { box, text } from '@/components/ui/styles'
+import { Spinner } from '@/components/ui/indicators'
 
 interface Props {
   ansi: string | undefined
@@ -27,7 +29,7 @@ const SMALL_ROWS = 2
 /** Lines pushed off the top kept in place while the reader is scrolled up, at most. */
 const KEPT_ABOVE = 2000
 /**
- * The pane's output as selectable text in a natively scrolling box (pixel scrolling with momentum,
+ * The pane's output as selectable text in a natively scrolling scrollBox (pixel scrolling with momentum,
  * no tmux copy mode). Each snapshot is diffed line by line against what is shown: lines pushed off
  * the top or older lines added on top are removed/inserted, and the scroll position is corrected by
  * their height so the reader's place never jumps. At the bottom, the view follows new output.
@@ -52,9 +54,9 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
   }, [ansi, viewRows, onFit, screens])
 
   useLayoutEffect(() => {
-    const box = scroller.current
+    const scrollBox = scroller.current
     const el = body.current
-    if (!box || !el || !lines) return
+    if (!scrollBox || !el || !lines) return
     const prev = shown.current
     const { removeTop, insertTop } = align(prev, lines)
     let delta = 0
@@ -104,35 +106,35 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
     }
     shown.current = lines
 
-    setTooWide(box.scrollWidth > box.clientWidth + 2)
-    if (atBottom.current) box.scrollTop = box.scrollHeight
+    setTooWide(scrollBox.scrollWidth > scrollBox.clientWidth + 2)
+    if (atBottom.current) scrollBox.scrollTop = scrollBox.scrollHeight
     else {
-      if (delta) box.scrollTop += delta // only a real correction: a write mid-gesture stops its momentum
+      if (delta) scrollBox.scrollTop += delta // only a real correction: a write mid-gesture stops its momentum
       if (changedBelow) setBehind(true)
     }
   }, [lines])
 
-  // Fit: how many cells across and lines down this box shows at the current font size, measured again
-  // when the box resizes or fonts arrive. The probe is one line of ten cells in the same font and line
+  // Fit: how many cells across and lines down this scrollBox shows at the current font size, measured again
+  // when the scrollBox resizes or fonts arrive. The probe is one line of ten cells in the same font and line
   // height as the output (whose non-ASCII text is boxed to its cells, see lib/ansi.ts).
   useLayoutEffect(() => {
     if (lines) countRender(performance.now() - drawing.current) // after the one above has drawn it
   }, [lines])
 
   useEffect(() => {
-    const box = scroller.current
-    if (!box || !onFit) return
+    const scrollBox = scroller.current
+    if (!scrollBox || !onFit) return
     let timer: ReturnType<typeof setTimeout> | undefined
     let sent: { cols: number; rows: number } | null = null
     const measure = () => {
       // At the bottom, it stays there through the change at once (not a moment later, its last lines hidden).
-      if (atBottom.current) box.scrollTop = box.scrollHeight
+      if (atBottom.current) scrollBox.scrollTop = scrollBox.scrollHeight
       clearTimeout(timer)
       timer = setTimeout(() => {
         const line = probe.current!.getBoundingClientRect()
-        const style = getComputedStyle(box)
-        const width = box.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
-        const height = box.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
+        const style = getComputedStyle(scrollBox)
+        const width = scrollBox.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+        const height = scrollBox.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
         const cols = Math.max(20, Math.floor((width - 1) / (line.width / 10)))
         const rows = Math.min(200, Math.max(5, Math.floor(height / line.height)))
         if (sent && sent.cols === cols && Math.abs(sent.rows - rows) <= SMALL_ROWS) return
@@ -143,7 +145,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
     }
     measure()
     const observer = new ResizeObserver(measure)
-    observer.observe(box)
+    observer.observe(scrollBox)
     document.fonts?.addEventListener('loadingdone', measure)
     return () => {
       clearTimeout(timer)
@@ -153,17 +155,19 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
   }, [onFit, fontSize])
 
   const onScroll = () => {
-    const box = scroller.current!
-    atBottom.current = box.scrollHeight - box.scrollTop - box.clientHeight < BOTTOM_SLACK
+    const scrollBox = scroller.current!
+    atBottom.current = scrollBox.scrollHeight - scrollBox.scrollTop - scrollBox.clientHeight < BOTTOM_SLACK
     if (atBottom.current) setBehind(false)
-    if (box.scrollTop < box.clientHeight && onNeedMore && !loadingMore) onNeedMore()
+    if (scrollBox.scrollTop < scrollBox.clientHeight && onNeedMore && !loadingMore) onNeedMore()
   }
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-terminal-bg">
+    <div className={`${box({ ground: 'terminal' })} relative flex min-h-0 flex-1 flex-col overflow-hidden`}>
       {loadingMore ? (
-        <p className="absolute inset-x-0 top-0 z-10 flex items-center justify-center gap-2 bg-terminal-bg py-1 text-xs text-terminal-fg">
-          <LoaderCircle className="size-3 animate-spin" aria-hidden /> Loading older output…
+        <p
+          className={`${box({ ground: 'terminal' })} ${text({ size: 'xs', tone: 'terminal' })} absolute inset-x-0 top-0 z-10 flex items-center justify-center gap-2 py-1`}
+        >
+          <Spinner className="size-3" /> Loading older output…
         </p>
       ) : null}
       <div
@@ -181,7 +185,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
         <div ref={body} />
       </div>
       {tooWide && onFitRequest && !onFit ? (
-        <Button size="sm" variant="secondary" className="absolute top-2 right-3 shadow-card" onClick={onFitRequest}>
+        <Button size="sm" variant="secondary" className={`${box({ shadow: 'card' })} absolute top-2 right-3`} onClick={onFitRequest}>
           <MoveHorizontal /> Fit width
         </Button>
       ) : null}
@@ -189,10 +193,10 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
         <Button
           size="sm"
           variant="secondary"
-          className="absolute right-3 bottom-3 shadow-card"
+          className={`${box({ shadow: 'card' })} absolute right-3 bottom-3`}
           onClick={() => {
-            const box = scroller.current!
-            box.scrollTop = box.scrollHeight
+            const scrollBox = scroller.current!
+            scrollBox.scrollTop = scrollBox.scrollHeight
             atBottom.current = true
             setBehind(false)
           }}

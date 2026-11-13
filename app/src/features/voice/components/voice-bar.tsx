@@ -1,9 +1,10 @@
-import { ArrowUp, LoaderCircle, X } from 'lucide-react'
+import { ArrowUp, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import type { Dictation } from '../hooks/use-dictation'
 import { MAX_SECONDS } from '../hooks/use-recorder'
-import { textRole } from '@/components/ui/styles'
+import { box, text, textRole } from '@/components/ui/styles'
+import { Dot, Spinner } from '@/components/ui/indicators'
 
 const BARS = 48 // the last ~2.4 s of loudness, newest on the right
 const TICK_MS = 50
@@ -61,12 +62,12 @@ export function VoiceBar({ dictation }: { dictation: Dictation }) {
     <div
       role="group"
       aria-label={transcribing ? 'Transcribing' : 'Recording'}
-      className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-border bg-surface py-1 pr-1 pl-1"
+      className={`${box({ outline: 'default', radius: 'full', ground: 'surface' })} flex min-w-0 flex-1 items-center gap-2 py-1 pr-1 pl-1`}
     >
       <Button
         variant="ghost"
         size="icon-sm"
-        className="shrink-0 rounded-full"
+        className={`${box({ radius: 'full' })} shrink-0`}
         aria-label="Cancel"
         disabled={transcribing}
         onClick={onCancel}
@@ -75,18 +76,24 @@ export function VoiceBar({ dictation }: { dictation: Dictation }) {
       </Button>
       {transcribing ? (
         <p className={`${textRole.hint} flex min-w-0 flex-1 items-center gap-2`}>
-          <LoaderCircle className="size-4 animate-spin" aria-hidden /> Transcribing…
+          <Spinner /> Transcribing…
         </p>
       ) : (
         <>
-          <span className="size-2 shrink-0 animate-pulse rounded-full bg-danger" aria-hidden />
-          <canvas ref={canvas} className="h-7 min-w-0 flex-1 text-accent" aria-hidden />
-          <span ref={time} className={`${textRole.meta} shrink-0 tabular-nums`}>
+          <Dot tone="danger" pulse className="size-2" />
+          <canvas ref={canvas} className={`${text({ tone: 'accent' })} h-7 min-w-0 flex-1`} aria-hidden />
+          <span ref={time} className={`${text({ numeric: true })} ${textRole.meta} shrink-0`}>
             0:00
           </span>
         </>
       )}
-      <Button size="icon-sm" className="shrink-0 rounded-full" aria-label="Done: to text" disabled={transcribing} onClick={onDone}>
+      <Button
+        size="icon-sm"
+        className={`${box({ radius: 'full' })} shrink-0`}
+        aria-label="Done: to text"
+        disabled={transcribing}
+        onClick={onDone}
+      >
         <ArrowUp />
       </Button>
     </div>

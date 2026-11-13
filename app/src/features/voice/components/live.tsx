@@ -9,7 +9,8 @@ import { feedbackOf, liveDetails } from '../live/feedback'
 import type { Command } from '../live/commands'
 import { enabledPacks } from '../live/packs'
 import { composerColumns } from '@/components/ui/bar'
-import { surface } from '@/components/ui/styles'
+import { box, surface, text } from '@/components/ui/styles'
+import { Dot } from '@/components/ui/indicators'
 
 const NOTE_KEY = 'muxtower.live.phone-note'
 const FEEDBACK_MS = 2000 // how long what became of the last thing heard stays in place of the hint
@@ -36,7 +37,7 @@ export function LiveButton() {
       variant={on ? 'secondary' : 'ghost'}
       size="icon"
       // Writing: the accent and the waveform. Commands only: muted, an ear (it listens, writes nothing).
-      className={cn('shrink-0', on && !commandsOnly && 'text-accent', commandsOnly && 'text-fg-muted')}
+      className={cn('shrink-0', on && !commandsOnly && text({ tone: 'accent' }), commandsOnly && text({ tone: 'muted' }))}
       aria-label={!on ? 'Turn Live on' : commandsOnly ? 'Live: commands only. Turn Live off' : 'Live: writing. Turn Live off'}
       aria-pressed={on}
       title={
@@ -151,12 +152,14 @@ export function LiveBar() {
         aria-live="polite"
         className={cn(
           surface.outlined,
-          'flex h-10 items-center text-sm',
+          `${text({ size: 'sm' })} flex h-10 items-center`,
           composerColumns.gap,
-          paused ? 'bg-surface-muted text-fg-muted' : 'border-transparent text-fg-muted',
+          paused
+            ? `${box({ ground: 'muted' })} ${text({ tone: 'muted' })}`
+            : `${box({ outline: 'transparent' })} ${text({ tone: 'muted' })}`,
         )}
       >
-        <span aria-hidden className={cn(composerColumns.lead, '-ml-px gap-1')}>
+        <span aria-hidden className={cn(composerColumns.leadInBox, 'gap-1')}>
           {paused ? (
             commands.state === 'ready' ? (
               <Ear className="size-4" />
@@ -165,18 +168,21 @@ export function LiveBar() {
             )
           ) : (
             <>
-              <span
-                className={cn('size-2.5 rounded-full', phase === 'starting' ? 'bg-state-idle' : 'bg-accent', speaking && 'animate-pulse')}
-              />
-              <AudioLines className={cn('size-4', phase === 'starting' ? 'text-fg-muted' : 'text-accent')} />
+              <Dot tone={phase === 'starting' ? 'idle' : 'accent'} pulse={speaking} />
+              <AudioLines className={cn('size-4', phase === 'starting' ? text({ tone: 'muted' }) : text({ tone: 'accent' }))} />
             </>
           )}
         </span>
         <span className={cn('flex min-w-0 flex-1 items-center gap-2', composerColumns.inset, paused && 'pr-1')}>
-          <span className={cn('shrink-0 font-medium', paused ? 'text-fg' : phase === 'starting' ? 'text-fg-muted' : 'text-accent')}>
+          <span
+            className={cn(
+              `${text({ weight: 'medium' })} shrink-0`,
+              paused ? text({ tone: 'fg' }) : phase === 'starting' ? text({ tone: 'muted' }) : text({ tone: 'accent' }),
+            )}
+          >
             {title}
           </span>
-          <span className={cn('min-w-0 flex-1 truncate', feedback ? 'text-fg' : 'text-xs')} title={feedback ?? hint}>
+          <span className={cn('min-w-0 flex-1 truncate', feedback ? text({ tone: 'fg' }) : text({ size: 'xs' }))} title={feedback ?? hint}>
             {feedback ?? (hint ? `· ${hint}` : '')}
           </span>
           {paused ? (

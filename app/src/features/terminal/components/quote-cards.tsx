@@ -4,6 +4,8 @@ import { Textarea } from '@/components/ui/input'
 import { cn } from '@/lib/cn'
 import { useTokenMenu, type TokenSource } from '@/components/ui/token-menu'
 import type { Quote } from '../quotes'
+import { box, text } from '@/components/ui/styles'
+import { Button } from '@/components/ui/button'
 
 /** The quotes of a message, at the top of its box, a line each. A tap opens one to the whole quote and a
  *  reply to that part alone, written right under it; closed, the start of its reply shows under it. Each
@@ -52,28 +54,31 @@ export function QuoteCards({
         return (
           <li
             key={quote.text}
-            className={cn('flex gap-2 rounded-lg py-1.5 pr-1 pl-2 text-sm', opened ? 'bg-surface-muted' : 'hover:bg-surface-muted/60')}
+            className={cn(
+              `${box({ radius: 'lg' })} ${text({ size: 'sm' })} flex gap-2 py-1.5 pr-1 pl-2`,
+              opened ? box({ ground: 'muted' }) : box({ hover: 'faint' }),
+            )}
           >
-            <span className="w-0.5 shrink-0 self-stretch rounded-full bg-accent" aria-hidden />
+            <span className={`${box({ radius: 'full', ground: 'accent' })} w-0.5 shrink-0 self-stretch`} aria-hidden />
             <div className="flex min-w-0 flex-1 flex-col gap-1">
-              <button
-                type="button"
+              <Button
+                variant="plain"
                 aria-expanded={opened}
                 title={opened ? 'Close' : 'Reply to this part'}
                 className="flex min-w-0 flex-col gap-0.5 text-left"
                 onClick={() => setOpen(opened ? null : quote.text)}
               >
-                <span className={cn('whitespace-pre-line text-fg-muted', !opened && 'line-clamp-1')}>{quote.text}</span>
+                <span className={cn(`${text({ tone: 'muted' })} whitespace-pre-line`, !opened && 'line-clamp-1')}>{quote.text}</span>
                 {!opened && quote.reply.trim() ? (
-                  <span className="flex min-w-0 items-center gap-1 text-fg">
-                    <CornerDownRight className="size-3 shrink-0 text-accent" aria-hidden />
+                  <span className={`${text({ tone: 'fg' })} flex min-w-0 items-center gap-1`}>
+                    <CornerDownRight className={`${text({ tone: 'accent' })} size-3 shrink-0`} aria-hidden />
                     <span className="truncate">{quote.reply}</span>
                   </span>
                 ) : null}
-              </button>
+              </Button>
               {opened ? (
                 <div className="flex items-start gap-1">
-                  <CornerDownRight className="mt-1.5 size-3 shrink-0 text-accent" aria-hidden />
+                  <CornerDownRight className={`${text({ tone: 'accent' })} mt-1.5 size-3 shrink-0`} aria-hidden />
                   <ReplyField
                     field={(el) => void (el ? replies.current.set(quote.text, el) : replies.current.delete(quote.text))}
                     value={quote.reply}
@@ -86,15 +91,15 @@ export function QuoteCards({
                 </div>
               ) : null}
             </div>
-            <button
-              type="button"
+            <Button
+              variant="plain"
               aria-label="Remove quote"
-              className="flex size-6 shrink-0 items-center justify-center rounded-full text-fg-muted hover:bg-surface-muted hover:text-fg"
+              className={`${box({ radius: 'full', hover: 'muted' })} ${text({ tone: 'muted', hoverFg: true })} flex size-6 shrink-0 items-center justify-center`}
               onPointerDown={(e) => e.preventDefault()} // keep the phone keyboard as it is
               onClick={() => onChange(quotes.filter((_, j) => j !== i))}
             >
               <X className="size-3.5" aria-hidden />
-            </button>
+            </Button>
           </li>
         )
       })}
@@ -140,7 +145,8 @@ function ReplyField({
         onKeyDown={(e) => mentions.onKeyDown(e) || onKeyDown(e)}
         onSelect={mentions.sync}
         onBlur={mentions.close}
-        className="max-h-28 min-h-0 field-sizing-content rounded-none border-0 bg-transparent px-0 py-0.5 focus-visible:outline-none"
+        bare
+        className="max-h-28 min-h-0 field-sizing-content px-0 py-0.5"
       />
       {mentions.menu}
     </div>
