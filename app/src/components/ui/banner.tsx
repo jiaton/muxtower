@@ -1,6 +1,6 @@
 import { cva, type VariantProps } from 'class-variance-authority'
 import { CircleAlert, Info, TriangleAlert } from 'lucide-react'
-import type { HTMLAttributes } from 'react'
+import type { HTMLAttributes, ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { composerColumns } from './bar'
 
@@ -13,7 +13,7 @@ const bannerVariants = cva('flex items-start rounded-md border py-2 text-sm [&_s
     },
     aligned: {
       false: 'gap-2 px-3 [&_svg]:mt-0.5',
-      true: cn('pr-3', composerColumns.gap),
+      true: composerColumns.gap,
     },
   },
   defaultVariants: { tone: 'info', aligned: false },
@@ -23,15 +23,17 @@ const ICON = { info: Info, warning: TriangleAlert, error: CircleAlert } as const
 
 /**
  * A notice. `aligned`: one of the rows over the message box (the session footer), lined up with it like
- * every row there: its tone's icon in the box's + column, its words where a message's start.
+ * every row there: its tone's icon in the box's + column, its words where a message's start, and its
+ * `action` (a close button) in the send button's column.
  */
 export function Banner({
   className,
   tone,
   aligned,
+  action,
   children,
   ...props
-}: HTMLAttributes<HTMLDivElement> & VariantProps<typeof bannerVariants>) {
+}: HTMLAttributes<HTMLDivElement> & VariantProps<typeof bannerVariants> & { action?: ReactNode }) {
   const Icon = ICON[tone ?? 'info']
   return (
     <div role={tone === 'error' ? 'alert' : 'status'} className={cn(bannerVariants({ tone, aligned }), className)} {...props}>
@@ -40,10 +42,14 @@ export function Banner({
           <span aria-hidden className={cn(composerColumns.lead, '-ml-px h-5')}>
             <Icon />
           </span>
-          <div className={cn('flex min-w-0 flex-1 items-start gap-2', composerColumns.inset)}>{children}</div>
+          <div className={cn('flex min-w-0 flex-1 items-start gap-2', composerColumns.inset, !action && 'pr-3')}>{children}</div>
+          {action ? <span className={cn(composerColumns.trail, 'h-5')}>{action}</span> : null}
         </>
       ) : (
-        children
+        <>
+          {children}
+          {action}
+        </>
       )}
     </div>
   )

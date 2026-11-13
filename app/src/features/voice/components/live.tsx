@@ -131,11 +131,16 @@ export function LiveBar() {
   return (
     <>
       {phone && note ? (
-        <Banner tone="info" aligned>
+        <Banner
+          tone="info"
+          aligned
+          action={
+            <Button variant="ghost" size="icon-sm" aria-label="Got it" onClick={dismiss}>
+              <X />
+            </Button>
+          }
+        >
           <span className="min-w-0 flex-1">Live works only with this page in front and the screen on.</span>
-          <Button variant="ghost" size="icon-sm" aria-label="Got it" onClick={dismiss}>
-            <X />
-          </Button>
         </Banner>
       ) : null}
       {/* One row, its height set by its one line: nothing appears or disappears around it. Lined up with the
@@ -167,7 +172,7 @@ export function LiveBar() {
             </>
           )}
         </span>
-        <span className={cn('flex min-w-0 flex-1 items-center gap-2 pr-1', composerColumns.inset)}>
+        <span className={cn('flex min-w-0 flex-1 items-center gap-2', composerColumns.inset, paused && 'pr-1')}>
           <span className={cn('shrink-0 font-medium', paused ? 'text-fg' : phase === 'starting' ? 'text-fg-muted' : 'text-accent')}>
             {title}
           </span>
@@ -178,19 +183,22 @@ export function LiveBar() {
             <Button variant="secondary" size="sm" className="shrink-0" onClick={resumeLive}>
               <Play /> {commands.state === 'ready' ? 'Write again' : 'Resume'}
             </Button>
-          ) : phase === 'listening' ? (
+          ) : null}
+        </span>
+        {/* Its pause in the send button's column, like a banner's close. */}
+        {!paused && phase === 'listening' ? (
+          <span className={composerColumns.trail}>
             <Button
               variant="ghost"
               size="icon-sm"
-              className="shrink-0"
               aria-label="Stop writing (commands only)"
               title="Stop writing: only commands are heard until you resume"
               onClick={pauseLive}
             >
               <Pause />
             </Button>
-          ) : null}
-        </span>
+          </span>
+        ) : null}
       </div>
     </>
   )

@@ -20,10 +20,13 @@ export function FooterBar({ className, ...props }: HTMLAttributes<HTMLElement>) 
 /**
  * The composer's columns, for a footer row that lines up with it: `lead` is the 40 px column of its first
  * button (the + of the message box), `gap` what follows it, and `inset` where the box's text starts inside
- * the box (its border and padding), so a row's text starts where a message's does.
+ * the box (its border and padding), so a row's text starts where a message's does; `trail` is the column of
+ * its last button, for a row's own trailing action.
  */
 export const composerColumns = {
   lead: 'flex w-10 shrink-0 items-center justify-center',
   gap: 'gap-1.5',
   inset: 'pl-[13px]',
+  /** The 40 px column of its last button (send): a row's trailing action (close, pause) centred in it. */
+  trail: 'flex w-10 shrink-0 items-center justify-center -mr-px',
 } as const
