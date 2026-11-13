@@ -2,7 +2,7 @@ import { Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { PendingAction } from '@/lib/api/types'
 import { useApprove, useDeny } from '../api/use-approval'
-import { text } from '@/components/ui/styles'
+import { ink } from '@/components/ui/intents'
 
 /** For a list row: approve with the usual choice, or deny, without opening the session. Only when there
  *  is a usual choice (permission prompts); a question needs the session open. */
@@ -20,9 +20,7 @@ export function QuickApproval({ daemonId, sessionId, pending }: { daemonId: stri
       <Button size="sm" variant="outline" disabled={busy} onClick={() => deny.mutate()}>
         <X /> Deny
       </Button>
-      {(approve.error ?? deny.error) ? (
-        <span className={text({ size: 'xs', tone: 'danger' })}>{(approve.error ?? deny.error)!.message}</span>
-      ) : null}
+      {(approve.error ?? deny.error) ? <span className={ink.noteDanger}>{(approve.error ?? deny.error)!.message}</span> : null}
     </div>
   )
 }

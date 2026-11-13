@@ -7,9 +7,9 @@ import { NO_ENVIRONMENT, agentOf, deviceOf, folderName, folderOf, isAssistant, s
 import { alsoWritingText } from '../model/writes'
 import { AgentMark } from './agent-mark'
 import { NOTIFY_LEVELS } from './notify-items'
-import { StatusIcon } from './status-icon'
-import { box, text, textRole } from '@/components/ui/styles'
+import { StatusIcon } from '@/components/ui/status-icon'
 import { listRow, listRowBelow } from '@/components/ui/list-row'
+import { ink, listItem } from '@/components/ui/intents'
 
 export interface RowContext {
   /** The list is already narrowed to one device / folder: do not repeat it on every row. */
@@ -71,7 +71,7 @@ export function SessionRow({
   const quieter = session.notify !== 'all' ? NOTIFY_LEVELS.find((l) => l.level === session.notify) : undefined
 
   return (
-    <div className={cn(box({ edge: 'bottom' }), selected && box({ ground: 'muted' }), session.offline && box({ faded: 'dim' }))}>
+    <div className={listItem({ selected, dim: session.offline })}>
       <Link
         to="/d/$daemonId/s/$sessionId"
         params={{ daemonId: daemon.id, sessionId: session.id }}
@@ -82,49 +82,37 @@ export function SessionRow({
         <StatusIcon state={session.state} assistant={isAssistant(session)} unread={session.unread} className="mt-0.5" />
         <div className="min-w-0 flex-1">
           <div className="flex items-baseline gap-2">
-            <span
-              className={cn(
-                'min-w-0 flex-1 truncate',
-                session.unread || session.needs_attention ? text({ weight: 'semibold' }) : text({ weight: 'medium' }),
-              )}
-            >
+            <span className={cn('min-w-0 flex-1 truncate', session.unread || session.needs_attention ? ink.emphasis : ink.strong)}>
               {session.name}
             </span>
             {writing ? (
               <span title={writing} className="shrink-0 self-center">
-                <GitCompareArrows className={`${text({ tone: 'warning' })} size-3.5`} role="img" aria-label={writing} />
+                <GitCompareArrows className={`${ink.warning} size-3.5`} role="img" aria-label={writing} />
               </span>
             ) : null}
             {quieter ? (
               <quieter.icon
-                className={`${text({ tone: 'muted' })} size-3.5 shrink-0 self-center`}
+                className={`${ink.quiet} size-3.5 shrink-0 self-center`}
                 role="img"
                 aria-label={`Notifications: ${quieter.label}`}
               />
             ) : null}
             <time
-              className={cn(
-                `${text({ size: 'xs', numeric: true })} shrink-0`,
-                session.unread ? text({ weight: 'medium', tone: 'accent' }) : text({ tone: 'muted' }),
-              )}
+              className={cn(session.unread ? ink.noteAccent : ink.meta, ink.count, 'shrink-0')}
               dateTime={session.updated_at}
               title={new Date(session.updated_at).toLocaleString()}
             >
               {ago(session.updated_at)}
             </time>
           </div>
-          <p className={`${textRole.meta} flex items-center gap-1`}>
-            {context.showAgent ? <AgentMark agent={agentOf(session)} className={text({ tone: 'fg' })} /> : null}
+          <p className={`${ink.meta} flex items-center gap-1`}>
+            {context.showAgent ? <AgentMark agent={agentOf(session)} className={ink.normal} /> : null}
             <span className="min-w-0 truncate">
-              {session.offline ? <span className={text({ weight: 'medium', tone: 'fg' })}>Offline · </span> : null}
+              {session.offline ? <span className={ink.strong}>Offline · </span> : null}
               {where.join(' · ')}
             </span>
           </p>
-          {line ? (
-            <p className={cn(`${text({ size: 'sm' })} mt-0.5 line-clamp-1`, line.asking ? text({ tone: 'fg' }) : text({ tone: 'muted' }))}>
-              {line.text}
-            </p>
-          ) : null}
+          {line ? <p className={cn('mt-0.5 line-clamp-1', line.asking ? ink.body : ink.hint)}>{line.text}</p> : null}
         </div>
       </Link>
       {children ? <div className={listRowBelow}>{children}</div> : null}

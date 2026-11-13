@@ -5,7 +5,7 @@ import { cn } from '@/lib/cn'
 import { alertText, known, usageParts } from '@/lib/daemons/usage'
 import { useDaemonClient } from '@/lib/daemons/use-daemon-client'
 import { daemonKey } from '@/lib/query'
-import { box, text, textRole } from '@/components/ui/styles'
+import { ink, look } from '@/components/ui/intents'
 
 /** One machine's line: CPU over a minute and ten, memory, threads, open files, the capture loop, its
  *  children. Unknown is said so, never 0. */
@@ -14,20 +14,20 @@ function MachineLine({ usage }: { usage: MachineUsage }) {
   const parts = usageParts(usage)
   return (
     <li className="flex flex-col gap-0.5 py-1.5">
-      <p className={text({ size: 'sm' })}>
-        <span className={text({ weight: 'medium' })}>{usage.machine}</span>
-        {usage.stale ? <span className={text({ tone: 'muted' })}> · last heard a while ago</span> : null}
+      <p className={ink.body}>
+        <span className={ink.strong}>{usage.machine}</span>
+        {usage.stale ? <span className={ink.quiet}> · last heard a while ago</span> : null}
       </p>
-      <p className={textRole.meta}>{parts.join(' · ')}</p>
+      <p className={ink.meta}>{parts.join(' · ')}</p>
       {usage.children === null ? (
-        <p className={textRole.meta}>Its child processes: unknown on this system</p>
+        <p className={ink.meta}>Its child processes: unknown on this system</p>
       ) : usage.children?.length ? (
-        <p className={textRole.meta}>
+        <p className={ink.meta}>
           {usage.children.map((c) => `${c.name} ${known(c.cpu_percent, '%')} ${known(c.rss_mb, ' MB')}`).join(' · ')}
         </p>
       ) : null}
       {alerts.map((a, i) => (
-        <p key={i} className={cn(text({ size: 'xs', tone: 'warning' }))}>
+        <p key={i} className={cn(ink.noteWarning)}>
           {alertText(a)}
           {a.detail ? ` — ${a.detail}` : ''}
         </p>
@@ -49,8 +49,8 @@ export function UsageList({ daemonId }: { daemonId: string }) {
   if (!usage.data?.length) return null
   return (
     <section aria-label="Usage" className="flex flex-col gap-1">
-      <h3 className={textRole.label}>Usage</h3>
-      <ul className={`${box({ divided: true })} flex flex-col`}>
+      <h3 className={ink.label}>Usage</h3>
+      <ul className={`${look.rows} flex flex-col`}>
         {usage.data.map((u) => (
           <MachineLine key={u.machine} usage={u} />
         ))}

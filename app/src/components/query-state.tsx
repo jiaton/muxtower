@@ -2,8 +2,8 @@ import type { UseQueryResult } from '@tanstack/react-query'
 
 import type { ReactNode } from 'react'
 import { Banner } from '@/components/ui/banner'
-import { textRole } from '@/components/ui/styles'
 import { Spinner } from '@/components/ui/indicators'
+import { ink } from '@/components/ui/intents'
 
 /** The one shared loading/error/empty pattern for server-state queries (see app/AGENTS.md). */
 export function QueryState<T>({
@@ -20,7 +20,7 @@ export function QueryState<T>({
   if (query.isPending && query.fetchStatus === 'idle') return null // disabled, not loading
   if (query.isPending)
     return (
-      <p className={`${textRole.hint} flex items-center gap-2`}>
+      <p className={`${ink.hint} flex items-center gap-2`}>
         <Spinner /> Loading…
       </p>
     )

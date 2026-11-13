@@ -2,7 +2,8 @@ import { Minus, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenuCheckboxItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu'
 import { FONT_SIZES, SCREEN_HEIGHTS, useTerminalPrefs } from '../store'
-import { text, textRole } from '@/components/ui/styles'
+
+import { ink } from '@/components/ui/intents'
 
 /** Terminal settings for a session's "⋯" menu: fit the pane to this screen (and how many screens tall),
  *  text size. */
@@ -50,12 +51,12 @@ function Stepper({
   const index = Math.max(0, values.indexOf(value))
   const step = (by: number) => onChange(values[Math.min(values.length - 1, Math.max(0, index + by))])
   return (
-    <div className={`${text({ size: 'sm' })} flex min-h-9 items-center gap-2 px-2`}>
+    <div className={`${ink.body} flex min-h-9 items-center gap-2 px-2`}>
       <span className="flex-1">{label}</span>
       <Button variant="ghost" size="icon-sm" aria-label={less} disabled={index === 0} onClick={() => step(-1)}>
         <Minus />
       </Button>
-      <span className={`${text({ numeric: true })} ${textRole.meta} w-6 text-center`}>{format(value)}</span>
+      <span className={`${ink.count} ${ink.meta} w-6 text-center`}>{format(value)}</span>
       <Button variant="ghost" size="icon-sm" aria-label={more} disabled={index === values.length - 1} onClick={() => step(1)}>
         <Plus />
       </Button>

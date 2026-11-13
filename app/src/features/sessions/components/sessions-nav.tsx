@@ -22,9 +22,9 @@ import { TeamCard } from './team-card'
 import { projectOfRow } from '../model/team'
 import { filterEntries } from '../model/query'
 import { sourceIcon } from './source-icon'
-import { text } from '@/components/ui/styles'
 import { Button } from '@/components/ui/button'
 import { Chevron } from '@/components/ui/indicators'
+import { ink } from '@/components/ui/intents'
 
 /** Opens the scope's only session with it, when that is what a click on it would show (see `useSoleOpener`). */
 const SoleOpener = createContext<(event: MouseEvent, target: ListSearch) => void>(() => {})
@@ -172,7 +172,7 @@ function DeviceTree({
             </TeamCard>
           ))}
       {!folded && more ? (
-        <Button variant="plain" className={cn(navSubItemClass, text({ tone: 'muted' }))} onClick={() => setAll((v) => !v)}>
+        <Button variant="plain" className={cn(navSubItemClass, ink.quiet)} onClick={() => setAll((v) => !v)}>
           {all ? 'Fewer folders' : `${tree.length - FOLDERS_SHOWN} more folders`}
         </Button>
       ) : null}

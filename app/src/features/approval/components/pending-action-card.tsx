@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button'
 import type { PendingAction } from '@/lib/api/types'
 import { useAnswer, useApprove, useDeny } from '../api/use-approval'
 import { QuestionForm, needsForm } from './question-form'
-import { box, text, textRole } from '@/components/ui/styles'
+
+import { ink, look } from '@/components/ui/intents'
 
 /** What the agent is waiting for, with one button per choice on screen (or, for several questions or
  *  one taking several answers, a form answering them all) and Deny (Esc). */
@@ -20,13 +21,9 @@ export function PendingActionCard({ daemonId, sessionId, pending }: { daemonId: 
     <div className="flex flex-col gap-3">
       {pending.tool_name || pending.detail ? (
         <div className="flex flex-col gap-1">
-          {pending.tool_name ? <p className={textRole.eyebrow}>{pending.tool_name}</p> : null}
+          {pending.tool_name ? <p className={ink.eyebrow}>{pending.tool_name}</p> : null}
           {pending.detail ? (
-            <pre
-              className={`${box({ radius: 'md', ground: 'muted' })} ${text({ mono: true, size: 'sm' })} max-h-40 overflow-auto px-3 py-2 whitespace-pre-wrap`}
-            >
-              {pending.detail}
-            </pre>
+            <pre className={`${look.panel} ${ink.codeBody} max-h-40 overflow-auto px-3 py-2 whitespace-pre-wrap`}>{pending.detail}</pre>
           ) : null}
         </div>
       ) : null}
@@ -48,7 +45,7 @@ export function PendingActionCard({ daemonId, sessionId, pending }: { daemonId: 
           ))}
         </div>
       ) : (
-        <p className={textRole.hint}>Waiting for the choices to appear on screen…</p>
+        <p className={ink.hint}>Waiting for the choices to appear on screen…</p>
       )}
       <Button variant="ghost" className="self-start" disabled={busy} onClick={() => deny.mutate()}>
         <X /> Deny (Esc)

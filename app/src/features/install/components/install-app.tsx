@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { installOption } from '../model/install'
 import { promptInstall, useInstallStore } from '../store'
-import { textRole } from '@/components/ui/styles'
+import { ink } from '@/components/ui/intents'
 
 const standalone = () => matchMedia('(display-mode: standalone)').matches || (navigator as { standalone?: boolean }).standalone === true
 const brands = () => (navigator as { userAgentData?: { brands: { brand: string }[] } }).userAgentData?.brands.map((b) => b.brand)
@@ -56,8 +56,8 @@ export function InstallApp() {
 function Section({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
-      <h2 className={textRole.label}>App</h2>
-      <p className={textRole.hint}>{children}</p>
+      <h2 className={ink.label}>App</h2>
+      <p className={ink.hint}>{children}</p>
       {action}
     </section>
   )

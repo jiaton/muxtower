@@ -8,8 +8,8 @@ import type { ShownOutgoing } from '@/lib/outbox'
 import { conversationRows, toolName, toolRunSummary } from '../model/rows'
 import { ConversationImages } from './conversation-images'
 import { NextStepCard } from './next-step-card'
-import { box, text, textRole } from '@/components/ui/styles'
 import { Chevron, Spinner } from '@/components/ui/indicators'
+import { bubble, ink, look } from '@/components/ui/intents'
 
 const BOTTOM_SLACK = 24
 
@@ -44,31 +44,27 @@ const ToolRun = memo(function ToolRun({ tools, source }: { tools: ConversationIt
         variant="plain"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className={`${text({ tone: 'muted', hoverFg: true })} flex max-w-full items-start gap-1.5 text-left`}
+        className={`${ink.quietAction} flex max-w-full items-start gap-1.5 text-left`}
       >
         {summary.running ? <Spinner className="mt-0.5" /> : null}
         <span className="min-w-0">
           {summary.text}
-          {summary.failed ? <span className={text({ tone: 'danger' })}> ({summary.failed} failed)</span> : null}
+          {summary.failed ? <span className={ink.danger}> ({summary.failed} failed)</span> : null}
         </span>
         <Chevron open={open} className="mt-0.5 size-4" />
       </Button>
       {open ? (
-        <ul className={`${box({ edge: 'left' })} mt-2 flex flex-col gap-2 pl-3`}>
+        <ul className={`${look.rule.left} mt-2 flex flex-col gap-2 pl-3`}>
           {tools.map((tool) => (
             <li key={tool.seq} className="flex flex-col gap-1">
-              <p className={`${textRole.meta} flex items-center gap-1.5`}>
+              <p className={`${ink.meta} flex items-center gap-1.5`}>
                 {tool.status === 'running' ? <Spinner className="size-3.5" label="Running" /> : null}
-                {tool.status === 'error' ? <CircleX className={`${text({ tone: 'danger' })} size-3.5`} aria-label="Failed" /> : null}
-                <span className={text({ weight: 'medium' })}>{toolName(tool)}</span>
+                {tool.status === 'error' ? <CircleX className={`${ink.danger} size-3.5`} aria-label="Failed" /> : null}
+                <span className={ink.strong}>{toolName(tool)}</span>
                 {tool.description ? <span className="min-w-0 truncate">{tool.description}</span> : null}
               </p>
               {tool.text ? (
-                <pre
-                  className={`${box({ radius: 'sm', ground: 'muted' })} ${text({ mono: true, size: 'xs' })} max-h-40 overflow-auto px-2 py-1 break-all whitespace-pre-wrap`}
-                >
-                  {tool.text}
-                </pre>
+                <pre className={`${look.output} max-h-40 overflow-auto px-2 py-1 break-all whitespace-pre-wrap`}>{tool.text}</pre>
               ) : null}
             </li>
           ))}
@@ -85,9 +81,7 @@ const ItemView = memo(function ItemView({ item, source }: { item: ConversationIt
   if (item.kind === 'prompt')
     return (
       <div className="flex flex-col items-end gap-2">
-        <p className={`${box({ radius: 'lg', ground: 'accent' })} ${text({ tone: 'onAccent' })} px-3 py-2 whitespace-pre-wrap`}>
-          {item.text}
-        </p>
+        <p className={bubble({ state: 'prompt' })}>{item.text}</p>
         <Images source={source} items={[item]} />
       </div>
     )
@@ -100,11 +94,11 @@ const ItemView = memo(function ItemView({ item, source }: { item: ConversationIt
     )
   const label = item.kind === 'question' ? 'Question' : (item.tool_name ?? 'Approval')
   return (
-    <div className={`${box({ outline: 'warning', radius: 'md' })} ${text({ size: 'sm' })} px-3 py-2`}>
-      <p className={text({ weight: 'medium' })}>
-        {label} · <span className={text({ tone: 'muted' })}>{item.status}</span>
+    <div className={`${look.alertCard} ${ink.body} px-3 py-2`}>
+      <p className={ink.strong}>
+        {label} · <span className={ink.quiet}>{item.status}</span>
       </p>
-      {item.text ? <pre className={`${text({ mono: true, size: 'xs' })} mt-1 whitespace-pre-wrap`}>{item.text}</pre> : null}
+      {item.text ? <pre className={`${ink.codeSmall} mt-1 whitespace-pre-wrap`}>{item.text}</pre> : null}
     </div>
   )
 }, sameItem)
@@ -132,37 +126,18 @@ function OutgoingView({
   const stuck = message.state === 'unconfirmed' || message.state === 'undelivered'
   return (
     <div className="flex flex-col items-end gap-1" data-outgoing={message.state}>
-      <p
-        className={cn(
-          `${box({ radius: 'lg' })} px-3 py-2 whitespace-pre-wrap`,
-          message.state === 'undelivered'
-            ? `${box({ outline: 'default', dashed: true })} ${text({ tone: 'muted' })}`
-            : `${box({ ground: 'accent', faded: 'half' })} ${text({ tone: 'onAccent' })}`,
-        )}
-      >
-        {message.text}
-      </p>
-      <p
-        className={cn(
-          `${text({ size: 'xs' })} flex items-center gap-1`,
-          message.state === 'undelivered' ? text({ tone: 'warning' }) : text({ tone: 'muted' }),
-        )}
-      >
+      <p className={bubble({ state: message.state === 'undelivered' ? 'undelivered' : 'pending' })}>{message.text}</p>
+      <p className={cn('flex items-center gap-1', message.state === 'undelivered' ? ink.noteWarning : ink.meta)}>
         {message.state === 'sending' ? <Spinner className="size-3" /> : null}
         {OUTGOING_LABEL[message.state]}
         {message.state === 'undelivered' && onResend ? (
-          <Button size="sm" variant="ghost" className={`${text({ size: 'xs' })} h-6 px-1.5`} onClick={() => onResend(message)}>
-            <RotateCw className="size-3" aria-hidden /> Resend
+          <Button size="xs" variant="ghost" onClick={() => onResend(message)}>
+            <RotateCw aria-hidden /> Resend
           </Button>
         ) : null}
         {stuck && onDismiss ? (
-          <Button
-            variant="plain"
-            aria-label="Dismiss"
-            className={`${box({ radius: 'sm' })} ${text({ hoverFg: true })} p-0.5`}
-            onClick={() => onDismiss(message.id)}
-          >
-            <X className="size-3" aria-hidden />
+          <Button variant="ghost" size="icon-xs" aria-label="Dismiss" onClick={() => onDismiss(message.id)}>
+            <X aria-hidden />
           </Button>
         ) : null}
       </p>
@@ -202,20 +177,20 @@ export function ConversationView({
   }, [items, pending.length])
 
   return (
-    <div className={`${box({ ground: 'surface' })} relative flex min-h-0 flex-1 flex-col overflow-hidden`}>
+    <div className={`${look.surface} relative flex min-h-0 flex-1 flex-col overflow-hidden`}>
       <div
         ref={scroller}
         role="log"
         aria-label="Conversation"
         tabIndex={0}
-        className={`${text({ size: 'sm' })} flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-y-contain p-3`}
+        className={`${ink.body} flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-y-contain p-3`}
         onScroll={() => {
           const el = scroller.current!
           atBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < BOTTOM_SLACK
           if (atBottom.current) setBehind(false)
         }}
       >
-        {shown.length === 0 && pending.length === 0 ? <p className={text({ tone: 'muted' })}>No messages yet.</p> : null}
+        {shown.length === 0 && pending.length === 0 ? <p className={ink.quiet}>No messages yet.</p> : null}
         {shown.map((row) =>
           row.kind === 'tools' ? (
             <ToolRun key={`t${row.items[0].seq}`} tools={row.items} source={source} />
@@ -235,7 +210,8 @@ export function ConversationView({
         <Button
           size="sm"
           variant="secondary"
-          className={`${box({ shadow: 'card' })} absolute right-3 bottom-3`}
+          floating
+          className="absolute right-3 bottom-3"
           onClick={() => {
             const el = scroller.current!
             el.scrollTop = el.scrollHeight

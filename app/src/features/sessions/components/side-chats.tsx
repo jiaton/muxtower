@@ -4,9 +4,10 @@ import { useState } from 'react'
 import { cn } from '@/lib/cn'
 import { ago } from '@/lib/time'
 import type { SessionEntry } from '../model/facets'
-import { StatusIcon } from './status-icon'
-import { box, text, textRole } from '@/components/ui/styles'
+import { StatusIcon } from '@/components/ui/status-icon'
+
 import { RowToggle } from '@/components/ui/row-toggle'
+import { ink, look, treeLink } from '@/components/ui/intents'
 
 /** What a side chat is about: its last word, else that it is one (its name is its parent's). */
 const aboutOf = ({ session }: SessionEntry) =>
@@ -28,7 +29,7 @@ export function SideChats({ entries, selectedKey }: { entries: SessionEntry[]; s
         onToggle={() => setOpen(!open)}
       />
       {open ? (
-        <ul aria-label="Side chats" className={`${box({ edge: 'left' })} flex flex-col`}>
+        <ul aria-label="Side chats" className={`${look.rule.left} flex flex-col`}>
           {entries.map((entry) => (
             <li key={entry.key}>
               <Link
@@ -36,22 +37,11 @@ export function SideChats({ entries, selectedKey }: { entries: SessionEntry[]; s
                 params={{ daemonId: entry.daemon.id, sessionId: entry.session.id }}
                 search={true}
                 aria-current={entry.key === selectedKey ? 'page' : undefined}
-                className={cn(
-                  box({ radius: 'end', hover: 'muted', ground: entry.key === selectedKey ? 'muted' : undefined }),
-                  text({ size: 'sm' }),
-                  'flex items-center gap-2 py-1.5 pr-2 pl-3',
-                )}
+                className={cn(treeLink({ selected: entry.key === selectedKey }), ink.body, 'flex items-center gap-2 py-1.5 pr-2 pl-3')}
               >
                 <StatusIcon state={entry.session.state} unread={entry.session.unread} className="size-3.5 shrink-0" />
-                <span
-                  className={cn(
-                    'min-w-0 flex-1 truncate',
-                    entry.session.unread ? text({ weight: 'medium', tone: 'fg' }) : text({ tone: 'muted' }),
-                  )}
-                >
-                  {aboutOf(entry)}
-                </span>
-                <time className={`${text({ numeric: true })} ${textRole.meta} shrink-0`} dateTime={entry.session.updated_at}>
+                <span className={cn('min-w-0 flex-1 truncate', entry.session.unread ? ink.strong : ink.quiet)}>{aboutOf(entry)}</span>
+                <time className={`${ink.count} ${ink.meta} shrink-0`} dateTime={entry.session.updated_at}>
                   {ago(entry.session.updated_at)}
                 </time>
               </Link>

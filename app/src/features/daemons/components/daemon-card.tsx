@@ -14,8 +14,9 @@ import { useDaemonMe } from '../api/use-daemon-me'
 import { DevicesList } from './devices-list'
 import { MachinesList } from './nodes-list'
 import { UsageList } from './usage-list'
-import { box, text, textRole } from '@/components/ui/styles'
+
 import { Chevron } from '@/components/ui/indicators'
+import { ink, look } from '@/components/ui/intents'
 
 function useStatus(daemon: Daemon) {
   const me = useDaemonMe(daemon.id)
@@ -44,18 +45,18 @@ export function DaemonCard({ daemon, actions }: { daemon: Daemon; actions?: Reac
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2 pr-3 pl-1">
         <Button
           variant="plain"
-          className={`${box({ radius: 'md', hover: 'muted' })} flex min-w-60 flex-1 items-center gap-3 px-3 py-1.5 text-left`}
+          className={`${look.hoverRow} flex min-w-60 flex-1 items-center gap-3 px-3 py-1.5 text-left`}
           aria-expanded={open}
           aria-label={`${daemon.name}: ${open ? 'hide' : 'show'} its machines and devices`}
           onClick={() => setOpen(!open)}
         >
           <StatusDot tone={status.tone} label={status.text} />
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className={`${text({ weight: 'medium' })} truncate`}>{daemon.name}</span>
-            <span className={`${textRole.hint} truncate`}>{status.text}</span>
-            <span className={`${text({ mono: true })} ${textRole.meta} truncate`}>{daemon.url}</span>
+            <span className={`${ink.strong} truncate`}>{daemon.name}</span>
+            <span className={`${ink.hint} truncate`}>{status.text}</span>
+            <span className={`${ink.codeMeta} truncate`}>{daemon.url}</span>
           </span>
-          <Chevron vertical open={open} className={`${text({ tone: 'muted' })} size-4`} />
+          <Chevron vertical quiet open={open} className="size-4" />
         </Button>
         <div className="ml-auto flex shrink-0 items-center gap-1">
           {paired ? (
@@ -80,7 +81,7 @@ export function DaemonCard({ daemon, actions }: { daemon: Daemon; actions?: Reac
         </div>
       </div>
       {open ? (
-        <div className={`${box({ edge: 'top' })} flex flex-col gap-4 px-4 pt-4 pb-4`}>
+        <div className={`${look.rule.top} flex flex-col gap-4 px-4 pt-4 pb-4`}>
           {actions}
           {paired ? <MachinesList daemonId={daemon.id} url={daemon.url} /> : null}
           {paired ? <DevicesList daemonId={daemon.id} /> : null}

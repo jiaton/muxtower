@@ -7,7 +7,6 @@ import { createDaemonClient, unwrap } from '@/lib/api/client'
 import { APP_VERSION, lookForUpdate, newer, reloadIntoNewest, useAppUpdate } from '@/lib/app-update'
 import { usePairedDaemons } from '@/lib/daemons/store'
 import { daemonKey } from '@/lib/query'
-import { box } from '@/components/ui/styles'
 
 const CHECK_MS = 60_000
 
@@ -40,7 +39,7 @@ export function AppUpdateBanner() {
   }, [daemon])
   if (!ready && !daemon) return null
   return (
-    <Banner className={`${box({ radius: 'md' })} m-2 mb-0 items-center`} aria-live="polite">
+    <Banner className="m-2 mb-0 items-center" aria-live="polite">
       <RefreshCw aria-hidden />
       <span className="min-w-0 flex-1">
         {ready

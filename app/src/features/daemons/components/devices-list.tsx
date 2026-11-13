@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { QueryState } from '@/components/query-state'
 import { Button } from '@/components/ui/button'
 import { useDevices, useRevokeDevice } from '../api/use-daemon-me'
-import { surface, text, textRole } from '@/components/ui/styles'
+import { ink, look } from '@/components/ui/intents'
 
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString() : 'never')
 const SHOWN = 5 // more than this: the most recently used, and "Show all"
@@ -15,10 +15,10 @@ export function DevicesList({ daemonId }: { daemonId: string }) {
   const [all, setAll] = useState(false)
   return (
     <section aria-labelledby={`devices-${daemonId}`} className="flex flex-col gap-2">
-      <h3 id={`devices-${daemonId}`} className={textRole.label}>
-        Devices{devices.data?.length ? <span className={textRole.aside}> · {devices.data.length} paired</span> : null}
+      <h3 id={`devices-${daemonId}`} className={ink.label}>
+        Devices{devices.data?.length ? <span className={ink.aside}> · {devices.data.length} paired</span> : null}
       </h3>
-      <QueryState query={devices} isEmpty={(d) => d.length === 0} empty={<p className={textRole.hint}>None.</p>}>
+      <QueryState query={devices} isEmpty={(d) => d.length === 0} empty={<p className={ink.hint}>None.</p>}>
         {(list) => {
           const sorted = [...list].sort(
             (a, b) => Number(b.current) - Number(a.current) || (b.last_used_at ?? '').localeCompare(a.last_used_at ?? ''),
@@ -26,14 +26,14 @@ export function DevicesList({ daemonId }: { daemonId: string }) {
           const shown = all ? sorted : sorted.slice(0, SHOWN)
           return (
             <>
-              <ul className={`${surface.list} flex flex-col`}>
+              <ul className={`${look.list} flex flex-col`}>
                 {shown.map((d) => (
-                  <li key={d.name} className={`${text({ size: 'sm' })} flex items-center gap-2 px-3 py-2`}>
-                    <span className={`${text({ weight: 'medium' })} min-w-0 flex-1 truncate`}>
+                  <li key={d.name} className={`${ink.body} flex items-center gap-2 px-3 py-2`}>
+                    <span className={`${ink.strong} min-w-0 flex-1 truncate`}>
                       {d.name}
-                      {d.current ? <span className={text({ tone: 'muted' })}> (this device)</span> : null}
+                      {d.current ? <span className={ink.quiet}> (this device)</span> : null}
                     </span>
-                    <span className={textRole.meta}>used {when(d.last_used_at)}</span>
+                    <span className={ink.meta}>used {when(d.last_used_at)}</span>
                     {d.current ? null : (
                       <Button
                         variant="ghost"

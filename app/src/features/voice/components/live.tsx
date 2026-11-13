@@ -9,8 +9,8 @@ import { feedbackOf, liveDetails } from '../live/feedback'
 import type { Command } from '../live/commands'
 import { enabledPacks } from '../live/packs'
 import { composerColumns } from '@/components/ui/bar'
-import { box, surface, text } from '@/components/ui/styles'
 import { Dot } from '@/components/ui/indicators'
+import { ink, liveRow } from '@/components/ui/intents'
 
 const NOTE_KEY = 'muxtower.live.phone-note'
 const FEEDBACK_MS = 2000 // how long what became of the last thing heard stays in place of the hint
@@ -37,7 +37,8 @@ export function LiveButton() {
       variant={on ? 'secondary' : 'ghost'}
       size="icon"
       // Writing: the accent and the waveform. Commands only: muted, an ear (it listens, writes nothing).
-      className={cn('shrink-0', on && !commandsOnly && text({ tone: 'accent' }), commandsOnly && text({ tone: 'muted' }))}
+      tone={commandsOnly ? 'muted' : on ? 'accent' : undefined}
+      className="shrink-0"
       aria-label={!on ? 'Turn Live on' : commandsOnly ? 'Live: commands only. Turn Live off' : 'Live: writing. Turn Live off'}
       aria-pressed={on}
       title={
@@ -147,18 +148,7 @@ export function LiveBar() {
       {/* One row, its height set by its one line: nothing appears or disappears around it. Lined up with the
           message box (its + column, then where its text starts), its box the same in every state: its border
           only shows while paused. */}
-      <div
-        role="status"
-        aria-live="polite"
-        className={cn(
-          surface.outlined,
-          `${text({ size: 'sm' })} flex h-10 items-center`,
-          composerColumns.gap,
-          paused
-            ? `${box({ ground: 'muted' })} ${text({ tone: 'muted' })}`
-            : `${box({ outline: 'transparent' })} ${text({ tone: 'muted' })}`,
-        )}
-      >
+      <div role="status" aria-live="polite" className={liveRow({ paused })}>
         <span aria-hidden className={cn(composerColumns.leadInBox, 'gap-1')}>
           {paused ? (
             commands.state === 'ready' ? (
@@ -169,20 +159,13 @@ export function LiveBar() {
           ) : (
             <>
               <Dot tone={phase === 'starting' ? 'idle' : 'accent'} pulse={speaking} />
-              <AudioLines className={cn('size-4', phase === 'starting' ? text({ tone: 'muted' }) : text({ tone: 'accent' }))} />
+              <AudioLines className={cn('size-4', phase === 'starting' ? ink.quiet : ink.accent)} />
             </>
           )}
         </span>
         <span className={cn('flex min-w-0 flex-1 items-center gap-2', composerColumns.inset, paused && 'pr-1')}>
-          <span
-            className={cn(
-              `${text({ weight: 'medium' })} shrink-0`,
-              paused ? text({ tone: 'fg' }) : phase === 'starting' ? text({ tone: 'muted' }) : text({ tone: 'accent' }),
-            )}
-          >
-            {title}
-          </span>
-          <span className={cn('min-w-0 flex-1 truncate', feedback ? text({ tone: 'fg' }) : text({ size: 'xs' }))} title={feedback ?? hint}>
+          <span className={cn('shrink-0', paused ? ink.strong : phase === 'starting' ? ink.quiet : ink.highlight)}>{title}</span>
+          <span className={cn('min-w-0 flex-1 truncate', feedback ? ink.normal : ink.meta)} title={feedback ?? hint}>
             {feedback ?? (hint ? `· ${hint}` : '')}
           </span>
           {paused ? (

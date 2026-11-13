@@ -4,8 +4,8 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import type { RuntimeInfo } from '@/lib/api/types'
 import { AGENTS_OWN } from '../model/launch'
-import { text, textRole } from '@/components/ui/styles'
 import { Label } from '@/components/ui/label'
+import { ink } from '@/components/ui/intents'
 
 /** How a new session starts: its permission mode (the runtime's own list; by default what the daemon is set
  *  to, else the agent's own settings) and, under Advanced, extra arguments. Warns of a mode that asks
@@ -53,15 +53,15 @@ export function LaunchOptions({
           </span>
         </Banner>
       ) : null}
-      <details className={text({ size: 'sm' })}>
-        <summary className={`${text({ tone: 'muted' })} cursor-pointer`}>Advanced</summary>
-        <label className={`${text({ weight: 'medium' })} mt-2 flex flex-col gap-1.5`}>
-          Extra arguments <span className={textRole.aside}>for {runtime?.binary ?? 'the agent'}, after the daemon's defaults</span>
+      <details className={ink.body}>
+        <summary className={`${ink.quiet} cursor-pointer`}>Advanced</summary>
+        <label className={`${ink.strong} mt-2 flex flex-col gap-1.5`}>
+          Extra arguments <span className={ink.aside}>for {runtime?.binary ?? 'the agent'}, after the daemon's defaults</span>
           <Input
             value={extra}
             onChange={(e) => onExtra(e.target.value)}
             placeholder="--model opus"
-            className={text({ mono: true })}
+            className={ink.code}
             spellCheck={false}
             autoCapitalize="off"
           />

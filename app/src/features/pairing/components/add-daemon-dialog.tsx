@@ -8,8 +8,9 @@ import { Input } from '@/components/ui/input'
 import { parsePairLink, type PairTarget } from '../pair-link'
 import { PairClaim } from './pair-claim'
 import { QrScanner } from './qr-scanner'
-import { box, text } from '@/components/ui/styles'
+
 import { tab } from '@/components/ui/list-row'
+import { ink, look } from '@/components/ui/intents'
 
 type Mode = 'scan' | 'link' | 'code'
 
@@ -60,7 +61,7 @@ export function AddDaemonDialog({
           <PairClaim targets={targets} onDone={() => close(false)} />
         ) : (
           <>
-            <div role="tablist" className={`${box({ radius: 'md', ground: 'muted' })} flex gap-1 p-1`}>
+            <div role="tablist" className={`${look.panel} flex gap-1 p-1`}>
               {tabFor('scan', <Camera />, 'Scan')}
               {tabFor('link', <Link2 />, 'Link')}
               {tabFor('code', <KeyRound />, 'Code')}
@@ -106,7 +107,7 @@ export function AddDaemonDialog({
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   aria-label="Pairing code"
-                  className={text({ mono: true, spaced: 'widest' })}
+                  className={ink.readout}
                 />
                 <Button type="submit">Continue</Button>
               </form>

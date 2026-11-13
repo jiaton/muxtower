@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { PairClaim } from '@/features/pairing/components/pair-claim'
 import { parsePairHash } from '@/features/pairing/pair-link'
-import { text, textRole } from '@/components/ui/styles'
+import { ink } from '@/components/ui/intents'
 
 export const Route = createFileRoute('/pair')({ component: PairPage })
 
@@ -23,8 +23,8 @@ function PairPage() {
         {targets.length ? (
           <Card className="flex flex-col gap-4">
             <div>
-              <h1 className={text({ size: 'xl', weight: 'semibold' })}>Pair this device</h1>
-              <p className={textRole.hint}>Each daemon gives this device its own token, which you can revoke later.</p>
+              <h1 className={ink.title}>Pair this device</h1>
+              <p className={ink.hint}>Each daemon gives this device its own token, which you can revoke later.</p>
             </div>
             <PairClaim targets={targets} onDone={() => void navigate({ to: '/' })} />
           </Card>

@@ -21,7 +21,7 @@ import { Drawer } from '@/components/ui/drawer'
 import { useBackCloses } from '@/lib/use-back-closes'
 import { useSidebarDrawer } from '@/lib/sidebar-drawer'
 import { SIDEBAR_QUERY, useMediaQuery } from '@/lib/use-media-query'
-import { box, text } from '@/components/ui/styles'
+import { ink, look } from '@/components/ui/intents'
 
 export const Route = createRootRoute({ component: RootLayout })
 
@@ -32,7 +32,7 @@ function Sidebar({ inDrawer = false, onLeave }: { inDrawer?: boolean; onLeave?: 
   return (
     <>
       <div className="flex h-14 shrink-0 items-center gap-2 px-4">
-        <Link to="/" className={text({ mono: true, weight: 'semibold' })}>
+        <Link to="/" className={ink.brand}>
           muxtower
         </Link>
         <WebUsageMark />
@@ -49,7 +49,7 @@ function Sidebar({ inDrawer = false, onLeave }: { inDrawer?: boolean; onLeave?: 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
         <SessionsNav replace={inDrawer} />
       </div>
-      <div className={`${box({ edge: 'top' })} shrink-0 p-2`}>
+      <div className={`${look.rule.top} shrink-0 p-2`}>
         <Link to="/daemons" replace={inDrawer} className={navItemClass}>
           <Server aria-hidden /> Daemons
         </Link>
@@ -91,15 +91,12 @@ function RootLayout() {
 
   return (
     <div className="flex h-dvh overflow-hidden pt-[env(safe-area-inset-top)]">
-      <aside
-        className={`${box({ edge: 'right', ground: 'surface' })} hidden w-56 shrink-0 flex-col lg:flex xl:w-64`}
-        aria-label="Navigation"
-      >
+      <aside className={`${look.bar.side} hidden w-56 shrink-0 flex-col lg:flex xl:w-64`} aria-label="Navigation">
         <Sidebar />
       </aside>
       {docked ? null : (
         <Drawer drawer open={sidebarOpen} onOpenChange={closeSidebar} onPull={setSidebarPull} label="Navigation" over push={content}>
-          <div className={`${box({ ground: 'surface' })} flex w-full flex-col pt-[env(safe-area-inset-top)]`}>
+          <div className={`${look.surface} flex w-full flex-col pt-[env(safe-area-inset-top)]`}>
             <Sidebar inDrawer onLeave={() => closeSidebar(false)} />
           </div>
         </Drawer>
@@ -113,10 +110,7 @@ function RootLayout() {
         </main>
         <nav
           aria-label="Main"
-          className={cn(
-            `${box({ edge: 'top', ground: 'surface' })} shrink-0 pb-[env(safe-area-inset-bottom)] lg:hidden`,
-            inSession ? 'hidden md:flex' : 'flex',
-          )}
+          className={cn(`${look.bar.top} shrink-0 pb-[env(safe-area-inset-bottom)] lg:hidden`, inSession ? 'hidden md:flex' : 'flex')}
         >
           <Link to="/" search={lastSearch} className={tabItemClass} activeOptions={{ includeSearch: false }}>
             <Layers aria-hidden /> Sessions

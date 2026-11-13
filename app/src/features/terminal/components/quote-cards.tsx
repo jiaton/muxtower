@@ -4,8 +4,8 @@ import { Textarea } from '@/components/ui/input'
 import { cn } from '@/lib/cn'
 import { useTokenMenu, type TokenSource } from '@/components/ui/token-menu'
 import type { Quote } from '../quotes'
-import { box, text } from '@/components/ui/styles'
 import { Button } from '@/components/ui/button'
+import { ink, look, quoteCard } from '@/components/ui/intents'
 
 /** The quotes of a message, at the top of its box, a line each. A tap opens one to the whole quote and a
  *  reply to that part alone, written right under it; closed, the start of its reply shows under it. Each
@@ -52,14 +52,8 @@ export function QuoteCards({
       {quotes.map((quote, i) => {
         const opened = open === quote.text
         return (
-          <li
-            key={quote.text}
-            className={cn(
-              `${box({ radius: 'lg' })} ${text({ size: 'sm' })} flex gap-2 py-1.5 pr-1 pl-2`,
-              opened ? box({ ground: 'muted' }) : box({ hover: 'faint' }),
-            )}
-          >
-            <span className={`${box({ radius: 'full', ground: 'accent' })} w-0.5 shrink-0 self-stretch`} aria-hidden />
+          <li key={quote.text} className={`${quoteCard({ open: opened })} flex gap-2 py-1.5 pr-1 pl-2`}>
+            <span className={`${look.quoteBar} w-0.5 shrink-0 self-stretch`} aria-hidden />
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               <Button
                 variant="plain"
@@ -68,17 +62,17 @@ export function QuoteCards({
                 className="flex min-w-0 flex-col gap-0.5 text-left"
                 onClick={() => setOpen(opened ? null : quote.text)}
               >
-                <span className={cn(`${text({ tone: 'muted' })} whitespace-pre-line`, !opened && 'line-clamp-1')}>{quote.text}</span>
+                <span className={cn(`${ink.quiet} whitespace-pre-line`, !opened && 'line-clamp-1')}>{quote.text}</span>
                 {!opened && quote.reply.trim() ? (
-                  <span className={`${text({ tone: 'fg' })} flex min-w-0 items-center gap-1`}>
-                    <CornerDownRight className={`${text({ tone: 'accent' })} size-3 shrink-0`} aria-hidden />
+                  <span className={`${ink.normal} flex min-w-0 items-center gap-1`}>
+                    <CornerDownRight className={`${ink.accent} size-3 shrink-0`} aria-hidden />
                     <span className="truncate">{quote.reply}</span>
                   </span>
                 ) : null}
               </Button>
               {opened ? (
                 <div className="flex items-start gap-1">
-                  <CornerDownRight className={`${text({ tone: 'accent' })} mt-1.5 size-3 shrink-0`} aria-hidden />
+                  <CornerDownRight className={`${ink.accent} mt-1.5 size-3 shrink-0`} aria-hidden />
                   <ReplyField
                     field={(el) => void (el ? replies.current.set(quote.text, el) : replies.current.delete(quote.text))}
                     value={quote.reply}
@@ -92,9 +86,11 @@ export function QuoteCards({
               ) : null}
             </div>
             <Button
-              variant="plain"
+              variant="ghost"
+              size="icon-xs"
+              round
               aria-label="Remove quote"
-              className={`${box({ radius: 'full', hover: 'muted' })} ${text({ tone: 'muted', hoverFg: true })} flex size-6 shrink-0 items-center justify-center`}
+              className="shrink-0"
               onPointerDown={(e) => e.preventDefault()} // keep the phone keyboard as it is
               onClick={() => onChange(quotes.filter((_, j) => j !== i))}
             >

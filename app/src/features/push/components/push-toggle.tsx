@@ -2,7 +2,7 @@ import { Banner } from '@/components/ui/banner'
 import { Switch } from '@/components/ui/switch'
 import { useDaemonsStore } from '@/lib/daemons/store'
 import { pushSupport, usePushEnabled, useSetPushDone, useTogglePush } from '../api/use-push'
-import { text, textRole } from '@/components/ui/styles'
+import { ink } from '@/components/ui/intents'
 
 const REASONS = {
   insecure: 'Notifications need HTTPS. Put the daemon behind Tailscale serve, a Cloudflare Tunnel or Caddy.',
@@ -17,11 +17,11 @@ export function PushToggle({ daemonId }: { daemonId: string }) {
   const setDone = useSetPushDone(daemonId)
   const id = `push-${daemonId}`
 
-  if (support !== 'ok') return <p className={textRole.hint}>{REASONS[support]}</p>
+  if (support !== 'ok') return <p className={ink.hint}>{REASONS[support]}</p>
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3">
-        <label htmlFor={id} className={text({ size: 'sm' })}>
+        <label htmlFor={id} className={ink.body}>
           Notify this device when an agent needs you
         </label>
         <Switch
@@ -32,7 +32,7 @@ export function PushToggle({ daemonId }: { daemonId: string }) {
         />
       </div>
       <div className="flex items-center justify-between gap-3">
-        <label htmlFor={`${id}-done`} className={enabled.data ? text({ size: 'sm' }) : textRole.hint}>
+        <label htmlFor={`${id}-done`} className={enabled.data ? ink.body : ink.hint}>
           Also when an agent finishes a task
         </label>
         <Switch

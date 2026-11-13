@@ -10,7 +10,7 @@ import { useDaemonSessions } from '@/features/sessions/api/use-sessions'
 import { useDaemonMe } from '../api/use-daemon-me'
 import { useJoinCode, useRemoveNode } from '../api/use-nodes'
 import { NodeAddress } from './node-address'
-import { surface, text, textRole } from '@/components/ui/styles'
+import { ink, look } from '@/components/ui/intents'
 
 const when = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString() : 'never')
 const count = (n: number) => `${n} session${n === 1 ? '' : 's'}`
@@ -37,7 +37,7 @@ function MachineRow({
   below?: ReactNode
 }) {
   return (
-    <li className={`${text({ size: 'sm' })} flex flex-col gap-1.5 px-3 py-2`}>
+    <li className={`${ink.body} flex flex-col gap-1.5 px-3 py-2`}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="flex min-w-40 flex-1 items-start gap-2">
           <span className="pt-1.5">
@@ -45,13 +45,13 @@ function MachineRow({
           </span>
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span className="flex min-w-0 items-center gap-2">
-              <span className={`${text({ weight: 'medium' })} truncate`}>{name}</span>
+              <span className={`${ink.strong} truncate`}>{name}</span>
               {tag ? <Badge>{tag}</Badge> : null}
             </span>
-            <span className={`${textRole.meta} break-words`}>{facts.filter(Boolean).join(' · ')}</span>
+            <span className={`${ink.meta} break-words`}>{facts.filter(Boolean).join(' · ')}</span>
             {folder ? (
-              <span className={`${textRole.meta} break-all`}>
-                New sessions in <span className={text({ mono: true })}>{folder}</span>
+              <span className={`${ink.meta} break-all`}>
+                New sessions in <span className={ink.code}>{folder}</span>
               </span>
             ) : null}
           </span>
@@ -94,10 +94,10 @@ export function MachinesList({ daemonId, url }: { daemonId: string; url: string 
 
   return (
     <section aria-labelledby={`machines-${daemonId}`} className="flex flex-col gap-2">
-      <h3 id={`machines-${daemonId}`} className={textRole.label}>
+      <h3 id={`machines-${daemonId}`} className={ink.label}>
         Machines
       </h3>
-      <ul className={`${surface.list} flex flex-col`}>
+      <ul className={`${look.list} flex flex-col`}>
         <MachineRow
           name={hub}
           tag="this daemon"
@@ -132,14 +132,14 @@ export function MachinesList({ daemonId, url }: { daemonId: string; url: string 
               <>
                 <NodeAddress daemonId={daemonId} node={n} />
                 {n.update ? (
-                  <span className={text({ size: 'xs', tone: 'warning' })}>
+                  <span className={ink.noteWarning}>
                     Runs {n.version}; update it to {n.update}:{' '}
-                    <code className={`${text({ mono: true })} break-all`}>pipx install --force muxtower=={n.update}</code>
+                    <code className={`${ink.code} break-all`}>pipx install --force muxtower=={n.update}</code>
                   </span>
                 ) : null}
                 {confirm === n.name ? (
                   <div role="alertdialog" aria-label={`Remove ${n.name}?`} className="flex flex-wrap items-center gap-2 pt-1">
-                    <span className={`${textRole.meta} basis-full`}>
+                    <span className={`${ink.meta} basis-full`}>
                       Remove {n.name}? Its sessions leave the lists, and it can only join again with a new code.
                     </span>
                     <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setConfirm(null)}>
@@ -156,13 +156,13 @@ export function MachinesList({ daemonId, url }: { daemonId: string; url: string 
         ))}
       </ul>
       {list.length ? null : (
-        <p className={textRole.hint}>Another computer running muxtower can join this one, and its sessions show here too.</p>
+        <p className={ink.hint}>Another computer running muxtower can join this one, and its sessions show here too.</p>
       )}
       {command ? (
-        <div className={`${text({ size: 'sm' })} ${surface.muted} flex flex-col gap-1.5 p-3`}>
+        <div className={`${ink.body} ${look.panel} flex flex-col gap-1.5 p-3`}>
           <p>On that computer, with muxtower installed, run:</p>
           <div className="flex items-start gap-2">
-            <code className={`${text({ mono: true, size: 'xs' })} min-w-0 flex-1 break-all`}>{command}</code>
+            <code className={`${ink.codeSmall} min-w-0 flex-1 break-all`}>{command}</code>
             <Button
               variant="ghost"
               size="icon-sm"
@@ -177,9 +177,9 @@ export function MachinesList({ daemonId, url }: { daemonId: string; url: string 
               {copied ? <Check /> : <Copy />}
             </Button>
           </div>
-          <p className={textRole.meta}>
+          <p className={ink.meta}>
             The code works once, until {new Date(join.data!.expires_at).toLocaleTimeString()}. If a sign-in gate is in front of this daemon,
-            give that computer its token first: <code className={text({ mono: true })}>[hub] headers</code> in its config.
+            give that computer its token first: <code className={ink.code}>[hub] headers</code> in its config.
           </p>
         </div>
       ) : (

@@ -7,8 +7,9 @@ import { whyUnreachable } from '@/lib/reach'
 import { useFallback } from '@/lib/daemons/fallback'
 import { useDaemonsStore, useRejectedDaemons } from '@/lib/daemons/store'
 import type { DaemonSessions } from '../api/use-sessions'
-import { text } from '@/components/ui/styles'
+
 import { TextLink } from '@/components/ui/text-link'
+import { ink } from '@/components/ui/intents'
 
 /** Why some sessions may be missing: a daemon that revoked this device, one behind a sign-in page, one
  *  that does not answer. One per daemon; the others' sessions still show. */
@@ -40,7 +41,7 @@ export function DaemonAlerts({ daemons }: { daemons: DaemonSessions[] }) {
           <CircleAlert />
           <span>
             {daemon.name} no longer accepts this device.{' '}
-            <Link to="/daemons" className={text({ underline: true })}>
+            <Link to="/daemons" className={ink.link}>
               Pair again
             </Link>
           </span>

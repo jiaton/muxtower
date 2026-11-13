@@ -2,7 +2,7 @@ import { Bell, BellDot, BellOff, type LucideIcon } from 'lucide-react'
 import { DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import type { NotifyLevel, Session } from '@/lib/api/types'
 import { useSessionNotify } from '../api/use-session-marks'
-import { textRole } from '@/components/ui/styles'
+import { ink } from '@/components/ui/intents'
 
 export const NOTIFY_LEVELS: { level: NotifyLevel; label: string; hint: string; icon: LucideIcon }[] = [
   { level: 'all', label: 'All', hint: 'Prompts and every finished turn', icon: Bell },
@@ -29,7 +29,7 @@ export function NotifyItems({ daemonId, session }: { daemonId: string; session: 
             <Icon />
             <span className="flex flex-col">
               {label}
-              <span className={textRole.meta}>{hint}</span>
+              <span className={ink.meta}>{hint}</span>
             </span>
           </DropdownMenuRadioItem>
         ))}

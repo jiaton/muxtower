@@ -10,8 +10,8 @@ import { StatusDot } from '@/components/ui/status-dot'
 import { groupPicks } from '../model/chip-picks'
 import { MAX_NAME, projectLabel, type ChipGroup, type ChipMembers } from '../model/chip-groups'
 import type { SessionEntry } from '../model/facets'
-import { box, text, textRole } from '@/components/ui/styles'
 import { Chevron } from '@/components/ui/indicators'
+import { ink, look } from '@/components/ui/intents'
 
 const TONE: Record<string, 'warn' | 'error' | 'ok'> = { needs: 'warn', error: 'error', working: 'ok' }
 
@@ -69,7 +69,7 @@ export function ChipGroupDialog({
               const state = picks.state(project)
               return (
                 <div key={project} className="flex flex-col">
-                  <div className={`${box({ radius: 'md', hover: 'muted' })} flex items-center gap-1`}>
+                  <div className={`${look.hoverRow} flex items-center gap-1`}>
                     <Button
                       variant="ghost"
                       size="icon-xs"
@@ -80,7 +80,7 @@ export function ChipGroupDialog({
                     >
                       <Chevron open={expanded} />
                     </Button>
-                    <label className={`${text({ size: 'sm' })} flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-1`}>
+                    <label className={`${ink.body} flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-1`}>
                       <Checkbox
                         checked={state === 'all'}
                         aria-checked={state === 'some' ? 'mixed' : state === 'all'}
@@ -91,15 +91,12 @@ export function ChipGroupDialog({
                         onChange={() => setPicks(picks.toggleProject(project))}
                       />
                       <span className="min-w-0 flex-1 truncate">{projectLabel(project)}</span>
-                      <span className={`${text({ numeric: true })} ${textRole.meta}`}>{picks.sessionsOf(project).length}</span>
+                      <span className={`${ink.count} ${ink.meta}`}>{picks.sessionsOf(project).length}</span>
                     </label>
                   </div>
                   {expanded
                     ? sessions.map(({ session, daemon }) => (
-                        <label
-                          key={session.id}
-                          className={`${box({ radius: 'md', hover: 'muted' })} ${text({ size: 'sm' })} flex items-center gap-2 py-1 pr-1 pl-8`}
-                        >
+                        <label key={session.id} className={`${look.hoverRow} ${ink.body} flex items-center gap-2 py-1 pr-1 pl-8`}>
                           <Checkbox
                             checked={picks.holds(project, session.id)}
                             disabled={!picks.holds(project, session.id) && !picks.canTake(session.id)}
@@ -107,14 +104,14 @@ export function ChipGroupDialog({
                           />
                           <StatusDot tone={TONE[picks.status(session)] ?? 'idle'} label={picks.status(session)} />
                           <span className="min-w-0 flex-1 truncate">{session.name}</span>
-                          <span className={`${textRole.meta} max-w-24 shrink-0 truncate`}>{session.machine ?? daemon.name}</span>
+                          <span className={`${ink.meta} max-w-24 shrink-0 truncate`}>{session.machine ?? daemon.name}</span>
                         </label>
                       ))
                     : null}
                 </div>
               )
             })}
-            {!shown.length ? <p className={`${textRole.hint} px-2 py-3`}>Nothing matches.</p> : null}
+            {!shown.length ? <p className={`${ink.hint} px-2 py-3`}>Nothing matches.</p> : null}
           </div>
           {error ? <Banner tone="error">{error.message}</Banner> : null}
           <Button type="submit" disabled={pending || !name.trim() || picks.empty()}>

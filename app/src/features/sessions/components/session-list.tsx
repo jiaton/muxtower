@@ -12,15 +12,16 @@ import { AgentMark } from './agent-mark'
 import { PlaceIcon } from './place-icon'
 import type { RowContext } from './session-row'
 import { RowView, type Extra } from './session-tree'
-import { box, text, textRole } from '@/components/ui/styles'
+
 import { Button } from '@/components/ui/button'
 import { Chevron } from '@/components/ui/indicators'
+import { ink, look } from '@/components/ui/intents'
 
 /** What a header says beside its name: how many sessions, and, while folded, how many of them need you
  *  (so folding a group never hides a prompt). */
 function HeaderCount({ count, needs, className }: { count: number; needs: number; className?: string }) {
   return (
-    <span className={cn(`${text({ numeric: true })} flex items-center gap-1.5`, className)}>
+    <span className={cn(`${ink.count} flex items-center gap-1.5`, className)}>
       {needs ? <Badge tone="permission">{needs} need you</Badge> : null}
       {count}
     </span>
@@ -70,7 +71,7 @@ const GroupHeader = memo(
         <FoldButton
           folded={node.folded}
           onToggle={node.foldable ? (header) => toggle(node.key, header) : undefined}
-          className={`${textRole.eyebrow} ${box({ edge: 'bottom', ground: 'page' })} ${text({ hoverFg: true })} gap-2 px-3 py-1.5 sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0`}
+          className={`${ink.eyebrow} ${look.listHeader} ${ink.quietAction} gap-2 px-3 py-1.5 sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0`}
         >
           {node.sectioned ? <Monitor aria-hidden /> : node.implies.agent ? <AgentMark decorative agent={node.label} /> : null}
           <span className="truncate">{node.label}</span>
@@ -94,11 +95,11 @@ const SectionHeader = memo(
         <FoldButton
           folded={node.folded}
           onToggle={node.foldable ? (header) => toggle(node.key, header) : undefined}
-          className={`${box({ ground: 'muted' })} ${text({ hoverFg: true })} ${textRole.meta} gap-1.5 px-3 py-1 sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0`}
+          className={`${look.selected} ${ink.quietAction} ${ink.meta} gap-1.5 px-3 py-1 sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0`}
           indent={node.depth * INDENT_REM}
         >
           <PlaceIcon kind={node.placeKind} />
-          <span className={`${text({ weight: 'medium', tone: 'fg' })} min-w-0 truncate`}>{node.label}</span>
+          <span className={`${ink.strong} min-w-0 truncate`}>{node.label}</span>
           <HeaderCount count={node.count} needs={node.needs} className="ml-auto" />
         </FoldButton>
       </h4>

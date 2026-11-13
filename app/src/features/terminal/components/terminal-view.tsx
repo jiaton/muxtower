@@ -6,8 +6,8 @@ import { ansiToLines } from '@/lib/ansi'
 import { MAX_ROWS } from '../hooks/use-session-terminal'
 import { align, collapseGap } from '../lines'
 import { useTerminalPrefs } from '../store'
-import { box, text } from '@/components/ui/styles'
 import { Spinner } from '@/components/ui/indicators'
+import { look } from '@/components/ui/intents'
 
 interface Props {
   ansi: string | undefined
@@ -162,11 +162,9 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
   }
 
   return (
-    <div className={`${box({ ground: 'terminal' })} relative flex min-h-0 flex-1 flex-col overflow-hidden`}>
+    <div className={`${look.terminal} relative flex min-h-0 flex-1 flex-col overflow-hidden`}>
       {loadingMore ? (
-        <p
-          className={`${box({ ground: 'terminal' })} ${text({ size: 'xs', tone: 'terminal' })} absolute inset-x-0 top-0 z-10 flex items-center justify-center gap-2 py-1`}
-        >
+        <p className={`${look.terminalNote} absolute inset-x-0 top-0 z-10 flex items-center justify-center gap-2 py-1`}>
           <Spinner className="size-3" /> Loading older output…
         </p>
       ) : null}
@@ -185,7 +183,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
         <div ref={body} />
       </div>
       {tooWide && onFitRequest && !onFit ? (
-        <Button size="sm" variant="secondary" className={`${box({ shadow: 'card' })} absolute top-2 right-3`} onClick={onFitRequest}>
+        <Button size="sm" variant="secondary" floating className="absolute top-2 right-3" onClick={onFitRequest}>
           <MoveHorizontal /> Fit width
         </Button>
       ) : null}
@@ -193,7 +191,8 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
         <Button
           size="sm"
           variant="secondary"
-          className={`${box({ shadow: 'card' })} absolute right-3 bottom-3`}
+          floating
+          className="absolute right-3 bottom-3"
           onClick={() => {
             const scrollBox = scroller.current!
             scrollBox.scrollTop = scrollBox.scrollHeight

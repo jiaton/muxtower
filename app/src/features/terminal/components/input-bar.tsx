@@ -3,7 +3,6 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/input'
-import { box, motion, text } from '@/components/ui/styles'
 import { cn } from '@/lib/cn'
 import { PHONE_QUERY, useMediaQuery } from '@/lib/use-media-query'
 import type { Track } from '@/lib/use-outbox'
@@ -19,6 +18,7 @@ import { submitters } from '../draft-box'
 import { useTokenMenu, type TokenSource } from '@/components/ui/token-menu'
 import { composerField, composerText } from '@/components/ui/composer-field'
 import { FilePicker } from '@/components/ui/file-picker'
+import { look } from '@/components/ui/intents'
 
 const NO_QUOTES: Quote[] = []
 const TOUCH = '(pointer: coarse)' // a phone: its keyboard covers half the screen, its return key is a new line
@@ -248,18 +248,18 @@ export function InputBar({
         }}
       >
         <Button
-          variant="ghost"
+          variant={open ? 'secondary' : 'ghost'}
           size="icon"
           aria-label={
             open ? (images && narrow ? 'Hide keys and pictures' : 'Hide keys') : images && narrow ? 'Show keys and pictures' : 'Show keys'
           }
           aria-expanded={open}
           title={open ? 'Hide keys' : 'Keys: esc, tab, arrows, enter…'}
-          className={cn('shrink-0', open && `${box({ ground: 'muted' })} ${text({ tone: 'fg' })}`)}
+          className="shrink-0"
           onPointerDown={(e) => e.preventDefault()} // keep the phone keyboard as it is
           onClick={() => setOpen(!open)}
         >
-          <Plus className={cn(motion({ turns: true }), open && 'rotate-45')} />
+          <Plus className={cn(look.turning, open && 'rotate-45')} />
         </Button>
         {/* One box: the pictures and what the message quotes on top, then what is typed. */}
         <div

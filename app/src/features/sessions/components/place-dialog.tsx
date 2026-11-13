@@ -10,8 +10,8 @@ import { useSessionEntries } from '../hooks/use-session-entries'
 import { NO_ENVIRONMENT, deviceOf, folderOf } from '../model/facets'
 import { foldersAround } from '../model/folders'
 import { facetsOf } from '../model/counts'
-import { text, textRole } from '@/components/ui/styles'
 import { Label } from '@/components/ui/label'
+import { ink } from '@/components/ui/intents'
 
 const count = (n: number) => `${n} session${n === 1 ? '' : 's'}`
 
@@ -58,28 +58,21 @@ export function PlaceDialog({ daemonId, session, onClose }: { daemonId: string; 
             />
           </Label>
           <Label>
-            Folder <span className={textRole.aside}>optional</span>
+            Folder <span className={ink.aside}>optional</span>
             <SuggestInput
               placeholder="~/code/project"
               value={folder}
               onValueChange={setFolder}
               maxLength={500}
               suggestions={folders.map((f) => ({ value: f.label, hint: count(f.count) }))}
-              className={text({ mono: true })}
+              className={ink.code}
             />
           </Label>
           {around.length ? (
-            <div className={`${textRole.meta} flex flex-wrap items-center gap-1.5`}>
+            <div className={`${ink.meta} flex flex-wrap items-center gap-1.5`}>
               Inside
               {around.map((parent) => (
-                <Button
-                  key={parent}
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  className={text({ mono: true })}
-                  onClick={() => setFolder(parent)}
-                >
+                <Button key={parent} type="button" variant="secondary" size="sm" code onClick={() => setFolder(parent)}>
                   <FolderUp /> {parent}
                 </Button>
               ))}
@@ -95,7 +88,7 @@ export function PlaceDialog({ daemonId, session, onClose }: { daemonId: string; 
             >
               <ScanSearch /> {detect.isPending ? 'Reading its log…' : 'Detect the folder'}
             </Button>
-            <p className={textRole.meta}>
+            <p className={ink.meta}>
               {detect.data
                 ? detect.data.folder
                   ? `Its tool calls ran in ${detect.data.folder}. Save to place it there.`

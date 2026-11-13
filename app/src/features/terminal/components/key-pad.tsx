@@ -3,7 +3,6 @@ import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/cn'
 import { useKeyRepeat } from '../hooks/use-key-repeat'
-import { text } from '@/components/ui/styles'
 
 interface KeyDef {
   key: string
@@ -54,14 +53,10 @@ export function KeyPad({ keys, onKey, className }: { keys: string[]; onKey: (key
         <Button
           key={k.key}
           variant="secondary"
-          size="sm"
+          size="key"
           aria-label={k.name}
           title={k.name}
-          className={cn(
-            `${text({ mono: true, size: 'xs' })} h-9 touch-none px-0 select-none [&_svg]:size-4`,
-            !sparse && k.at,
-            sparse && 'px-3',
-          )}
+          className={cn('', !sparse && k.at, sparse && 'px-3')}
           {...press(k.key, Boolean(k.repeat))}
         >
           {sparse && k.key === 'Escape' ? 'esc · interrupt' : k.label}

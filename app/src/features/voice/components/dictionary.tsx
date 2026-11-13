@@ -4,7 +4,8 @@ import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useDictionary, useSaveDictionary, type Dictionary } from '../api/use-dictionary'
-import { box, surface, text, textRole } from '@/components/ui/styles'
+
+import { ink, look } from '@/components/ui/intents'
 
 /**
  * The voice dictionary, under "Voice input" in the hub's settings: words speech to text should know (they
@@ -40,24 +41,21 @@ export function DictionarySettings({ daemonId }: { daemonId: string }) {
     put({ corrections: corrections.map((c, j) => (j === i ? { ...c, ...change } : c)) })
 
   return (
-    <div className={`${surface.outlined} flex flex-col gap-3 px-3 py-3`} aria-label="Dictionary">
+    <div className={`${look.frame} flex flex-col gap-3 px-3 py-3`} aria-label="Dictionary">
       <div>
-        <h3 className={textRole.label}>Dictionary</h3>
-        <p className={textRole.meta}>
+        <h3 className={ink.label}>Dictionary</h3>
+        <p className={ink.meta}>
           Words speech to text should know, and corrections of what it still writes wrong. Kept on this hub, for every device.
         </p>
       </div>
       {save.isError ? <Banner tone="error">{save.error.message}</Banner> : null}
 
       <section aria-label="Words" className="flex flex-col gap-2">
-        <h4 className={`${text({ weight: 'medium' })} ${textRole.meta}`}>Words</h4>
+        <h4 className={ink.eyebrow}>Words</h4>
         {words.length ? (
           <ul className="flex flex-wrap gap-1.5">
             {words.map((w) => (
-              <li
-                key={w}
-                className={`${box({ radius: 'full', ground: 'muted' })} ${text({ size: 'sm' })} flex items-center gap-1 py-0.5 pr-1 pl-3`}
-              >
+              <li key={w} className={`${look.pill} ${ink.body} flex items-center gap-1 py-0.5 pr-1 pl-3`}>
                 {w}
                 <Button
                   variant="ghost"
@@ -85,7 +83,7 @@ export function DictionarySettings({ daemonId }: { daemonId: string }) {
             <Plus /> Add
           </Button>
         </form>
-        <p className={fit.words_in_prompt < fit.words ? text({ size: 'xs', tone: 'warning' }) : textRole.meta}>
+        <p className={fit.words_in_prompt < fit.words ? ink.noteWarning : ink.meta}>
           {fit.words_in_prompt < fit.words
             ? `Only the first ${fit.words_in_prompt} of ${fit.words} words fit in what speech to text reads of its prompt; the rest are left out. Put the most important first.`
             : fit.words
@@ -95,7 +93,7 @@ export function DictionarySettings({ daemonId }: { daemonId: string }) {
       </section>
 
       <section aria-label="Corrections" className="flex flex-col gap-2">
-        <h4 className={`${text({ weight: 'medium' })} ${textRole.meta}`}>Corrections, applied in order</h4>
+        <h4 className={ink.eyebrow}>Corrections, applied in order</h4>
         <ul className="flex flex-col gap-1.5">
           {corrections.map((c, i) => (
             <li key={`${i}:${c.heard}`} className="flex items-center gap-2">
@@ -105,7 +103,7 @@ export function DictionarySettings({ daemonId }: { daemonId: string }) {
                 maxLength={80}
                 onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== c.heard && edit(i, { heard: e.target.value.trim() })}
               />
-              <ArrowRight className={`${text({ tone: 'muted' })} size-4 shrink-0`} aria-hidden />
+              <ArrowRight className={`${ink.quiet} size-4 shrink-0`} aria-hidden />
               <Input
                 defaultValue={c.write}
                 aria-label={`Write ${i + 1}`}
@@ -132,7 +130,7 @@ export function DictionarySettings({ daemonId }: { daemonId: string }) {
             aria-label="New heard"
             maxLength={80}
           />
-          <ArrowRight className={`${text({ tone: 'muted' })} size-4 shrink-0`} aria-hidden />
+          <ArrowRight className={`${ink.quiet} size-4 shrink-0`} aria-hidden />
           <Input
             value={write}
             onChange={(e) => setWrite(e.target.value)}
@@ -144,7 +142,7 @@ export function DictionarySettings({ daemonId }: { daemonId: string }) {
             <Plus /> Add
           </Button>
         </form>
-        <p className={textRole.meta}>Case aside, whole words or phrases (in Chinese or Japanese, anywhere); each part is replaced once.</p>
+        <p className={ink.meta}>Case aside, whole words or phrases (in Chinese or Japanese, anywhere); each part is replaced once.</p>
       </section>
     </div>
   )
@@ -166,17 +164,13 @@ export function DictionaryQuickAdd({ daemonId, word: selected, onClose }: { daem
     save.mutate({ words: [...(current.words ?? []), word.trim()], corrections }, { onSuccess: onClose })
   }
   return (
-    <form
-      aria-label="Add to dictionary"
-      className={`${text({ size: 'sm' })} ${surface.muted} flex flex-wrap items-end gap-2 px-2 py-2`}
-      onSubmit={submit}
-    >
+    <form aria-label="Add to dictionary" className={`${ink.body} ${look.panel} flex flex-wrap items-end gap-2 px-2 py-2`} onSubmit={submit}>
       <label className="flex min-w-32 flex-1 flex-col gap-1">
-        <span className={textRole.meta}>Word</span>
+        <span className={ink.meta}>Word</span>
         <Input value={word} onChange={(e) => setWord(e.target.value)} maxLength={80} autoFocus />
       </label>
       <label className="flex min-w-32 flex-1 flex-col gap-1">
-        <span className={textRole.meta}>Often heard as (optional)</span>
+        <span className={ink.meta}>Often heard as (optional)</span>
         <Input value={heard} onChange={(e) => setHeard(e.target.value)} maxLength={80} placeholder="what it writes instead" />
       </label>
       <div className="flex gap-1">
@@ -187,7 +181,7 @@ export function DictionaryQuickAdd({ daemonId, word: selected, onClose }: { daem
           Cancel
         </Button>
       </div>
-      {save.isError ? <p className={`${text({ size: 'xs', tone: 'danger' })} basis-full`}>{save.error.message}</p> : null}
+      {save.isError ? <p className={`${ink.noteDanger} basis-full`}>{save.error.message}</p> : null}
     </form>
   )
 }

@@ -5,7 +5,7 @@ import { Pane, PaneBody, PaneHeader } from '@/components/ui/pane'
 import { SettingsForm } from '@/features/daemons/components/settings-form'
 import { DictionarySettings } from '@/features/voice/components/dictionary'
 import { useDaemon } from '@/lib/daemons/store'
-import { textRole } from '@/components/ui/styles'
+import { ink } from '@/components/ui/intents'
 
 export const Route = createFileRoute('/daemons_/$daemonId/settings')({
   validateSearch: (search: Record<string, unknown>): { node?: string } =>
@@ -40,7 +40,7 @@ function SettingsPage() {
               extras={node ? undefined : { 'Voice input': <DictionarySettings daemonId={daemonId} /> }}
             />
           ) : (
-            <p className={textRole.hint}>Unknown daemon.</p>
+            <p className={ink.hint}>Unknown daemon.</p>
           )}
         </div>
       </PaneBody>

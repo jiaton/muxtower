@@ -18,7 +18,7 @@ import { useMarkRead } from '../api/use-session-marks'
 import { folderName, type SessionEntry } from '../model/facets'
 import { scopeOf, scopeSearch, type ListSearch } from '../model/search'
 import { useListPrefs } from '../store'
-import { box, text } from '@/components/ui/styles'
+import { ink, look } from '@/components/ui/intents'
 
 const SEARCH_DEBOUNCE_MS = 200
 
@@ -112,12 +112,12 @@ export function ScopeChip({ query, search }: { query: SessionQuery; search: List
     <Link
       to="/"
       search={scopeSearch(search, { view: 'all' })}
-      className={`${box({ radius: 'full', ground: 'muted' })} ${text({ size: 'xs', tone: 'fg' })} inline-flex max-w-full items-center gap-1 self-start py-1 pr-2 pl-3`}
+      className={`${look.pill} ${ink.meta} inline-flex max-w-full items-center gap-1 self-start py-1 pr-2 pl-3`}
       aria-label={`Show everything, not only ${label}`}
       title={scope.folder}
     >
       <span className="truncate">{label}</span>
-      <X className={`${text({ tone: 'muted' })} size-3.5 shrink-0`} aria-hidden />
+      <X className={`${ink.quiet} size-3.5 shrink-0`} aria-hidden />
     </Link>
   )
 }

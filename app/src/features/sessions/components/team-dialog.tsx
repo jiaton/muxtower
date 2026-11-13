@@ -9,8 +9,9 @@ import type { Session, TeamTask } from '@/lib/api/types'
 import { ago } from '@/lib/time'
 import { useSessionTasks, useUpdateTeam } from '../api/use-team'
 import { useSessionEntries } from '../hooks/use-session-entries'
-import { box, text, textRole } from '@/components/ui/styles'
+
 import { Label } from '@/components/ui/label'
+import { ink, look } from '@/components/ui/intents'
 
 const count = (n: number) => `${n} session${n === 1 ? '' : 's'}`
 
@@ -25,11 +26,11 @@ function TaskLine({ task, sessionId }: { task: TeamTask; sessionId: string }) {
   const sent = task.from_id === sessionId
   const Icon = sent ? ArrowUpRight : ArrowDownLeft
   return (
-    <li className={`${text({ size: 'sm' })} flex gap-2 py-1.5`}>
-      <Icon className={`${text({ tone: 'muted' })} mt-0.5 size-4 shrink-0`} aria-label={sent ? 'Sent' : 'Received'} />
+    <li className={`${ink.body} flex gap-2 py-1.5`}>
+      <Icon className={`${ink.quiet} mt-0.5 size-4 shrink-0`} aria-label={sent ? 'Sent' : 'Received'} />
       <div className="min-w-0 flex-1">
         <p className="line-clamp-2">{task.text}</p>
-        <p className={textRole.meta}>
+        <p className={ink.meta}>
           {sent ? `to ${task.to_id}` : `from ${task.from_label.split(' · ')[0]}`} · {ago(task.at)} · {task.status}
         </p>
       </div>
@@ -80,7 +81,7 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
             />
           </Label>
           <Label>
-            Note <span className={textRole.aside}>optional</span>
+            Note <span className={ink.aside}>optional</span>
             <Input
               placeholder="Implements what research agreed on"
               value={note}
@@ -90,8 +91,7 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
           </Label>
           <Label>
             <span>
-              Project{' '}
-              {session.project_auto && !moved ? <span className={textRole.aside}>· auto, from {session.project_source}</span> : null}
+              Project {session.project_auto && !moved ? <span className={ink.aside}>· auto, from {session.project_source}</span> : null}
             </span>
             <SuggestInput
               placeholder="owner/repo"
@@ -108,16 +108,16 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
             </Button>
           </div>
         </form>
-        <section aria-label="Tasks" className={`${box({ edge: 'top' })} mt-2 pt-3`}>
-          <h3 className={textRole.eyebrow}>Tasks</h3>
+        <section aria-label="Tasks" className={`${look.rule.top} mt-2 pt-3`}>
+          <h3 className={ink.eyebrow}>Tasks</h3>
           {tasks.data?.length ? (
-            <ul className={`${box({ divided: true })} flex flex-col`}>
+            <ul className={`${look.rows} flex flex-col`}>
               {tasks.data.map((task) => (
                 <TaskLine key={task.id} task={task} sessionId={session.id} />
               ))}
             </ul>
           ) : (
-            <p className={`${textRole.hint} py-2`}>{tasks.isLoading ? 'Loading…' : 'No tasks sent or received yet.'}</p>
+            <p className={`${ink.hint} py-2`}>{tasks.isLoading ? 'Loading…' : 'No tasks sent or received yet.'}</p>
           )}
         </section>
       </DialogContent>

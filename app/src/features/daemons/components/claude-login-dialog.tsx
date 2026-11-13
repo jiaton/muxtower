@@ -10,8 +10,8 @@ import { useDaemonMe } from '../api/use-daemon-me'
 import type { Daemon } from '@/lib/daemons/types'
 import { daemonKey } from '@/lib/query'
 import { useLoginRunning, useLoginSession, useStartClaudeLogin } from '../api/use-claude-login'
-import { text, textRole } from '@/components/ui/styles'
 import { Label } from '@/components/ui/label'
+import { ink } from '@/components/ui/intents'
 
 const STILL_WAITING_MS = 8_000 // after the code, longer than a login takes: a wrong code is said in its session
 const RECHECK_MS = 2_000 // the daemon finds the new login at its next Remote Control poll (every 5 s)
@@ -71,7 +71,7 @@ export function ClaudeLoginDialog({ daemon, onClose }: { daemon: Daemon; onClose
     <Link
       to="/d/$daemonId/s/$sessionId"
       params={{ daemonId: daemon.id, sessionId: login.session.id }}
-      className={text({ underline: true })}
+      className={ink.link}
       onClick={onClose}
     >
       see what it says
@@ -85,7 +85,7 @@ export function ClaudeLoginDialog({ daemon, onClose }: { daemon: Daemon; onClose
         description="Sessions from Claude Desktop and the Claude app are read with this login."
       >
         {start.error ? <Banner tone="error">{start.error.message}</Banner> : null}
-        {start.isPending ? <p className={textRole.hint}>Starting claude auth login…</p> : null}
+        {start.isPending ? <p className={ink.hint}>Starting claude auth login…</p> : null}
         {loggedIn ? (
           <>
             <Banner>
@@ -100,7 +100,7 @@ export function ClaudeLoginDialog({ daemon, onClose }: { daemon: Daemon; onClose
             <Button onClick={onClose}>Close</Button>
           </>
         ) : ended ? (
-          <p className={textRole.hint}>Checking the new login…</p>
+          <p className={ink.hint}>Checking the new login…</p>
         ) : login ? (
           <form
             className="flex flex-col gap-3"
@@ -122,13 +122,7 @@ export function ClaudeLoginDialog({ daemon, onClose }: { daemon: Daemon; onClose
             )}
             <Label>
               2. Paste the code it gives
-              <Input
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                autoComplete="off"
-                spellCheck={false}
-                className={text({ mono: true })}
-              />
+              <Input value={code} onChange={(e) => setCode(e.target.value)} autoComplete="off" spellCheck={false} className={ink.code} />
             </Label>
             {sendCode.error ? <Banner tone="error">{sendCode.error.message}</Banner> : null}
             {slow ? (

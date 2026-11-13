@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { NodeInfo } from '@/lib/api/types'
 import { useSetNodeAddress } from '../api/use-nodes'
-import { text, textRole } from '@/components/ui/styles'
+import { ink } from '@/components/ui/intents'
 
 /** Where this device reaches a node itself while the hub is down: the address it reports (its
  *  `public_url`, or what `tailscale serve` serves it at), or one the owner sets here. https only. */
@@ -24,7 +24,7 @@ export function NodeAddress({ daemonId, node }: { daemonId: string; node: NodeIn
         }}
       >
         <Input
-          className={`${text({ size: 'xs' })} h-8`}
+          compact
           placeholder={node.reported_url ?? 'https://…'}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -34,15 +34,15 @@ export function NodeAddress({ daemonId, node }: { daemonId: string; node: NodeIn
         <Button type="submit" variant="ghost" size="icon-sm" aria-label="Save the address" disabled={set.isPending}>
           <Check />
         </Button>
-        {set.error ? <span className={text({ size: 'xs', tone: 'error' })}>{set.error.message}</span> : null}
+        {set.error ? <span className={ink.noteDanger}>{set.error.message}</span> : null}
       </form>
     )
   return (
-    <span className={`${textRole.meta} flex items-center gap-1`}>
+    <span className={`${ink.meta} flex items-center gap-1`}>
       <span className="min-w-0 truncate">
         {shown ? `direct: ${shown}${node.direct_url ? '' : ' (reported)'}` : 'no direct address: not reachable while the hub is down'}
       </span>
-      {http ? <span className={`${text({ tone: 'warning' })} shrink-0`}>· http cannot be reached from the app (https only)</span> : null}
+      {http ? <span className={`${ink.warning} shrink-0`}>· http cannot be reached from the app (https only)</span> : null}
       <Button
         variant="ghost"
         size="icon-sm"

@@ -3,8 +3,8 @@ import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import type { Dictation } from '../hooks/use-dictation'
 import { MAX_SECONDS } from '../hooks/use-recorder'
-import { box, text, textRole } from '@/components/ui/styles'
 import { Dot, Spinner } from '@/components/ui/indicators'
+import { ink, look } from '@/components/ui/intents'
 
 const BARS = 48 // the last ~2.4 s of loudness, newest on the right
 const TICK_MS = 50
@@ -62,38 +62,25 @@ export function VoiceBar({ dictation }: { dictation: Dictation }) {
     <div
       role="group"
       aria-label={transcribing ? 'Transcribing' : 'Recording'}
-      className={`${box({ outline: 'default', radius: 'full', ground: 'surface' })} flex min-w-0 flex-1 items-center gap-2 py-1 pr-1 pl-1`}
+      className={`${look.capsule} flex min-w-0 flex-1 items-center gap-2 py-1 pr-1 pl-1`}
     >
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        className={`${box({ radius: 'full' })} shrink-0`}
-        aria-label="Cancel"
-        disabled={transcribing}
-        onClick={onCancel}
-      >
+      <Button variant="ghost" size="icon-sm" round className="shrink-0" aria-label="Cancel" disabled={transcribing} onClick={onCancel}>
         <X />
       </Button>
       {transcribing ? (
-        <p className={`${textRole.hint} flex min-w-0 flex-1 items-center gap-2`}>
+        <p className={`${ink.hint} flex min-w-0 flex-1 items-center gap-2`}>
           <Spinner /> Transcribing…
         </p>
       ) : (
         <>
           <Dot tone="danger" pulse className="size-2" />
-          <canvas ref={canvas} className={`${text({ tone: 'accent' })} h-7 min-w-0 flex-1`} aria-hidden />
-          <span ref={time} className={`${text({ numeric: true })} ${textRole.meta} shrink-0`}>
+          <canvas ref={canvas} className={`${ink.accent} h-7 min-w-0 flex-1`} aria-hidden />
+          <span ref={time} className={`${ink.count} ${ink.meta} shrink-0`}>
             0:00
           </span>
         </>
       )}
-      <Button
-        size="icon-sm"
-        className={`${box({ radius: 'full' })} shrink-0`}
-        aria-label="Done: to text"
-        disabled={transcribing}
-        onClick={onDone}
-      >
+      <Button size="icon-sm" round className="shrink-0" aria-label="Done: to text" disabled={transcribing} onClick={onDone}>
         <ArrowUp />
       </Button>
     </div>

@@ -13,7 +13,7 @@ import { AddDaemonDialog } from '@/features/pairing/components/add-daemon-dialog
 import { ShareDevicesDialog } from '@/features/pairing/components/share-devices-dialog'
 import { PushToggle } from '@/features/push/components/push-toggle'
 import { useOwnDaemons, usePairedDaemons } from '@/lib/daemons/store'
-import { text, textRole } from '@/components/ui/styles'
+import { ink } from '@/components/ui/intents'
 
 export const Route = createFileRoute('/daemons')({ component: DaemonsPage })
 
@@ -56,7 +56,7 @@ function DaemonsPage() {
             </div>
           ) : (
             <EmptyState title="No daemons yet">
-              Run <code className={text({ mono: true })}>muxtower pair</code> where your agents run, then tap Add.
+              Run <code className={ink.code}>muxtower pair</code> where your agents run, then tap Add.
             </EmptyState>
           )}
           <InstallApp />
@@ -64,8 +64,8 @@ function DaemonsPage() {
           <VoiceCommandsSettings />
           {paired.length ? (
             <section className="flex flex-col gap-2">
-              <h2 className={textRole.label}>Other devices</h2>
-              <p className={textRole.hint}>
+              <h2 className={ink.label}>Other devices</h2>
+              <p className={ink.hint}>
                 Show a QR code that pairs another phone or computer with every daemon here, without typing anything.
               </p>
               <ShareDevicesDialog />

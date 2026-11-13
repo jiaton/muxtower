@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { PendingQuestion } from '@/lib/api/types'
 import { cn } from '@/lib/cn'
-import { text, textRole } from '@/components/ui/styles'
+import { ink } from '@/components/ui/intents'
 
 /** Whether a prompt's questions need a form: more than one, or one taking several answers. A single
  *  choice is one tap on its option instead. */
@@ -35,9 +35,9 @@ export function QuestionForm({
       {questions.map((q, index) => (
         <fieldset key={`${index}-${q.question}`} className="flex flex-col gap-2">
           <legend className="mb-1 flex flex-col gap-0.5">
-            {q.header ? <span className={textRole.eyebrow}>{q.header}</span> : null}
-            <span className={text({ weight: 'medium' })}>{q.question}</span>
-            {q.multi_select ? <span className={textRole.meta}>Pick any</span> : null}
+            {q.header ? <span className={ink.eyebrow}>{q.header}</span> : null}
+            <span className={ink.strong}>{q.question}</span>
+            {q.multi_select ? <span className={ink.meta}>Pick any</span> : null}
           </legend>
           {q.options.map((option) => {
             const on = picked[index].includes(option.label)
@@ -53,11 +53,11 @@ export function QuestionForm({
                 onClick={() => pick(index, option.label, q.multi_select ?? false)}
                 className="items-start"
               >
-                <Icon className={cn('mt-0.5 size-4 shrink-0', on ? text({ tone: 'accent' }) : text({ tone: 'muted' }))} aria-hidden />
+                <Icon className={cn('mt-0.5 size-4 shrink-0', on ? ink.accent : ink.quiet)} aria-hidden />
                 <span className="flex min-w-0 flex-col">
                   <span>{option.label}</span>
                   {option.description && option.description !== option.label ? (
-                    <span className={textRole.meta}>{option.description}</span>
+                    <span className={ink.meta}>{option.description}</span>
                   ) : null}
                 </span>
               </Button>
