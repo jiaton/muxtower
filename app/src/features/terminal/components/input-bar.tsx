@@ -21,6 +21,7 @@ import { useTokenMenu, type TokenSource } from '@/components/ui/token-menu'
 import { composerField, composerText } from '@/components/ui/composer-field'
 import { FilePicker } from '@/components/ui/file-picker'
 import { look } from '@/components/ui/intents'
+import { Fold } from '@/components/ui/fold'
 
 const NO_QUOTES: Quote[] = []
 const TOUCH = '(pointer: coarse)' // a phone: its keyboard covers half the screen, its return key is a new line
@@ -231,134 +232,140 @@ export function InputBar({
           {pictures.error}
         </Banner>
       ) : null}
-      {open ? (
-        <div className="flex flex-col gap-2">
-          {images && narrow ? (
-            // A phone's row is narrow: pictures are here, beside the keys (pasting or dropping still works).
-            <Button
-              variant="secondary"
-              size="sm"
-              className="self-start"
-              onPointerDown={(e) => e.preventDefault()}
-              onClick={() => picker.current?.click()}
-            >
-              <ImagePlus /> Add pictures
-            </Button>
-          ) : null}
-          {guarded.hint ? (
-            <Banner tone="warning" aligned>
-              {guarded.hint}
-            </Banner>
-          ) : null}
-          <KeyPad keys={keys} guarded={guardedKeys} onKey={guarded.press} />
-        </div>
-      ) : null}
-      {cover ? <div className="flex items-end">{cover}</div> : null}
-      <form
-        hidden={!!cover}
-        className="flex items-end gap-1.5"
-        onSubmit={(e) => {
-          e.preventDefault()
-          submit()
-        }}
-      >
-        <Button
-          variant={open ? 'secondary' : 'ghost'}
-          size="icon"
-          aria-label={
-            open ? (images && narrow ? 'Hide keys and pictures' : 'Hide keys') : images && narrow ? 'Show keys and pictures' : 'Show keys'
-          }
-          aria-expanded={open}
-          title={open ? 'Hide keys' : 'Keys: esc, tab, arrows, enter…'}
-          className="shrink-0"
-          onPointerDown={(e) => e.preventDefault()} // keep the phone keyboard as it is
-          onClick={() => setOpen(!open)}
-        >
-          <Plus className={cn(look.turning, open && 'rotate-45')} />
-        </Button>
-        {/* One box: the pictures and what the message quotes on top, then what is typed. */}
-        <div
-          data-landed={glow || undefined}
-          className={composerField({ glow })}
-          onDragOver={(e) => images && e.dataTransfer.types.includes('Files') && e.preventDefault()}
-          onDrop={(e) => {
-            const dropped = images ? imagesIn(e.dataTransfer.files) : []
-            if (!dropped.length) return
+      {/* The + panel, the swap for the row while speaking, and the row: no gap of their own, so the panel's
+          fold (its own padding below) is all that moves; the row never jumps. */}
+      <div className="flex flex-col">
+        <Fold open={open}>
+          <div className="flex flex-col gap-2 pb-2">
+            {images && narrow ? (
+              // A phone's row is narrow: pictures are here, beside the keys (pasting or dropping still works).
+              <Button
+                variant="secondary"
+                size="sm"
+                className="self-start"
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={() => picker.current?.click()}
+              >
+                <ImagePlus /> Add pictures
+              </Button>
+            ) : null}
+            {guarded.hint ? (
+              <Banner tone="warning" aligned>
+                {guarded.hint}
+              </Banner>
+            ) : null}
+            <KeyPad keys={keys} guarded={guardedKeys} onKey={guarded.press} />
+          </div>
+        </Fold>
+        {cover ? <div className="flex items-end">{cover}</div> : null}
+        <form
+          hidden={!!cover}
+          className="flex items-end gap-1.5"
+          onSubmit={(e) => {
             e.preventDefault()
-            void pictures.add(dropped)
+            submit()
           }}
         >
-          {pictures.items.length || pictures.pending ? (
-            <ImageCards items={pictures.items} pending={pictures.pending} onRemove={pictures.remove} />
-          ) : null}
-          {quotes.length ? (
-            <QuoteCards
-              quotes={quotes}
-              onChange={(list) => setQuotes(draftKey, list)}
-              onKeyDown={replyKeyDown}
-              replied={replied}
-              mention={mention}
-              draftKey={draftKey}
-            />
-          ) : null}
-          <Textarea
-            ref={textarea}
-            rows={1}
-            enterKeyHint={touch ? 'enter' : 'send'}
-            value={draft}
-            placeholder={!quotes.length ? 'Message the agent' : armed && !touch ? 'Add a message, or Enter again to send' : 'Add a message'}
-            aria-label="Message the agent"
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={keyDown}
-            onSelect={mentions.sync}
-            onBlur={mentions.close}
-            onPaste={(e) => {
-              const pasted = images ? imagesIn(e.clipboardData.files) : []
-              if (!pasted.length) return
-              e.preventDefault() // a screenshot: attached, not its file name typed
-              void pictures.add(pasted)
+          <Button
+            variant={open ? 'secondary' : 'ghost'}
+            size="icon"
+            aria-label={
+              open ? (images && narrow ? 'Hide keys and pictures' : 'Hide keys') : images && narrow ? 'Show keys and pictures' : 'Show keys'
+            }
+            aria-expanded={open}
+            title={open ? 'Hide keys' : 'Keys: esc, tab, arrows, enter…'}
+            className="shrink-0"
+            onPointerDown={(e) => e.preventDefault()} // keep the phone keyboard as it is
+            onClick={() => setOpen(!open)}
+          >
+            <Plus className={cn(look.turning, open && 'rotate-45')} />
+          </Button>
+          {/* One box: the pictures and what the message quotes on top, then what is typed. */}
+          <div
+            data-landed={glow || undefined}
+            className={composerField({ glow })}
+            onDragOver={(e) => images && e.dataTransfer.types.includes('Files') && e.preventDefault()}
+            onDrop={(e) => {
+              const dropped = images ? imagesIn(e.dataTransfer.files) : []
+              if (!dropped.length) return
+              e.preventDefault()
+              void pictures.add(dropped)
             }}
-            bare
-            className={composerText}
-          />
-          {mentions.menu}
-        </div>
-        {images ? (
-          <>
-            <FilePicker
-              ref={picker}
-              accept="image/*"
-              multiple
-              onChange={(e) => {
-                void pictures.add(imagesIn(e.target.files))
-                e.target.value = ''
-                setOpen(false) // pictures added: the panel has done its part
+          >
+            {pictures.items.length || pictures.pending ? (
+              <ImageCards items={pictures.items} pending={pictures.pending} onRemove={pictures.remove} />
+            ) : null}
+            {quotes.length ? (
+              <QuoteCards
+                quotes={quotes}
+                onChange={(list) => setQuotes(draftKey, list)}
+                onKeyDown={replyKeyDown}
+                replied={replied}
+                mention={mention}
+                draftKey={draftKey}
+              />
+            ) : null}
+            <Textarea
+              ref={textarea}
+              rows={1}
+              enterKeyHint={touch ? 'enter' : 'send'}
+              value={draft}
+              placeholder={
+                !quotes.length ? 'Message the agent' : armed && !touch ? 'Add a message, or Enter again to send' : 'Add a message'
+              }
+              aria-label="Message the agent"
+              onChange={(e) => setText(e.target.value)}
+              onKeyDown={keyDown}
+              onSelect={mentions.sync}
+              onBlur={mentions.close}
+              onPaste={(e) => {
+                const pasted = images ? imagesIn(e.clipboardData.files) : []
+                if (!pasted.length) return
+                e.preventDefault() // a screenshot: attached, not its file name typed
+                void pictures.add(pasted)
               }}
+              bare
+              className={composerText}
             />
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn('shrink-0', narrow && 'hidden')}
-              aria-label="Add pictures"
-              title="Add pictures (or paste or drop them in the textarea)"
-              onPointerDown={(e) => e.preventDefault()}
-              onClick={() => picker.current?.click()}
-            >
-              <ImagePlus />
-            </Button>
-          </>
-        ) : null}
-        {extra}
-        <Button
-          type="submit"
-          size="icon"
-          className="shrink-0"
-          aria-label="Send"
-          disabled={send.isPending || pictures.pending > 0 || (!message && !pictures.items.length)}
-        >
-          <SendHorizontal />
-        </Button>
-      </form>
+            {mentions.menu}
+          </div>
+          {images ? (
+            <>
+              <FilePicker
+                ref={picker}
+                accept="image/*"
+                multiple
+                onChange={(e) => {
+                  void pictures.add(imagesIn(e.target.files))
+                  e.target.value = ''
+                  setOpen(false) // pictures added: the panel has done its part
+                }}
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn('shrink-0', narrow && 'hidden')}
+                aria-label="Add pictures"
+                title="Add pictures (or paste or drop them in the textarea)"
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={() => picker.current?.click()}
+              >
+                <ImagePlus />
+              </Button>
+            </>
+          ) : null}
+          {extra}
+          <Button
+            type="submit"
+            size="icon"
+            className="shrink-0"
+            aria-label="Send"
+            disabled={send.isPending || pictures.pending > 0 || (!message && !pictures.items.length)}
+          >
+            <SendHorizontal />
+          </Button>
+        </form>
+      </div>
     </div>
   )
 }

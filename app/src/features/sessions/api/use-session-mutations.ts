@@ -32,6 +32,8 @@ export function useCreateSession(daemonId: string) {
       node?: string | null
       permission_mode?: string | null
       args?: string[]
+      /** Its first message, sent once it has started. */
+      prompt?: string | null
     }) => unwrap(await client!.POST('/v1/sessions', { body: { ...body, headless: body.headless ?? false, args: body.args ?? [] } })),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: daemonKey(daemonId, 'sessions') }),
   })

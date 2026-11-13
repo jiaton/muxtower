@@ -6,7 +6,7 @@ import { useDaemonMe } from '@/features/daemons/api/use-daemon-me'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
+import { Input, Textarea } from '@/components/ui/input'
 import { SuggestInput } from '@/components/ui/suggest-input'
 import { Switch } from '@/components/ui/switch'
 
@@ -65,6 +65,7 @@ export function NewSessionDialog({
   const runtime = picked ?? (available.includes(lastRuntime) || !available.length ? lastRuntime : available[0])
   const [cwd, setCwd] = useState(preset?.cwd ?? '')
   const [name, setName] = useState('')
+  const [prompt, setPrompt] = useState('')
   const [headless, setHeadless] = useState(false)
   const [mode, setMode] = useState<string | null>(null)
   const [extra, setExtra] = useState('')
@@ -104,7 +105,7 @@ export function NewSessionDialog({
             create.mutate(
               {
                 runtime, cwd: cwd.trim() || null, name: name.trim() || null, headless: asHeadless, node: node?.name ?? null,
-                permission_mode: asHeadless ? null : mode, args: asHeadless ? [] : splitArgs(extra),
+                permission_mode: asHeadless ? null : mode, args: asHeadless ? [] : splitArgs(extra), prompt: prompt.trim() || null,
               }, // prettier-ignore
               {
                 onSuccess: async (session) => {
@@ -206,7 +207,7 @@ export function NewSessionDialog({
           </Label>
           <Label>
             Name <span className={ink.aside}>optional, defaults to the directory name</span>
-            <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus={!!preset} />
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
           </Label>
           {preset?.project ? (
             <Label>
@@ -223,6 +224,23 @@ export function NewSessionDialog({
               onExtra={setExtra}
             />
           )}
+          {/* Last: with the place chosen ahead (a preset), only this is left to type; Enter starts it. */}
+          <Label>
+            First message <span className={ink.aside}>optional, sent once it has started</span>
+            <Textarea
+              rows={3}
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              autoFocus={!!preset}
+              placeholder="What it should do"
+              onKeyDown={(e) => {
+                const picking = e.nativeEvent.isComposing || e.keyCode === 229
+                if (e.key !== 'Enter' || e.shiftKey || picking) return
+                e.preventDefault()
+                e.currentTarget.form?.requestSubmit()
+              }}
+            />
+          </Label>
           {create.isError ? <Banner tone="error">{create.error.message}</Banner> : null}
           <Button type="submit" disabled={create.isPending}>
             {create.isPending ? 'Starting…' : 'Start'}

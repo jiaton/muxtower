@@ -39,16 +39,20 @@ it('starts with an empty folder, the default shown in its place, and starts ther
   expect(folder).toHaveValue('')
   fireEvent.click(await screen.findByRole('button', { name: 'Start' }))
   await waitFor(() => expect(sent).toHaveLength(1))
-  expect(sent[0]).toMatchObject({ cwd: null, runtime: 'claude-code' })
+  expect(sent[0]).toMatchObject({ cwd: null, runtime: 'claude-code', prompt: null })
 })
 
-it('a preset fills the folder, and starts there, the name field focused', async () => {
+it('a preset fills the folder; the first message is focused, and Enter starts it there with it', async () => {
   const sent = show((daemonId) => ({ daemonId, node: null, cwd: '/home/me/code/shop' }))
   const folder = await screen.findByRole('combobox')
   expect(folder).toHaveValue('/home/me/code/shop')
-  expect(screen.getByRole('textbox', { name: /Name/ })).toHaveFocus()
+  const first = screen.getByRole('textbox', { name: /First message/ })
+  expect(first).toHaveFocus()
   expect(screen.queryByText(/Role in/)).toBeNull() // no project: nothing to join
-  fireEvent.click(await screen.findByRole('button', { name: 'Start' }))
+  fireEvent.change(first, { target: { value: 'Fix the flaky test' } })
+  fireEvent.keyDown(first, { key: 'Enter', shiftKey: true }) // a new line, not a start
+  expect(sent).toHaveLength(0)
+  fireEvent.keyDown(first, { key: 'Enter' })
   await waitFor(() => expect(sent).toHaveLength(1))
-  expect(sent[0]).toMatchObject({ cwd: '/home/me/code/shop' })
+  expect(sent[0]).toMatchObject({ cwd: '/home/me/code/shop', prompt: 'Fix the flaky test' })
 })
