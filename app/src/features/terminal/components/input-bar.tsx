@@ -8,9 +8,10 @@ import { PHONE_QUERY, useMediaQuery } from '@/lib/use-media-query'
 import type { Track } from '@/lib/use-outbox'
 import { useSendInput } from '../api/use-terminal'
 import { useAttachments } from '../hooks/use-attachments'
+import { useComposerPanel, usePanelSwipe } from '../hooks/use-composer-panel'
 import { base64, imagesIn } from '../images'
 import { withQuotes, type Quote } from '../quotes'
-import { draftKey as keyOf, useDrafts, useTerminalPrefs } from '../store'
+import { draftKey as keyOf, useDrafts } from '../store'
 import { ImageCards } from './image-cards'
 import { KeyPad } from './key-pad'
 import { QuoteCards } from './quote-cards'
@@ -85,9 +86,12 @@ export function InputBar({
     el?.focus()
     el?.setSelectionRange(el.value.length, el.value.length)
   }, [filled])
-  const open = useTerminalPrefs((s) => s.keypad)
+  // The + panel (keys; pictures on a phone): this session's while its page shows, never kept; a swipe up
+  // on the composer opens it, down closes it (touch).
+  const [open, setOpen] = useComposerPanel(draftKey)
+  const composer = useRef<HTMLDivElement>(null)
+  usePanelSwipe(composer, open, setOpen)
   const narrow = useMediaQuery(PHONE_QUERY) // a phone's row: pictures go to the + panel
-  const setOpen = useTerminalPrefs((s) => s.setKeypad)
   const picker = useRef<HTMLInputElement>(null)
 
   /** With pictures: they and the words leave the textarea together, and come back to it if not sent. */
@@ -210,7 +214,7 @@ export function InputBar({
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div ref={composer} className="flex flex-col gap-2">
       {send.isError ? (
         <Banner tone="error" aligned>
           {send.error.message}
@@ -317,6 +321,7 @@ export function InputBar({
               onChange={(e) => {
                 void pictures.add(imagesIn(e.target.files))
                 e.target.value = ''
+                setOpen(false) // pictures added: the panel has done its part
               }}
             />
             <Button

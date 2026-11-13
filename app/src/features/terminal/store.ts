@@ -13,9 +13,6 @@ interface TerminalPrefs {
   fit: Record<string, boolean>
   setFontSize: (size: number) => void
   setFit: (sessionId: string, fit: boolean) => void
-  /** The key pad above the message box is open. */
-  keypad: boolean
-  setKeypad: (open: boolean) => void
   /** A fitted pane's height, in screens of this view (SCREEN_HEIGHTS). */
   screens: number
   setScreens: (screens: number) => void
@@ -28,8 +25,6 @@ export const useTerminalPrefs = create<TerminalPrefs>()(
       fit: {},
       setFontSize: (fontSize) => set({ fontSize }),
       setFit: (sessionId, value) => set((s) => ({ fit: { ...s.fit, [sessionId]: value } })),
-      keypad: false,
-      setKeypad: (keypad) => set({ keypad }),
       screens: 2,
       setScreens: (screens) => set({ screens }),
     }),
