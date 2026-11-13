@@ -7,7 +7,8 @@ import { AgentMark } from './agent-mark'
 import { ASIDE_VIEWS, VIEWS, type SessionQuery, type View } from '../model/query'
 import { scopeSearch, type ListSearch, type Scope } from '../model/search'
 import { Divider } from '@/components/ui/divider'
-import { textRole } from '@/components/ui/styles'
+import { chip, chipCount } from '@/components/ui/chip'
+import { bleedRow } from '@/components/ui/list-row'
 
 const VIEW_CHIP: Partial<Record<View, string>> = { all: 'All', needs: 'Needs you', unread: 'Unread', working: 'Working' }
 
@@ -43,8 +44,8 @@ export function ListChips({
   }, [current])
 
   return (
-    <nav aria-label="Show" data-own-swipe className={cn('-mx-3 sm:-mx-4', className)}>
-      <div ref={row} className="flex gap-1.5 overflow-x-auto px-3 [scrollbar-width:none] sm:px-4">
+    <nav aria-label="Show" data-own-swipe className={cn(bleedRow.outer, className)}>
+      <div ref={row} className={cn(bleedRow.inner, 'flex gap-1.5 overflow-x-auto [scrollbar-width:none]')}>
         {views.map((view) => (
           <Chip
             key={view}
@@ -98,27 +99,11 @@ export function Chip({
       to="/"
       search={scopeSearch(search, scope)}
       aria-current={current}
-      className={cn(
-        rest.className,
-        `${textRole.label} inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 whitespace-nowrap transition-colors`,
-        current ? 'border-fg bg-fg text-bg' : 'border-border bg-surface text-fg hover:bg-surface-muted',
-      )}
+      data-current={current}
+      className={cn(rest.className, chip({ kind: 'filter' }))}
     >
       {children}
-      <span
-        className={cn(
-          'tabular-nums',
-          current
-            ? 'opacity-70'
-            : !count
-              ? 'text-fg-muted'
-              : tone === 'needs'
-                ? 'text-state-permission'
-                : tone === 'unread'
-                  ? 'text-accent'
-                  : 'text-fg-muted',
-        )}
-      >
+      <span className={chipCount({ tone: !count ? 'muted' : tone === 'needs' ? 'warning' : tone === 'unread' ? 'accent' : 'muted' })}>
         {count}
       </span>
     </Link>

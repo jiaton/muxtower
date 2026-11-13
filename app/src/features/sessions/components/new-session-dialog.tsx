@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { SuggestInput } from '@/components/ui/suggest-input'
 import { Switch } from '@/components/ui/switch'
-import { cn } from '@/lib/cn'
+
 import { usePairedDaemons } from '@/lib/daemons/store'
 import { useNodes } from '@/lib/daemons/use-nodes'
 import { useCreateSession, useRuntimes } from '../api/use-session-mutations'
@@ -25,7 +25,8 @@ import { AgentMark } from './agent-mark'
 import { splitArgs } from '../model/launch'
 import { LaunchOptions } from './launch-options'
 import { Label } from '@/components/ui/label'
-import { textRole } from '@/components/ui/styles'
+import { text, textRole } from '@/components/ui/styles'
+import { chip } from '@/components/ui/chip'
 export interface NewSessionPreset {
   daemonId: string
   node: string | null
@@ -79,8 +80,6 @@ export function NewSessionDialog({
   const folders = current ? folderSuggestions(entries, current.id, node?.name ?? null) : []
 
   if (!daemons.length) return null
-  const chip = (active: boolean) =>
-    cn('rounded-full border px-3 py-1 text-sm', active ? 'border-accent bg-accent text-accent-fg' : 'border-border text-fg')
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -132,17 +131,18 @@ export function NewSessionDialog({
               <legend className={`${textRole.label} mb-1.5`}>Daemon</legend>
               <div className="flex flex-wrap gap-2">
                 {daemons.map((d) => (
-                  <button
+                  <Button
                     key={d.id}
-                    type="button"
-                    className={chip(d.id === current?.id)}
+                    variant="plain"
+                    aria-pressed={d.id === current?.id}
+                    className={chip({ kind: 'choice' })}
                     onClick={() => {
                       setDaemonId(d.id)
                       setNodeName(null)
                     }}
                   >
                     {d.name}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </fieldset>
@@ -151,13 +151,19 @@ export function NewSessionDialog({
             <fieldset className="flex flex-col gap-1.5">
               <legend className={`${textRole.label} mb-1.5`}>Computer</legend>
               <div className="flex flex-wrap gap-2">
-                <button type="button" className={chip(node === null)} onClick={() => setNodeName(null)}>
+                <Button variant="plain" aria-pressed={node === null} className={chip({ kind: 'choice' })} onClick={() => setNodeName(null)}>
                   {current?.name}
-                </button>
+                </Button>
                 {nodes.map((n) => (
-                  <button key={n.name} type="button" className={chip(n.name === node?.name)} onClick={() => setNodeName(n.name)}>
+                  <Button
+                    key={n.name}
+                    variant="plain"
+                    aria-pressed={n.name === node?.name}
+                    className={chip({ kind: 'choice' })}
+                    onClick={() => setNodeName(n.name)}
+                  >
                     {n.name}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </fieldset>
@@ -166,17 +172,18 @@ export function NewSessionDialog({
             <legend className={`${textRole.label} mb-1.5`}>Agent</legend>
             <div className="flex flex-wrap gap-2">
               {(runtimes.data ?? []).map((r) => (
-                <button
+                <Button
                   key={r.name}
-                  type="button"
+                  variant="plain"
+                  aria-pressed={r.name === runtime}
                   disabled={!r.available}
                   title={r.available ? undefined : `${r.binary} is not installed on this daemon`}
-                  className={cn(chip(r.name === runtime), 'inline-flex items-center gap-1.5 disabled:opacity-40')}
+                  className={chip({ kind: 'choice' })}
                   onClick={() => setRuntime(r.name)}
                 >
                   <AgentMark decorative agent={agentName(r.name)} />
                   {agentName(r.name)}
-                </button>
+                </Button>
               ))}
             </div>
           </fieldset>
@@ -197,7 +204,7 @@ export function NewSessionDialog({
               value={cwd}
               onValueChange={setCwd}
               suggestions={folders.map((f) => ({ value: f.label, hint: `${f.count} session${f.count === 1 ? '' : 's'}` }))}
-              className="font-mono"
+              className={text({ mono: true })}
             />
           </Label>
           <Label>

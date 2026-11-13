@@ -12,6 +12,7 @@ import { useSessionDrawer } from '../store'
 import { agentIcon } from './agent-mark'
 import { StateBadge } from './state-badge'
 import { StreamMark } from './stream-mark'
+import { text } from '@/components/ui/styles'
 
 /** The top of a session page: the list as a drawer (phones), name and state, which agent it is and where
  *  it runs (and, for a side chat or a fork, the session it came from, one tap away), and the page's
@@ -39,7 +40,7 @@ export function SessionHeader({ daemonId, session, actions }: { daemonId: string
         <Button
           variant="ghost"
           size="icon-sm"
-          className="-ml-1 md:hidden"
+          className="md:hidden"
           aria-label="Sessions"
           aria-expanded={drawerOpen}
           title="Sessions"
@@ -67,7 +68,12 @@ export function SessionHeader({ daemonId, session, actions }: { daemonId: string
         <span title={session.cwd || undefined}>
           {session.fork_of ? (
             <>
-              <Link to="/d/$daemonId/s/$sessionId" params={{ daemonId, sessionId: session.fork_of }} search={true} className="text-accent">
+              <Link
+                to="/d/$daemonId/s/$sessionId"
+                params={{ daemonId, sessionId: session.fork_of }}
+                search={true}
+                className={text({ tone: 'accent' })}
+              >
                 {session.side_chat ? 'Side chat' : 'Fork'} of {parent?.name ?? 'another session'}
               </Link>
               {' · '}

@@ -1,4 +1,4 @@
-import { ChevronRight, Search } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { useState } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -6,11 +6,12 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { StatusDot } from '@/components/ui/status-dot'
-import { cn } from '@/lib/cn'
+
 import { groupPicks } from '../model/chip-picks'
 import { MAX_NAME, projectLabel, type ChipGroup, type ChipMembers } from '../model/chip-groups'
 import type { SessionEntry } from '../model/facets'
-import { textRole } from '@/components/ui/styles'
+import { box, text, textRole } from '@/components/ui/styles'
+import { Chevron } from '@/components/ui/indicators'
 
 const TONE: Record<string, 'warn' | 'error' | 'ok'> = { needs: 'warn', error: 'error', working: 'ok' }
 
@@ -56,33 +57,30 @@ export function ChipGroupDialog({
             placeholder="Name"
             autoFocus={!group}
           />
-          <div className="relative">
-            <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-fg-muted" aria-hidden />
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              aria-label="Find a project or session"
-              placeholder="Find a project or session"
-              className="pl-8"
-            />
-          </div>
+          <Input
+            icon={<Search />}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            aria-label="Find a project or session"
+            placeholder="Find a project or session"
+          />
           <div role="group" aria-label="Projects" className="flex max-h-80 flex-col overflow-y-auto">
             {shown.map(({ project, sessions, expanded }) => {
               const state = picks.state(project)
               return (
                 <div key={project} className="flex flex-col">
-                  <div className="flex items-center gap-1 rounded-md hover:bg-surface-muted">
-                    <button
-                      type="button"
+                  <div className={`${box({ radius: 'md', hover: 'muted' })} flex items-center gap-1`}>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
                       aria-label={expanded ? `Hide sessions of ${projectLabel(project)}` : `Show sessions of ${projectLabel(project)}`}
                       aria-expanded={expanded}
                       disabled={!picks.sessionsOf(project).length}
                       onClick={() => setOpen((now) => (now.includes(project) ? now.filter((p) => p !== project) : [...now, project]))}
-                      className="flex size-7 shrink-0 items-center justify-center rounded text-fg-muted hover:text-fg disabled:opacity-30"
                     >
-                      <ChevronRight className={cn('size-4 transition-transform', expanded && 'rotate-90')} aria-hidden />
-                    </button>
-                    <label className="flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-1 text-sm">
+                      <Chevron open={expanded} />
+                    </Button>
+                    <label className={`${text({ size: 'sm' })} flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-1`}>
                       <Checkbox
                         checked={state === 'all'}
                         aria-checked={state === 'some' ? 'mixed' : state === 'all'}
@@ -93,14 +91,14 @@ export function ChipGroupDialog({
                         onChange={() => setPicks(picks.toggleProject(project))}
                       />
                       <span className="min-w-0 flex-1 truncate">{projectLabel(project)}</span>
-                      <span className={`${textRole.meta} tabular-nums`}>{picks.sessionsOf(project).length}</span>
+                      <span className={`${text({ numeric: true })} ${textRole.meta}`}>{picks.sessionsOf(project).length}</span>
                     </label>
                   </div>
                   {expanded
                     ? sessions.map(({ session, daemon }) => (
                         <label
                           key={session.id}
-                          className="flex items-center gap-2 rounded-md py-1 pr-1 pl-9 text-sm hover:bg-surface-muted"
+                          className={`${box({ radius: 'md', hover: 'muted' })} ${text({ size: 'sm' })} flex items-center gap-2 py-1 pr-1 pl-8`}
                         >
                           <Checkbox
                             checked={picks.holds(project, session.id)}

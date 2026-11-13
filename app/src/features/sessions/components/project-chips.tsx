@@ -17,6 +17,9 @@ import type { ListSearch } from '../model/search'
 import { ChipGroupDialog } from './chip-group-dialog'
 import { Chip } from './list-chips'
 import { TeamCard, TeamPanel } from './team-card'
+import { Button } from '@/components/ui/button'
+import { bleedRow } from '@/components/ui/list-row'
+import { chip } from '@/components/ui/chip'
 
 /** Teams a group's menu lists before "More teams…". */
 const TEAMS_SHOWN = 6
@@ -73,8 +76,8 @@ export function ProjectChips({
   }
 
   return (
-    <nav aria-label="Projects" data-own-swipe className={cn('-mx-3 sm:-mx-4', className)}>
-      <div ref={row} className="flex gap-1.5 overflow-x-auto px-3 [scrollbar-width:none] sm:px-4">
+    <nav aria-label="Projects" data-own-swipe className={cn(bleedRow.outer, className)}>
+      <div ref={row} className={cn(bleedRow.inner, 'flex gap-1.5 overflow-x-auto [scrollbar-width:none]')}>
         {chips.map((chip) => {
           const group = groups.find((g) => g.id === chip.id)
           const current = search.chip === chip.id
@@ -95,15 +98,15 @@ export function ProjectChips({
           )
         })}
         {groups.length < MAX_GROUPS ? (
-          <button
-            type="button"
+          <Button
+            variant="plain"
             aria-label="New group"
             title="New group"
             onClick={() => setEditing('new')}
-            className="inline-flex h-8 shrink-0 items-center rounded-full border border-dashed border-border px-2.5 text-fg-muted hover:bg-surface-muted hover:text-fg"
+            className={chip({ kind: 'add' })}
           >
-            <Plus className="size-4" aria-hidden />
-          </button>
+            <Plus aria-hidden />
+          </Button>
         ) : null}
       </div>
       <DropdownMenu

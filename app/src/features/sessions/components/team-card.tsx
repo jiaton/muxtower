@@ -14,7 +14,7 @@ import { STATUSES, deviceOf, statusOf, type SessionEntry } from '../model/facets
 import { folderToStart, teamOf } from '../model/team'
 import { NewSessionDialog } from './new-session-dialog'
 import { RenameProjectDialog } from './rename-project-dialog'
-import { textRole } from '@/components/ui/styles'
+import { text, textRole } from '@/components/ui/styles'
 
 const HOVER_MS = 500
 const LEAVE_MS = 200
@@ -181,14 +181,16 @@ export function TeamPanel({
               >
                 <span className="flex min-w-0 items-center gap-2">
                   <StatusDot tone={TONE[status] ?? 'idle'} label={STATE[status] ?? status} />
-                  <span className="min-w-0 flex-1 truncate font-medium">{session.name}</span>
+                  <span className={`${text({ weight: 'medium' })} min-w-0 flex-1 truncate`}>{session.name}</span>
                   <span className={`${textRole.meta} shrink-0`}>{STATE[status] ?? status}</span>
                 </span>
-                <span className={`${textRole.meta} flex min-w-0 gap-1 pl-4.5`}>
-                  <span className={session.team_role ? 'min-w-0 truncate' : 'shrink-0 italic'}>{session.team_role ?? 'no role'}</span>
+                <span className={`${textRole.meta} flex min-w-0 gap-1 pl-4`}>
+                  <span className={session.team_role ? 'min-w-0 truncate' : `${text({ italic: true })} shrink-0`}>
+                    {session.team_role ?? 'no role'}
+                  </span>
                   <span className="shrink-0">· {deviceOf(session) ?? daemon.name}</span>
                 </span>
-                {task ? <span className={`${textRole.meta} truncate pl-4.5`}>{task.text}</span> : null}
+                {task ? <span className={`${textRole.meta} truncate pl-4`}>{task.text}</span> : null}
               </DropdownMenuItem>
             )
           })}

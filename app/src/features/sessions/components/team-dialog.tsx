@@ -9,7 +9,7 @@ import type { Session, TeamTask } from '@/lib/api/types'
 import { ago } from '@/lib/time'
 import { useSessionTasks, useUpdateTeam } from '../api/use-team'
 import { useSessionEntries } from '../hooks/use-session-entries'
-import { textRole } from '@/components/ui/styles'
+import { box, text, textRole } from '@/components/ui/styles'
 import { Label } from '@/components/ui/label'
 
 const count = (n: number) => `${n} session${n === 1 ? '' : 's'}`
@@ -25,8 +25,8 @@ function TaskLine({ task, sessionId }: { task: TeamTask; sessionId: string }) {
   const sent = task.from_id === sessionId
   const Icon = sent ? ArrowUpRight : ArrowDownLeft
   return (
-    <li className="flex gap-2 py-1.5 text-sm">
-      <Icon className="mt-0.5 size-4 shrink-0 text-fg-muted" aria-label={sent ? 'Sent' : 'Received'} />
+    <li className={`${text({ size: 'sm' })} flex gap-2 py-1.5`}>
+      <Icon className={`${text({ tone: 'muted' })} mt-0.5 size-4 shrink-0`} aria-label={sent ? 'Sent' : 'Received'} />
       <div className="min-w-0 flex-1">
         <p className="line-clamp-2">{task.text}</p>
         <p className={textRole.meta}>
@@ -108,10 +108,10 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
             </Button>
           </div>
         </form>
-        <section aria-label="Tasks" className="mt-2 border-t border-border pt-3">
+        <section aria-label="Tasks" className={`${box({ edge: 'top' })} mt-2 pt-3`}>
           <h3 className={textRole.eyebrow}>Tasks</h3>
           {tasks.data?.length ? (
-            <ul className="flex flex-col divide-y divide-border">
+            <ul className={`${box({ divided: true })} flex flex-col`}>
               {tasks.data.map((task) => (
                 <TaskLine key={task.id} task={task} sessionId={session.id} />
               ))}

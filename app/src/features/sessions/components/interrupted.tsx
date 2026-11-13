@@ -12,7 +12,7 @@ import type { Session } from '@/lib/api/types'
 import { daemonKey } from '@/lib/query'
 import { useRecoverSessions } from '../api/use-recovery'
 import { deviceOf, folderOf, placeOf, type SessionEntry } from '../model/facets'
-import { textRole } from '@/components/ui/styles'
+import { box, text, textRole } from '@/components/ui/styles'
 
 /** The sessions a restart interrupted, by machine (its daemon's name where the session names none). */
 export function byMachine(entries: SessionEntry[]): { machine: string; entries: SessionEntry[] }[] {
@@ -37,9 +37,9 @@ export function InterruptedBanner({ entries }: { entries: SessionEntry[] }) {
         <RotateCcw />
         <span className="min-w-0 flex-1">
           {n} session{n === 1 ? ' was' : 's were'} interrupted by a restart.{' '}
-          <button type="button" className="font-medium underline" onClick={() => setOpen(true)}>
+          <Button variant="link" size={null} onClick={() => setOpen(true)}>
             Start again…
-          </button>
+          </Button>
         </span>
       </Banner>
       {open ? <RecoveryDialog entries={interrupted} onClose={() => setOpen(false)} /> : null}
@@ -72,10 +72,10 @@ export function RecoveryDialog({ entries, onClose }: { entries: SessionEntry[]; 
             <section key={machine} aria-label={machine} className="flex flex-col gap-1">
               <h3 className={textRole.eyebrow}>{machine}</h3>
               {list.map(({ key, session }) => (
-                <label key={key} className="flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-surface-muted">
+                <label key={key} className={`${box({ radius: 'md', hover: 'muted' })} flex items-center gap-3 px-2 py-1.5`}>
                   <Checkbox checked={!unticked.has(key)} onChange={() => toggle(key)} />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm">{session.name}</span>
+                    <span className={`${text({ size: 'sm' })} block truncate`}>{session.name}</span>
                     <span className={`${textRole.meta} block truncate`}>
                       {[session.team_role, folderOf(session), session.source === 'adopted' ? 'not started by muxtower' : null]
                         .filter(Boolean)
@@ -89,7 +89,12 @@ export function RecoveryDialog({ entries, onClose }: { entries: SessionEntry[]; 
         </div>
         {recover.error ? <Banner tone="error">{recover.error.message}</Banner> : null}
         <div className="flex items-center justify-end gap-2">
-          <Link to="/" search={{ view: 'interrupted' }} className={`${textRole.hint} mr-auto underline`} onClick={onClose}>
+          <Link
+            to="/"
+            search={{ view: 'interrupted' }}
+            className={`${text({ underline: true })} ${textRole.hint} mr-auto`}
+            onClick={onClose}
+          >
             Show them
           </Link>
           <Button variant="ghost" onClick={onClose}>

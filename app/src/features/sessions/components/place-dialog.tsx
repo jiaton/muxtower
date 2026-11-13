@@ -10,7 +10,7 @@ import { useSessionEntries } from '../hooks/use-session-entries'
 import { NO_ENVIRONMENT, deviceOf, folderOf } from '../model/facets'
 import { foldersAround } from '../model/folders'
 import { facetsOf } from '../model/counts'
-import { textRole } from '@/components/ui/styles'
+import { text, textRole } from '@/components/ui/styles'
 import { Label } from '@/components/ui/label'
 
 const count = (n: number) => `${n} session${n === 1 ? '' : 's'}`
@@ -65,14 +65,21 @@ export function PlaceDialog({ daemonId, session, onClose }: { daemonId: string; 
               onValueChange={setFolder}
               maxLength={500}
               suggestions={folders.map((f) => ({ value: f.label, hint: count(f.count) }))}
-              className="font-mono"
+              className={text({ mono: true })}
             />
           </Label>
           {around.length ? (
             <div className={`${textRole.meta} flex flex-wrap items-center gap-1.5`}>
               Inside
               {around.map((parent) => (
-                <Button key={parent} type="button" variant="secondary" size="sm" className="font-mono" onClick={() => setFolder(parent)}>
+                <Button
+                  key={parent}
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className={text({ mono: true })}
+                  onClick={() => setFolder(parent)}
+                >
                   <FolderUp /> {parent}
                 </Button>
               ))}

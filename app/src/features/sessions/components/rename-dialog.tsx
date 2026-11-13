@@ -8,7 +8,7 @@ import { useState } from 'react'
 import { useSessionNames } from '../api/use-session-names'
 import { useUpdateSession } from '../api/use-session-mutations'
 import { agentOf } from '../model/facets'
-import { textRole } from '@/components/ui/styles'
+import { box, text, textRole } from '@/components/ui/styles'
 
 /** Where a name it went by came from, as the dialog says it. */
 const FROM: Record<string, string> = {
@@ -58,22 +58,22 @@ export function RenameDialog({ daemonId, session, onClose }: { daemonId: string;
         >
           <Input value={name} onChange={(e) => setName(e.target.value)} maxLength={80} required aria-label="Session name" autoFocus />
           {offered.length ? (
-            <section aria-label="Other names" className="-mt-1 flex flex-col">
+            <section aria-label="Other names" className="flex flex-col">
               <h3 className={textRole.meta}>Other names it went by</h3>
               <ul className="flex flex-col">
                 {offered.map((s) => (
                   <li key={s.name}>
-                    <button
-                      type="button"
-                      className="flex w-full items-baseline gap-2 rounded-md px-1 py-1 text-left hover:bg-surface-muted"
+                    <Button
+                      variant="plain"
+                      className={`${box({ radius: 'md', hover: 'muted' })} flex w-full items-baseline gap-2 px-1 py-1 text-left`}
                       onClick={() => setName(s.name)}
                     >
-                      <span className="min-w-0 flex-1 text-sm break-words text-accent">{s.name}</span>
+                      <span className={`${text({ size: 'sm', tone: 'accent' })} min-w-0 flex-1 break-words`}>{s.name}</span>
                       <span className={`${textRole.meta} shrink-0`}>
                         {s.from}
                         {s.at ? ` · ${ago(s.at)}` : ''}
                       </span>
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>

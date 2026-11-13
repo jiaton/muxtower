@@ -7,7 +7,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { check, createDaemonClient } from '@/lib/api/client'
 import { daemonKey } from '@/lib/query'
 import { placeOf, type SessionEntry } from '../model/facets'
-import { textRole } from '@/components/ui/styles'
+import { box, text, textRole } from '@/components/ui/styles'
 
 /** Above the Archived list: how long it keeps them, and deleting them all (asked first). Deleting drops
  *  muxtower's own copy only: Claude's transcripts and Remote Control keep theirs. */
@@ -18,9 +18,9 @@ export function ArchiveTools({ entries }: { entries: SessionEntry[] }) {
   if (!archived.length) return null
   const n = archived.length
   return (
-    <div className={`${textRole.meta} flex items-center gap-2 border-b border-border px-3 py-2 sm:px-4`}>
+    <div className={`${box({ edge: 'bottom' })} ${textRole.meta} flex items-center gap-2 px-3 py-2 sm:px-4`}>
       <span className="min-w-0 flex-1">Older ones leave this list after the days set in Settings; they are kept.</span>
-      <Button variant="ghost" size="sm" className="shrink-0 text-danger" onClick={() => setAsking(true)}>
+      <Button variant="ghost" size="sm" className={`${text({ tone: 'danger' })} shrink-0`} onClick={() => setAsking(true)}>
         <Trash2 /> Delete all…
       </Button>
       {asking ? (

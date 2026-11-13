@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react'
 import { useStreamStatus } from '@/lib/api/streams'
 import { cn } from '@/lib/cn'
+import { Dot } from '@/components/ui/indicators'
 
 const subscribe = (changed: () => void) => {
   addEventListener('online', changed)
@@ -21,13 +22,13 @@ export function StreamMark({ daemonId, className }: { daemonId: string; classNam
   const online = useSyncExternalStore(subscribe, isOnline, () => true)
   if (online && status === 'open') return null
   const [label, tone] = !online
-    ? ['Offline: no network, this page is not updating', 'bg-fg-muted/50']
+    ? ['Offline: no network, this page is not updating', 'muted' as const]
     : status === 'blocked'
-      ? ['Behind a sign-in page: updates checked once a minute', 'bg-state-permission']
-      : ['Reconnecting: updates every few seconds meanwhile', 'bg-state-permission']
+      ? ['Behind a sign-in page: updates checked once a minute', 'warning' as const]
+      : ['Reconnecting: updates every few seconds meanwhile', 'warning' as const]
   return (
     <span role="img" aria-label={label} title={label} className={cn('inline-flex size-4 shrink-0 items-center justify-center', className)}>
-      <span className={cn('size-1.5 rounded-full', tone, online && 'animate-pulse')} />
+      <Dot tone={tone} pulse={online} className="size-1.5" />
     </span>
   )
 }

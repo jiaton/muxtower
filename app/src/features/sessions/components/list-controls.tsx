@@ -18,34 +18,33 @@ import { useMarkRead } from '../api/use-session-marks'
 import { folderName, type SessionEntry } from '../model/facets'
 import { scopeOf, scopeSearch, type ListSearch } from '../model/search'
 import { useListPrefs } from '../store'
+import { box, text } from '@/components/ui/styles'
 
 const SEARCH_DEBOUNCE_MS = 200
 
 /** Filters by name, folder, device or what the session said; kept in the URL (debounced). */
 export function SearchField({ search }: { search: ListSearch }) {
   const navigate = useNavigate()
-  const [text, setText] = useState(search.q ?? '')
-  useEffect(() => setText(search.q ?? ''), [search.q])
+  const [typed, setTyped] = useState(search.q ?? '')
+  useEffect(() => setTyped(search.q ?? ''), [search.q])
   useEffect(() => {
-    if ((search.q ?? '') === text) return
+    if ((search.q ?? '') === typed) return
     const timer = setTimeout(
-      () => void navigate({ to: '.', search: (prev: ListSearch) => ({ ...prev, q: text || undefined }), replace: true }),
+      () => void navigate({ to: '.', search: (prev: ListSearch) => ({ ...prev, q: typed || undefined }), replace: true }),
       SEARCH_DEBOUNCE_MS,
     )
     return () => clearTimeout(timer)
-  }, [text, search.q, navigate])
+  }, [typed, search.q, navigate])
   return (
-    <div className="relative">
-      <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-fg-muted" aria-hidden />
-      <Input
-        type="search"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Search sessions"
-        aria-label="Search sessions"
-        className="h-9 pl-8"
-      />
-    </div>
+    <Input
+      icon={<Search />}
+      type="search"
+      value={typed}
+      onChange={(e) => setTyped(e.target.value)}
+      placeholder="Search sessions"
+      aria-label="Search sessions"
+      className="h-9"
+    />
   )
 }
 
@@ -113,12 +112,12 @@ export function ScopeChip({ query, search }: { query: SessionQuery; search: List
     <Link
       to="/"
       search={scopeSearch(search, { view: 'all' })}
-      className="inline-flex max-w-full items-center gap-1 self-start rounded-full bg-surface-muted py-1 pr-2 pl-3 text-xs text-fg"
+      className={`${box({ radius: 'full', ground: 'muted' })} ${text({ size: 'xs', tone: 'fg' })} inline-flex max-w-full items-center gap-1 self-start py-1 pr-2 pl-3`}
       aria-label={`Show everything, not only ${label}`}
       title={scope.folder}
     >
       <span className="truncate">{label}</span>
-      <X className="size-3.5 shrink-0 text-fg-muted" aria-hidden />
+      <X className={`${text({ tone: 'muted' })} size-3.5 shrink-0`} aria-hidden />
     </Link>
   )
 }

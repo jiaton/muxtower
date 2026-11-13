@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import type { RuntimeInfo } from '@/lib/api/types'
 import { AGENTS_OWN } from '../model/launch'
-import { textRole } from '@/components/ui/styles'
+import { text, textRole } from '@/components/ui/styles'
 import { Label } from '@/components/ui/label'
 
 /** How a new session starts: its permission mode (the runtime's own list; by default what the daemon is set
@@ -53,15 +53,15 @@ export function LaunchOptions({
           </span>
         </Banner>
       ) : null}
-      <details className="text-sm">
-        <summary className="cursor-pointer text-fg-muted">Advanced</summary>
-        <label className="mt-2 flex flex-col gap-1.5 font-medium">
+      <details className={text({ size: 'sm' })}>
+        <summary className={`${text({ tone: 'muted' })} cursor-pointer`}>Advanced</summary>
+        <label className={`${text({ weight: 'medium' })} mt-2 flex flex-col gap-1.5`}>
           Extra arguments <span className={textRole.aside}>for {runtime?.binary ?? 'the agent'}, after the daemon's defaults</span>
           <Input
             value={extra}
             onChange={(e) => onExtra(e.target.value)}
             placeholder="--model opus"
-            className="font-mono"
+            className={text({ mono: true })}
             spellCheck={false}
             autoCapitalize="off"
           />

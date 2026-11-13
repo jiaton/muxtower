@@ -1,7 +1,7 @@
 import { Link, useMatch, useNavigate, useSearch } from '@tanstack/react-router'
-import { Archive, ChevronRight, CircleAlert, CircleCheck, EyeOff, Layers, LoaderCircle, Monitor, RotateCcw, UserRound } from 'lucide-react'
+import { Archive, CircleAlert, CircleCheck, EyeOff, Layers, LoaderCircle, Monitor, RotateCcw, UserRound } from 'lucide-react'
 import { createContext, useContext, useState, type MouseEvent, type ReactNode } from 'react'
-import { NavCount, NavSection, navItemClass, navSubItemClass } from '@/components/ui/nav'
+import { NavCount, NavSection, navItemClass, navItemRoom, navSubItemClass } from '@/components/ui/nav'
 import { cn } from '@/lib/cn'
 import { shortFolderNames } from '../model/facets'
 import type { MachineUsage } from '@/lib/api/types'
@@ -22,6 +22,9 @@ import { TeamCard } from './team-card'
 import { projectOfRow } from '../model/team'
 import { filterEntries } from '../model/query'
 import { sourceIcon } from './source-icon'
+import { text } from '@/components/ui/styles'
+import { Button } from '@/components/ui/button'
+import { Chevron } from '@/components/ui/indicators'
 
 /** Opens the scope's only session with it, when that is what a click on it would show (see `useSoleOpener`). */
 const SoleOpener = createContext<(event: MouseEvent, target: ListSearch) => void>(() => {})
@@ -118,7 +121,11 @@ function DeviceTree({
   return (
     <div className="flex flex-col gap-0.5">
       <div className="relative">
-        <ScopeLink search={search} scope={{ device: device.label }} className={cn(navItemClass, 'pl-8', alerts.length && 'pr-9')}>
+        <ScopeLink
+          search={search}
+          scope={{ device: device.label }}
+          className={cn(navItemClass, navItemRoom.start, alerts.length && navItemRoom.end)}
+        >
           <Monitor aria-hidden />
           <span className="truncate">{device.label}</span>
           <NavCount count={device.needs || device.count} alert={device.needs > 0} />
@@ -130,15 +137,16 @@ function DeviceTree({
           className="absolute top-1/2 right-1 -translate-y-1/2"
         />
         {device.folders.length ? (
-          <button
-            type="button"
+          <Button
+            variant="ghost"
+            size="icon-xs"
             aria-label={folded ? `Show folders of ${device.label}` : `Hide folders of ${device.label}`}
             aria-expanded={!folded}
             onClick={() => toggle(device.label)}
-            className="absolute top-1/2 left-1 flex size-6 -translate-y-1/2 items-center justify-center rounded text-fg-muted hover:bg-surface hover:text-fg"
+            className="absolute top-1/2 left-1 -translate-y-1/2"
           >
-            <ChevronRight className={cn('size-3.5 transition-transform', !folded && 'rotate-90')} aria-hidden />
-          </button>
+            <Chevron open={!folded} />
+          </Button>
         ) : null}
       </div>
       {folded
@@ -164,9 +172,9 @@ function DeviceTree({
             </TeamCard>
           ))}
       {!folded && more ? (
-        <button type="button" className={cn(navSubItemClass, 'text-fg-muted')} onClick={() => setAll((v) => !v)}>
+        <Button variant="plain" className={cn(navSubItemClass, text({ tone: 'muted' }))} onClick={() => setAll((v) => !v)}>
           {all ? 'Fewer folders' : `${tree.length - FOLDERS_SHOWN} more folders`}
-        </button>
+        </Button>
       ) : null}
     </div>
   )

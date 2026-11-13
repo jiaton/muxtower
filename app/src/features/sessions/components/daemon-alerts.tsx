@@ -7,6 +7,8 @@ import { whyUnreachable } from '@/lib/reach'
 import { useFallback } from '@/lib/daemons/fallback'
 import { useDaemonsStore, useRejectedDaemons } from '@/lib/daemons/store'
 import type { DaemonSessions } from '../api/use-sessions'
+import { text } from '@/components/ui/styles'
+import { TextLink } from '@/components/ui/text-link'
 
 /** Why some sessions may be missing: a daemon that revoked this device, one behind a sign-in page, one
  *  that does not answer. One per daemon; the others' sessions still show. */
@@ -27,8 +29,8 @@ export function DaemonAlerts({ daemons }: { daemons: DaemonSessions[] }) {
           <Banner key={`down-${hub.id}`} tone="warning">
             <Unplug />
             <span title="Push notifications come from the hub: none until it is back. Team changes wait for it too.">
-              {hub.name} unreachable{direct.length ? ` · direct to ${direct.join(', ')}` : ''}. It switches back when {hub.name}{' '}
-              answers again.
+              {hub.name} unreachable{direct.length ? ` · direct to ${direct.join(', ')}` : ''}. It switches back when {hub.name} answers
+              again.
             </span>
           </Banner>
         )
@@ -38,7 +40,7 @@ export function DaemonAlerts({ daemons }: { daemons: DaemonSessions[] }) {
           <CircleAlert />
           <span>
             {daemon.name} no longer accepts this device.{' '}
-            <Link to="/daemons" className="underline">
+            <Link to="/daemons" className={text({ underline: true })}>
               Pair again
             </Link>
           </span>
@@ -49,14 +51,9 @@ export function DaemonAlerts({ daemons }: { daemons: DaemonSessions[] }) {
           <CircleAlert />
           <span>
             {daemon.name} is behind a sign-in page.{' '}
-            <a
-              href={daemon.url}
-              className="underline"
-              target={new URL(daemon.url).origin === location.origin ? undefined : '_blank'}
-              rel="noreferrer"
-            >
+            <TextLink href={daemon.url} target={new URL(daemon.url).origin === location.origin ? undefined : '_blank'} rel="noreferrer">
               Open it and sign in
-            </a>
+            </TextLink>
             , then come back.
           </span>
         </Banner>
