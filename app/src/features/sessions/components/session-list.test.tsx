@@ -6,6 +6,7 @@ import type { SessionEntry } from '../model/facets'
 import type { Group } from '../model/query'
 import { useListPrefs, useNewSessionRequest } from '../store'
 import { SessionList } from './session-list'
+import { wrapper } from '@/test/render'
 
 const drawn = vi.hoisted(() => ({ rows: [] as string[] }))
 vi.mock('./session-list-row', () => ({
@@ -23,6 +24,8 @@ const entry = (id: string, over: Partial<Session> = {}): SessionEntry => ({
     id,
     name: id,
     runtime: 'claude-code',
+    source: 'launched',
+    on_host: true,
     cwd: '/home/me',
     machine: 'hub',
     state: 'idle',
@@ -47,7 +50,9 @@ beforeEach(() => {
 it('folds one folder without drawing any other row again, and draws again only a session that changed', () => {
   const acme = [entry('Acme onboarding'), entry('Acme pricing')]
   const notes = [entry('Weekly notes')]
-  const { rerender } = render(<SessionList groups={[device({ '~/acme': acme, '~/notes': notes })]} foldScope="device" />)
+  const { rerender } = render(<SessionList groups={[device({ '~/acme': acme, '~/notes': notes })]} foldScope="device" />, {
+    wrapper: wrapper(),
+  })
   expect(drawn.rows.sort()).toEqual(['Acme onboarding', 'Acme pricing', 'Weekly notes'])
 
   drawn.rows = []
@@ -63,7 +68,7 @@ it('folds one folder without drawing any other row again, and draws again only a
 
 it('counts a folded folder and says how many need you', () => {
   const acme = [entry('Acme onboarding', { needs_attention: true }), entry('Acme pricing')]
-  render(<SessionList groups={[device({ '~/acme': acme })]} foldScope="device" />)
+  render(<SessionList groups={[device({ '~/acme': acme })]} foldScope="device" />, { wrapper: wrapper() })
   fireEvent.click(screen.getByRole('button', { name: /^acme/ }))
   const header = screen.getByRole('button', { name: /^acme/ })
   expect(header).toHaveAttribute('aria-expanded', 'false')
@@ -72,7 +77,9 @@ it('counts a folded folder and says how many need you', () => {
 
 it('moves focus inside a folder that folds to its header', () => {
   const acme = [entry('Acme onboarding')]
-  render(<SessionList groups={[device({ '~/acme': acme, '~/notes': [entry('Weekly notes')] })]} foldScope="device" />)
+  render(<SessionList groups={[device({ '~/acme': acme, '~/notes': [entry('Weekly notes')] })]} foldScope="device" />, {
+    wrapper: wrapper(),
+  })
   const inside = screen.getByText('Acme onboarding')
   inside.tabIndex = 0
   inside.focus()
@@ -101,7 +108,7 @@ it('slides only a row that moved to another group; the rows that follow and the 
   try {
     const flat = (key: string, entries: SessionEntry[]): Group => ({ key, label: key, implies, entries })
     const [a, b, c] = [entry('Acme onboarding'), entry('Acme pricing'), entry('Weekly notes')]
-    const { rerender } = render(<SessionList groups={[flat('working', [a, b]), flat('idle', [c])]} />)
+    const { rerender } = render(<SessionList groups={[flat('working', [a, b]), flat('idle', [c])]} />, { wrapper: wrapper() })
     rerender(<SessionList groups={[flat('working', [b]), flat('idle', [a, c])]} />) // Acme onboarding finished
     expect(animated).toEqual(['d1/Acme onboarding:move'])
   } finally {
@@ -113,7 +120,7 @@ it('slides only a row that moved to another group; the rows that follow and the 
 
 it('a folder header and a device header start a new session there', () => {
   const acme = [entry('Acme onboarding', { cwd: '/home/me/acme' })]
-  render(<SessionList groups={[device({ '~/acme': acme })]} foldScope="device" />)
+  render(<SessionList groups={[device({ '~/acme': acme })]} foldScope="device" />, { wrapper: wrapper() })
   fireEvent.click(screen.getByRole('button', { name: 'New session in acme' }))
   expect(useNewSessionRequest.getState().preset).toEqual({ daemonId: 'd1', node: null, cwd: '/home/me/acme' })
   fireEvent.click(screen.getByRole('button', { name: 'New session in hub' }))

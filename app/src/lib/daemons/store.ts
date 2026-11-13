@@ -35,9 +35,7 @@ export const useDaemonsStore = create<DaemonsState>()(
       },
       update: (id, patch) =>
         set((s) => ({
-          daemons: s.daemons.map((d) =>
-            d.id === id ? { ...d, ...patch, url: patch.url ? normalizeUrl(patch.url) : d.url } : d,
-          ),
+          daemons: s.daemons.map((d) => (d.id === id ? { ...d, ...patch, url: patch.url ? normalizeUrl(patch.url) : d.url } : d)),
         })),
       remove: (id) => set((s) => ({ daemons: s.daemons.filter((d) => d.id !== id && d.via !== id) })),
       setDirect: (hubId, found) =>

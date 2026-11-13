@@ -9,6 +9,7 @@ import { buildList, type GroupNode, type Held, type RowNode, type SectionNode } 
 import type { Group } from '../model/query'
 import { useListPrefs, useNewSessionRequest } from '../store'
 import { presetForDevice, presetForFolder } from '../model/new-here'
+import { useNodeNames } from '@/lib/daemons/use-nodes'
 import type { SessionEntry } from '../model/facets'
 import { AgentMark } from './agent-mark'
 import { PlaceIcon } from './place-icon'
@@ -71,7 +72,16 @@ function entriesOf(node: GroupNode | SectionNode): SessionEntry[] {
 /** A header's "+": a new session in that folder, or on that device, with only the rest to choose. */
 function StartHere({ node }: { node: GroupNode | SectionNode }) {
   const start = useNewSessionRequest((s) => s.start)
+  const entries = entriesOf(node)
+  const nodes = useNodeNames(entries[0]?.daemon.id ?? '')
   const where = node.label
+  // On the computer the header's sessions run on, as the list groups them; none where none can start one
+  // (a cloud session's, a computer without muxtower), rather than another computer.
+  const preset =
+    node.kind === 'section'
+      ? presetForFolder(entries, nodes, node.placeKind === 'worktree' ? (entries[0]?.session.git?.worktree ?? undefined) : undefined)
+      : presetForDevice(entries, nodes)
+  if (!preset) return null
   return (
     <Button
       variant="ghost"
@@ -79,14 +89,7 @@ function StartHere({ node }: { node: GroupNode | SectionNode }) {
       className="mr-2 shrink-0 sm:mr-3"
       aria-label={`New session in ${where}`}
       title={`New session in ${where}`}
-      onClick={() => {
-        const entries = entriesOf(node)
-        const preset =
-          node.kind === 'section'
-            ? presetForFolder(entries, node.placeKind === 'worktree' ? (entries[0]?.session.git?.worktree ?? undefined) : undefined)
-            : presetForDevice(entries)
-        if (preset) start(preset)
-      }}
+      onClick={() => start(preset)}
     >
       <Plus />
     </Button>

@@ -46,7 +46,10 @@ export function useHubFallback() {
             if (now - (seen.probed ?? 0) < PROBE_EVERY_MS) continue
             seen.probed = now
             if ((await probe(hub)) === 'down') continue
-            const linked = await createDaemonClient(hub).GET('/v1/nodes').then(unwrap).catch(() => null)
+            const linked = await createDaemonClient(hub)
+              .GET('/v1/nodes')
+              .then(unwrap)
+              .catch(() => null)
             if (linked && nodesBack(linked, nodes)) setDown(hub.id, false)
             continue
           }
@@ -54,7 +57,10 @@ export function useHubFallback() {
             seen.closedSince = undefined
             if (now - (seen.refreshed ?? 0) >= REFRESH_EVERY_MS) {
               seen.refreshed = now
-              const found = await createDaemonClient(hub).POST('/v1/nodes/direct').then(unwrap).catch(() => null)
+              const found = await createDaemonClient(hub)
+                .POST('/v1/nodes/direct')
+                .then(unwrap)
+                .catch(() => null)
               if (found) setDirect(hub.id, found) // an older hub has none to hand over: nothing changes
             }
             continue

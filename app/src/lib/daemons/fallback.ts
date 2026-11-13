@@ -66,7 +66,16 @@ export function withDirect(daemons: Daemon[], hub: Daemon, found: DirectNode[]):
     .filter((f) => f.url.startsWith('https://'))
     .map((f): Daemon => {
       const before = daemons.find((d) => mine(d) && d.node === f.node)
-      return { ...before, id: `${hub.id}~${f.node}`, name: f.node, url: f.url.replace(/\/+$/, ''), token: f.token, via: hub.id, node: f.node, rejected: false }
+      return {
+        ...before,
+        id: `${hub.id}~${f.node}`,
+        name: f.node,
+        url: f.url.replace(/\/+$/, ''),
+        token: f.token,
+        via: hub.id,
+        node: f.node,
+        rejected: false,
+      }
     })
   return [...kept, ...direct]
 }
