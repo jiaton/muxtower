@@ -25,6 +25,8 @@ export function FooterBar({ className, ...props }: HTMLAttributes<HTMLElement>) 
  */
 export const composerColumns = {
   lead: 'flex w-10 shrink-0 items-center justify-center',
+  /** The same column inside a row that has a border of its own (the Live row, an aligned banner). */
+  leadInBox: 'flex w-10 shrink-0 items-center justify-center -ml-px',
   gap: 'gap-1.5',
   inset: 'pl-[13px]',
   /** The 40 px column of its last button (send): a row's trailing action (close, pause) centred in it. */

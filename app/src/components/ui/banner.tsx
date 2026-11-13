@@ -39,7 +39,7 @@ export function Banner({
     <div role={tone === 'error' ? 'alert' : 'status'} className={cn(bannerVariants({ tone, aligned }), className)} {...props}>
       {aligned ? (
         <>
-          <span aria-hidden className={cn(composerColumns.lead, '-ml-px h-5')}>
+          <span aria-hidden className={cn(composerColumns.leadInBox, 'h-5')}>
             <Icon />
           </span>
           <div className={cn('flex min-w-0 flex-1 items-start gap-2', composerColumns.inset, !action && 'pr-3')}>{children}</div>
@@ -48,7 +48,7 @@ export function Banner({
       ) : (
         <>
           {children}
-          {action}
+          {action ? <span className="-my-1 shrink-0">{action}</span> : null}
         </>
       )}
     </div>

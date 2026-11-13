@@ -10,6 +10,9 @@ export const navItemClass = cn(
   '[&_svg]:size-4 [&_svg]:shrink-0',
 )
 
+/** Room in a navigation entry for a control laid over it: a fold toggle at its start, a mark at its end. */
+export const navItemRoom = { start: 'pl-8', end: 'pr-9' } as const
+
 /** A second-level entry (a folder under its device): smaller, indented past the parent's icon. */
 export const navSubItemClass = cn(navItemClass, 'h-8 pl-9 text-xs [&_svg]:size-3.5')
 

@@ -1,4 +1,4 @@
-import { ChevronRight, LoaderCircle } from 'lucide-react'
+import { ChevronDown, ChevronRight, LoaderCircle } from 'lucide-react'
 import { cn } from '@/lib/cn'
 import { text } from './styles'
 
@@ -15,9 +15,11 @@ export function Spinner({ tone, className, label }: { tone?: Tone; className?: s
   )
 }
 
-/** A fold's chevron: right when closed, down when open, turning between. */
-export function Chevron({ open, className }: { open: boolean; className?: string }) {
-  return <ChevronRight aria-hidden className={cn('shrink-0 transition-transform', open && 'rotate-90', className)} />
+/** A fold's chevron: right when closed, down when open, turning between; `vertical`: down when closed, up
+ *  when open (what opens below a card). */
+export function Chevron({ open, vertical = false, className }: { open: boolean; vertical?: boolean; className?: string }) {
+  const Icon = vertical ? ChevronDown : ChevronRight
+  return <Icon aria-hidden className={cn('shrink-0 transition-transform', open && (vertical ? 'rotate-180' : 'rotate-90'), className)} />
 }
 
 const DOT = {

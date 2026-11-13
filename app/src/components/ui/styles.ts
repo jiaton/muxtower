@@ -1,14 +1,14 @@
 import { cva } from 'class-variance-authority'
 
 /**
- * The app's shared looks, each defined once here: text roles, surfaces and the focus ring. A feature composes
- * them (`cn(textRole.meta, 'mt-1')`) instead of writing their classes again: `scripts/check-tokens.mjs`
- * refuses those classes together anywhere outside components/ui.
+ * The app's shared looks as variants (`text`, `box`, `motion`) and a few named roles built from them
+ * (`textRole`, `surface`, `stateTone`, `focusRing`). Features compose them (`cn(text({ tone: 'muted' }),
+ * 'mt-1')`) and write layout only: `scripts/check-styles.mjs`.
  */
 /**
- * Text: its size, tone and weight, and a few traits, as variants (`text({ size: 'sm', tone: 'muted' })`); on
- * a <Text> or on any element's className. The tones are the theme's: a session state's color goes through
- * `stateTone`.
+ * Text: its size, tone and weight, and a few traits, as variants (`text({ size: 'sm', tone: 'muted' })`), on
+ * any element's className. The tones are the theme's, the session states' among them (`stateTone` maps a
+ * state to its tone).
  */
 export const text = cva('', {
   variants: {
@@ -26,6 +26,7 @@ export const text = cva('', {
       busy: 'text-state-busy',
       idle: 'text-state-idle',
       error: 'text-state-error',
+      terminal: 'text-terminal-fg',
     },
     weight: { normal: 'font-normal', medium: 'font-medium', semibold: 'font-semibold' },
     mono: { true: 'font-mono' },
@@ -37,6 +38,16 @@ export const text = cva('', {
     underline: { true: 'underline' },
     /** Brighter on hover (a quiet control). */
     hoverFg: { true: 'hover:text-fg' },
+  },
+})
+
+/** Movement: a spin (`slow` for what may go on for minutes), a pulse (waiting, or speaking). */
+export const motion = cva('', {
+  variants: {
+    spin: { normal: 'animate-spin', slow: 'animate-spin [animation-duration:2s]' },
+    pulse: { true: 'animate-pulse' },
+    /** Turns when its rotation changes (an icon that becomes a close). */
+    turns: { true: 'transition-transform' },
   },
 })
 
@@ -72,6 +83,7 @@ export const textRole = {
 export const box = cva('', {
   variants: {
     ground: {
+      page: 'bg-bg',
       surface: 'bg-surface',
       muted: 'bg-surface-muted',
       accent: 'bg-accent',
@@ -95,11 +107,21 @@ export const box = cva('', {
       left: 'border-l border-border',
       right: 'border-r border-border',
     },
-    radius: { xs: 'rounded', sm: 'rounded-sm', md: 'rounded-md', lg: 'rounded-lg', full: 'rounded-full', none: 'rounded-none' },
+    radius: {
+      end: 'rounded-r-md',
+      xs: 'rounded',
+      sm: 'rounded-sm',
+      md: 'rounded-md',
+      lg: 'rounded-lg',
+      full: 'rounded-full',
+      none: 'rounded-none',
+    },
     hover: { muted: 'hover:bg-surface-muted', faint: 'hover:bg-surface-muted/60', surface: 'hover:bg-surface' },
     shadow: { card: 'shadow-card', sm: 'shadow-sm' },
     /** Rules between its children (a list of rows). */
     divided: { true: 'divide-y divide-border' },
+    /** Quieter: on its way (`half`), or out of reach (`dim`). */
+    faded: { half: 'opacity-50', dim: 'opacity-60' },
   },
 })
 
