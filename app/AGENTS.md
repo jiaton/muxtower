@@ -76,13 +76,16 @@ A daemon can also be a hub: other computers' daemons join it as nodes (`docs/des
 ## Styling — token discipline
 
 - Colors, font sizes, radii, shadows only from `src/styles/tokens.css` (`@theme static`, so tokens read from JS exist too). No hex, no `rgb()`/`oklch()`, no Tailwind palette classes (`bg-zinc-900`), no arbitrary visual values (`text-[#fff]`, `rounded-[3px]`), no inline `style` colors. Arbitrary layout values (`max-h-[90dvh]`) and variants (`data-[state=open]:`) are fine. Libraries that need concrete colors (xterm.js) get them from `lib/css-color.ts`, which resolves tokens. Enforced by `npm run check:tokens` (`scripts/check-tokens.mjs`) in lint.
-- **Features write layout only.** Outside `src/components/ui/` a class string holds layout (display, flex
-  and grid, gap, padding and margin, size, position and inset, overflow, z, alignment, truncate, whitespace)
-  and nothing else: no color, type, border, radius, shadow, ring, outline, opacity, decoration, animation or
-  transition. Every look comes from `components/ui`: a primitive (Button, Input, Badge, Banner, Card, Chip,
-  Spinner, Chevron, Dot, RowToggle, TreeLines, FooterBar…), a variant function (`text`, `box`, `motion`,
-  `chip`, `listRow`, `tab`, `composerField`…) or one of the few roles (`textRole`, `surface`, `stateTone`).
-  Need a new look? Add a variant (or, rarely, a role) in `components/ui/` first, then use it.
+- **Features say what a thing is; components/ui decides how it looks.** Outside `src/components/ui/` a class
+  string holds layout only (display, flex and grid, gap, padding and margin, size, position and inset,
+  overflow, z, alignment, truncate, whitespace), and a look comes from a named intent or a component:
+  `ink.*` for text (meta, hint, body, label, strong, code, link, the tones…), `look.*` for boxes (panel,
+  frame, list, pill, hoverRow, bar, rule…), the stateful intents (`listItem`, `treeLink`, `liveRow`,
+  `bubble`, `quoteCard`), and components with their variants (Button, Input, Banner, Card, Chevron,
+  StatusIcon…), all in `components/ui/intents.ts` and its neighbours. The builders behind them (`text`,
+  `box`, `motion` in `styles.ts`) are ui-internal. An element takes at most one `ink` and one `look`
+  (`ink.count` may join); a component with a look of its own takes variants, not intents. **Features pick
+  an intent; if none fits, add one in ui, merging rather than adding a near-duplicate.**
 - **No native controls in features**: `<button>`, `<input>`, `<select>`, `<textarea>` and a styled `<a>` are
   Button, Input, Select, Textarea, Checkbox, Switch, FilePicker, TextLink. `Button variant="plain"` wraps
   custom content whose look comes from other primitives; it adds none of its own.
@@ -91,9 +94,10 @@ A daemon can also be a hub: other computers' daemons join it as nodes (`docs/des
   1.5, 2, 3, 4, auto. Nothing negative; arbitrary values only for the safe area (`env(...)`). Controls are
   40 px (icon buttons, inputs, a single-line composer, the Live row) or 32 px; bars pad `px-2 sm:px-3`,
   `py-2`. Other steps, and anything a value computed at runtime needs, live inside a primitive.
-- Enforced by `check:tokens` (`scripts/check-tokens.mjs`: colors; `scripts/check-styles.mjs`: the three
-  rules above, on every class-like string outside `components/ui/` and `lib/ansi.ts`, the terminal's HTML).
-  It has no allowlist; a case it cannot express goes into a primitive.
+- Enforced by `check:tokens` (`scripts/check-tokens.mjs`: colors; `scripts/check-styles.mjs`: layout-only
+  class strings, the spacing scale, no native controls, no import of the builders, one ink and one look per
+  element, no intent on a component with its own look; outside `components/ui/` and `lib/ansi.ts`). It has
+  no allowlist; a case it cannot express becomes an intent or a variant in ui.
 - Not checked, still the rule: don't build a primitive-shaped component in a feature (a chip, a field, a
   toggle line): extend or add the primitive; prefer a variant to a new role; a session state's color is its tone (`stateTone` maps a
   state to it), never a hand-picked one; keep the roles few.
