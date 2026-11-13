@@ -21,6 +21,8 @@ describe('the Mandarin pack', () => {
   it('send may trail a sentence, with no space before it; the joining word goes with it', () => {
     expect(trailingSend('修一下这个测试，发送。', packs)).toBe('修一下这个测试')
     expect(trailingSend('修一下测试，然后发送', packs)).toBe('修一下测试')
+    expect(trailingSend('这样就可以创建。 发送', packs)).toBe('这样就可以创建') // a full stop, then a space
+    expect(trailingSend('这样就可以创建。发送。', packs)).toBe('这样就可以创建')
     expect(trailingSend('先暂停一下', packs)).toBeNull()
     expect(trailingSend('发送', packs)).toBeNull() // nothing before it
   })

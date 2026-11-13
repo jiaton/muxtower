@@ -200,6 +200,9 @@ export class LivePipeline {
       this.deps.ops().append(target, sending)
       return this.act('send', target, 'transcribed')
     }
+    // A long segment that is only "send" (a pause or a breath around the word stretched it past SHORT_MS):
+    // still the command, never the word typed after what came before.
+    if (ms > SHORT_MS && commandIn(text) === 'send') return this.act('send', target, 'transcribed')
     this.error = null
     this.deps.ops().append(target, text.trim())
     this.deps.heard?.({ kind: 'text', text: text.trim(), short: ms <= SHORT_MS })

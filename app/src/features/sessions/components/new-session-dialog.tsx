@@ -19,21 +19,19 @@ import { agentName } from '../model/facets'
 import { useNewSessionPrefs } from '../store'
 import { AgentMark } from './agent-mark'
 
-/** Starts a session on a daemon's machine, or on one of its nodes (another computer joined to it).
- *  `trigger`: the element that opens it (a button), defaulting to a labelled one. `preset` (a team card's
- *  "New session here…"): where, and the project it joins, with a role to give it; opened by `open`. */
 import { splitArgs } from '../model/launch'
 import { LaunchOptions } from './launch-options'
 import { Label } from '@/components/ui/label'
 import { chip } from '@/components/ui/chip'
 import { ink } from '@/components/ui/intents'
-export interface NewSessionPreset {
-  daemonId: string
-  node: string | null
-  cwd: string
-  project: string
-}
+import type { NewSessionPreset } from '../model/new-here'
+export type { NewSessionPreset }
 
+/** Starts a session on a daemon's machine, or on one of its nodes (another computer joined to it).
+ *  `trigger`: the element that opens it (a button), defaulting to a labelled one. `preset` ("New session
+ *  here" on a session, a folder or device header, a team card): where, and the project it joins (with a
+ *  role to give it) when there is one; opened by `open`. The folder field starts empty, the machine's
+ *  default shown in its place, so its suggestions show; a preset's folder is a choice, and fills it. */
 export function NewSessionDialog({
   trigger,
   preset,
@@ -65,7 +63,7 @@ export function NewSessionDialog({
   // the agent picked here, else the one started last, as long as this computer has it
   const available = (runtimes.data ?? []).filter((r) => r.available).map((r) => r.name)
   const runtime = picked ?? (available.includes(lastRuntime) || !available.length ? lastRuntime : available[0])
-  const [typed, setCwd] = useState<string | null>(preset?.cwd ?? null)
+  const [cwd, setCwd] = useState(preset?.cwd ?? '')
   const [name, setName] = useState('')
   const [headless, setHeadless] = useState(false)
   const [mode, setMode] = useState<string | null>(null)
@@ -73,9 +71,8 @@ export function NewSessionDialog({
   const canRunHeadless = Boolean(runtimes.data?.find((r) => r.name === runtime)?.headless)
   const asHeadless = headless && canRunHeadless
   const me = useDaemonMe(current?.id ?? '')
-  // The machine's default folder until one is typed (recent folders stay suggestions).
+  // The machine's default folder: shown in the empty field, and where it starts if left empty.
   const fallback = (node ? node.default_folder : me.data?.default_folder) ?? ''
-  const cwd = typed ?? fallback
   const { entries } = useSessionEntries()
   const folders = current ? folderSuggestions(entries, current.id, node?.name ?? null) : []
 
@@ -111,7 +108,7 @@ export function NewSessionDialog({
               }, // prettier-ignore
               {
                 onSuccess: async (session) => {
-                  if (preset) {
+                  if (preset?.project) {
                     const body = { project: preset.project, rename_project: false, ...(role.trim() ? { role: role.trim() } : {}) }
                     await createDaemonClient(current!).PUT('/v1/sessions/{session_id}/team', {
                       params: { path: { session_id: session.id } },
@@ -200,7 +197,7 @@ export function NewSessionDialog({
             Directory
             <SuggestInput
               required={!fallback}
-              placeholder="~/code/project"
+              placeholder={fallback ? `Default: ${fallback}` : '~/code/project'}
               value={cwd}
               onValueChange={setCwd}
               suggestions={folders.map((f) => ({ value: f.label, hint: `${f.count} session${f.count === 1 ? '' : 's'}` }))}
@@ -209,9 +206,9 @@ export function NewSessionDialog({
           </Label>
           <Label>
             Name <span className={ink.aside}>optional, defaults to the directory name</span>
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
+            <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus={!!preset} />
           </Label>
-          {preset ? (
+          {preset?.project ? (
             <Label>
               Role in {preset.project} <span className={ink.aside}>optional</span>
               <Input value={role} onChange={(e) => setRole(e.target.value)} placeholder="e.g. reviewer" />

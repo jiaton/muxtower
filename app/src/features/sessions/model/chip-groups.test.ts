@@ -22,9 +22,7 @@ const git = (repo: string) => ({ repo, worktree: repo, branch: 'main', remote: n
 describe('a session’s project', () => {
   it('is the one set, else its repository’s, else its folder’s name', () => {
     expect(chipProject(entry('a', { project: 'muxtower', project_source: 'set', cwd: '/tmp/x' }).session)).toBe('muxtower')
-    expect(chipProject(entry('a', { project: 'acme/ha', project_source: 'git remote', git: git('/home/me/ha') }).session)).toBe(
-      'acme/ha',
-    )
+    expect(chipProject(entry('a', { project: 'acme/ha', project_source: 'git remote', git: git('/home/me/ha') }).session)).toBe('acme/ha')
     expect(chipProject(entry('a', { git: git('/home/me/projects/web') }).session)).toBe('web')
     expect(chipProject(entry('a', { cwd: '/home/me/notes', project: 'notes', project_source: 'folder' }).session)).toBe('notes')
     expect(chipProject(entry('a', { cwd: '/Users/me/notes' }).session)).toBe('notes') // a named folder is no Other

@@ -4,7 +4,7 @@ import type { Session } from '@/lib/api/types'
 import type { Daemon } from '@/lib/daemons/types'
 import type { SessionEntry } from '../model/facets'
 import type { Group } from '../model/query'
-import { useListPrefs } from '../store'
+import { useListPrefs, useNewSessionRequest } from '../store'
 import { SessionList } from './session-list'
 
 const drawn = vi.hoisted(() => ({ rows: [] as string[] }))
@@ -51,7 +51,7 @@ it('folds one folder without drawing any other row again, and draws again only a
   expect(drawn.rows.sort()).toEqual(['Acme onboarding', 'Acme pricing', 'Weekly notes'])
 
   drawn.rows = []
-  fireEvent.click(screen.getByRole('button', { name: /acme/ }))
+  fireEvent.click(screen.getByRole('button', { name: /^acme/ }))
   expect(screen.queryByText('Acme pricing')).toBeNull()
   expect(drawn.rows).toEqual([]) // the folder's rows went, and no other row was drawn again
 
@@ -64,8 +64,8 @@ it('folds one folder without drawing any other row again, and draws again only a
 it('counts a folded folder and says how many need you', () => {
   const acme = [entry('Acme onboarding', { needs_attention: true }), entry('Acme pricing')]
   render(<SessionList groups={[device({ '~/acme': acme })]} foldScope="device" />)
-  fireEvent.click(screen.getByRole('button', { name: /acme/ }))
-  const header = screen.getByRole('button', { name: /acme/ })
+  fireEvent.click(screen.getByRole('button', { name: /^acme/ }))
+  const header = screen.getByRole('button', { name: /^acme/ })
   expect(header).toHaveAttribute('aria-expanded', 'false')
   expect(header.textContent).toMatch(/1 need you\s*2/)
 })
@@ -76,7 +76,7 @@ it('moves focus inside a folder that folds to its header', () => {
   const inside = screen.getByText('Acme onboarding')
   inside.tabIndex = 0
   inside.focus()
-  const header = screen.getByRole('button', { name: /acme/ })
+  const header = screen.getByRole('button', { name: /^acme/ })
   fireEvent.click(header)
   expect(screen.queryByText('Acme onboarding')).toBeNull()
   expect(document.activeElement).toBe(header)
@@ -109,4 +109,13 @@ it('slides only a row that moved to another group; the rows that follow and the 
     HTMLElement.prototype.getBoundingClientRect = restore[1]
     delete (HTMLElement.prototype as { animate?: unknown }).animate
   }
+})
+
+it('a folder header and a device header start a new session there', () => {
+  const acme = [entry('Acme onboarding', { cwd: '/home/me/acme' })]
+  render(<SessionList groups={[device({ '~/acme': acme })]} foldScope="device" />)
+  fireEvent.click(screen.getByRole('button', { name: 'New session in acme' }))
+  expect(useNewSessionRequest.getState().preset).toEqual({ daemonId: 'd1', node: null, cwd: '/home/me/acme' })
+  fireEvent.click(screen.getByRole('button', { name: 'New session in hub' }))
+  expect(useNewSessionRequest.getState().preset).toEqual({ daemonId: 'd1', node: null, cwd: '' })
 })

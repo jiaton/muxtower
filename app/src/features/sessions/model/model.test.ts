@@ -151,7 +151,8 @@ describe('query', () => {
 
   it('lists sessions a restart interrupted only under Interrupted, whatever else they are', () => {
     const cut = entry('cut', { interrupted_at: '2026-11-03T08:00:00Z', hidden: true })
-    const ids = (view: 'all' | 'hidden' | 'interrupted') => filterEntries([...entries, cut], { view, group: 'status' }).map((e) => e.session.id)
+    const ids = (view: 'all' | 'hidden' | 'interrupted') =>
+      filterEntries([...entries, cut], { view, group: 'status' }).map((e) => e.session.id)
     expect(ids('all')).not.toContain('cut')
     expect(ids('hidden')).not.toContain('cut')
     expect(ids('interrupted')).toEqual(['cut'])

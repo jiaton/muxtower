@@ -17,6 +17,7 @@ import { SessionActions, type SessionAction } from './session-actions'
 const MENU_LABEL: Record<SessionAction['id'], (session: Session) => string> = {
   read: (s) => (s.unread ? 'Mark as read' : 'Mark as unread'),
   pin: (s) => (s.pinned ? 'Unpin' : 'Pin to the top'),
+  new: () => 'New session here…',
   rename: () => 'Rename',
   place: () => 'Move…',
   team: (s) => (s.team_role ? `Team: ${s.team_role}…` : 'Set its role…'),

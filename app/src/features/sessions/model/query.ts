@@ -63,8 +63,7 @@ export const VIEW_LABEL: Record<View, string> = {
 export const ASIDE_VIEWS: readonly View[] = ['hidden', 'archived', 'interrupted']
 
 /** Where the sessions a view shows are listed. */
-export const placeIn = (view: View): Place =>
-  view === 'hidden' || view === 'archived' || view === 'interrupted' ? view : 'listed'
+export const placeIn = (view: View): Place => (view === 'hidden' || view === 'archived' || view === 'interrupted' ? view : 'listed')
 export const GROUP_LABEL: Record<GroupBy, string> = {
   status: 'Status',
   device: 'Device and folder',
@@ -80,7 +79,6 @@ export const folderLabel = (entry: SessionEntry) => homeOf(entry.session) ?? UNK
 export const agentLabel = (entry: SessionEntry) => agentOf(entry.session)
 export const sourceLabel = (entry: SessionEntry) => sourceOf(entry.session)
 export const accountLabel = (entry: SessionEntry) => accountOf(entry.session)
-
 
 export { filterEntries }
 

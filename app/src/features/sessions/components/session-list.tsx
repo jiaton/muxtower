@@ -1,4 +1,4 @@
-import { Monitor } from 'lucide-react'
+import { Monitor, Plus } from 'lucide-react'
 import { memo, useCallback, useEffect, useRef, type MouseEvent, type ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Fold } from '@/components/ui/fold'
@@ -7,7 +7,9 @@ import { useFoldAnchor } from '../hooks/use-fold-anchor'
 import { useRowMoves } from '../hooks/use-row-moves'
 import { buildList, type GroupNode, type Held, type RowNode, type SectionNode } from '../model/list'
 import type { Group } from '../model/query'
-import { useListPrefs } from '../store'
+import { useListPrefs, useNewSessionRequest } from '../store'
+import { presetForDevice, presetForFolder } from '../model/new-here'
+import type { SessionEntry } from '../model/facets'
 import { AgentMark } from './agent-mark'
 import { PlaceIcon } from './place-icon'
 import type { RowContext } from './session-row'
@@ -60,6 +62,37 @@ function FoldButton({
 
 const INDENT_REM = 1 // per level of a folder inside another
 
+/** The sessions a header holds: its own rows first, then those of the folders inside it. */
+function entriesOf(node: GroupNode | SectionNode): SessionEntry[] {
+  const rows = node.children.filter((c): c is RowNode => c.kind === 'row').map((r) => r.entry)
+  return [...rows, ...node.children.filter((c): c is SectionNode => c.kind === 'section').flatMap(entriesOf)]
+}
+
+/** A header's "+": a new session in that folder, or on that device, with only the rest to choose. */
+function StartHere({ node }: { node: GroupNode | SectionNode }) {
+  const start = useNewSessionRequest((s) => s.start)
+  const where = node.label
+  return (
+    <Button
+      variant="ghost"
+      size="icon-xs"
+      className="mr-2 shrink-0 sm:mr-3"
+      aria-label={`New session in ${where}`}
+      title={`New session in ${where}`}
+      onClick={() => {
+        const entries = entriesOf(node)
+        const preset =
+          node.kind === 'section'
+            ? presetForFolder(entries, node.placeKind === 'worktree' ? (entries[0]?.session.git?.worktree ?? undefined) : undefined)
+            : presetForDevice(entries)
+        if (preset) start(preset)
+      }}
+    >
+      <Plus />
+    </Button>
+  )
+}
+
 /** Folds or unfolds what the header (the button clicked) holds, keeping that header where it is on screen. */
 type Toggle = (key: string, header: HTMLButtonElement) => void
 
@@ -67,16 +100,17 @@ type Toggle = (key: string, header: HTMLButtonElement) => void
 const GroupHeader = memo(
   function GroupHeader({ node, toggle }: { node: GroupNode; toggle: Toggle }) {
     return (
-      <h3 className="sticky top-0 z-10">
+      <h3 className={`${look.listHeader} sticky top-0 z-10 flex items-center`}>
         <FoldButton
           folded={node.folded}
           onToggle={node.foldable ? (header) => toggle(node.key, header) : undefined}
-          className={`${ink.eyebrow} ${look.listHeader} ${ink.quietAction} gap-2 px-3 py-1.5 sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0`}
+          className={`${ink.eyebrow} ${ink.quietAction} min-w-0 flex-1 gap-2 px-3 py-1.5 sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0`}
         >
           {node.sectioned ? <Monitor aria-hidden /> : node.implies.agent ? <AgentMark decorative agent={node.label} /> : null}
           <span className="truncate">{node.label}</span>
           <HeaderCount count={node.count} needs={node.needs} className="normal-case" />
         </FoldButton>
+        {node.implies.device ? <StartHere node={node} /> : null}
       </h3>
     )
   },
@@ -91,17 +125,18 @@ const GroupHeader = memo(
 const SectionHeader = memo(
   function SectionHeader({ node, toggle }: { node: SectionNode; toggle: Toggle }) {
     return (
-      <h4 title={node.title}>
+      <h4 title={node.title} className={`${look.selected} flex items-center`}>
         <FoldButton
           folded={node.folded}
           onToggle={node.foldable ? (header) => toggle(node.key, header) : undefined}
-          className={`${look.selected} ${ink.quietAction} ${ink.meta} gap-1.5 px-3 py-1 sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0`}
+          className={`${ink.quietAction} ${ink.meta} min-w-0 flex-1 gap-1.5 px-3 py-1 sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0`}
           indent={node.depth * INDENT_REM}
         >
           <PlaceIcon kind={node.placeKind} />
           <span className={`${ink.strong} min-w-0 truncate`}>{node.label}</span>
           <HeaderCount count={node.count} needs={node.needs} className="ml-auto" />
         </FoldButton>
+        <StartHere node={node} />
       </h4>
     )
   },

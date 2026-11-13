@@ -24,4 +24,3 @@ export function keptEntries(entries: SessionEntry[], visible: SessionEntry[], op
 export function keptGroups(kept: SessionEntry[]): Group[] {
   return kept.length ? [{ key: KEPT_GROUP, label: 'Just opened', entries: kept, implies: {} }] : []
 }
-

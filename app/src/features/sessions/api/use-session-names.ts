@@ -11,7 +11,6 @@ export function useSessionNames(daemonId: string, sessionId: string) {
     queryKey: daemonKey(daemonId, 'names', sessionId),
     enabled: client !== null,
     retry: false,
-    queryFn: async () =>
-      unwrap(await client!.GET('/v1/sessions/{session_id}/names', { params: { path: { session_id: sessionId } } })),
+    queryFn: async () => unwrap(await client!.GET('/v1/sessions/{session_id}/names', { params: { path: { session_id: sessionId } } })),
   })
 }

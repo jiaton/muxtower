@@ -7,5 +7,7 @@ export function alsoWritingText(session: Session): string | null {
   if (!others.length) return null
   const files = [...new Set(others.flatMap((w) => w.files))]
   const names = [...new Set(others.map((w) => w.name))].join(', ')
-  return `also writing here: ${names}` + (files.length ? `\nboth changed: ${files.slice(0, 8).join(', ')}${files.length > 8 ? '…' : ''}` : '')
+  return (
+    `also writing here: ${names}` + (files.length ? `\nboth changed: ${files.slice(0, 8).join(', ')}${files.length > 8 ? '…' : ''}` : '')
+  )
 }

@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import type { Pull } from '@/components/ui/gesture'
 import type { GroupBy } from './model/query'
 import type { ListSearch } from './model/search'
+import type { NewSessionPreset } from './model/new-here'
 
 interface ListPrefs {
   /** How the list is grouped when the URL does not say. */
@@ -105,3 +106,20 @@ export const useNewSessionPrefs = create<NewSessionPrefs>()(
     { name: 'muxtower.new-session', version: 1 },
   ),
 )
+
+/** A new session asked for from somewhere that is not a dialog's own trigger (a row's or the session's
+ *  menu, a list header): where it starts. `NewSessionHost` opens the dialog for it, one at a time. */
+interface NewSessionRequest {
+  preset: NewSessionPreset | null
+  /** Counts the requests, so each opens a fresh dialog. */
+  n: number
+  start: (preset: NewSessionPreset) => void
+  close: () => void
+}
+
+export const useNewSessionRequest = create<NewSessionRequest>()((set) => ({
+  preset: null,
+  n: 0,
+  start: (preset) => set((s) => ({ preset, n: s.n + 1 })),
+  close: () => set({ preset: null }),
+}))

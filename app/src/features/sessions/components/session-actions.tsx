@@ -10,6 +10,7 @@ import {
   Pin,
   PinOff,
   Power,
+  SquarePlus,
   RotateCcw,
   Trash2,
   Users,
@@ -19,13 +20,15 @@ import { useState, type ReactNode } from 'react'
 import type { Session } from '@/lib/api/types'
 import { useHideSession, useMarkRead, usePinSession } from '../api/use-session-marks'
 import { useRecoverSessions } from '../api/use-recovery'
+import { presetForSession } from '../model/new-here'
+import { useNewSessionRequest } from '../store'
 import { PlaceDialog } from './place-dialog'
 import { RenameDialog } from './rename-dialog'
 import { ArchiveDialog, DeleteDialog, HideInsteadDialog, StopDialog } from './session-dialogs'
 import { TeamDialog } from './team-dialog'
 
 export interface SessionAction {
-  id: 'read' | 'pin' | 'rename' | 'place' | 'team' | 'hide' | 'archive' | 'stop' | 'delete' | 'resume'
+  id: 'read' | 'pin' | 'new' | 'rename' | 'place' | 'team' | 'hide' | 'archive' | 'stop' | 'delete' | 'resume'
   label: string
   icon: LucideIcon
   tone?: 'accent' | 'neutral' | 'danger'
@@ -57,6 +60,7 @@ export function SessionActions({
   const hide = useHideSession()
   const pin = usePinSession()
   const recover = useRecoverSessions(daemonId)
+  const startHere = useNewSessionRequest((s) => s.start)
   const [dialog, setDialog] = useState<'rename' | 'place' | 'team' | 'archive' | 'stop' | 'delete' | null>(null)
   const ids = { daemonId, sessionId: session.id }
   const leaving = (then: () => void) => (open ? () => void navigate({ to: '/', search: true }).then(then) : then)
@@ -77,6 +81,15 @@ export function SessionActions({
         ? { id: 'pin', label: 'Unpin', icon: PinOff, tone: 'neutral', run: () => pin.mutate({ ...ids, pinned: false }) }
         : { id: 'pin', label: 'Pin', icon: Pin, tone: 'neutral', run: () => pin.mutate({ ...ids, pinned: true }) },
     ]
+    // Another session where this one is: its machine and folder (and its team), only typing left.
+    live.push({
+      id: 'new',
+      label: 'New here',
+      icon: SquarePlus,
+      tone: 'neutral',
+      menuOnly: true,
+      run: () => startHere(presetForSession(daemonId, session)),
+    })
     if (session.capabilities.rename)
       live.push({ id: 'rename', label: 'Rename', icon: Pencil, tone: 'neutral', run: () => setDialog('rename'), menuOnly: true })
     if (session.capabilities.place)

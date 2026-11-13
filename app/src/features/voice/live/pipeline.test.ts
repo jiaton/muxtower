@@ -99,6 +99,19 @@ describe('LivePipeline', () => {
     expect(t.live.state).toBe('listening')
   })
 
+  it('a long segment that is only send: sent, not typed', async () => {
+    const t = setup()
+    void t.say(4000)
+    void t.say(2200) // the word, with a pause around it: past SHORT_MS
+    await t.flush()
+    t.uploads[0]!.resolve('fix the login test.')
+    await t.flush()
+    t.uploads[1]!.resolve('Send.')
+    await t.flush()
+    expect(t.sent).toEqual(['a: fix the login test.']) // "Send." never typed into the box
+    expect(t.boxes.a).toEqual([])
+  })
+
   it('clear, undo and pause act only as a segment of their own', async () => {
     const t = setup()
     for (const [ms, text] of [

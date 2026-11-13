@@ -34,7 +34,10 @@ export function useSaveChipGroups() {
   return useMutation({
     mutationFn: async (groups: ChipGroup[]) => {
       if (!keeper) throw new Error('No daemon to keep the groups')
-      return unwrap(await createDaemonClient(keeper).PUT('/v1/chip-groups', { body: { groups } })).groups.map((g) => ({ ...g, sessions: g.sessions ?? [] }))
+      return unwrap(await createDaemonClient(keeper).PUT('/v1/chip-groups', { body: { groups } })).groups.map((g) => ({
+        ...g,
+        sessions: g.sessions ?? [],
+      }))
     },
     onMutate: async (groups) => {
       await client.cancelQueries({ queryKey: key })

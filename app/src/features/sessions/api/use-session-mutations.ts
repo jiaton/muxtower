@@ -62,8 +62,7 @@ export function useArchiveSession(daemonId: string, sessionId: string) {
   const client = useDaemonClient(daemonId)
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: async () =>
-      check(await client!.POST('/v1/sessions/{session_id}/archive', { params: { path: { session_id: sessionId } } })),
+    mutationFn: async () => check(await client!.POST('/v1/sessions/{session_id}/archive', { params: { path: { session_id: sessionId } } })),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: daemonKey(daemonId, 'sessions') }),
   })
 }
