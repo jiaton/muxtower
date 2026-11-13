@@ -40,6 +40,7 @@ import { useOutgoing } from '@/lib/use-outbox'
 import { directPlace, useFallback } from '@/lib/daemons/fallback'
 import { useDaemonsStore } from '@/lib/daemons/store'
 import { textRole } from '@/components/ui/styles'
+import { FooterBar } from '@/components/ui/bar'
 
 export const Route = createFileRoute('/_sessions/d/$daemonId/s/$sessionId')({ component: SessionPage })
 
@@ -261,7 +262,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
             onAction={(text) => addQuote(draftKey(daemonId, session.id), text)}
             more={liveOn && dictation.available ? { label: 'Add to dictionary', icon: BookPlus, onAction: setDictionaryWord } : null}
           />
-          <footer className="shrink-0 border-t border-border bg-bg p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:px-3">
+          <FooterBar>
             {dictation.error ? <Banner tone="error">{dictation.error}</Banner> : null}
             {dictation.available ? <LiveBar /> : null}
             {dictionaryWord !== null ? (
@@ -284,7 +285,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
               cover={dictation.active ? <VoiceBar dictation={dictation} /> : null}
               mention={mention}
             />
-          </footer>
+          </FooterBar>
         </>
       ) : null}
     </Pane>

@@ -8,6 +8,8 @@ import { pauseLive, resumeLive, stopLive, toggleLive, useLive } from '../live/en
 import { feedbackOf, liveDetails } from '../live/feedback'
 import type { Command } from '../live/commands'
 import { enabledPacks } from '../live/packs'
+import { composerColumns } from '@/components/ui/bar'
+import { surface } from '@/components/ui/styles'
 
 const NOTE_KEY = 'muxtower.live.phone-note'
 const FEEDBACK_MS = 2000 // how long what became of the last thing heard stays in place of the hint
@@ -122,7 +124,7 @@ export function LiveBar() {
           ? `Live · writing…${pending > 1 ? ` (${pending})` : ''}${then === 'send' ? ' then sending' : ''}`
           : 'Live · speak to write'
   return (
-    <div className="flex flex-col gap-1.5">
+    <>
       {phone && note ? (
         <Banner tone="info">
           <span className="min-w-0 flex-1">Live works only with this page in front and the screen on.</span>
@@ -131,57 +133,60 @@ export function LiveBar() {
           </Button>
         </Banner>
       ) : null}
-      {/* One row, its height set by its one line: nothing appears or disappears around it. */}
+      {/* One row, its height set by its one line: nothing appears or disappears around it. Lined up with the
+          message box (its + column, then where its text starts), its box the same in every state: its border
+          only shows while paused. */}
       <div
         role="status"
         aria-live="polite"
         className={cn(
-          'flex h-10 items-center gap-2 rounded-md px-2 text-sm',
-          paused ? 'border border-border bg-surface-muted text-fg-muted' : 'text-fg-muted',
+          surface.outlined,
+          'flex h-10 items-center text-sm',
+          composerColumns.gap,
+          paused ? 'bg-surface-muted text-fg-muted' : 'border-transparent text-fg-muted',
         )}
       >
-        {paused ? (
-          commands.state === 'ready' ? (
-            <Ear className="size-4 shrink-0" aria-hidden />
+        <span aria-hidden className={cn(composerColumns.lead, '-ml-px gap-1')}>
+          {paused ? (
+            commands.state === 'ready' ? (
+              <Ear className="size-4" />
+            ) : (
+              <Pause className="size-4" />
+            )
           ) : (
-            <Pause className="size-4 shrink-0" aria-hidden />
-          )
-        ) : (
-          <>
-            <span
-              aria-hidden
-              className={cn(
-                'size-2.5 shrink-0 rounded-full',
-                phase === 'starting' ? 'bg-state-idle' : 'bg-accent',
-                speaking && 'animate-pulse',
-              )}
-            />
-            <AudioLines className={cn('size-4 shrink-0', phase === 'starting' ? 'text-fg-muted' : 'text-accent')} aria-hidden />
-          </>
-        )}
-        <span className={cn('shrink-0 font-medium', paused ? 'text-fg' : phase === 'starting' ? 'text-fg-muted' : 'text-accent')}>
-          {title}
+            <>
+              <span
+                className={cn('size-2.5 rounded-full', phase === 'starting' ? 'bg-state-idle' : 'bg-accent', speaking && 'animate-pulse')}
+              />
+              <AudioLines className={cn('size-4', phase === 'starting' ? 'text-fg-muted' : 'text-accent')} />
+            </>
+          )}
         </span>
-        <span className={cn('min-w-0 flex-1 truncate', feedback ? 'text-fg' : 'text-xs')} title={feedback ?? hint}>
-          {feedback ?? (hint ? `· ${hint}` : '')}
+        <span className={cn('flex min-w-0 flex-1 items-center gap-2 pr-1', composerColumns.inset)}>
+          <span className={cn('shrink-0 font-medium', paused ? 'text-fg' : phase === 'starting' ? 'text-fg-muted' : 'text-accent')}>
+            {title}
+          </span>
+          <span className={cn('min-w-0 flex-1 truncate', feedback ? 'text-fg' : 'text-xs')} title={feedback ?? hint}>
+            {feedback ?? (hint ? `· ${hint}` : '')}
+          </span>
+          {paused ? (
+            <Button variant="secondary" size="sm" className="shrink-0" onClick={resumeLive}>
+              <Play /> {commands.state === 'ready' ? 'Write again' : 'Resume'}
+            </Button>
+          ) : phase === 'listening' ? (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="shrink-0"
+              aria-label="Stop writing (commands only)"
+              title="Stop writing: only commands are heard until you resume"
+              onClick={pauseLive}
+            >
+              <Pause />
+            </Button>
+          ) : null}
         </span>
-        {paused ? (
-          <Button variant="secondary" size="sm" className="shrink-0" onClick={resumeLive}>
-            <Play /> {commands.state === 'ready' ? 'Write again' : 'Resume'}
-          </Button>
-        ) : phase === 'listening' ? (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="shrink-0"
-            aria-label="Stop writing (commands only)"
-            title="Stop writing: only commands are heard until you resume"
-            onClick={pauseLive}
-          >
-            <Pause />
-          </Button>
-        ) : null}
       </div>
-    </div>
+    </>
   )
 }

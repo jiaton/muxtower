@@ -18,3 +18,6 @@ export const SPLIT_QUERY = '(min-width: 48rem)'
 
 /** The breakpoint from which the sidebar is docked (Tailwind `lg`); below it, it is a drawer. */
 export const SIDEBAR_QUERY = '(min-width: 64rem)'
+
+/** Below Tailwind `sm`: a phone held upright. */
+export const PHONE_QUERY = '(max-width: 39.99rem)'

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/input'
 import { focusWithinRing } from '@/components/ui/styles'
 import { cn } from '@/lib/cn'
-import { useMediaQuery } from '@/lib/use-media-query'
+import { PHONE_QUERY, useMediaQuery } from '@/lib/use-media-query'
 import type { Track } from '@/lib/use-outbox'
 import { useSendInput } from '../api/use-terminal'
 import { useAttachments } from '../hooks/use-attachments'
@@ -84,6 +84,7 @@ export function InputBar({
     el?.setSelectionRange(el.value.length, el.value.length)
   }, [filled])
   const open = useTerminalPrefs((s) => s.keypad)
+  const narrow = useMediaQuery(PHONE_QUERY) // a phone's row: pictures go to the + panel
   const setOpen = useTerminalPrefs((s) => s.setKeypad)
   const picker = useRef<HTMLInputElement>(null)
 
@@ -210,7 +211,23 @@ export function InputBar({
     <div className="flex flex-col gap-2">
       {send.isError ? <Banner tone="error">{send.error.message}</Banner> : null}
       {pictures.error ? <Banner tone="error">{pictures.error}</Banner> : null}
-      {open ? <KeyPad keys={keys} onKey={(key) => send.mutate({ key })} /> : null}
+      {open ? (
+        <div className="flex flex-col gap-2">
+          {images && narrow ? (
+            // A phone's row is narrow: pictures are here, beside the keys (pasting or dropping still works).
+            <Button
+              variant="secondary"
+              size="sm"
+              className="self-start"
+              onPointerDown={(e) => e.preventDefault()}
+              onClick={() => picker.current?.click()}
+            >
+              <ImagePlus /> Add pictures
+            </Button>
+          ) : null}
+          <KeyPad keys={keys} onKey={(key) => send.mutate({ key })} />
+        </div>
+      ) : null}
       {cover ? <div className="flex items-end">{cover}</div> : null}
       <form
         hidden={!!cover}
@@ -223,7 +240,9 @@ export function InputBar({
         <Button
           variant="ghost"
           size="icon"
-          aria-label={open ? 'Hide keys' : 'Show keys'}
+          aria-label={
+            open ? (images && narrow ? 'Hide keys and pictures' : 'Hide keys') : images && narrow ? 'Show keys and pictures' : 'Show keys'
+          }
           aria-expanded={open}
           title={open ? 'Hide keys' : 'Keys: esc, tab, arrows, enter…'}
           className={cn('shrink-0', open && 'bg-surface-muted text-fg')}
@@ -278,7 +297,7 @@ export function InputBar({
               e.preventDefault() // a screenshot: attached, not its file name typed
               void pictures.add(pasted)
             }}
-            className="max-h-40 field-sizing-content border-0 bg-transparent focus-visible:outline-none"
+            className="max-h-40 min-h-[2.375rem] field-sizing-content border-0 bg-transparent py-[0.4375rem] focus-visible:outline-none"
           />
           {mentions.menu}
         </div>
@@ -298,7 +317,7 @@ export function InputBar({
             <Button
               variant="ghost"
               size="icon"
-              className="shrink-0"
+              className={cn('shrink-0', narrow && 'hidden')}
               aria-label="Add pictures"
               title="Add pictures (or paste or drop them in the box)"
               onPointerDown={(e) => e.preventDefault()}
