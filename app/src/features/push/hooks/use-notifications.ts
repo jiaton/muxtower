@@ -1,5 +1,6 @@
 import { useRouter } from '@tanstack/react-router'
 import { useEffect, useRef } from 'react'
+import type { Session } from '@/lib/api/types'
 import { pushSupport } from '../api/use-push'
 
 /** A notification tapped while the app is open: the service worker asks the app to go there (it cannot
@@ -21,6 +22,20 @@ export function useNotificationClicks() {
 /** Whether daemon `daemonId`'s session `sessionId` is settled (seen and answered), by what the app knew
  *  of it at `since` (epoch ms) or later; undefined when it knows nothing that recent. */
 export type Settled = (daemonId: string, sessionId: string, since: number) => boolean | undefined
+
+/** Whether a notification of `sessionId` can go, by a daemon's list as the app last had it (`known`): the
+ *  session is settled (seen and answered), archived, or gone from a list newer than the notification;
+ *  undefined when the app knows nothing that recent. */
+export function settledIn(
+  known: { updatedAt: number; sessions: Session[] } | undefined,
+  sessionId: string,
+  since: number,
+  settled: (session: Session) => boolean,
+): boolean | undefined {
+  if (!known || known.updatedAt < since) return undefined
+  const session = known.sessions.find((s) => s.id === sessionId)
+  return session === undefined || Boolean(session.archived_at) || settled(session)
+}
 
 /** Closes this device's notifications of sessions that are settled: whenever what the app knows of its
  *  sessions changes (`version`), and when it comes back to the front. Only by news newer than a

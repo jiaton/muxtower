@@ -10,7 +10,7 @@ import { NewSessionHost } from '@/features/sessions/components/new-session-host'
 import { SessionsNav } from '@/features/sessions/components/sessions-nav'
 import { useListMemory } from '@/features/sessions/store'
 import { useKeepPushSubscriptions } from '@/features/push/hooks/use-keep-push-subscriptions'
-import { useCloseSettledNotifications, useNotificationClicks } from '@/features/push/hooks/use-notifications'
+import { settledIn, useCloseSettledNotifications, useNotificationClicks } from '@/features/push/hooks/use-notifications'
 import { useAllSessions } from '@/features/sessions/api/use-sessions'
 import { isSettled } from '@/features/sessions/model/facets'
 import { useDaemonStreams, useRecheckRejected } from '@/lib/api/streams'
@@ -88,11 +88,13 @@ function RootLayout() {
   useNotificationClicks()
   const daemons = useAllSessions()
   useCloseSettledNotifications(
-    (daemonId, sessionId, since) => {
-      const known = daemons.find((d) => d.daemon.id === daemonId)
-      const session = known && known.updatedAt >= since ? known.sessions.find((s) => s.id === sessionId) : undefined
-      return session && isSettled(session)
-    },
+    (daemonId, sessionId, since) =>
+      settledIn(
+        daemons.find((d) => d.daemon.id === daemonId),
+        sessionId,
+        since,
+        isSettled,
+      ),
     daemons.map((d) => d.updatedAt).join(),
   )
   const inSession = useMatch({ from: '/_sessions/d/$daemonId/s/$sessionId', shouldThrow: false }) !== undefined

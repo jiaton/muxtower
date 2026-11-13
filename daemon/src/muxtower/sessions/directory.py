@@ -5,6 +5,7 @@ session's capabilities and hands the action to the local services or to the owni
 gets a 409 instead of keys sent to the wrong place.
 """
 
+import logging
 from collections.abc import Callable, Sequence
 from typing import Literal
 
@@ -50,6 +51,9 @@ SOURCE_NAMES = {
     SessionSource.CODEX: CODEX,
     SessionSource.CODEX_SHARED: CODEX,
 }
+
+
+logger = logging.getLogger("muxtower.sessions")
 
 
 class SessionDirectory(OwnerMarks):
@@ -224,6 +228,7 @@ class SessionDirectory(OwnerMarks):
 
     def resize(self, session_id: str, body: Resize) -> None:
         self.require(session_id, "resize")
+        logger.info("session %s: fitted to %sx%s", session_id, body.cols, body.rows)  # a fit that bounces shows here
         self.terminal.resize(session_id, body)
 
     def release_size(self, session_id: str) -> None:

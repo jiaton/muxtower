@@ -6,6 +6,7 @@ import { clientsClaim } from 'workbox-core'
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { NOT_THE_APP } from './lib/sw-routes'
+import { alertsAgain, closeSessions, sessionTag } from './lib/sw-notifications'
 
 declare const self: ServiceWorkerGlobalScope
 
@@ -23,17 +24,10 @@ interface PushPayload {
   client_ref: string
   session_id?: string | null // none for news of the daemon itself (its Claude login expired)
   session_name?: string | null
-  kind?: 'attention' | 'done' | 'login'
+  kind?: 'attention' | 'done' | 'login' | 'recovery' | 'clear'
   title: string
   body: string
   settled?: string[] // sessions notified about before, seen or answered since
-}
-
-/** This registration's notifications of these sessions of daemon `ref`, which can go. */
-async function closeSettled(ref: string, sessions: string[]) {
-  if (!sessions.length) return
-  const tags = new Set(sessions.map((id) => `${ref}:${id}`))
-  for (const shown of await self.registration.getNotifications()) if (tags.has(shown.tag)) shown.close()
 }
 
 const appBase = () => {
@@ -44,17 +38,20 @@ const appBase = () => {
 self.addEventListener('push', (event) => {
   const data = event.data?.json() as PushPayload | undefined
   if (!data) return
+  // Only notifications that no longer matter (read, answered or gone elsewhere): the daemon sends this
+  // while the device shows another of its own, and none is closed if that one would be the last.
+  if (data.kind === 'clear') return event.waitUntil(closeSessions(self.registration, data.client_ref, data.settled ?? [], true))
   const url = data.session_id ? `${appBase()}d/${encodeURIComponent(data.client_ref)}/s/${encodeURIComponent(data.session_id)}` : appBase()
   event.waitUntil(
     // One notification per session: a newer one replaces it (a finished turn replaces a handled
-    // approval) and alerts again. Something waiting for you stays on screen until dismissed or settled
+    // approval), alerting again only when the owner is needed. Something waiting for you stays on screen until dismissed or settled
     // (seen or answered): the app closes those it sees settled, and each push names the ones settled since.
     Promise.all([
-      closeSettled(data.client_ref, data.settled ?? []),
+      closeSessions(self.registration, data.client_ref, data.settled ?? []),
       self.registration.showNotification(data.title, {
         body: data.body,
-        tag: `${data.client_ref}:${data.session_id ?? data.kind}`,
-        renotify: true,
+        tag: sessionTag(data.client_ref, data.session_id ?? data.kind ?? 'news'),
+        renotify: alertsAgain(data.kind),
         requireInteraction: data.kind !== 'done',
         timestamp: Date.now(),
         data: { url, at: Date.now() }, // when it came (Safari has no `timestamp`)

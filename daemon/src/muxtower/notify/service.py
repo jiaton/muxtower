@@ -20,6 +20,8 @@ logger = logging.getLogger("muxtower.push")
 WATCHING_SECONDS = 45  # a client looked at the session this recently: someone is watching it
 SUMMARY_WAIT_SECONDS = 60.0  # how long a finished turn's summary may take to come
 SUMMARY_POLL_SECONDS = 3.0
+APPLE_PUSH = "push.apple.com"  # iOS and iPadOS: a push that shows nothing loses the subscription
+CLEAR_SECONDS = 30.0  # how often settled notifications are taken away, all of a device's at once
 NOTIFIED_KEPT = 64  # sessions remembered as notified about, for telling devices when they are settled
 NOTIFIED_SECONDS = 86_400
 
@@ -44,6 +46,8 @@ class PushService:
         self.daemon_name = daemon_name
         self.paired = paired  # whether a device is still paired: a revoked one's subscriptions stop
         self._notified: dict[str, float] = {}  # session id -> when it was last notified about
+        # Per subscription: the sessions its device was last shown a notification of, not said settled since.
+        self._shown: dict[str, dict[str, float]] = {}
         self._lock = threading.Lock()  # pushes go out from worker threads
 
     def subscribe(self, body: Subscribe, device: str) -> Subscription:
@@ -122,12 +126,7 @@ class PushService:
         now = time.monotonic()
         with self._lock:
             recent = [sid for sid, at in self._notified.items() if now - at <= NOTIFIED_SECONDS and sid != sending]
-        settled = []
-        for session_id in recent:
-            view = self.sessions.find(session_id)
-            if view is None or not (view.unread or view.needs_attention):
-                settled.append(session_id)
-        return settled
+        return [session_id for session_id in recent if self._is_settled(session_id)]
 
     def _send(
         self, view: Session, kind: Literal["attention", "done"], title: str, body: str,
@@ -149,12 +148,51 @@ class PushService:
                 self.repo.delete(sub.id)
         if sent:
             with self._lock:
+                now = time.monotonic()
+                for sub in self._paired():
+                    shown = self._shown.setdefault(sub.id, {})
+                    for session_id in settled:
+                        shown.pop(session_id, None)
+                    if wants(sub) and view.id not in sub.muted:
+                        shown[view.id] = now
                 for session_id in [*settled, view.id]:
                     self._notified.pop(session_id, None)
                 self._notified[view.id] = time.monotonic()  # newest last: the oldest is the first to go
                 while len(self._notified) > NOTIFIED_KEPT:
                     del self._notified[next(iter(self._notified))]
         return sent
+
+    def clear_settled(self) -> int:
+        """Blocking. Takes away, on each device, the notifications of sessions read, answered or gone since,
+        when the device goes on showing another of this daemon's: a push must leave something on screen
+        (Chrome shows a notice of its own when one does not; iOS revokes the subscription), so a device whose
+        every notification is settled keeps them until its next push says so, or the app is opened there.
+        Never to Apple's push service. Returns how many devices were told."""
+        told = 0
+        for sub in self._paired():
+            if APPLE_PUSH in sub.endpoint:
+                continue
+            with self._lock:
+                shown = dict(self._shown.get(sub.id, {}))
+            settled = [sid for sid in shown if self._is_settled(sid)]
+            if not settled or len(settled) == len(shown):
+                continue
+            payload = PushPayload(
+                client_ref=sub.client_ref, daemon_name=self.daemon_name, kind="clear", title="", body="",
+                settled=settled,
+            )  # fmt: skip
+            if not self.sender.send(sub, payload.model_dump_json()):
+                self.repo.delete(sub.id)
+                continue
+            told += 1
+            with self._lock:
+                for session_id in settled:
+                    self._shown.get(sub.id, {}).pop(session_id, None)
+        return told
+
+    def _is_settled(self, session_id: str) -> bool:
+        view = self.sessions.find(session_id)
+        return view is None or not (view.unread or view.needs_attention)
 
     def _waits_for_summary(self, session_id: str) -> bool:
         """Blocking. A session set to notify only when it needs the owner, whose summary of the turn it
@@ -183,6 +221,7 @@ class PushService:
         bus.subscribe("claude-login:*", queue)
         bus.subscribe("recovery:*", queue)
         waiting: set[asyncio.Task[None]] = set()  # finished turns waiting for their summary
+        clearing = asyncio.create_task(self._clear_loop())  # noqa: F841, RUF006 - lives as long as this loop
         while True:
             topic, payload = await queue.get()
             kind, session_id = topic.split(":", 1)
@@ -207,3 +246,12 @@ class PushService:
                 await asyncio.to_thread(self.notify, session_id)
             except Exception:
                 logger.exception("push dispatch failed")
+
+    async def _clear_loop(self) -> None:
+        """Every CLEAR_SECONDS: notifications that no longer matter, taken away where that is safe."""
+        while True:
+            await asyncio.sleep(CLEAR_SECONDS)
+            try:
+                await asyncio.to_thread(self.clear_settled)
+            except Exception:
+                logger.exception("clearing notifications failed")

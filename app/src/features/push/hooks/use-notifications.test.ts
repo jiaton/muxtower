@@ -1,6 +1,7 @@
+import type { Session } from '@/lib/api/types'
 import { renderHook, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { useCloseSettledNotifications, useNotificationClicks } from './use-notifications'
+import { useCloseSettledNotifications, useNotificationClicks, settledIn } from './use-notifications'
 
 const push = vi.fn()
 vi.mock('@tanstack/react-router', () => ({ useRouter: () => ({ history: { push } }) }))
@@ -41,5 +42,21 @@ describe('useCloseSettledNotifications', () => {
       session === 'gone' ? undefined : session === 'waiting' ? false : 200 >= since // the news is from 200
     renderHook(() => useCloseSettledNotifications(settled, 'v1'))
     await waitFor(() => expect(closed).toEqual(['nas:read']))
+  })
+})
+
+describe('settledIn', () => {
+  const settled = (s: Session) => !s.unread && !s.needs_attention
+  const known = (sessions: Partial<Session>[], updatedAt = 2000) => ({ updatedAt, sessions: sessions as Session[] })
+
+  it('a session seen and answered, archived, or gone from a newer list: its notification can go', () => {
+    expect(settledIn(known([{ id: 'a', unread: false, needs_attention: false }]), 'a', 1000, settled)).toBe(true)
+    expect(settledIn(known([{ id: 'a', unread: true, archived_at: '2026-11-13T00:00:00Z' }]), 'a', 1000, settled)).toBe(true)
+    expect(settledIn(known([]), 'gone', 1000, settled)).toBe(true)
+  })
+  it('one still unread or waiting stays; a list older than the notification says nothing', () => {
+    expect(settledIn(known([{ id: 'a', unread: true }]), 'a', 1000, settled)).toBe(false)
+    expect(settledIn(known([], 500), 'gone', 1000, settled)).toBeUndefined()
+    expect(settledIn(undefined, 'a', 1000, settled)).toBeUndefined()
   })
 })
