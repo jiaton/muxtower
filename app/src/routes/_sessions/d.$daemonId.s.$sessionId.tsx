@@ -39,8 +39,9 @@ import type { Session } from '@/lib/api/types'
 import { useOutgoing } from '@/lib/use-outbox'
 import { directPlace, useFallback } from '@/lib/daemons/fallback'
 import { useDaemonsStore } from '@/lib/daemons/store'
-import { textRole } from '@/components/ui/styles'
+import { box, text, textRole } from '@/components/ui/styles'
 import { FooterBar } from '@/components/ui/bar'
+import { Button } from '@/components/ui/button'
 
 export const Route = createFileRoute('/_sessions/d/$daemonId/s/$sessionId')({ component: SessionPage })
 
@@ -74,7 +75,7 @@ function SessionPage() {
         ) : (
           <div className="flex flex-1 items-center justify-center p-6">
             <EmptyState title="This session has ended">
-              <Link to="/" search={true} className="text-accent underline">
+              <Link to="/" search={true} className={text({ tone: 'accent', underline: true })}>
                 Back to sessions
               </Link>
             </EmptyState>
@@ -186,7 +187,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
       />
 
       {session.needs_attention && session.pending ? (
-        <div className="max-h-[45%] shrink-0 overflow-y-auto border-b border-border bg-surface p-3 sm:px-4">
+        <div className={`${box({ edge: 'bottom', ground: 'surface' })} max-h-[45%] shrink-0 overflow-y-auto p-3 sm:px-4`}>
           <PendingActionCard daemonId={daemonId} sessionId={session.id} pending={session.pending} />
         </div>
       ) : null}
@@ -215,15 +216,15 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
                 {terminal.error ? <Banner tone="error">{terminal.error.message}</Banner> : null}
                 {session.alt_screen && hasConversation ? (
                   // A full-screen agent (Claude Code's fullscreen TUI) leaves tmux no scrollback to scroll.
-                  <button
-                    type="button"
+                  <Button
+                    variant="plain"
                     onClick={() => setView('conversation')}
-                    className={`${textRole.meta} flex shrink-0 items-center gap-2 border-b border-border bg-surface-muted px-3 py-1.5 text-left hover:text-fg sm:px-4`}
+                    className={`${box({ edge: 'bottom', ground: 'muted' })} ${text({ hoverFg: true })} ${textRole.meta} flex shrink-0 items-center gap-2 px-3 py-1.5 text-left sm:px-4`}
                   >
                     <History className="size-3.5 shrink-0" aria-hidden />
                     <span className="min-w-0 flex-1 truncate">Full-screen app: earlier output is in the conversation</span>
-                    <span className="shrink-0 font-medium text-accent">Show</span>
-                  </button>
+                    <span className={`${text({ weight: 'medium', tone: 'accent' })} shrink-0`}>Show</span>
+                  </Button>
                 ) : null}
                 <TerminalView
                   ansi={terminal.ansi}

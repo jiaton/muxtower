@@ -13,7 +13,7 @@ import { AddDaemonDialog } from '@/features/pairing/components/add-daemon-dialog
 import { ShareDevicesDialog } from '@/features/pairing/components/share-devices-dialog'
 import { PushToggle } from '@/features/push/components/push-toggle'
 import { useOwnDaemons, usePairedDaemons } from '@/lib/daemons/store'
-import { textRole } from '@/components/ui/styles'
+import { text, textRole } from '@/components/ui/styles'
 
 export const Route = createFileRoute('/daemons')({ component: DaemonsPage })
 
@@ -56,7 +56,7 @@ function DaemonsPage() {
             </div>
           ) : (
             <EmptyState title="No daemons yet">
-              Run <code className="font-mono">muxtower pair</code> where your agents run, then tap Add.
+              Run <code className={text({ mono: true })}>muxtower pair</code> where your agents run, then tap Add.
             </EmptyState>
           )}
           <InstallApp />

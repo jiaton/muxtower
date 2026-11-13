@@ -8,7 +8,7 @@ import { Segmented } from '@/components/ui/segmented'
 import { Switch } from '@/components/ui/switch'
 import type { SettingView } from '@/lib/api/types'
 import { useChangeSettings, useMachineSettings } from '../api/use-settings'
-import { surface, textRole } from '@/components/ui/styles'
+import { box, surface, text, textRole } from '@/components/ui/styles'
 
 /** The settings in their sections, in the order the daemon lists them. */
 export function sectionsOf(settings: SettingView[]): { section: string; settings: SettingView[] }[] {
@@ -36,7 +36,7 @@ export function SettingsForm({ daemonId, node, extras }: { daemonId: string; nod
           <RotateCcw />
           <span>
             {pending.length === 1 ? `${pending[0].label} applies` : `${pending.length} changes apply`} when muxtower restarts on {machine}:
-            restart its service, or stop <code className="font-mono">muxtower serve</code> and start it again.
+            restart its service, or stop <code className={text({ mono: true })}>muxtower serve</code> and start it again.
           </span>
         </Banner>
       ) : null}
@@ -44,7 +44,7 @@ export function SettingsForm({ daemonId, node, extras }: { daemonId: string; nod
       {sectionsOf(settings).map(({ section, settings: list }) => (
         <section key={section} aria-label={section} className="flex flex-col gap-1">
           <h2 className={textRole.eyebrow}>{section}</h2>
-          <ul className={`${surface.list} flex flex-col bg-surface`}>
+          <ul className={`${box({ ground: 'surface' })} ${surface.list} flex flex-col`}>
             {list.map((s) => (
               <SettingRow key={s.key} setting={s} busy={change.isPending} onChange={(value) => set(s.key, value)} />
             ))}
@@ -59,13 +59,13 @@ export function SettingsForm({ daemonId, node, extras }: { daemonId: string; nod
 function SettingRow({ setting: s, busy, onChange }: { setting: SettingView; busy: boolean; onChange: (value: unknown) => void }) {
   const locked = s.source === 'config_file'
   return (
-    <li className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:gap-4">
+    <li className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:gap-4">
       <div className="min-w-0 flex-1">
-        <p className="text-sm">{s.label}</p>
+        <p className={text({ size: 'sm' })}>{s.label}</p>
         <p className={textRole.meta}>
           {locked ? (
             <span className="inline-flex items-center gap-1">
-              <FileLock2 className="size-3" aria-hidden /> Set by the config file (<code className="font-mono">{s.key}</code>)
+              <FileLock2 className="size-3" aria-hidden /> Set by the config file (<code className={text({ mono: true })}>{s.key}</code>)
             </span>
           ) : (
             [s.help, s.pending ? 'applies after a restart' : null].filter(Boolean).join(' · ')
@@ -94,7 +94,7 @@ function Control({ setting: s, disabled, onChange }: { setting: SettingView; dis
   if (s.kind === 'bool') return <Switch checked={Boolean(s.value)} disabled={disabled} onCheckedChange={onChange} aria-label={s.label} />
   if (s.kind === 'choice')
     return disabled ? (
-      <span className="text-sm">{String(s.value)}</span>
+      <span className={text({ size: 'sm' })}>{String(s.value)}</span>
     ) : (
       <Segmented
         aria-label={s.label}

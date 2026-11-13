@@ -3,7 +3,7 @@ import { StatusDot } from '@/components/ui/status-dot'
 import type { TokenRow, TokenSource } from '@/components/ui/token-menu'
 import type { Session } from '@/lib/api/types'
 import { handleOf, mentionAt, mentionOf, recentMentions, rememberMention, rowsFor } from '../model/mention'
-import { textRole } from '@/components/ui/styles'
+import { text, textRole } from '@/components/ui/styles'
 
 const tone = (s: Session) => (s.needs_attention ? 'warn' : s.state === 'busy' ? 'ok' : s.state === 'error' ? 'error' : ('idle' as const))
 
@@ -18,7 +18,7 @@ function sessionRow(s: Session): TokenRow {
     label: (
       <>
         <StatusDot tone={tone(s)} label={stateText(s)} />
-        <span className="shrink-0 font-medium">{handle}</span>
+        <span className={`${text({ weight: 'medium' })} shrink-0`}>{handle}</span>
         <span className={`${textRole.meta} min-w-0 truncate`}>{more}</span>
       </>
     ),
@@ -44,7 +44,7 @@ export function useMentionSource(daemonId: string, current: Session | undefined,
                 label: (
                   <span className="truncate">
                     {row.project}{' '}
-                    <span className="text-fg-muted">
+                    <span className={text({ tone: 'muted' })}>
                       · {row.count} session{row.count === 1 ? '' : 's'}
                     </span>
                   </span>

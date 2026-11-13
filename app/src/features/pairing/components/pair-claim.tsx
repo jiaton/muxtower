@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input'
 import { useClaim, type ClaimOutcome } from '../api/use-pairing'
 import { guessDeviceName, type PairTarget } from '../pair-link'
 import { Label } from '@/components/ui/label'
-import { surface, textRole } from '@/components/ui/styles'
+import { surface, text, textRole } from '@/components/ui/styles'
 
 /** Confirms which daemons a pairing link adds, then redeems the codes. */
 export function PairClaim({ targets, onDone }: { targets: PairTarget[]; onDone: (outcomes: ClaimOutcome[]) => void }) {
@@ -22,13 +22,13 @@ export function PairClaim({ targets, onDone }: { targets: PairTarget[]; onDone: 
             <li key={t.url} className={`${surface.outlined} flex items-center gap-2 px-3 py-2`}>
               {outcome ? (
                 outcome.ok ? (
-                  <CircleCheck className="size-4 text-success" aria-label="Paired" />
+                  <CircleCheck className={`${text({ tone: 'success' })} size-4`} aria-label="Paired" />
                 ) : (
-                  <CircleX className="size-4 text-danger" aria-label="Failed" />
+                  <CircleX className={`${text({ tone: 'danger' })} size-4`} aria-label="Failed" />
                 )
               ) : null}
               <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{t.name ?? new URL(t.url).host}</p>
+                <p className={`${text({ weight: 'medium' })} truncate`}>{t.name ?? new URL(t.url).host}</p>
                 <p className={`${textRole.hint} truncate`}>{outcome ? outcome.message : t.url}</p>
               </div>
             </li>

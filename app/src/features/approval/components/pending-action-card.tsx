@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import type { PendingAction } from '@/lib/api/types'
 import { useAnswer, useApprove, useDeny } from '../api/use-approval'
 import { QuestionForm, needsForm } from './question-form'
-import { textRole } from '@/components/ui/styles'
+import { box, text, textRole } from '@/components/ui/styles'
 
 /** What the agent is waiting for, with one button per choice on screen (or, for several questions or
  *  one taking several answers, a form answering them all) and Deny (Esc). */
@@ -22,7 +22,9 @@ export function PendingActionCard({ daemonId, sessionId, pending }: { daemonId: 
         <div className="flex flex-col gap-1">
           {pending.tool_name ? <p className={textRole.eyebrow}>{pending.tool_name}</p> : null}
           {pending.detail ? (
-            <pre className="max-h-40 overflow-auto rounded-md bg-surface-muted px-3 py-2 font-mono text-sm whitespace-pre-wrap">
+            <pre
+              className={`${box({ radius: 'md', ground: 'muted' })} ${text({ mono: true, size: 'sm' })} max-h-40 overflow-auto px-3 py-2 whitespace-pre-wrap`}
+            >
               {pending.detail}
             </pre>
           ) : null}

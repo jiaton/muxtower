@@ -1,6 +1,7 @@
 import jsQR from 'jsqr'
 import { useEffect, useRef, useState } from 'react'
 import { Banner } from '@/components/ui/banner'
+import { box } from '@/components/ui/styles'
 
 interface BarcodeDetectorLike {
   detect(source: CanvasImageSource): Promise<Array<{ rawValue: string }>>
@@ -70,5 +71,13 @@ export function QrScanner({ onResult }: { onResult: (text: string) => void }) {
   }, [onResult])
 
   if (error) return <Banner tone="warning">{error}</Banner>
-  return <video ref={video} className="aspect-square w-full rounded-md bg-terminal-bg object-cover" muted playsInline aria-label="Camera preview" />
+  return (
+    <video
+      ref={video}
+      className={`${box({ radius: 'md', ground: 'terminal' })} aspect-square w-full object-cover`}
+      muted
+      playsInline
+      aria-label="Camera preview"
+    />
+  )
 }

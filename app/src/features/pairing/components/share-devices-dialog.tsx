@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
 import { useShareCodes } from '../api/use-pairing'
 import { buildPairLink } from '../pair-link'
 import { QrImage } from './qr-image'
-import { textRole } from '@/components/ui/styles'
+import { box, text, textRole } from '@/components/ui/styles'
 
 const appBase = () => new URL(import.meta.env.BASE_URL, location.origin).toString()
 
@@ -34,7 +34,7 @@ export function ShareDevicesDialog() {
         </Button>
       </DialogTrigger>
       <DialogContent title="Add another device" description="Scan this with the other device's camera, or with Add a daemon › Scan.">
-        {share.isPending ? <div className="mx-auto aspect-square w-full max-w-72 rounded-md bg-surface-muted" /> : null}
+        {share.isPending ? <div className={`${box({ radius: 'md', ground: 'muted' })} mx-auto aspect-square w-full max-w-72`} /> : null}
         {share.isError ? <Banner tone="error">{share.error.message}</Banner> : null}
         {codes && !codes.length ? <Banner tone="warning">No paired daemon answered.</Banner> : null}
         {link ? (
@@ -44,10 +44,11 @@ export function ShareDevicesDialog() {
               Pairs {codes!.length} daemon{codes!.length > 1 ? 's' : ''}. Works once, for 5 minutes.
             </p>
             {/* For a device that cannot scan (glasses paired from the same phone): the codes to type. */}
-            <ul aria-label="Pairing codes" className="flex flex-col gap-1 text-center text-sm">
+            <ul aria-label="Pairing codes" className={`${text({ size: 'sm' })} flex flex-col gap-1 text-center`}>
               {codes!.map((c) => (
                 <li key={c.url}>
-                  <span className="text-fg-muted">{c.name}</span> <span className="font-mono font-medium tracking-wider">{c.code}</span>
+                  <span className={text({ tone: 'muted' })}>{c.name}</span>{' '}
+                  <span className={text({ mono: true, weight: 'medium', spaced: 'wide' })}>{c.code}</span>
                 </li>
               ))}
             </ul>

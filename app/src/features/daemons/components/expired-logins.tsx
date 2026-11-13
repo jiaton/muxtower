@@ -16,15 +16,20 @@ export function ExpiredLogins() {
   return (
     <div className="flex flex-col gap-2 p-3">
       {expired.map((daemon) => (
-        <Banner key={daemon.id} tone="warning">
+        <Banner
+          key={daemon.id}
+          tone="warning"
+          action={
+            <Button size="sm" variant="outline" onClick={() => setLoggingIn(daemon)}>
+              Log in
+            </Button>
+          }
+        >
           <CircleAlert />
           <span className="flex-1">
             The Claude login on {daemon.name} expired: sessions from Claude Desktop and the Claude app stop updating until it is logged in
             again.
           </span>
-          <Button size="sm" variant="outline" className="-my-1" onClick={() => setLoggingIn(daemon)}>
-            Log in
-          </Button>
         </Banner>
       ))}
       {loggingIn ? <ClaudeLoginDialog daemon={loggingIn} onClose={() => setLoggingIn(null)} /> : null}

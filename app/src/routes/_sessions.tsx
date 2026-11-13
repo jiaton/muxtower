@@ -35,6 +35,7 @@ import { useListMemory, useListPrefs, useSessionDrawer } from '@/features/sessio
 import { cn } from '@/lib/cn'
 import { useUnpairedDaemons } from '@/lib/daemons/store'
 import { SPLIT_QUERY, useMediaQuery } from '@/lib/use-media-query'
+import { box, text } from '@/components/ui/styles'
 
 export const Route = createFileRoute('/_sessions')({ validateSearch: parseListSearch, component: SessionsLayout })
 
@@ -97,7 +98,7 @@ function SessionsLayout() {
   return (
     <div className="flex min-w-0 flex-1">
       <Drawer drawer={asDrawer} open={drawerOpen} onOpenChange={setDrawer} onPull={setPull} label="Sessions">
-        <Pane ref={listPane} className="flex w-full border-r border-border md:w-80 md:shrink-0 xl:w-96" aria-label="Sessions">
+        <Pane ref={listPane} className={`${box({ edge: 'right' })} flex w-full md:w-80 md:shrink-0 xl:w-96`} aria-label="Sessions">
           <PaneHeader
             leading={
               docked ? null : (
@@ -207,15 +208,15 @@ function Onboarding({ unpairedName, unpairedUrl }: { unpairedName?: string; unpa
           <EmptyState icon={<Server />} title={`Pair this device with ${unpairedName}`}>
             <div className="flex flex-col items-center gap-3">
               <p>
-                Run <code className="font-mono">muxtower pair</code> on that machine and enter the code.
+                Run <code className={text({ mono: true })}>muxtower pair</code> on that machine and enter the code.
               </p>
               <PairCodeForm url={unpairedUrl} />
             </div>
           </EmptyState>
         ) : (
           <EmptyState icon={<Server />} title="No daemons yet">
-            Run <code className="font-mono">muxtower pair</code> on the machine where your agents run, then{' '}
-            <Link to="/daemons" className="text-accent underline">
+            Run <code className={text({ mono: true })}>muxtower pair</code> on the machine where your agents run, then{' '}
+            <Link to="/daemons" className={text({ tone: 'accent', underline: true })}>
               add it here
             </Link>
             .

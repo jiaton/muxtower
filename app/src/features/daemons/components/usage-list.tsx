@@ -5,7 +5,7 @@ import { cn } from '@/lib/cn'
 import { alertText, known, usageParts } from '@/lib/daemons/usage'
 import { useDaemonClient } from '@/lib/daemons/use-daemon-client'
 import { daemonKey } from '@/lib/query'
-import { textRole } from '@/components/ui/styles'
+import { box, text, textRole } from '@/components/ui/styles'
 
 /** One machine's line: CPU over a minute and ten, memory, threads, open files, the capture loop, its
  *  children. Unknown is said so, never 0. */
@@ -14,9 +14,9 @@ function MachineLine({ usage }: { usage: MachineUsage }) {
   const parts = usageParts(usage)
   return (
     <li className="flex flex-col gap-0.5 py-1.5">
-      <p className="text-sm">
-        <span className="font-medium">{usage.machine}</span>
-        {usage.stale ? <span className="text-fg-muted"> · last heard a while ago</span> : null}
+      <p className={text({ size: 'sm' })}>
+        <span className={text({ weight: 'medium' })}>{usage.machine}</span>
+        {usage.stale ? <span className={text({ tone: 'muted' })}> · last heard a while ago</span> : null}
       </p>
       <p className={textRole.meta}>{parts.join(' · ')}</p>
       {usage.children === null ? (
@@ -27,7 +27,7 @@ function MachineLine({ usage }: { usage: MachineUsage }) {
         </p>
       ) : null}
       {alerts.map((a, i) => (
-        <p key={i} className={cn('text-xs text-state-permission')}>
+        <p key={i} className={cn(text({ size: 'xs', tone: 'warning' }))}>
           {alertText(a)}
           {a.detail ? ` — ${a.detail}` : ''}
         </p>
@@ -50,7 +50,7 @@ export function UsageList({ daemonId }: { daemonId: string }) {
   return (
     <section aria-label="Usage" className="flex flex-col gap-1">
       <h3 className={textRole.label}>Usage</h3>
-      <ul className="flex flex-col divide-y divide-border">
+      <ul className={`${box({ divided: true })} flex flex-col`}>
         {usage.data.map((u) => (
           <MachineLine key={u.machine} usage={u} />
         ))}

@@ -10,7 +10,7 @@ import { useDaemonSessions } from '@/features/sessions/api/use-sessions'
 import { useDaemonMe } from '../api/use-daemon-me'
 import { useJoinCode, useRemoveNode } from '../api/use-nodes'
 import { NodeAddress } from './node-address'
-import { surface, textRole } from '@/components/ui/styles'
+import { surface, text, textRole } from '@/components/ui/styles'
 
 const when = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleString() : 'never')
 const count = (n: number) => `${n} session${n === 1 ? '' : 's'}`
@@ -37,7 +37,7 @@ function MachineRow({
   below?: ReactNode
 }) {
   return (
-    <li className="flex flex-col gap-1.5 px-3 py-2.5 text-sm">
+    <li className={`${text({ size: 'sm' })} flex flex-col gap-1.5 px-3 py-2`}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="flex min-w-40 flex-1 items-start gap-2">
           <span className="pt-1.5">
@@ -45,13 +45,13 @@ function MachineRow({
           </span>
           <span className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span className="flex min-w-0 items-center gap-2">
-              <span className="truncate font-medium">{name}</span>
+              <span className={`${text({ weight: 'medium' })} truncate`}>{name}</span>
               {tag ? <Badge>{tag}</Badge> : null}
             </span>
             <span className={`${textRole.meta} break-words`}>{facts.filter(Boolean).join(' · ')}</span>
             {folder ? (
               <span className={`${textRole.meta} break-all`}>
-                New sessions in <span className="font-mono">{folder}</span>
+                New sessions in <span className={text({ mono: true })}>{folder}</span>
               </span>
             ) : null}
           </span>
@@ -61,7 +61,7 @@ function MachineRow({
           {menu}
         </div>
       </div>
-      {below ? <div className="flex flex-col gap-1 pl-5">{below}</div> : null}
+      {below ? <div className="flex flex-col gap-1 pl-4">{below}</div> : null}
     </li>
   )
 }
@@ -132,9 +132,9 @@ export function MachinesList({ daemonId, url }: { daemonId: string; url: string 
               <>
                 <NodeAddress daemonId={daemonId} node={n} />
                 {n.update ? (
-                  <span className="text-xs text-state-permission">
+                  <span className={text({ size: 'xs', tone: 'warning' })}>
                     Runs {n.version}; update it to {n.update}:{' '}
-                    <code className="font-mono break-all">pipx install --force muxtower=={n.update}</code>
+                    <code className={`${text({ mono: true })} break-all`}>pipx install --force muxtower=={n.update}</code>
                   </span>
                 ) : null}
                 {confirm === n.name ? (
@@ -159,10 +159,10 @@ export function MachinesList({ daemonId, url }: { daemonId: string; url: string 
         <p className={textRole.hint}>Another computer running muxtower can join this one, and its sessions show here too.</p>
       )}
       {command ? (
-        <div className={`${surface.muted} flex flex-col gap-1.5 p-3 text-sm`}>
+        <div className={`${text({ size: 'sm' })} ${surface.muted} flex flex-col gap-1.5 p-3`}>
           <p>On that computer, with muxtower installed, run:</p>
           <div className="flex items-start gap-2">
-            <code className="min-w-0 flex-1 font-mono text-xs break-all">{command}</code>
+            <code className={`${text({ mono: true, size: 'xs' })} min-w-0 flex-1 break-all`}>{command}</code>
             <Button
               variant="ghost"
               size="icon-sm"
@@ -179,7 +179,7 @@ export function MachinesList({ daemonId, url }: { daemonId: string; url: string 
           </div>
           <p className={textRole.meta}>
             The code works once, until {new Date(join.data!.expires_at).toLocaleTimeString()}. If a sign-in gate is in front of this daemon,
-            give that computer its token first: <code className="font-mono">[hub] headers</code> in its config.
+            give that computer its token first: <code className={text({ mono: true })}>[hub] headers</code> in its config.
           </p>
         </div>
       ) : (

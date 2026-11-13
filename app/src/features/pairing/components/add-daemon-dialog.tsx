@@ -4,10 +4,12 @@ import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { cn } from '@/lib/cn'
+
 import { parsePairLink, type PairTarget } from '../pair-link'
 import { PairClaim } from './pair-claim'
 import { QrScanner } from './qr-scanner'
+import { box, text } from '@/components/ui/styles'
+import { tab } from '@/components/ui/list-row'
 
 type Mode = 'scan' | 'link' | 'code'
 
@@ -44,20 +46,11 @@ export function AddDaemonDialog({
     }
   }
 
-  const tab = (value: Mode, icon: ReactNode, label: string) => (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={mode === value}
-      onClick={() => setMode(value)}
-      className={cn(
-        'flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-sm [&_svg]:size-4',
-        mode === value ? 'bg-surface text-fg shadow-card' : 'text-fg-muted',
-      )}
-    >
+  const tabFor = (value: Mode, icon: ReactNode, label: string) => (
+    <Button variant="plain" role="tab" aria-selected={mode === value} onClick={() => setMode(value)} className={tab()}>
       {icon}
       {label}
-    </button>
+    </Button>
   )
 
   return (
@@ -67,10 +60,10 @@ export function AddDaemonDialog({
           <PairClaim targets={targets} onDone={() => close(false)} />
         ) : (
           <>
-            <div role="tablist" className="flex gap-1 rounded-md bg-surface-muted p-1">
-              {tab('scan', <Camera />, 'Scan')}
-              {tab('link', <Link2 />, 'Link')}
-              {tab('code', <KeyRound />, 'Code')}
+            <div role="tablist" className={`${box({ radius: 'md', ground: 'muted' })} flex gap-1 p-1`}>
+              {tabFor('scan', <Camera />, 'Scan')}
+              {tabFor('link', <Link2 />, 'Link')}
+              {tabFor('code', <KeyRound />, 'Code')}
             </div>
             {problem ? <Banner tone="warning">{problem}</Banner> : null}
             {mode === 'scan' ? <QrScanner onResult={accept} /> : null}
@@ -94,7 +87,17 @@ export function AddDaemonDialog({
                   setTargets([{ url: url.trim(), code: code.trim() }])
                 }}
               >
-                <Input type="text" inputMode="url" autoCapitalize="off" spellCheck={false} required placeholder="https://daemon.example" value={url} onChange={(e) => setUrl(e.target.value)} aria-label="Daemon URL" />
+                <Input
+                  type="text"
+                  inputMode="url"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  required
+                  placeholder="https://daemon.example"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  aria-label="Daemon URL"
+                />
                 <Input
                   required
                   placeholder="K7QM-3XPA"
@@ -103,7 +106,7 @@ export function AddDaemonDialog({
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   aria-label="Pairing code"
-                  className="font-mono tracking-widest"
+                  className={text({ mono: true, spaced: 'widest' })}
                 />
                 <Button type="submit">Continue</Button>
               </form>

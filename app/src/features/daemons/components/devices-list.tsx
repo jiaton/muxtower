@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { QueryState } from '@/components/query-state'
 import { Button } from '@/components/ui/button'
 import { useDevices, useRevokeDevice } from '../api/use-daemon-me'
-import { surface, textRole } from '@/components/ui/styles'
+import { surface, text, textRole } from '@/components/ui/styles'
 
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString() : 'never')
 const SHOWN = 5 // more than this: the most recently used, and "Show all"
@@ -28,10 +28,10 @@ export function DevicesList({ daemonId }: { daemonId: string }) {
             <>
               <ul className={`${surface.list} flex flex-col`}>
                 {shown.map((d) => (
-                  <li key={d.name} className="flex items-center gap-2 px-3 py-2 text-sm">
-                    <span className="min-w-0 flex-1 truncate font-medium">
+                  <li key={d.name} className={`${text({ size: 'sm' })} flex items-center gap-2 px-3 py-2`}>
+                    <span className={`${text({ weight: 'medium' })} min-w-0 flex-1 truncate`}>
                       {d.name}
-                      {d.current ? <span className="text-fg-muted"> (this device)</span> : null}
+                      {d.current ? <span className={text({ tone: 'muted' })}> (this device)</span> : null}
                     </span>
                     <span className={textRole.meta}>used {when(d.last_used_at)}</span>
                     {d.current ? null : (

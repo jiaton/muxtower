@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronDown, MoreHorizontal, Settings2, Trash2 } from 'lucide-react'
+import { MoreHorizontal, Settings2, Trash2 } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -7,14 +7,15 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { StatusDot } from '@/components/ui/status-dot'
 import { ApiError } from '@/lib/api/client'
 import { useStreamStatus } from '@/lib/api/streams'
-import { cn } from '@/lib/cn'
+
 import { useDaemonsStore } from '@/lib/daemons/store'
 import type { Daemon } from '@/lib/daemons/types'
 import { useDaemonMe } from '../api/use-daemon-me'
 import { DevicesList } from './devices-list'
 import { MachinesList } from './nodes-list'
 import { UsageList } from './usage-list'
-import { textRole } from '@/components/ui/styles'
+import { box, text, textRole } from '@/components/ui/styles'
+import { Chevron } from '@/components/ui/indicators'
 
 function useStatus(daemon: Daemon) {
   const me = useDaemonMe(daemon.id)
@@ -41,21 +42,21 @@ export function DaemonCard({ daemon, actions }: { daemon: Daemon; actions?: Reac
   return (
     <Card className="flex flex-col p-0">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 py-2 pr-3 pl-1">
-        <button
-          type="button"
-          className="flex min-w-60 flex-1 items-center gap-3 rounded-md px-3 py-1.5 text-left hover:bg-surface-muted"
+        <Button
+          variant="plain"
+          className={`${box({ radius: 'md', hover: 'muted' })} flex min-w-60 flex-1 items-center gap-3 px-3 py-1.5 text-left`}
           aria-expanded={open}
           aria-label={`${daemon.name}: ${open ? 'hide' : 'show'} its machines and devices`}
           onClick={() => setOpen(!open)}
         >
           <StatusDot tone={status.tone} label={status.text} />
           <span className="flex min-w-0 flex-1 flex-col">
-            <span className="truncate font-medium">{daemon.name}</span>
+            <span className={`${text({ weight: 'medium' })} truncate`}>{daemon.name}</span>
             <span className={`${textRole.hint} truncate`}>{status.text}</span>
-            <span className={`${textRole.meta} truncate font-mono`}>{daemon.url}</span>
+            <span className={`${text({ mono: true })} ${textRole.meta} truncate`}>{daemon.url}</span>
           </span>
-          <ChevronDown className={cn('size-4 shrink-0 text-fg-muted transition-transform', open && 'rotate-180')} aria-hidden />
-        </button>
+          <Chevron vertical open={open} className={`${text({ tone: 'muted' })} size-4`} />
+        </Button>
         <div className="ml-auto flex shrink-0 items-center gap-1">
           {paired ? (
             <Button asChild variant="outline" size="sm">
@@ -79,7 +80,7 @@ export function DaemonCard({ daemon, actions }: { daemon: Daemon; actions?: Reac
         </div>
       </div>
       {open ? (
-        <div className="flex flex-col gap-4 border-t border-border px-4 pt-4 pb-4">
+        <div className={`${box({ edge: 'top' })} flex flex-col gap-4 px-4 pt-4 pb-4`}>
           {actions}
           {paired ? <MachinesList daemonId={daemon.id} url={daemon.url} /> : null}
           {paired ? <DevicesList daemonId={daemon.id} /> : null}

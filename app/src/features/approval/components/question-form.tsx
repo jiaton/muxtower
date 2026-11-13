@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { PendingQuestion } from '@/lib/api/types'
 import { cn } from '@/lib/cn'
-import { textRole } from '@/components/ui/styles'
+import { text, textRole } from '@/components/ui/styles'
 
 /** Whether a prompt's questions need a form: more than one, or one taking several answers. A single
  *  choice is one tap on its option instead. */
@@ -36,33 +36,31 @@ export function QuestionForm({
         <fieldset key={`${index}-${q.question}`} className="flex flex-col gap-2">
           <legend className="mb-1 flex flex-col gap-0.5">
             {q.header ? <span className={textRole.eyebrow}>{q.header}</span> : null}
-            <span className="font-medium">{q.question}</span>
+            <span className={text({ weight: 'medium' })}>{q.question}</span>
             {q.multi_select ? <span className={textRole.meta}>Pick any</span> : null}
           </legend>
           {q.options.map((option) => {
             const on = picked[index].includes(option.label)
             const Icon = q.multi_select ? (on ? SquareCheck : Square) : on ? CircleCheck : Circle
             return (
-              <button
+              <Button
                 key={option.label}
-                type="button"
+                variant="option"
+                size={null}
                 role={q.multi_select ? 'checkbox' : 'radio'}
                 aria-checked={on}
                 disabled={busy}
                 onClick={() => pick(index, option.label, q.multi_select ?? false)}
-                className={cn(
-                  'flex items-start gap-2 rounded-md border px-3 py-2 text-left text-sm',
-                  on ? 'border-accent bg-surface-muted' : 'border-border hover:bg-surface-muted',
-                )}
+                className="items-start"
               >
-                <Icon className={cn('mt-0.5 size-4 shrink-0', on ? 'text-accent' : 'text-fg-muted')} aria-hidden />
+                <Icon className={cn('mt-0.5 size-4 shrink-0', on ? text({ tone: 'accent' }) : text({ tone: 'muted' }))} aria-hidden />
                 <span className="flex min-w-0 flex-col">
                   <span>{option.label}</span>
                   {option.description && option.description !== option.label ? (
                     <span className={textRole.meta}>{option.description}</span>
                   ) : null}
                 </span>
-              </button>
+              </Button>
             )
           })}
         </fieldset>

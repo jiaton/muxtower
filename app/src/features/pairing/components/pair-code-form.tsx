@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import type { PairTarget } from '../pair-link'
 import { PairClaim } from './pair-claim'
+import { text } from '@/components/ui/styles'
 
 /** Type the code `muxtower pair` printed, for a daemon whose address is already known (e.g. the one
  *  serving this page). */
@@ -26,7 +27,7 @@ export function PairCodeForm({ url, onDone }: { url: string; onDone?: () => void
         value={code}
         onChange={(e) => setCode(e.target.value)}
         aria-label="Pairing code"
-        className="text-center font-mono tracking-widest"
+        className={`${text({ mono: true, spaced: 'widest' })} text-center`}
       />
       <Button type="submit">Pair</Button>
     </form>

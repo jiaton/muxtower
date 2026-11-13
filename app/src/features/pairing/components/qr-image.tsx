@@ -1,5 +1,6 @@
 import { toDataURL } from 'qrcode'
 import { useEffect, useState } from 'react'
+import { box } from '@/components/ui/styles'
 
 export function QrImage({ text, label }: { text: string; label: string }) {
   const [src, setSrc] = useState<string | null>(null)
@@ -11,8 +12,8 @@ export function QrImage({ text, label }: { text: string; label: string }) {
     }
   }, [text])
   return src ? (
-    <img src={src} alt={label} className="mx-auto w-full max-w-72 rounded-md" />
+    <img src={src} alt={label} className={`${box({ radius: 'md' })} mx-auto w-full max-w-72`} />
   ) : (
-    <div className="mx-auto aspect-square w-full max-w-72 rounded-md bg-surface-muted" aria-label={label} />
+    <div className={`${box({ radius: 'md', ground: 'muted' })} mx-auto aspect-square w-full max-w-72`} aria-label={label} />
   )
 }

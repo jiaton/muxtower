@@ -2,6 +2,7 @@ import { ArrowUpRight, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Button } from '@/components/ui/button'
+import { box, text } from '@/components/ui/styles'
 
 /** The hosted app the demo points to, as the build names it (`MUXTOWER_DEMO_APP_URL`); null without one. */
 export function appUrl(doc: Document = document): string | null {
@@ -18,9 +19,9 @@ export function DemoCta({ url }: { url: string }) {
   return (
     <aside
       aria-label="About this demo"
-      className="fixed right-4 bottom-20 z-50 flex items-center gap-3 rounded-lg border border-border bg-surface py-2 pr-2 pl-4 text-sm shadow-card max-md:inset-x-3"
+      className={`${box({ outline: 'default', radius: 'lg', ground: 'surface', shadow: 'card' })} ${text({ size: 'sm' })} fixed right-4 bottom-20 z-50 flex items-center gap-3 py-2 pr-2 pl-4 max-md:inset-x-3`}
     >
-      <span className="flex-1 whitespace-nowrap text-fg-muted">
+      <span className={`${text({ tone: 'muted' })} flex-1 whitespace-nowrap`}>
         Demo<span className="max-md:hidden">: made-up sessions.</span>
       </span>
       <Button asChild size="sm">

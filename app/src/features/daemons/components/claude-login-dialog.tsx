@@ -10,7 +10,7 @@ import { useDaemonMe } from '../api/use-daemon-me'
 import type { Daemon } from '@/lib/daemons/types'
 import { daemonKey } from '@/lib/query'
 import { useLoginRunning, useLoginSession, useStartClaudeLogin } from '../api/use-claude-login'
-import { textRole } from '@/components/ui/styles'
+import { text, textRole } from '@/components/ui/styles'
 import { Label } from '@/components/ui/label'
 
 const STILL_WAITING_MS = 8_000 // after the code, longer than a login takes: a wrong code is said in its session
@@ -71,7 +71,7 @@ export function ClaudeLoginDialog({ daemon, onClose }: { daemon: Daemon; onClose
     <Link
       to="/d/$daemonId/s/$sessionId"
       params={{ daemonId: daemon.id, sessionId: login.session.id }}
-      className="underline"
+      className={text({ underline: true })}
       onClick={onClose}
     >
       see what it says
@@ -122,7 +122,13 @@ export function ClaudeLoginDialog({ daemon, onClose }: { daemon: Daemon; onClose
             )}
             <Label>
               2. Paste the code it gives
-              <Input value={code} onChange={(e) => setCode(e.target.value)} autoComplete="off" spellCheck={false} className="font-mono" />
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                className={text({ mono: true })}
+              />
             </Label>
             {sendCode.error ? <Banner tone="error">{sendCode.error.message}</Banner> : null}
             {slow ? (
