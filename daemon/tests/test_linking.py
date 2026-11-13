@@ -248,7 +248,10 @@ def test_a_conversation_moved_to_the_background_keeps_its_remote_session_and_tra
         )
     )
     assert processes.remote_id(pane) == "cse_01MOVED"
-    assert processes.moved(pane)
+    agents_view = "Your conversation moved to the background \u2014 enter\nopens it \u00b7 esc returns to it"
+    assert processes.moved(pane, agents_view)
+    # Enter brought it back into the pane: still merged (its bridge is still there), no longer "moved"
+    assert not processes.moved(pane, "> \n? for shortcuts") and processes.remote_id(pane) == "cse_01MOVED"
     assert processes.transcript(pane) == str(tmp_path / "projects" / "-home-me-shop" / f"{B}.jsonl")
 
 

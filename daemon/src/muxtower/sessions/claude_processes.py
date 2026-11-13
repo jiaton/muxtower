@@ -37,6 +37,8 @@ REMOTE_PREFIX = "cse_"
 RUNNING_TTL_SECONDS = 5.0
 TAIL_BYTES = 16_384  # the end of a transcript, where a `continued-in` line is
 MAX_HOPS = 8
+# What Claude Code's agents view says in the pane while the conversation is in the background.
+AGENTS_VIEW = "conversation moved to the background"
 
 
 def _continued_in(path: Path) -> str | None:
@@ -160,7 +162,11 @@ class ClaudeProcesses:
         return _remote_id(moved or info)  # None: one without Remote Control
 
     def moved(self, pane_pid: int, screen: str = "") -> bool:
-        """The pane's conversation runs in the background now (moved there by Claude Code)."""
+        """The pane shows Claude Code's agents view, its conversation running in the background (moved there
+        by Claude Code). Once Enter brings it back into the pane, the transcript still says it went on
+        elsewhere, but the screen no longer says so: only then is it not."""
+        if AGENTS_VIEW not in " ".join(screen.split()):
+            return False
         info = self._info(pane_pid)
         return bool(info and self._moved_to(info))
 

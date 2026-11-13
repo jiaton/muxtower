@@ -47,6 +47,9 @@ import { FooterBar } from '@/components/ui/bar'
 import { Button } from '@/components/ui/button'
 import { ink, look } from '@/components/ui/intents'
 
+/** States in which an agent shows a dialog of its own instead of its prompt. */
+const DIALOG_STATES = new Set(['needs_permission', 'needs_answer', 'needs_trust', 'plan_review'])
+
 export const Route = createFileRoute('/_sessions/d/$daemonId/s/$sessionId')({ component: SessionPage })
 
 /** While a hub is down, its node's session is reached directly, and back once the hub answers: the page
@@ -163,10 +166,11 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
     reply(message.text)
   }
 
-  // Claude Code (2.1.322+) moves the conversation to the background on ← at an empty prompt: at its idle
-  // prompt, the pad's ← asks first (the line may be empty; the screen cannot tell reliably).
+  // Claude Code (2.1.322+) moves the conversation to the background on ← at an empty prompt, working or
+  // not: wherever its prompt shows (not a dialog of its own), the pad's ← asks first (the line may be
+  // empty; the screen cannot tell reliably).
   const guardKey = (key: string) =>
-    key === 'Left' && session.runtime === 'claude-code' && session.state === 'idle'
+    key === 'Left' && session.runtime === 'claude-code' && !DIALOG_STATES.has(session.state)
       ? 'On an empty prompt, ← moves this conversation to the background in Claude Code. Tap again to send.'
       : null
   const termItems = view === 'terminal' && !!screen

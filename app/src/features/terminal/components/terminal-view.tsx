@@ -8,6 +8,7 @@ import { align, collapseGap } from '../lines'
 import { useTerminalPrefs } from '../store'
 import { Spinner } from '@/components/ui/indicators'
 import { look } from '@/components/ui/intents'
+import { FitGuard } from '../fit-guard'
 
 interface Props {
   ansi: string | undefined
@@ -25,7 +26,6 @@ const BOTTOM_SLACK = 24
 /** A change of this many rows or fewer (a bar shown over the view a moment: Live's) neither lays the
  *  lines out again nor resizes the pane (which has the agent repaint its whole screen): the view just stays
  *  at the bottom. A real change (the keyboard, the window) is more. */
-const SMALL_ROWS = 2
 /** Lines pushed off the top kept in place while the reader is scrolled up, at most. */
 const KEPT_ABOVE = 2000
 /**
@@ -125,7 +125,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
     const scrollBox = scroller.current
     if (!scrollBox || !onFit) return
     let timer: ReturnType<typeof setTimeout> | undefined
-    let sent: { cols: number; rows: number } | null = null
+    const guard = new FitGuard() // never the same size twice, never bouncing between two
     const measure = () => {
       // At the bottom, it stays there through the change at once (not a moment later, its last lines hidden).
       if (atBottom.current) scrollBox.scrollTop = scrollBox.scrollHeight
@@ -137,8 +137,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
         const height = scrollBox.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
         const cols = Math.max(20, Math.floor((width - 1) / (line.width / 10)))
         const rows = Math.min(200, Math.max(5, Math.floor(height / line.height)))
-        if (sent && sent.cols === cols && Math.abs(sent.rows - rows) <= SMALL_ROWS) return
-        sent = { cols, rows }
+        if (!guard.allow({ cols, rows })) return
         setViewRows(rows)
         onFit({ cols, rows })
       }, 250)
@@ -171,7 +170,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
       <div
         ref={scroller}
         onScroll={onScroll}
-        className="min-h-0 flex-1 overflow-auto overscroll-y-contain p-2 font-mono leading-snug whitespace-pre text-terminal-fg [-webkit-text-size-adjust:none] [overflow-anchor:none] [text-size-adjust:none] [&>div>div]:min-h-[1.375em]"
+        className="min-h-0 flex-1 overflow-auto overscroll-y-contain [scrollbar-gutter:stable] p-2 font-mono leading-snug whitespace-pre text-terminal-fg [-webkit-text-size-adjust:none] [overflow-anchor:none] [text-size-adjust:none] [&>div>div]:min-h-[1.375em]"
         style={{ fontSize }}
         role="log"
         aria-label="Session output"

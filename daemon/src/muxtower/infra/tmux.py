@@ -184,6 +184,8 @@ class TmuxCli:
         extra_cols, extra_rows = 0, 0
         if len(sizes) == 4 and all(v.isdigit() for v in sizes):
             window_w, window_h, pane_w, pane_h = map(int, sizes)
+            if (pane_w, pane_h) == (cols, rows):
+                return  # already: a resize-window would only make the agent draw it all again
             extra_cols, extra_rows = window_w - pane_w, window_h - pane_h
         width, height = str(cols + extra_cols), str(rows + extra_rows)
         self._run(pane.socket, "resize-window", "-t", pane.pane_id, "-x", width, "-y", height)
