@@ -16,6 +16,10 @@ import { ConversationView } from '@/features/conversation/components/conversatio
 import { useDaemonSessions, useSession } from '@/features/sessions/api/use-sessions'
 import { useMentionSource } from '@/features/mentions/hooks/use-mention-source'
 import { SessionActionsMenu } from '@/features/sessions/components/session-actions-menu'
+import { FocusToggle } from '@/features/sessions/components/focus-toggle'
+import { FullScreenItem } from '@/features/sessions/components/full-screen-item'
+import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
+import { canFullScreen } from '@/lib/layout-prefs'
 import { SessionHeader } from '@/features/sessions/components/session-header'
 import { InterruptedState } from '@/features/sessions/components/interrupted'
 import { useSeenWhileOpen } from '@/features/sessions/hooks/use-seen-while-open'
@@ -159,6 +163,8 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
     reply(message.text)
   }
 
+  const termItems = view === 'terminal' && !!screen
+  const fullScreen = canFullScreen()
   return (
     <Pane className="flex-1" aria-label={session.name}>
       <SessionHeader
@@ -177,10 +183,19 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
                 ]}
               />
             ) : null}
+            <FocusToggle />
             <SessionActionsMenu
               daemonId={daemonId}
               session={session}
-              items={view === 'terminal' && screen ? <TerminalMenuItems sessionId={session.id} fit={terminal.fit} /> : undefined}
+              items={
+                termItems || fullScreen ? (
+                  <>
+                    {termItems ? <TerminalMenuItems sessionId={session.id} fit={terminal.fit} /> : null}
+                    {termItems && fullScreen ? <DropdownMenuSeparator /> : null}
+                    {fullScreen ? <FullScreenItem /> : null}
+                  </>
+                ) : undefined
+              }
             />
           </>
         }

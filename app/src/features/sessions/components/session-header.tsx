@@ -9,18 +9,20 @@ import type { Session } from '@/lib/api/types'
 import { useSession } from '../api/use-sessions'
 import { NO_ENVIRONMENT, agentOf, deviceOf, folderOf, sourceOf } from '../model/facets'
 import { useSessionDrawer } from '../store'
+import { useListBeside } from '@/lib/layout-prefs'
 import { agentIcon } from './agent-mark'
 import { StateBadge } from './state-badge'
 import { StreamMark } from './stream-mark'
 import { ink } from '@/components/ui/intents'
 
-/** The top of a session page: the list as a drawer (phones), name and state, which agent it is and where
+/** The top of a session page: the list as a drawer (phones, or the list hidden), name and state, which agent it is and where
  *  it runs (and, for a side chat or a fork, the session it came from, one tap away), and the page's
  *  actions. */
 export function SessionHeader({ daemonId, session, actions }: { daemonId: string; session: Session; actions?: ReactNode }) {
   const parent = useSession(daemonId, session.fork_of ?? '').session
   const drawerOpen = useSessionDrawer((s) => s.open)
   const setDrawer = useSessionDrawer((s) => s.setOpen)
+  const beside = useListBeside()
   const agent = agentOf(session)
   const AgentIcon = agentIcon(agent)
   const project = projectLabel(session)
@@ -37,17 +39,18 @@ export function SessionHeader({ daemonId, session, actions }: { daemonId: string
   return (
     <PaneHeader
       leading={
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="md:hidden"
-          aria-label="Sessions"
-          aria-expanded={drawerOpen}
-          title="Sessions"
-          onClick={() => setDrawer(true)}
-        >
-          <Menu />
-        </Button>
+        beside ? null : (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label="Sessions"
+            aria-expanded={drawerOpen}
+            title="Sessions"
+            onClick={() => setDrawer(true)}
+          >
+            <Menu />
+          </Button>
+        )
       }
       title={
         <>

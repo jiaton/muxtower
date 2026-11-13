@@ -1,5 +1,5 @@
 import { Link, Outlet, createFileRoute, useMatch } from '@tanstack/react-router'
-import { Archive, BellOff, CheckCheck, EyeOff, PanelLeft, Plus, RotateCcw, SearchX, Server } from 'lucide-react'
+import { Archive, BellOff, CheckCheck, EyeOff, PanelLeft, PanelLeftClose, Plus, RotateCcw, SearchX, Server } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Drawer } from '@/components/ui/drawer'
@@ -15,7 +15,6 @@ import { ListChips } from '@/features/sessions/components/list-chips'
 import { ListMenu, ScopeChip, SearchField } from '@/features/sessions/components/list-controls'
 import { useSidebarPull } from '@/features/sessions/hooks/use-sidebar-pull'
 import { useSidebarDrawer } from '@/lib/sidebar-drawer'
-import { SIDEBAR_QUERY } from '@/lib/use-media-query'
 import { NewSessionDialog } from '@/features/sessions/components/new-session-dialog'
 import { SessionList } from '@/features/sessions/components/session-list'
 import { useOpenedHere } from '@/features/sessions/hooks/use-opened-here'
@@ -34,7 +33,7 @@ import { ProjectChips } from '@/features/sessions/components/project-chips'
 import { useListMemory, useListPrefs, useSessionDrawer } from '@/features/sessions/store'
 import { cn } from '@/lib/cn'
 import { useUnpairedDaemons } from '@/lib/daemons/store'
-import { SPLIT_QUERY, useMediaQuery } from '@/lib/use-media-query'
+import { useLayoutPrefs, useListBeside, useSidebarDocked } from '@/lib/layout-prefs'
 import { ink } from '@/components/ui/intents'
 
 export const Route = createFileRoute('/_sessions')({ validateSearch: parseListSearch, component: SessionsLayout })
@@ -57,8 +56,9 @@ function SessionsLayout() {
   const { entries, daemons, loading } = useSessionEntries()
   const unpaired = useUnpairedDaemons()
   const open = useMatch({ from: '/_sessions/d/$daemonId/s/$sessionId', shouldThrow: false })
-  const split = useMediaQuery(SPLIT_QUERY)
-  const docked = useMediaQuery(SIDEBAR_QUERY)
+  const split = useListBeside() // hidden (focus mode), the list is a drawer over the session, as on a phone
+  const docked = useSidebarDocked()
+  const hideList = useLayoutPrefs((s) => s.setList)
   const openSidebar = useSidebarDrawer((s) => s.setOpen)
   const listPane = useRef<HTMLElement>(null)
   useSidebarPull(listPane, !docked) // a swipe right on the list: the sidebar, one level up
@@ -115,6 +115,11 @@ function SessionsLayout() {
             subtitle={within ? `${within} · ${counted}` : counted}
             actions={
               <>
+                {open && split ? (
+                  <Button variant="ghost" size="icon-sm" aria-label="Hide the list" title="Hide the list" onClick={() => hideList(false)}>
+                    <PanelLeftClose />
+                  </Button>
+                ) : null}
                 <ListMenu
                   query={query}
                   unread={visible.filter((e) => e.session.unread)}

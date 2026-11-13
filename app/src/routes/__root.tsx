@@ -1,5 +1,5 @@
 import { Link, Outlet, createRootRoute, useMatch } from '@tanstack/react-router'
-import { Layers, Plus, Server } from 'lucide-react'
+import { Layers, PanelLeftClose, PanelLeftOpen, Plus, Server } from 'lucide-react'
 import { useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { navItemClass, tabItemClass } from '@/components/ui/nav'
@@ -21,6 +21,7 @@ import { Drawer } from '@/components/ui/drawer'
 import { useBackCloses } from '@/lib/use-back-closes'
 import { useSidebarDrawer } from '@/lib/sidebar-drawer'
 import { SIDEBAR_QUERY, useMediaQuery } from '@/lib/use-media-query'
+import { useLayoutPrefs, useSidebarDocked } from '@/lib/layout-prefs'
 import { ink, look } from '@/components/ui/intents'
 
 export const Route = createRootRoute({ component: RootLayout })
@@ -29,6 +30,9 @@ export const Route = createRootRoute({ component: RootLayout })
  *  sources; a new session; the daemons. In the drawer, a scope chosen replaces the page the drawer
  *  opened on (`useBackCloses`), and closes it. */
 function Sidebar({ inDrawer = false, onLeave }: { inDrawer?: boolean; onLeave?: () => void }) {
+  // Wide enough to dock: docked, it can be hidden (a drawer from then on); hidden, its drawer docks it again.
+  const wide = useMediaQuery(SIDEBAR_QUERY)
+  const setShown = useLayoutPrefs((s) => s.setSidebar)
   return (
     <>
       <div className="flex h-14 shrink-0 items-center gap-2 px-4">
@@ -36,7 +40,7 @@ function Sidebar({ inDrawer = false, onLeave }: { inDrawer?: boolean; onLeave?: 
           muxtower
         </Link>
         <WebUsageMark />
-        <div className="ml-auto" onClick={onLeave}>
+        <div className="ml-auto flex items-center" onClick={onLeave}>
           <NewSessionDialog
             trigger={
               <Button variant="ghost" size="icon-sm" aria-label="New session" title="New session">
@@ -44,6 +48,17 @@ function Sidebar({ inDrawer = false, onLeave }: { inDrawer?: boolean; onLeave?: 
               </Button>
             }
           />
+          {wide ? (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={inDrawer ? 'Keep the sidebar open' : 'Hide the sidebar'}
+              title={inDrawer ? 'Keep the sidebar open' : 'Hide the sidebar'}
+              onClick={() => setShown(inDrawer)}
+            >
+              {inDrawer ? <PanelLeftOpen /> : <PanelLeftClose />}
+            </Button>
+          ) : null}
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
@@ -81,7 +96,7 @@ function RootLayout() {
   )
   const inSession = useMatch({ from: '/_sessions/d/$daemonId/s/$sessionId', shouldThrow: false }) !== undefined
   const lastSearch = useListMemory((s) => s.lastSearch)
-  const docked = useMediaQuery(SIDEBAR_QUERY)
+  const docked = useSidebarDocked()
   const sidebarOpen = useSidebarDrawer((s) => s.open)
   const setSidebarOpen = useSidebarDrawer((s) => s.setOpen)
   const setSidebarPull = useSidebarDrawer((s) => s.setPull)
@@ -91,10 +106,11 @@ function RootLayout() {
 
   return (
     <div className="flex h-dvh overflow-hidden pt-[env(safe-area-inset-top)]">
-      <aside className={`${look.bar.side} hidden w-56 shrink-0 flex-col lg:flex xl:w-64`} aria-label="Navigation">
-        <Sidebar />
-      </aside>
-      {docked ? null : (
+      {docked ? (
+        <aside className={`${look.bar.side} flex w-56 shrink-0 flex-col xl:w-64`} aria-label="Navigation">
+          <Sidebar />
+        </aside>
+      ) : (
         <Drawer drawer open={sidebarOpen} onOpenChange={closeSidebar} onPull={setSidebarPull} label="Navigation" over push={content}>
           <div className={`${look.surface} flex w-full flex-col pt-[env(safe-area-inset-top)]`}>
             <Sidebar inDrawer onLeave={() => closeSidebar(false)} />
