@@ -46,9 +46,18 @@ function kwsWasmFromCdn(): Plugin {
   }
 }
 
+// Cloudflare Web Analytics' beacon token, for the public hosted app's build alone (`make public-app`, from
+// CI's `public-app` environment): `src/lib/web-analytics.ts`. Unset (the daemon's own app, forks, local
+// builds, the demo), the app has no beacon at all.
+const ANALYTICS_TOKEN = (process.env.MUXTOWER_APP_ANALYTICS_TOKEN ?? '').trim()
+if (ANALYTICS_TOKEN && !/^[0-9a-f]{32}$/.test(ANALYTICS_TOKEN)) throw new Error('MUXTOWER_APP_ANALYTICS_TOKEN: expected 32 hex digits')
+
 export default defineConfig(({ mode }) => ({
   base,
-  define: { 'import.meta.env.VITE_APP_VERSION': JSON.stringify(APP_VERSION) },
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(APP_VERSION),
+    'import.meta.env.VITE_WEB_ANALYTICS_TOKEN': JSON.stringify(mode === 'demo' ? '' : ANALYTICS_TOKEN),
+  },
   build: mode === 'demo' ? { outDir: 'dist-demo' } : undefined,
   worker: { format: 'es', plugins: () => [kwsWasmFromCdn()] },
   optimizeDeps: { exclude: ['@sherpaw/kws'] },

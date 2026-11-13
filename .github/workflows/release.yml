@@ -67,5 +67,6 @@ jobs:
         run: make public-app
         env:
           MUXTOWER_APP_DOMAIN: ${{ vars.PUBLIC_APP_DOMAIN }}
+          MUXTOWER_APP_ANALYTICS_TOKEN: ${{ vars.CLOUDFLARE_WEB_ANALYTICS_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -36,6 +36,16 @@ It is opt-in, so a fork's tags deploy nothing unless its owner sets it up:
   - variable `CLOUDFLARE_ACCOUNT_ID`;
   - variable `PUBLIC_APP_DOMAIN`: the custom domain (`app.muxtower.dev` here). Unset, the Worker is
     deployed on its workers.dev address.
+  - variable `CLOUDFLARE_WEB_ANALYTICS_TOKEN` (optional): a Cloudflare Web Analytics site's beacon token
+    (32 hex; a variable, since the page shows it anyway), passed to the build as
+    `MUXTOWER_APP_ANALYTICS_TOKEN`. Set, this build loads Cloudflare's beacon (`src/lib/web-analytics.ts`);
+    unset (forks, self-hosters, local builds, the daemon's own copy of the app), it loads none. The app's
+    URLs carry daemon and session ids, so before the beacon starts, every report it sends is rewritten:
+    the page as its route pattern (`/d/:daemon/s/:session`, no query or hash), a referrer as its origin, ids
+    from the page's address cut from every other field, and a report that can't be read is dropped. SPA
+    tracking is off (one page view per load). An ad blocker stopping it changes nothing. There is no CSP;
+    one added later must allow `https://static.cloudflareinsights.com` (script) and
+    `https://cloudflareinsights.com/cdn-cgi/rum` (connect).
 
 The domain never sits in the workflow, so a fork that turns this on deploys to its own. A release that is
 already out can be deployed by hand: `MUXTOWER_APP_DOMAIN=… make public-app` from a worktree on its tag.

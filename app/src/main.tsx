@@ -6,6 +6,7 @@ import { createRoot } from 'react-dom/client'
 import { listenForInstall } from './features/install/store'
 import { queryClient } from './lib/query'
 import { watchForUpdates } from './lib/app-update'
+import { startWebAnalytics } from './lib/web-analytics'
 import { routeTree } from './routeTree.gen'
 import './styles/tokens.css'
 
@@ -22,6 +23,7 @@ declare module '@tanstack/react-router' {
 
 listenForInstall()
 watchForUpdates()
+startWebAnalytics(import.meta.env.VITE_WEB_ANALYTICS_TOKEN) // the public hosted app's build only
 
 watchPage() // input latency, long frames, the page's growth: Daemons › Diagnostics
 createRoot(document.getElementById('root')!).render(
