@@ -1,6 +1,7 @@
 import { Check, Copy } from 'lucide-react'
 import { createContext, useContext, useEffect, useRef, useState, type ComponentProps, type ComponentType } from 'react'
 import { cn } from '@/lib/cn'
+import { focusRing } from './styles'
 
 const COPIED_MS = 1500
 
@@ -15,8 +16,7 @@ export interface CodeAction {
 /** The code blocks inside it offer this action too; none outside one. */
 export const CodeActionContext = createContext<CodeAction | null>(null)
 
-const CORNER_BUTTON =
-  'inline-flex size-7 items-center justify-center rounded-md border border-border bg-surface text-fg-muted hover:text-fg focus-visible:outline-2 focus-visible:outline-focus [&_svg]:size-3.5'
+const CORNER_BUTTON = `inline-flex size-7 items-center justify-center rounded-md border border-border bg-surface text-fg-muted hover:text-fg ${focusRing} [&_svg]:size-3.5`
 
 /** Puts text on the clipboard: the Clipboard API where the page may use it, else the older copy command
  *  (a page served over plain http on the LAN has no `navigator.clipboard`). */

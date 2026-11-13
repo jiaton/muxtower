@@ -1,8 +1,8 @@
 import type { ComponentProps, InputHTMLAttributes } from 'react'
 import { cn } from '@/lib/cn'
+import { focusRing } from './styles'
 
-const field =
-  'w-full rounded-md border border-border bg-surface px-3 text-base text-fg placeholder:text-fg-muted focus-visible:outline-2 focus-visible:outline-focus disabled:opacity-50 sm:text-sm'
+const field = `w-full rounded-md border border-border bg-surface px-3 text-base text-fg placeholder:text-fg-muted ${focusRing} disabled:opacity-50 sm:text-sm`
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(field, 'h-10', className)} {...props} />

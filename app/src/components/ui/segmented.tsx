@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
+import { focusRing } from './styles'
 
 export interface SegmentedOption<T extends string> {
   value: T
@@ -43,7 +44,12 @@ export function Segmented<T extends string>({
   }, [])
 
   return (
-    <div role="radiogroup" ref={root} className={cn('relative flex gap-0.5 overflow-x-auto rounded-md bg-surface-muted p-0.5 [scrollbar-width:none]', className)} {...aria}>
+    <div
+      role="radiogroup"
+      ref={root}
+      className={cn('relative flex gap-0.5 overflow-x-auto rounded-md bg-surface-muted p-0.5 [scrollbar-width:none]', className)}
+      {...aria}
+    >
       <div ref={ghost} aria-hidden className="pointer-events-none invisible absolute top-0 left-0 flex w-max gap-0.5 p-0.5">
         {options.map((option) => (
           <span key={option.value} className={cn(ITEM, 'text-sm font-medium')}>
@@ -60,7 +66,7 @@ export function Segmented<T extends string>({
           onClick={() => onChange(option.value)}
           className={cn(
             ITEM,
-            'min-w-fit flex-1 text-fg-muted transition-colors select-none focus-visible:outline-2 focus-visible:outline-focus',
+            `min-w-fit flex-1 text-fg-muted transition-colors select-none ${focusRing}`,
             small ? 'text-xs' : 'text-sm',
             option.value === value ? 'bg-surface font-medium text-fg shadow-card' : 'hover:text-fg',
           )}
