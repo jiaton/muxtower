@@ -70,8 +70,12 @@ function applySgr(style: Style, params: number[]): Style {
 const escapeHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
 // ASCII is drawn by the monospace font itself; anything else may come from a fallback font of another
-// width, so it gets exactly the cells tmux gives it (see cell-width.ts): each wide character its own
-// two-cell box, centered like a terminal draws it, and each run of other non-ASCII one box its width.
+// width, so it gets exactly the cells tmux gives it (see cell-width.ts): each run of wide characters (CJK)
+// one box of two cells each, and each run of other non-ASCII one box its width. A wide run is drawn tight,
+// as its font sets it, from the box's start: two cells of the monospace font are wider than a CJK glyph
+// (1.2em against 1em), so a box per character spaced Chinese out like letter-spacing. What follows the run
+// still starts on its column (tables, rules); only within the run do characters not sit on every other
+// column of the line above.
 // The boxes clip: a glyph drawn wider than its cells (a phone's fallback font, a rule of ─ across the
 // whole pane) would otherwise widen the view past the pane and let it scroll sideways. Aligned to the
 // top, since a clipping inline box sits on its bottom edge instead of the text's baseline.
@@ -80,15 +84,20 @@ const NON_ASCII = /[^\x00-\x7f]+/g
 function cellsHtml(run: string): string {
   let html = ''
   let narrow = ''
+  let wide = ''
   const flush = () => {
-    if (narrow) html += `<span class="inline-block overflow-hidden align-top" style="width:${textCells(narrow)}ch">${escapeHtml(narrow)}</span>`
+    if (narrow)
+      html += `<span class="inline-block overflow-hidden align-top" style="width:${textCells(narrow)}ch">${escapeHtml(narrow)}</span>`
+    if (wide)
+      html += `<span class="inline-block overflow-hidden align-top" style="width:${[...wide].length * 2}ch">${escapeHtml(wide)}</span>`
     narrow = ''
+    wide = ''
   }
   for (const char of run) {
-    if (cellWidth(char.codePointAt(0)!) === 2) {
-      flush()
-      html += `<span class="inline-block w-[2ch] overflow-hidden text-center align-top">${escapeHtml(char)}</span>`
-    } else narrow += char
+    const isWide = cellWidth(char.codePointAt(0)!) === 2
+    if ((isWide && narrow) || (!isWide && wide)) flush()
+    if (isWide) wide += char
+    else narrow += char
   }
   flush()
   return html
