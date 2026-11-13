@@ -85,7 +85,9 @@ A daemon can also be a hub: other computers' daemons join it as nodes (`docs/des
   StatusIcon…), all in `components/ui/intents.ts` and its neighbours. The builders behind them (`text`,
   `box`, `motion` in `styles.ts`) are ui-internal. An element takes at most one `ink` and one `look`
   (`ink.count` may join); a component with a look of its own takes variants, not intents. **Features pick
-  an intent; if none fits, add one in ui, merging rather than adding a near-duplicate.**
+  an intent; if none fits, add one in ui, merging rather than adding a near-duplicate.** A new intent says, in its
+  comment, which existing intent it is not and why (`/** … Not \`hint\`: … */`), so the next one reuses
+  before it adds.
 - **No native controls in features**: `<button>`, `<input>`, `<select>`, `<textarea>` and a styled `<a>` are
   Button, Input, Select, Textarea, Checkbox, Switch, FilePicker, TextLink. `Button variant="plain"` wraps
   custom content whose look comes from other primitives; it adds none of its own.
