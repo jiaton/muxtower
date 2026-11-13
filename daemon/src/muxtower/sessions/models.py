@@ -144,6 +144,12 @@ class Session(BaseModel):
         default=False, description="finished a turn (or has news) since the owner last looked, or marked unread"
     )
     finished_at: datetime | None = Field(default=None, description="when it last finished a turn")
+    output_at: datetime | None = Field(
+        default=None,
+        description="when the agent last said or did something (a reply, a tool call, the end of a turn), where "
+        "its source tells; unread is about output after the owner last looked, not about other events "
+        "(updated_at moves with those too: a reconnect, a restart)",
+    )
     hidden: bool = Field(default=False, description="the owner hid it: kept out of the lists and done notifications")
     pinned: bool = Field(default=False, description="the owner pinned it: listed above the others")
     notify: NotifyLevel = Field(default=NotifyLevel.ALL, description="which push notifications it sends")

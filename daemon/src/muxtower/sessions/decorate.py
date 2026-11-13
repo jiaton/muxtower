@@ -20,7 +20,8 @@ def decorate(session: Session, directory: SessionDirectory) -> Session:
     update: dict[str, object] = {}
     marks = d.marks.get(session.id) if d.marks else None
     if d.marks and marks:
-        update["unread"] = d.marks.unread(session.id, session.unread, session.updated_at)
+        # About the agent's output since the owner looked, not any event (a restart reconnects things).
+        update["unread"] = d.marks.unread(session.id, session.unread, session.output_at or session.updated_at)
         update["finished_at"] = marks.finished_at
         update["hidden"] = marks.hidden
         update["pinned"] = marks.pinned

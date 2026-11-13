@@ -2226,6 +2226,19 @@
             "description": "where it was started: cli, desktop_app, android\u2026",
             "title": "Origin"
           },
+          "output_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "when the agent last said or did something (a reply, a tool call, the end of a turn), where its source tells; unread is about output after the owner last looked, not about other events (updated_at moves with those too: a reconnect, a restart)",
+            "title": "Output At"
+          },
           "pending": {
             "anyOf": [
               {

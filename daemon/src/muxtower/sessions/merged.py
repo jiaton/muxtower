@@ -38,6 +38,7 @@ def merged(local: Session, remote: Session, named: bool = False) -> Session:
             # The remote log knows when the agent last did something; the local clock restarts with
             # the daemon.
             "updated_at": remote.updated_at,
+            "output_at": remote.output_at,
             "cwd": local.cwd or remote.cwd,
             "working_dir": deeper(local.cwd, remote.cwd) or local.working_dir,
             "last_message": local.last_message or remote.last_message,

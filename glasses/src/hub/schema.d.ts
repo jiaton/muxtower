@@ -1997,6 +1997,11 @@ export interface components {
              * @description where it was started: cli, desktop_app, android…
              */
             origin?: string | null;
+            /**
+             * Output At
+             * @description when the agent last said or did something (a reply, a tool call, the end of a turn), where its source tells; unread is about output after the owner last looked, not about other events (updated_at moves with those too: a reconnect, a restart)
+             */
+            output_at?: string | null;
             pending: components["schemas"]["PendingAction"] | null;
             /**
              * Permission Mode

@@ -87,6 +87,19 @@ def _blocks(payload: dict[str, Any]) -> list[dict[str, Any]]:
     return [b for b in content or [] if isinstance(b, dict)]
 
 
+# What the agent itself writes in a conversation, as against the owner's prompts.
+AGENT_KINDS = frozenset(
+    {
+        ConversationItemKind.REPLY,
+        ConversationItemKind.TOOL,
+        ConversationItemKind.APPROVAL,
+        ConversationItemKind.QUESTION,
+        ConversationItemKind.RESULT,
+        ConversationItemKind.NEXT_STEP,
+    }
+)
+
+
 @dataclass
 class ConversationBuilder:
     items: dict[int, ConversationItem] = field(default_factory=dict)
@@ -106,6 +119,12 @@ class ConversationBuilder:
             if self.items[seq].kind == ConversationItemKind.REPLY:
                 return self.items[seq].text
         return None
+
+    @property
+    def last_output_at(self) -> datetime | None:
+        """When the agent last said or did something (a reply, a tool call, a prompt to the owner, the end
+        of a turn): not what the owner sent, and not other events (a connection coming back)."""
+        return max((i.at for i in self.items.values() if i.at and i.kind in AGENT_KINDS), default=None)
 
     def after(self, seq: int, limit: int) -> list[ConversationItem]:
         newer = [self.items[s] for s in sorted(self.items) if s > seq]

@@ -32,6 +32,9 @@ class RcSession:
         return self.builder.pending is not None and self.raw.get("worker_status") == "requires_action"
 
 
+NEVER = datetime.min.replace(tzinfo=UTC)  # no output known yet
+
+
 def _when(value: Any) -> datetime:
     if isinstance(value, str) and value:
         try:
@@ -144,6 +147,8 @@ def to_session(rc: RcSession, environments: dict[str, str]) -> Session:
         can_auto_approve=False,
         created_at=_when(raw.get("created_at")),
         updated_at=_when(raw.get("last_event_at") or raw.get("updated_at")),
+        # Its events not read yet (just after a restart): no output known, rather than "now".
+        output_at=rc.builder.last_output_at or (_when(raw["created_at"]) if raw.get("created_at") else NEVER),
     )
     session.capabilities.archive_ends = ends_when_archived(session)  # in the desktop app: only hidden here
     return session
