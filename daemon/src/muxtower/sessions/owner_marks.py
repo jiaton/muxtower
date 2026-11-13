@@ -48,10 +48,13 @@ class OwnerMarks:
             self.marks.mark_unread(session.id)
             return
         self.marks.seen(session.id)
-        remote_id = session.remote_id or session.id
-        source = self.source_of(remote_id)
-        if source is not None and source.get(remote_id).unread:  # clients repeat this; ask only when needed
+        # Its own source (a node keeps marks of its own, and says unread by them) and its controller's (the
+        # Claude apps' flag): each that still calls it unread. Clients repeat this; ask only when needed.
+        for source_id in dict.fromkeys([session.id, session.remote_id or session.id]):
+            source = self.source_of(source_id)
+            if source is None or not source.get(source_id).unread:
+                continue
             try:
-                source.mark_read(remote_id)
+                source.mark_read(source_id)
             except Unavailable as exc:
-                logger.warning("could not mark %s read on its source: %s", remote_id, exc)
+                logger.warning("could not mark %s read on its source: %s", source_id, exc)

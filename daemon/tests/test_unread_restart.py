@@ -18,6 +18,7 @@ from muxtower.sources.remote_control.service import RemoteControlSource
 from tests.fakes import FakeTmux
 from tests.rc_fakes import FakeRemoteControl, session
 from tests.test_linking import FakeProcesses
+from tests.test_marks import marks as _marks
 
 PANE_PID = 4242
 
@@ -92,3 +93,38 @@ def test_a_restart_keeps_what_was_read_read_and_only_new_output_makes_it_unread(
     listed = _unread(client, auth)
     assert listed["cse_merged"] is True
     assert listed["cse_alone"] is False and not any(v for k, v in listed.items() if not k.startswith("cse_"))
+
+
+def test_reading_a_node_session_tells_its_node_and_its_remote_control_session(tmp_path: Path) -> None:
+    """A node keeps marks of its own and lists its sessions unread by them: a read on the hub goes to the
+    node too (not only to the Remote Control session it carries), or the node says unread forever."""
+    from types import SimpleNamespace
+
+    from muxtower.sessions.owner_marks import OwnerMarks
+
+    class Source:
+        def __init__(self) -> None:
+            self.read: list[str] = []
+
+        def get(self, session_id: str) -> Any:
+            return SimpleNamespace(unread=session_id not in self.read)
+
+        def mark_read(self, session_id: str) -> None:
+            self.read.append(session_id)
+
+    node, rc = Source(), Source()
+    listed = SimpleNamespace(id="mac~abc", remote_id="cse_01X")
+
+    class Directory(OwnerMarks):
+        def get(self, session_id: str) -> Any:
+            return listed
+
+        def source_of(self, session_id: str) -> Any:
+            return rc if session_id.startswith("cse_") else node
+
+    directory = Directory()
+    directory.marks = _marks(tmp_path)
+    directory.mark_read("mac~abc", True)
+    assert node.read == ["mac~abc"] and rc.read == ["cse_01X"]
+    directory.mark_read("mac~abc", True)  # clients repeat it: nobody is asked again
+    assert node.read == ["mac~abc"] and rc.read == ["cse_01X"]
