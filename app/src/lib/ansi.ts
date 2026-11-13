@@ -70,15 +70,17 @@ function applySgr(style: Style, params: number[]): Style {
 const escapeHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
 // ASCII is drawn by the monospace font itself; anything else may come from a fallback font of another
-// width, so it gets exactly the cells tmux gives it (see cell-width.ts): each run of wide characters (CJK)
-// one box of two cells each, and each run of other non-ASCII one box its width. A wide run is drawn tight,
-// as its font sets it, from the box's start: two cells of the monospace font are wider than a CJK glyph
-// (1.2em against 1em), so a box per character spaced Chinese out like letter-spacing. What follows the run
-// still starts on its column (tables, rules); only within the run do characters not sit on every other
-// column of the line above.
-// The boxes clip: a glyph drawn wider than its cells (a phone's fallback font, a rule of ─ across the
-// whole pane) would otherwise widen the view past the pane and let it scroll sideways. Aligned to the
-// top, since a clipping inline box sits on its bottom edge instead of the text's baseline.
+// width, so it gets exactly the cells tmux gives it (see cell-width.ts): each run of non-ASCII one box its
+// width. The boxes clip: a glyph drawn wider than its cells (a phone's fallback font, a rule of ─ across the
+// whole pane) would otherwise widen the view past the pane and let it scroll sideways. Aligned to the top,
+// since a clipping inline box sits on its bottom edge instead of the text's baseline.
+//
+// Wide characters (CJK) are drawn by a line's segments instead (`lineHtml`): two cells of the monospace font
+// are wider than a CJK glyph (1.2em against 1em), so a box per character spaced Chinese out, and a box per
+// run left a gap before whatever followed it. Columns matter only where a line has them: at its rules and
+// frames (box drawing) and at its gaps of two spaces or more (a table, a list in columns). Between those, a
+// segment with wide characters is drawn tight in one box exactly its cells wide: what it leaves over falls
+// just before the next rule or gap, or at the line's end, where it is not seen, and the columns stay.
 const NON_ASCII = /[^\x00-\x7f]+/g
 
 function cellsHtml(run: string): string {
@@ -114,8 +116,7 @@ export function gridHtml(text: string): string {
   return html + escapeHtml(text.slice(at))
 }
 
-function wrap(text: string, s: Style): string {
-  const html = gridHtml(text)
+function wrap(text: string, s: Style, html = gridHtml(text)): string {
   const fg = s.inverse ? (s.bg ?? 'var(--color-terminal-bg)') : s.fg
   const bg = s.inverse ? (s.fg ?? 'var(--color-terminal-fg)') : s.bg
   const classes = [
@@ -135,15 +136,62 @@ function wrap(text: string, s: Style): string {
 // SGR, any other CSI, OSC (BEL or ST terminated), newlines, plain text.
 const TOKEN = /\x1b\[([0-9;:]*)m|\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b.?|\r|\n|[^\x1b\r\n]+/g
 
+interface Run {
+  text: string
+  style: Style
+}
+
+// Where a line's columns are: box drawing and blocks (rules, frames, a table's borders), and gaps of two
+// spaces or more.
+const ANCHOR = /[\u2500-\u259f]+| {2,}/g
+const hasWide = (text: string) => [...text].some((c) => cellWidth(c.codePointAt(0)!) === 2)
+
+/** A segment's runs (it may change color midway), drawn as they come, in one box `cells` wide. */
+function tightHtml(runs: Run[], cells: number): string {
+  const inner = runs.map((r) => wrap(r.text, r.style, escapeHtml(r.text))).join('')
+  const last = runs.at(-1)?.style
+  const bg = last ? (last.inverse ? (last.fg ?? 'var(--color-terminal-fg)') : last.bg) : undefined
+  return `<span class="inline-block overflow-hidden align-top" style="width:${cells}ch${bg ? `;background-color:${bg}` : ''}">${inner}</span>`
+}
+
+/** A line's styled runs → HTML: each segment between its anchors with wide characters drawn tight in a box
+ *  its cells wide; everything else as `gridHtml` draws it. */
+export function lineHtml(runs: Run[]): string {
+  const text = runs.map((r) => r.text).join('')
+  if (!hasWide(text)) return runs.map((r) => wrap(r.text, r.style)).join('')
+  // The runs' pieces between cuts (anchors' starts and ends), each still with its style.
+  const cuts = new Set([0, text.length])
+  for (const m of text.matchAll(ANCHOR)) cuts.add(m.index).add(m.index + m[0].length)
+  const bounds = [...cuts].sort((a, b) => a - b)
+  const piecesOf = (from: number, to: number): Run[] => {
+    const out: Run[] = []
+    let at = 0
+    for (const run of runs) {
+      const start = Math.max(from, at)
+      const end = Math.min(to, at + run.text.length)
+      if (start < end) out.push({ text: run.text.slice(start - at, end - at), style: run.style })
+      at += run.text.length
+    }
+    return out
+  }
+  let html = ''
+  for (let k = 0; k + 1 < bounds.length; k++) {
+    const segment = text.slice(bounds[k], bounds[k + 1])
+    const pieces = piecesOf(bounds[k], bounds[k + 1])
+    html += hasWide(segment) ? tightHtml(pieces, textCells(segment)) : pieces.map((r) => wrap(r.text, r.style)).join('')
+  }
+  return html
+}
+
 export function ansiToLines(text: string): string[] {
   const lines: string[] = []
-  let line = ''
+  let line: Run[] = []
   let style: Style = {}
   for (const match of text.matchAll(TOKEN)) {
     const token = match[0]
     if (token === '\n') {
-      lines.push(line)
-      line = ''
+      lines.push(lineHtml(line))
+      line = []
     } else if (match[1] !== undefined) {
       style = applySgr(
         style,
@@ -153,9 +201,9 @@ export function ansiToLines(text: string): string[] {
           .map(Number),
       )
     } else if (token[0] !== '\x1b' && token !== '\r') {
-      line += wrap(token, style)
+      line.push({ text: token, style })
     }
   }
-  lines.push(line)
+  lines.push(lineHtml(line))
   return lines
 }

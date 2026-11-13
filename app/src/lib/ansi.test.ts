@@ -37,19 +37,68 @@ describe('ansiToLines', () => {
     expect(gridHtml('𠀀a')).toBe(`${run('𠀀', 2)}a`) // outside the BMP: still one character, two cells
   })
 
-  // Boxes add up to the cells tmux gives a line, so what follows a CJK run (a table's next column, a rule)
-  // starts where it does in the terminal, however tight the run itself is drawn.
+  // A rendered line's cells: each box its width, text outside boxes its terminal cells. Equal to the
+  // cells tmux gives the line, whatever is drawn tight inside the boxes: what follows a box keeps its column.
   const cellsOf = (html: string) => {
-    const boxed = [...html.matchAll(/style="width:(\d+)ch">([^<]*)<\/span>/g)]
-    const outside = html.replace(/<span[^>]*>[^<]*<\/span>/g, '').replace(/&(lt|gt|amp);/g, '_')
-    return boxed.reduce((n, m) => n + Number(m[1]), 0) + outside.length
+    const walk = (node: Node): number => {
+      if (node.nodeType === Node.TEXT_NODE) return textCells(node.textContent ?? '')
+      const width = (node as HTMLElement).style?.width
+      if (width?.endsWith('ch')) return Number(width.slice(0, -2))
+      return [...node.childNodes].reduce((n, c) => n + walk(c), 0)
+    }
+    const div = document.createElement('div')
+    div.innerHTML = html
+    return walk(div)
   }
-  it('keeps the columns after a CJK run where the terminal has them: tables and rules', () => {
-    const table = ['│ 名称       │ ok │', '│ abc        │ ok │', '│ 中文名称   │ no │']
-    for (const line of table) expect(cellsOf(gridHtml(line))).toBe(textCells(line))
-    expect(new Set(table.map((line) => textCells(line))).size).toBe(1) // all three the same width: aligned
-    const rule = '会话 ─────── done'
-    expect(cellsOf(gridHtml(rule))).toBe(textCells(rule))
+  const boxes = (html: string) => (html.match(/style="width:/g) ?? []).length
+  const line = (text: string) => ansiToLines(text)[0]!
+
+  it('draws prose that mixes Chinese and English tight: no gap after a Chinese run', () => {
+    for (const prose of [
+      '最后再几条消息,因为我 history有点长,我看不过来了,你 architecture上面是不是已经改好了?',
+      '对,架构上该改的都已经改好了, 0.1.93 已经上线。',
+    ]) {
+      const html = line(prose)
+      expect(boxes(html)).toBe(1) // one segment, its leftover at the line's end
+      expect(cellsOf(html)).toBe(textCells(prose))
+    }
+  })
+
+  it('keeps a table’s borders, a list’s columns and a rule where the terminal has them', () => {
+    const table = ['│ 名称       │ 状态 │', '│ abc        │ ok   │', '│ 中文名称   │ 完成 │']
+    for (const row of table) expect(cellsOf(line(row))).toBe(textCells(row))
+    expect(new Set(table.map(textCells)).size).toBe(1)
+    const list = ['名称    状态', 'abc     ok', '中文名  完成'] // two spaces or more: a column
+    for (const row of list) {
+      const html = line(row)
+      expect(cellsOf(html)).toBe(textCells(row))
+      const first = row.split(/ {2,}/)[0]!
+      const div = document.createElement('div')
+      div.innerHTML = html
+      const lead = div.firstElementChild as HTMLElement | null
+      if (/[^\x00-\x7f]/.test(first)) expect(lead?.style.width).toBe(`${textCells(first)}ch`) // ends on its column
+    }
+    expect(cellsOf(line('会话 ─────── done'))).toBe(textCells('会话 ─────── done'))
+  })
+
+  it('keeps Claude Code’s own lines in their cells: bullet, frames, prompt, status', () => {
+    for (const ui of [
+      '⏺ 好的,已经更新了发布说明。',
+      '╭──────────────╮',
+      '│ › 你好,继续 │',
+      '╰──────────────╯',
+      '  esc to interrupt · 中文输入',
+    ]) {
+      expect(cellsOf(line(ui))).toBe(textCells(ui))
+    }
+  })
+
+  it('draws a segment that changes color midway as one, the last color filling what it leaves over', () => {
+    const html = line('改好了 \x1b[36m0.1.93\x1b[0m 已经上线')
+    expect(boxes(html)).toBe(1)
+    expect(html).toContain('color:')
+    const highlighted = line('\x1b[7m› 你好\x1b[0m')
+    expect(highlighted).toMatch(/width:\d+ch;background-color:/)
   })
 })
 
