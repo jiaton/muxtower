@@ -5,8 +5,15 @@ import { focusRing, text } from './styles'
 const field = `w-full rounded-md border border-border bg-surface px-3 text-base text-fg placeholder:text-fg-muted ${focusRing} disabled:opacity-50 sm:text-sm`
 
 /** A field. `icon`: a quiet icon at its start (a search field's magnifier), the text starting after it. */
-export function Input({ className, icon, ...props }: InputHTMLAttributes<HTMLInputElement> & { icon?: ReactNode }) {
-  const input = <input className={cn(field, 'h-10', icon && 'pl-8', className)} {...props} />
+export function Input({
+  className,
+  icon,
+  compact = false,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement> & { icon?: ReactNode; /** smaller, quieter: a value shown for copying */ compact?: boolean }) {
+  const input = (
+    <input className={cn(field, 'h-10', icon && 'pl-8', compact && 'h-8 text-xs text-fg-muted sm:text-xs', className)} {...props} />
+  )
   if (!icon) return input
   return (
     <div className="relative">

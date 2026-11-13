@@ -11,7 +11,7 @@ import {
 import { STATE_LABEL } from '@/lib/agent-state'
 import type { AgentState } from '@/lib/api/types'
 import { cn } from '@/lib/cn'
-import { motion, text } from '@/components/ui/styles'
+import { motion, text } from './styles'
 
 const ICONS: Record<AgentState, { icon: typeof CircleDot; className: string }> = {
   needs_permission: { icon: ShieldAlert, className: text({ tone: 'warning' }) },

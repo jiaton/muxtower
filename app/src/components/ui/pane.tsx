@@ -2,8 +2,9 @@ import type { ComponentProps, ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 
 /** A column of the app: a fixed header and a body that scrolls on its own. */
-export function Pane({ className, ...props }: ComponentProps<'section'>) {
-  return <section className={cn('flex min-h-0 min-w-0 flex-col bg-bg', className)} {...props} />
+/** A pane of the layout; `ruled`: a rule along its side, against the pane beside it. */
+export function Pane({ className, ruled = false, ...props }: ComponentProps<'section'> & { ruled?: boolean }) {
+  return <section className={cn('flex min-h-0 min-w-0 flex-col bg-bg', ruled && 'border-r border-border', className)} {...props} />
 }
 
 /** The top bar of a pane: optional leading control (back), title with a subtitle, trailing actions. */

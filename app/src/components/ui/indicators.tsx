@@ -17,9 +17,29 @@ export function Spinner({ tone, className, label }: { tone?: Tone; className?: s
 
 /** A fold's chevron: right when closed, down when open, turning between; `vertical`: down when closed, up
  *  when open (what opens below a card). */
-export function Chevron({ open, vertical = false, className }: { open: boolean; vertical?: boolean; className?: string }) {
+export function Chevron({
+  open,
+  vertical = false,
+  quiet = false,
+  className,
+}: {
+  open: boolean
+  vertical?: boolean
+  quiet?: boolean
+  className?: string
+}) {
   const Icon = vertical ? ChevronDown : ChevronRight
-  return <Icon aria-hidden className={cn('shrink-0 transition-transform', open && (vertical ? 'rotate-180' : 'rotate-90'), className)} />
+  return (
+    <Icon
+      aria-hidden
+      className={cn(
+        'shrink-0 transition-transform',
+        open && (vertical ? 'rotate-180' : 'rotate-90'),
+        quiet && text({ tone: 'muted' }),
+        className,
+      )}
+    />
+  )
 }
 
 const DOT = {

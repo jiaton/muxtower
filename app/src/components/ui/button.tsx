@@ -25,15 +25,24 @@ const buttonVariants = cva(
         link: 'h-auto px-0 underline hover:text-accent',
       },
       size: {
+        xs: 'h-6 px-1.5 text-xs [&_svg]:size-3',
         sm: 'h-8 px-3 text-sm',
         md: 'h-10 px-4 text-sm',
         lg: 'h-12 px-5 text-base',
         icon: 'size-10',
         'icon-sm': 'size-8',
         'icon-xs': 'size-6 [&_svg]:size-3.5',
+        /** A key of the key pad: a column's width, machine text. */
+        key: 'h-9 touch-none px-0 font-mono text-xs select-none [&_svg]:size-4',
       },
       /** Over other content (a button floating at a view's edge). */
       floating: { true: 'shadow-card' },
+      /** A round button (in a capsule). */
+      round: { true: 'rounded-full' },
+      /** Its text's tone, over the variant's: on (accent), off-ish (muted), destructive (danger). */
+      tone: { accent: 'text-accent', muted: 'text-fg-muted', danger: 'text-danger' },
+      /** Its label is machine text (a path). */
+      code: { true: 'font-mono' },
     },
     defaultVariants: { variant: 'primary', size: 'md' },
   },
@@ -46,8 +55,8 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement>, Om
   asChild?: boolean
 }
 
-export function Button({ className, variant, size, floating, asChild = false, type = 'button', ...props }: ButtonProps) {
+export function Button({ className, variant, size, floating, round, tone, code, asChild = false, type = 'button', ...props }: ButtonProps) {
   const Comp = asChild ? Slot : 'button'
-  const look = variant === 'plain' ? base : buttonVariants({ variant, size, floating })
+  const look = variant === 'plain' ? base : buttonVariants({ variant, size, floating, round, tone, code })
   return <Comp type={asChild ? undefined : type} className={cn(look, className)} {...props} />
 }
