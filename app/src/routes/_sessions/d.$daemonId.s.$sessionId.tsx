@@ -263,7 +263,11 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
             more={liveOn && dictation.available ? { label: 'Add to dictionary', icon: BookPlus, onAction: setDictionaryWord } : null}
           />
           <FooterBar>
-            {dictation.error ? <Banner tone="error">{dictation.error}</Banner> : null}
+            {dictation.error ? (
+              <Banner tone="error" aligned>
+                {dictation.error}
+              </Banner>
+            ) : null}
             {dictation.available ? <LiveBar /> : null}
             {dictionaryWord !== null ? (
               <DictionaryQuickAdd daemonId={daemonId} word={dictionaryWord} onClose={() => setDictionaryWord(null)} />

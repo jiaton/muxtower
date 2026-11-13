@@ -209,8 +209,16 @@ export function InputBar({
 
   return (
     <div className="flex flex-col gap-2">
-      {send.isError ? <Banner tone="error">{send.error.message}</Banner> : null}
-      {pictures.error ? <Banner tone="error">{pictures.error}</Banner> : null}
+      {send.isError ? (
+        <Banner tone="error" aligned>
+          {send.error.message}
+        </Banner>
+      ) : null}
+      {pictures.error ? (
+        <Banner tone="error" aligned>
+          {pictures.error}
+        </Banner>
+      ) : null}
       {open ? (
         <div className="flex flex-col gap-2">
           {images && narrow ? (

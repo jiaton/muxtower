@@ -84,7 +84,12 @@ export function LiveBar() {
   })
   useEffect(() => () => void (useLive.getState().phase === 'error' && stopLive()), [])
   if (phase === 'off') return null
-  if (phase === 'error') return error ? <Banner tone="error">{error}</Banner> : null
+  if (phase === 'error')
+    return error ? (
+      <Banner tone="error" aligned>
+        {error}
+      </Banner>
+    ) : null
   const dismiss = () => {
     setNote(false)
     try {
@@ -126,7 +131,7 @@ export function LiveBar() {
   return (
     <>
       {phone && note ? (
-        <Banner tone="info">
+        <Banner tone="info" aligned>
           <span className="min-w-0 flex-1">Live works only with this page in front and the screen on.</span>
           <Button variant="ghost" size="icon-sm" aria-label="Got it" onClick={dismiss}>
             <X />
