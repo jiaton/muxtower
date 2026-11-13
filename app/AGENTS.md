@@ -76,7 +76,21 @@ A daemon can also be a hub: other computers' daemons join it as nodes (`docs/des
 ## Styling — token discipline
 
 - Colors, font sizes, radii, shadows only from `src/styles/tokens.css` (`@theme static`, so tokens read from JS exist too). No hex, no `rgb()`/`oklch()`, no Tailwind palette classes (`bg-zinc-900`), no arbitrary visual values (`text-[#fff]`, `rounded-[3px]`), no inline `style` colors. Arbitrary layout values (`max-h-[90dvh]`) and variants (`data-[state=open]:`) are fine. Libraries that need concrete colors (xterm.js) get them from `lib/css-color.ts`, which resolves tokens. Enforced by `npm run check:tokens` (`scripts/check-tokens.mjs`) in lint.
-- Layout utilities (`flex`, `gap-2`, `p-4`) are fine anywhere.
+- Layout utilities (`flex`, `items-center`, `min-w-0`) are fine anywhere; spacing follows the scale below.
+- **A look is defined once, in `components/ui/`, and composed everywhere else.** Text roles, surfaces and the
+  focus ring are in `components/ui/styles.ts` (`textRole.meta | hint | eyebrow | label | aside`,
+  `surface.outlined | muted | list`, `focusRing`, `focusWithinRing`): write `cn(textRole.meta, 'mt-1')`, never
+  `text-xs text-fg-muted` again. Fields use `<Label>` (and `<LabelNote>` for "optional"), rules `<Divider>`.
+  A new look that recurs becomes a role there or a primitive, never a string copied to a second file.
+  Enforced by `check:tokens`: (a) a class set a primitive or role owns may not appear together outside
+  `components/ui/`; (b) the same set of three or more visual classes (color, type, border, radius, shadow,
+  ground; not layout) may not be written in two or more files outside it. Its allowlist (`REPEAT_OK`) stays
+  empty unless a repeat has a reason written beside it.
+- **Spacing and size scale.** Controls are 40 px (`size-10`/`h-10`: icon buttons, inputs, a single-line
+  composer, the Live row) or 32 px (`icon-sm`, `sm`). Gaps: 0.5 stacked lines, 1 tight, 1.5 an icon and its
+  label (and a field's label and control), 2 the default between controls and rows, 3 between sections, 4
+  between a page's blocks; other steps are for `components/ui/` alone (`check:tokens` refuses them elsewhere).
+  Bars (a pane's header, the session footer) pad `px-2 sm:px-3`, `py-2`, their bottom at least the safe area.
 - Need a new color? Add the token (both themes) first.
 - Agent state colors are tokens too (`--color-state-permission`, `--color-state-question`, `--color-state-busy`, ...).
 
