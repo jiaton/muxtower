@@ -1,5 +1,5 @@
 import type { HTMLAttributes } from 'react'
-import { cn } from '@/lib/cn'
+import { cn } from '../../lib/cn'
 
 /**
  * A pane's bottom bar (the session footer): its rows stacked at the default gap, the bar's padding (`px-2

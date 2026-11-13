@@ -1,4 +1,4 @@
-import { cn } from '@/lib/cn'
+import { cn } from '../../lib/cn'
 import { composerColumns } from './bar'
 import { box, motion, surface, text, textRole } from './styles'
 
@@ -116,6 +116,21 @@ export const look = {
   turning: motion({ turns: true }),
   /** A long rounded bar holding controls (recording). */
   capsule: box({ outline: 'default', radius: 'full', ground: 'surface' }),
+} as const
+
+/** A session's state mark, by its state (the status icon; the site's demo draws the same marks): `unread` a
+ *  finished turn not yet looked at, `assistant` the concierge at rest. */
+export const stateInk = {
+  needs_permission: text({ tone: 'warning' }),
+  needs_trust: text({ tone: 'warning' }),
+  needs_answer: text({ tone: 'question' }),
+  plan_review: text({ tone: 'question' }),
+  error: text({ tone: 'error' }),
+  busy: cn(text({ tone: 'busy' }), motion({ spin: 'slow' })),
+  idle: text({ tone: 'idle' }),
+  unknown: text({ tone: 'idle' }),
+  unread: text({ tone: 'accent' }),
+  assistant: text({ tone: 'accent' }),
 } as const
 
 /** A quote the message replies to: grounded while open, when pointed at otherwise. */
