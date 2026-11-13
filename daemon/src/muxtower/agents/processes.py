@@ -25,5 +25,9 @@ class AgentProcesses:
                 return found  # type: ignore[no-any-return]
         return None
 
+    def moved(self, pane_pid: int, screen: str = "") -> bool:
+        """Whether the pane's agent moved its conversation to a process of its own (Claude Code's background)."""
+        return any((ask := getattr(p, "moved", None)) and ask(pane_pid, screen) for p in self.plugins)
+
     def running(self) -> dict[str, ClaudeProcess]:
         return {k: v for p in self.plugins for k, v in p.running().items()}

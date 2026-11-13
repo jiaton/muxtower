@@ -77,6 +77,7 @@ class LiveSession:
     title_origin: AgentName | None = None  # where that name came from, and since when
     alt_screen: bool = False  # draws full screen: tmux keeps no scrollback for it
     attached: bool = False  # a terminal is attached to its tmux session
+    in_background: bool = False  # its agent moved the conversation to a background process (Claude Code)
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 

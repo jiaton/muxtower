@@ -1947,6 +1947,12 @@ export interface components {
             /** Id */
             id: string;
             /**
+             * In Background
+             * @description its agent moved the conversation to a background process of its own (Claude Code's ← on an empty prompt): it runs on there, its Remote Control session and transcript with it; its terminal shows Claude Code's agents view, where Enter opens it again
+             * @default false
+             */
+            in_background: boolean;
+            /**
              * Interrupted At
              * @description its machine restarted under it: kept to be resumed or removed (`/v1/recovery`)
              */

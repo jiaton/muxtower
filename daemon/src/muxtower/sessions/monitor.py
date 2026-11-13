@@ -156,11 +156,20 @@ class Monitor(Reconciler):
                 svc.repo.upsert(record)
                 result.sessions_changed = True
             alt_screen, attached = bool(pane and pane.alternate), bool(pane and pane.attached)
+            moved = getattr(self.processes, "moved", None)  # Claude Code's background: see claude_processes.py
+            in_background = bool(moved and pid and moved(pid, text))
             if transcript:
                 svc.know_agent(record, transcript)
-            seen = (remote_id, transcript, title, alt_screen, attached)
-            if seen != (live.remote_id, live.transcript, live.title, live.alt_screen, live.attached):
-                live.remote_id, live.transcript, live.title, live.alt_screen, live.attached = seen
+            seen = (remote_id, transcript, title, alt_screen, attached, in_background)
+            if seen != (
+                live.remote_id,
+                live.transcript,
+                live.title,
+                live.alt_screen,
+                live.attached,
+                live.in_background,
+            ):
+                live.remote_id, live.transcript, live.title, live.alt_screen, live.attached, live.in_background = seen
                 result.sessions_changed = True
 
             entered = svc.refresh(record, live, before.state)

@@ -9,11 +9,12 @@ import type { Track } from '@/lib/use-outbox'
 import { useSendInput } from '../api/use-terminal'
 import { useAttachments } from '../hooks/use-attachments'
 import { useComposerPanel, usePanelSwipe } from '../hooks/use-composer-panel'
+import { useGuardedKeys } from '../hooks/use-guarded-keys'
 import { base64, imagesIn } from '../images'
 import { withQuotes, type Quote } from '../quotes'
 import { draftKey as keyOf, useDrafts } from '../store'
 import { ImageCards } from './image-cards'
-import { KeyPad } from './key-pad'
+import { KeyPad, PAD_KEYS } from './key-pad'
 import { QuoteCards } from './quote-cards'
 import { submitters } from '../draft-box'
 import { useTokenMenu, type TokenSource } from '@/components/ui/token-menu'
@@ -44,6 +45,7 @@ export function InputBar({
   extra,
   cover,
   mention,
+  guard,
 }: {
   daemonId: string
   sessionId: string
@@ -54,6 +56,8 @@ export function InputBar({
   cover?: ReactNode
   /** What `@` offers to mention, in the textarea and in each quote's reply (from another feature, as a slot). */
   mention?: TokenSource
+  /** Why a key of the pad should ask before it goes (a second tap sends it), or null: `useGuardedKeys`. */
+  guard?: (key: string) => string | null
 }) {
   const send = useSendInput(daemonId, sessionId)
   const draftKey = keyOf(daemonId, sessionId)
@@ -92,6 +96,8 @@ export function InputBar({
   const composer = useRef<HTMLDivElement>(null)
   usePanelSwipe(composer, open, setOpen)
   const narrow = useMediaQuery(PHONE_QUERY) // a phone's row: pictures go to the + panel
+  const guarded = useGuardedKeys(guard ?? (() => null), (key) => send.mutate({ key }))
+  const guardedKeys = guard ? PAD_KEYS.filter((k) => guard(k)) : []
   const picker = useRef<HTMLInputElement>(null)
 
   /** With pictures: they and the words leave the textarea together, and come back to it if not sent. */
@@ -239,7 +245,12 @@ export function InputBar({
               <ImagePlus /> Add pictures
             </Button>
           ) : null}
-          <KeyPad keys={keys} onKey={(key) => send.mutate({ key })} />
+          {guarded.hint ? (
+            <Banner tone="warning" aligned>
+              {guarded.hint}
+            </Banner>
+          ) : null}
+          <KeyPad keys={keys} guarded={guardedKeys} onKey={guarded.press} />
         </div>
       ) : null}
       {cover ? <div className="flex items-end">{cover}</div> : null}

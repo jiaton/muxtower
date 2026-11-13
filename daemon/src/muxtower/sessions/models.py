@@ -124,6 +124,12 @@ class Session(BaseModel):
         default=False,
         description="a terminal is attached to its tmux session, so someone may be watching it at its own size",
     )
+    in_background: bool = Field(
+        default=False,
+        description="its agent moved the conversation to a background process of its own (Claude Code's ← on "
+        "an empty prompt): it runs on there, its Remote Control session and transcript with it; its terminal "
+        "shows Claude Code's agents view, where Enter opens it again",
+    )
     role: SessionRole | None = None
     remote_id: str | None = Field(
         default=None,

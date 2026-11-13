@@ -29,9 +29,23 @@ const KEYS: KeyDef[] = [
   { key: 'Enter', label: <CornerDownLeft />, name: 'Enter', at: 'col-start-8 row-span-2 row-start-1 h-auto' },
 ]
 
+/** The names of the pad's keys. */
+export const PAD_KEYS = KEYS.map((k) => k.key)
+
 /** The keys an agent's TUI needs that a phone keyboard lacks. `keys`: the ones this session takes
- *  (empty: all). */
-export function KeyPad({ keys, onKey, className }: { keys: string[]; onKey: (key: string) => void; className?: string }) {
+ *  (empty: all). `guarded`: keys that ask before they go (`useGuardedKeys`): they never repeat while
+ *  held, so the tap that confirms one is always a tap of its own. */
+export function KeyPad({
+  keys,
+  onKey,
+  guarded = [],
+  className,
+}: {
+  keys: string[]
+  onKey: (key: string) => void
+  guarded?: string[]
+  className?: string
+}) {
   const press = useKeyRepeat((key) => {
     navigator.vibrate?.(8)
     onKey(key)
@@ -57,7 +71,7 @@ export function KeyPad({ keys, onKey, className }: { keys: string[]; onKey: (key
           aria-label={k.name}
           title={k.name}
           className={cn('', !sparse && k.at, sparse && 'px-3')}
-          {...press(k.key, Boolean(k.repeat))}
+          {...press(k.key, Boolean(k.repeat) && !guarded.includes(k.key))}
         >
           {sparse && k.key === 'Escape' ? 'esc · interrupt' : k.label}
         </Button>

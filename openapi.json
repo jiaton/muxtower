@@ -2124,6 +2124,12 @@
             "title": "Id",
             "type": "string"
           },
+          "in_background": {
+            "default": false,
+            "description": "its agent moved the conversation to a background process of its own (Claude Code's \u2190 on an empty prompt): it runs on there, its Remote Control session and transcript with it; its terminal shows Claude Code's agents view, where Enter opens it again",
+            "title": "In Background",
+            "type": "boolean"
+          },
           "interrupted_at": {
             "anyOf": [
               {

@@ -210,3 +210,88 @@ def test_where_an_agent_cds_to_never_moves_where_it_is_listed() -> None:
     assert deeper("/home/me/projects/app", "/home/me/projects/app-fix") is None  # another worktree: not even said
     assert deeper("/home/me/projects/app", "/srv/other") is None
     assert deeper("", "/srv/other") is None
+
+
+def _moved_setup(tmp_path: Path, hops: list[str]) -> tuple[ClaudeProcesses, Path]:
+    """A pane's Claude Code (this process) whose conversation Claude Code moved to the background: its
+    transcript `continued-in` each of `hops` in turn, its own process file left with no bridge."""
+    sessions, projects = tmp_path / "sessions", tmp_path / "projects" / "-home-me-shop"
+    sessions.mkdir()
+    projects.mkdir(parents=True)
+    ids = ["00000000-0000-4000-8000-000000000000", *hops]
+    for here, there in zip(ids, ids[1:], strict=False):
+        line = json.dumps({"type": "continued-in", "continuedInSessionId": there, "sessionId": here})
+        (projects / f"{here}.jsonl").write_text(json.dumps({"type": "user"}) + "\n" + line + "\n")
+    (projects / f"{ids[-1]}.jsonl").write_text(json.dumps({"type": "user"}) + "\n")
+    pane = os.getpid()
+    (sessions / f"{pane}.json").write_text(
+        json.dumps({"pid": pane, "sessionId": ids[0], "cwd": "/home/me/shop", "bridgeSessionId": None})
+    )
+    return ClaudeProcesses(tmp_path), sessions
+
+
+B = "11111111-1111-4111-8111-111111111111"
+C = "22222222-2222-4222-8222-222222222222"
+DEAD = 2**22 + 12345  # above any pid this system hands out (pid_max is at most 2**22)
+
+
+def test_a_conversation_moved_to_the_background_keeps_its_remote_session_and_transcript(tmp_path: Path) -> None:
+    processes, sessions = _moved_setup(tmp_path, [B])
+    pane, host = os.getpid(), os.getppid()  # the background process: alive
+    assert processes.remote_id(pane) is None and not processes.moved(pane)  # not running anywhere yet
+    # A stale file of a dead process that once ran B (its pid since gone) is not it.
+    (sessions / f"{DEAD}.json").write_text(json.dumps({"pid": DEAD, "sessionId": B, "bridgeSessionId": "session_OLD"}))
+    assert processes.remote_id(pane) is None
+    (sessions / f"{host}.json").write_text(
+        json.dumps(
+            {"pid": host, "sessionId": B, "cwd": "/home/me/shop", "bridgeSessionId": "session_01MOVED", "kind": "bg"}
+        )
+    )
+    assert processes.remote_id(pane) == "cse_01MOVED"
+    assert processes.moved(pane)
+    assert processes.transcript(pane) == str(tmp_path / "projects" / "-home-me-shop" / f"{B}.jsonl")
+
+
+def test_a_conversation_moved_twice_follows_the_chain(tmp_path: Path) -> None:
+    processes, sessions = _moved_setup(tmp_path, [B, C])
+    pane, host = os.getpid(), os.getppid()
+    (sessions / f"{DEAD}.json").write_text(json.dumps({"pid": DEAD, "sessionId": B, "bridgeSessionId": "session_01B"}))
+    (sessions / f"{host}.json").write_text(json.dumps({"pid": host, "sessionId": C, "bridgeSessionId": "session_01C"}))
+    assert processes.remote_id(pane) == "cse_01C"
+    assert processes.transcript(pane).endswith(f"{C}.jsonl")
+
+
+def test_a_pane_with_its_own_bridge_is_not_moved(tmp_path: Path) -> None:
+    processes, sessions = _moved_setup(tmp_path, [B])
+    pane, host = os.getpid(), os.getppid()
+    (sessions / f"{pane}.json").write_text(
+        json.dumps({"pid": pane, "sessionId": B, "cwd": "/home/me/shop", "bridgeSessionId": "session_01OWN"})
+    )
+    (sessions / f"{host}.json").write_text(json.dumps({"pid": host, "sessionId": C, "bridgeSessionId": "session_01X"}))
+    assert processes.remote_id(pane) == "cse_01OWN" and not processes.moved(pane)
+
+
+def test_a_moved_tmux_agent_merges_with_its_remote_session_and_says_so(tmp_path: Path) -> None:
+    tmux = FakeTmux()
+    pane = tmux.add_pane("default", "work", "claude")
+    pane.info = dataclasses.replace(pane.info, pid=4242)
+    port = FakeRemoteControl()
+    port.sessions = [session("cse_1", title="Fix the login bug")]
+    source = RemoteControlSource(port, {})
+    source.tick()
+    settings = load_settings(
+        config_file=tmp_path / "none.toml", env={},
+        overrides={"state_dir": tmp_path / "s", "config_dir": tmp_path / "c", "serve_ui": False},
+    )  # fmt: skip
+    app = create_app(settings, tmux=tmux, run_loops=False, remote_control=source)
+
+    class Moved(FakeProcesses):
+        def moved(self, pane_pid: int, screen: str = "") -> bool:
+            return pane_pid == 4242
+
+    Monitor(app.state.sessions, Moved({4242: "cse_1"})).tick()
+    client = TestClient(app)
+    _, token = app.state.tokens.create("phone")
+    listed = client.get("/v1/sessions", headers={"Authorization": f"Bearer {token}"}).json()
+    (merged,) = listed
+    assert merged["remote_id"] == "cse_1" and merged["in_background"] is True

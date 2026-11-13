@@ -10,7 +10,14 @@ name (what `/rename` set, or the one Claude Code gave it), which a tmux session 
 named it in muxtower, and says how Claude Code was started
 (`entrypoint`: `cli`, `sdk-cli`, the desktop app or an IDE…), which is what the session's origin is. Its
 `tmux` field is not used: workers spawned by `claude remote-control` inherit it from wherever the server
-was started."""
+was started.
+
+Claude Code (2.1.322+) can move a pane's conversation to the background (← on an empty prompt): a
+`claude daemon run` child of the pane's process takes it on as a new session (`--fork-session`, the same
+`--settings`, so its hooks still report as the pane's session), the old transcript ends in `continued-in`
+the new one, and the Remote Control bridge moves to that process's file, the pane's left with none. The
+pane's session follows it (`moved`): its transcript is the new one, and its Remote Control session the
+one of the live process whose `sessionId` is where the transcript went on, so it is listed once."""
 
 import json
 import os
@@ -64,6 +71,22 @@ def continued(path: Path, projects_dir: Path) -> str:
     return str(path)
 
 
+def continuations(path: Path, projects_dir: Path) -> list[str]:
+    """The sessions a conversation went on in, in order (`continued-in`, followed into any folder); the
+    last may have no transcript yet."""
+    ids: list[str] = []
+    for _ in range(MAX_HOPS):
+        following = _continued_in(path)
+        if not following or following in ids:
+            break
+        ids.append(following)
+        found = next(projects_dir.glob(f"*/{following}.jsonl"), None)
+        if found is None:
+            break
+        path = found
+    return ids
+
+
 @dataclass(frozen=True)
 class ClaudeProcess:
     pid: int
@@ -103,9 +126,43 @@ class ClaudeProcesses:
             return info if isinstance(info, dict) else None
         return None
 
+    def _path(self, info: dict[str, object]) -> Path | None:
+        """The transcript a process file names (not followed)."""
+        if not isinstance(info.get("sessionId"), str) or not isinstance(info.get("cwd"), str):
+            return None
+        return self.projects_dir / re.sub(r"[^A-Za-z0-9]", "-", str(info["cwd"])) / f"{info['sessionId']}.jsonl"
+
+    def _moved_to(self, info: dict[str, object]) -> dict[str, object] | None:
+        """The live process the pane's conversation was moved to (Claude Code's background), when its own
+        process has no bridge and its transcript went on in a session a live process runs: the latest."""
+        if _remote_id(info) or not (path := self._path(info)) or not path.is_file():
+            return None
+        ids = continuations(path, self.projects_dir)
+        if not ids:
+            return None
+        best: tuple[int, dict[str, object]] | None = None
+        for file in self.sessions_dir.glob("*.json"):
+            try:
+                other = json.loads(file.read_text())
+                pid = int(other.get("pid") or file.stem)
+            except (OSError, ValueError, AttributeError):
+                continue
+            at = ids.index(other["sessionId"]) if other.get("sessionId") in ids else -1
+            if at >= 0 and (best is None or at > best[0]) and alive(pid):
+                best = (at, other)
+        return best[1] if best else None
+
     def remote_id(self, pane_pid: int, screen: str = "") -> str | None:
         info = self._info(pane_pid)
-        return _remote_id(info) if info else None  # None: no Claude Code, or one without Remote Control
+        if not info:
+            return None  # no Claude Code
+        moved = self._moved_to(info)
+        return _remote_id(moved or info)  # None: one without Remote Control
+
+    def moved(self, pane_pid: int, screen: str = "") -> bool:
+        """The pane's conversation runs in the background now (moved there by Claude Code)."""
+        info = self._info(pane_pid)
+        return bool(info and self._moved_to(info))
 
     def name(self, pane_pid: int, screen: str = "") -> str | None:
         """The session's name in Claude Code (what `/rename` set, or the one it gave itself)."""
@@ -126,10 +183,8 @@ class ClaudeProcesses:
     def transcript(self, pane_pid: int, screen: str = "") -> str | None:
         """The transcript file of the pane's Claude Code session, when it exists."""
         info = self._info(pane_pid)
-        if not info or not isinstance(info.get("sessionId"), str) or not isinstance(info.get("cwd"), str):
-            return None
-        path = self.projects_dir / re.sub(r"[^A-Za-z0-9]", "-", str(info["cwd"])) / f"{info['sessionId']}.jsonl"
-        return continued(path, self.projects_dir) if path.is_file() else None
+        path = self._path(info) if info else None
+        return continued(path, self.projects_dir) if path and path.is_file() else None
 
     def running(self) -> dict[str, ClaudeProcess]:
         """Every Claude Code process alive on this machine that runs Remote Control, by remote session

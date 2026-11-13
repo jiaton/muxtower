@@ -163,6 +163,12 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
     reply(message.text)
   }
 
+  // Claude Code (2.1.322+) moves the conversation to the background on ← at an empty prompt: at its idle
+  // prompt, the pad's ← asks first (the line may be empty; the screen cannot tell reliably).
+  const guardKey = (key: string) =>
+    key === 'Left' && session.runtime === 'claude-code' && session.state === 'idle'
+      ? 'On an empty prompt, ← moves this conversation to the background in Claude Code. Tap again to send.'
+      : null
   const termItems = view === 'terminal' && !!screen
   const fullScreen = canFullScreen()
   return (
@@ -204,6 +210,13 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
       {session.needs_attention && session.pending ? (
         <div className={`${look.bar.bottom} max-h-[45%] shrink-0 overflow-y-auto p-3 sm:px-4`}>
           <PendingActionCard daemonId={daemonId} sessionId={session.id} pending={session.pending} />
+        </div>
+      ) : null}
+
+      {session.in_background ? (
+        // Claude Code moved the conversation to a process of its own: it runs on there, listed here as before.
+        <div className={`${look.bar.bottom} shrink-0 p-3 sm:px-4`}>
+          <Banner>Claude Code moved this conversation to the background. It goes on there; Enter in the terminal shows it again.</Banner>
         </div>
       ) : null}
 
@@ -304,6 +317,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
               }
               cover={dictation.active ? <VoiceBar dictation={dictation} /> : null}
               mention={mention}
+              guard={guardKey}
             />
           </FooterBar>
         </>
