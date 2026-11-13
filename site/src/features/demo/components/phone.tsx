@@ -9,16 +9,18 @@ import { HubDownBanner } from './hub-down-banner'
 import { AgentMark, StateMark } from './marks'
 import { MessageItem } from './message'
 import { SessionRow } from './session-row'
+import { ink as appInk, look as appLook } from '@app/components/ui/intents'
+import { device, deviceGroup, look } from '@/components/ui/intents'
 
 /** The same hub on a phone: the lock screen with its notifications, the session list, one session. */
 export function Phone({ world, className }: { world: World; className?: string }) {
   return (
-    <div className={cn('rounded-device bg-device-frame p-2.5 shadow-device', className)}>
-      <div className="relative flex size-full flex-col overflow-hidden rounded-screen bg-background">
-        <div className="flex items-center justify-between px-6 pt-3 pb-1 text-xs font-semibold">
+    <div className={cn(device.phone, 'p-2.5', className)}>
+      <div className={`${device.screen} relative flex size-full flex-col overflow-hidden`}>
+        <div className={`${device.statusBar} flex items-center justify-between px-6 pt-3 pb-1`}>
           <span>9:41</span>
-          <span className="h-5 w-20 rounded-full bg-device-frame" aria-hidden />
-          <span className="text-fg-muted">5G</span>
+          <span className={`${device.notch} h-5 w-20`} aria-hidden />
+          <span className={appInk.quiet}>5G</span>
         </div>
         {world.hubDown && world.phone.screen !== 'lock' && <HubDownBanner target="phone-banner" />}
         <AnimatePresence mode="wait" initial={false}>
@@ -44,8 +46,8 @@ function LockScreen({ world }: { world: World }) {
   const { notification } = world.phone
   return (
     <div className="flex flex-1 flex-col gap-3 px-3 pt-10">
-      <p className="text-center text-6xl font-light tracking-tight">9:41</p>
-      <p className="mb-4 text-center text-sm text-fg-muted">Tuesday, November 3</p>
+      <p className={`${device.lockClock} text-center`}>9:41</p>
+      <p className={`${appInk.hint} mb-4 text-center`}>Tuesday, November 3</p>
       <AnimatePresence>
         {notification && (
           <motion.div
@@ -54,16 +56,16 @@ function LockScreen({ world }: { world: World }) {
             initial={{ opacity: 0, y: -20, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0 }}
-            className="flex gap-2.5 rounded-lg bg-muted p-3"
+            className={`${device.notification} flex gap-2.5 p-3`}
           >
-            <img src="/icon.svg" alt="" className="mt-0.5 size-8 rounded-md" />
-            <div className="min-w-0 text-sm">
+            <img src="/icon.svg" alt="" className={`${look.appIcon} mt-0.5 size-8`} />
+            <div className={`${appInk.body} min-w-0`}>
               <p className="flex justify-between gap-2">
-                <span className="font-semibold">{notification.title}</span>
-                <span className="text-xs text-fg-muted">now</span>
+                <span className={appInk.emphasis}>{notification.title}</span>
+                <span className={appInk.meta}>now</span>
               </p>
               <p className="line-clamp-3">{notification.body}</p>
-              <p className="text-fg-muted">{notification.where}</p>
+              <p className={appInk.quiet}>{notification.where}</p>
             </div>
           </motion.div>
         )}
@@ -75,18 +77,18 @@ function LockScreen({ world }: { world: World }) {
 function ListScreen({ world }: { world: World }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <p className="px-4 pt-2 pb-2 text-lg font-semibold">All sessions</p>
+      <p className={`${device.appTitle} px-4 pt-2 pb-2`}>All sessions</p>
       <div className="min-h-0 flex-1 overflow-hidden">
-        {groupsByDevice(world).map(({ device, sessions }) => (
+        {groupsByDevice(world).map(({ device: machine, sessions }) => (
           <section
-            key={device.id}
-            aria-label={device.name}
-            data-demo={`phone-group-${device.id}`}
-            className={cn('transition-opacity', device.hub && world.hubDown && 'opacity-40')}
+            key={machine.id}
+            aria-label={machine.name}
+            data-demo={`phone-group-${machine.id}`}
+            className={deviceGroup({ off: !!machine.hub && world.hubDown })}
           >
-            <p className="bg-muted px-3 py-0.5 text-xs font-medium text-fg-muted">
-              {device.name}
-              {device.hub && world.hubDown && ' · unreachable'}
+            <p className={`${device.groupHeader} px-3 py-0.5`}>
+              {machine.name}
+              {machine.hub && world.hubDown && ' · unreachable'}
             </p>
             {sessions.map((s) => (
               <SessionRow key={s.id} session={s} target={`phone-row-${s.id}`} flash={world.flash === `row-${s.id}`} compact />
@@ -104,7 +106,7 @@ function SelectionBar() {
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="flex gap-1 self-start rounded-md border border-border bg-popover p-1 shadow-card"
+      className={`${device.popover} flex gap-1 self-start p-1`}
     >
       <Button size="xs" variant="ghost" tabIndex={-1}>
         <Copy /> Copy
@@ -122,12 +124,12 @@ function SessionScreen({ world }: { world: World }) {
   if (!session) return null
   return (
     <div data-demo="phone-screen" className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
-        <ChevronLeft className="size-4 text-fg-muted" />
+      <div className={`${appLook.rule.bottom} flex items-center gap-2 px-3 py-2`}>
+        <ChevronLeft className={`${appInk.quiet} size-4`} />
         <StateMark state={session.state} />
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold">{session.name}</p>
-          <p className="flex items-center gap-1 truncate text-xs text-fg-muted">
+          <p className={`${device.sessionTitle} truncate`}>{session.name}</p>
+          <p className={`${appInk.meta} flex items-center gap-1 truncate`}>
             <AgentMark agent={session.agent} /> {deviceName(session.device)} · {session.folder}
           </p>
         </div>
@@ -141,20 +143,20 @@ function SessionScreen({ world }: { world: World }) {
           </div>
         ))}
       </div>
-      <div data-demo="phone-composer" className="flex flex-col gap-1.5 border-t border-border p-2.5">
+      <div data-demo="phone-composer" className={`${appLook.rule.top} flex flex-col gap-1.5 p-2.5`}>
         {quote && (
-          <p className="flex items-center gap-1.5 rounded-md bg-muted px-2 py-1.5 text-xs">
-            <Quote className="size-3 shrink-0 text-fg-muted" />
+          <p className={`${device.quoteChip} flex items-center gap-1.5 px-2 py-1.5`}>
+            <Quote className={`${appInk.quiet} size-3 shrink-0`} />
             <span className="flex-1 truncate">{quote}</span>
-            <X className="size-3 shrink-0 text-fg-muted" />
+            <X className={`${appInk.quiet} size-3 shrink-0`} />
           </p>
         )}
         <div className="flex items-end gap-2">
-          <p className="min-h-9 flex-1 rounded-lg border border-border px-3 py-2 text-sm">
-            {draft || <span className="text-fg-muted">Message the agent</span>}
-            {draft && <span className="ml-px inline-block h-4 w-px animate-pulse bg-fg align-middle" />}
+          <p className={`${device.inputBox} min-h-9 flex-1 px-3 py-2`}>
+            {draft || <span className={appInk.quiet}>Message the agent</span>}
+            {draft && <span className={`${device.caret} ml-px inline-block h-4 w-px align-middle`} />}
           </p>
-          <Button size="icon" data-demo="phone-send" tabIndex={-1} aria-label="Send" className="rounded-full">
+          <Button size="icon" round data-demo="phone-send" tabIndex={-1} aria-label="Send">
             <ArrowUp />
           </Button>
         </div>

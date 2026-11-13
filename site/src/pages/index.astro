@@ -2,6 +2,7 @@
 /** The one page. Sections without an island directive are plain HTML; the ones that move or take input
  *  hydrate when they come into view (the hero, with the demo, at once). */
 import Base from '@/layouts/base.astro'
+import { look } from '@/components/ui/intents'
 import { Faq } from '@/sections/faq'
 import { Features } from '@/sections/features'
 import { Footer } from '@/sections/footer'
@@ -18,7 +19,7 @@ import { Usage } from '@/sections/usage'
   title="muxtower — every machine, every agent, one list"
   description="See and direct every Claude Code and Codex session on all your machines, live, from any browser or your phone. Agents hand each other work. Self-hosted, open source."
 >
-  <div id="top" class="min-h-dvh bg-background text-foreground">
+  <div id="top" class={`${look.page} min-h-dvh`}>
     <Header />
     <main>
       <Hero client:load />

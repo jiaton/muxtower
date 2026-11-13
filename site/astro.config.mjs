@@ -2,6 +2,7 @@
 // or take input (the demo, tabs, the FAQ, copy buttons) ship JavaScript, as React islands.
 import react from '@astrojs/react'
 import tailwindcss from '@tailwindcss/vite'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'astro/config'
 
 export default defineConfig({
@@ -14,5 +15,7 @@ export default defineConfig({
     envPrefix: ['PUBLIC_', 'MUXTOWER_SITE_'],
     // The design tokens live in the app (`app/src/styles/tokens.css`).
     server: { fs: { allow: ['..'] } },
+    // The demo draws the app with the app's own looks (its intents), so it cannot drift from them.
+    resolve: { alias: { '@app': fileURLToPath(new URL('../app/src', import.meta.url)) } },
   },
 })

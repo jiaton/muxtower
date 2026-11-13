@@ -14,32 +14,31 @@ From the frontend template (dotfiles `projects/claude_templates/AGENTS.frontend.
 - Styling: Tailwind CSS v4. Tokens live in `src/styles/site.css` (see below).
 - Animation: `motion` (the demo only).
 - Forms: none. The page has no input. Add react-hook-form + zod the day it gets one.
-- Icons: lucide-react. The GitHub mark is `components/shared/github-mark.tsx`, since the icon set has no brand icons.
+- Icons: lucide-react. The GitHub mark is `components/ui/github-mark.tsx`, since the icon set has no brand icons.
 - Server state: none. The page fetches nothing. TanStack Query the day it does.
 - Client state: local `useState` only. The demo's state is a pure function of its clock (`model/player.ts`), so no store is needed.
 - Data contract: none. The site calls no API. The demo's world (`model/world.ts`) is drawn to look like the app, not typed from `openapi.json`, on purpose: it is an illustration, and it is free to simplify.
 
 ## Use the framework — never hand-roll Tailwind UI
 
-- Every control is a shadcn component: Button (including its `step` variant for the demo's beats), Tabs, Accordion, Badge, Progress, Separator. No native `<select>`, no hand-styled `<button>`, no home-made tabs or disclosure.
+- Every control is a shadcn component: Button (including its `step` variant for the demo's beats), Tabs, Accordion, Badge, Progress, Separator; a link that is not a button is `TextLink`. No native `<button>`, `<input>`, `<select>`, `<textarea>` or styled `<a>`, no home-made tabs or disclosure.
 - shadcn's token names are mapped onto the app's tokens in `site.css` (`background`, `foreground`, `primary` = the app's accent, `muted`, `card`, `destructive`, `border`, `input`, `ring`). shadcn's own `accent` (a hover background) is not mapped, because the app's `accent` is its brand blue. The generated components use `muted` for hovers instead, which is the one edit made to them besides `text-danger-fg` for `text-white`. Repeat both edits after `ui:add`.
 - A look the framework lacks is a variant in `components/ui/` (for example `button.tsx`'s `step`), never classes at the call site.
-- Compositions shared by sections go in `components/shared/`: section, terminal, command pill, fact list, term grid, rich text.
+- Compositions shared by sections go in `components/ui/` too: section, terminal, command pill, rich text, feature clip, text link.
 - The demo's phone and desktop window are drawings, not controls. The buttons inside them are shadcn Buttons with `tabIndex={-1}`: nobody operates them, the cursor does.
 
 ## Architecture
 
-1. `components/ui/`: shadcn primitives only. The only place a new visual style is defined.
-2. `components/shared/`: compositions of primitives used by several sections.
-3. `features/demo/`: the self-playing demo.
+1. `components/ui/`: shadcn and Magic UI primitives, the compositions several sections share (section, terminal, command pill, rich text, feature clip, text link), and the intents (`intents.ts`). The only place a visual style is defined.
+2. `features/demo/`: the self-playing demo.
    - `model/`: the world, the script (steps and beats) and the player (`frameAt(t)`). Pure functions, no React.
    - `hooks/`: the clock and a width measure.
    - `components/`: the stage, desktop window, phone, cursor, hub map and controls.
    - `index.tsx` is its one export, `DemoShow`.
-4. `sections/`: one component per band of the page, composed by `app.tsx`. Layout and wiring only.
-5. `content/`: all copy, as data, in English. Sections render it and hold no sentences of their own. `code` is written in backticks and rendered by `RichText`.
-6. `lib/`: `cn`, clipboard.
-7. `config.ts`: build-time settings and the demo build's URL. `MUXTOWER_SITE_REPO`: the GitHub repository (links to it, the README and SECURITY.md are left out when unset). `MUXTOWER_SITE_APP_URL`: the public hosted app (`../app/deploy/`, its own origin); its entry is left out when unset.
+3. `sections/`: one component per band of the page, composed by `app.tsx`. Layout and wiring only.
+4. `content/`: all copy, as data, in English. Sections render it and hold no sentences of their own. `code` is written in backticks and rendered by `RichText`.
+5. `lib/`: `cn`, clipboard.
+6. `config.ts`: build-time settings and the demo build's URL. `MUXTOWER_SITE_REPO`: the GitHub repository (links to it, the README and SECURITY.md are left out when unset). `MUXTOWER_SITE_APP_URL`: the public hosted app (`../app/deploy/`, its own origin); its entry is left out when unset.
 
 No cross-feature imports. Split a file before 250 lines.
 
@@ -58,9 +57,19 @@ No cross-feature imports. Split a file before 250 lines.
 - The page is light only: `index.html` sets `data-theme="light"`. Terminal transcripts keep the app's dark terminal colors.
 - Enforced by `scripts/check-tokens.mjs` (part of `npm run lint`). It forbids raw hex and color functions and Tailwind palette classes outside `site.css`, and arbitrary visual values (`text-[…]`, `rounded-[…]`, …) outside `components/ui/`. Layout utilities, including arbitrary sizes and positions on the demo's fixed stage, are not covered.
 
+## Styling — what, not how
+
+The app's rule (`../app/AGENTS.md` › Styling), with the site's own tokens and design.
+
+- **Sections and the demo say what a thing is; `components/ui/` decides how it looks.** Outside `components/ui/` a class string (`className`, and `class` / `class:list` in `.astro`) holds layout only (display, flex and grid, gap, padding and margin, size, position and inset, overflow, z, alignment, truncate, whitespace, `text-balance`), and a look comes from a named intent or a component: `ink.*` for text (hero, display, copy, note, quiet, meta, strong, heading, accent, code…), `look.*` for boxes (page, headerBar, showcase, card, iconTile, bullet, inkCard…), the stateful intents (`handoff`, `beamNode`), and components with their variants (Card `soft`, Badge `eyebrow` and `text`, TabsTrigger `code`, TableCell `numeric`, CommandPill `large`, DotPattern `fade`, Button `round`, TextLink), all in `components/ui/`. An element takes at most one text intent and one box intent (`ink.count` may join); a component with a look of its own takes variants, not intents.
+- **The demo draws the app with the app's intents.** `@app/components/ui/intents` (an alias for `../app/src`, in `astro.config.mjs`, `tsconfig.json` and `vitest.config.ts`; `site.css` `@source`s the app's ui so its classes are generated): `ink as appInk`, `look as appLook`, `listItem`, `bubble`, `stateInk` (the status icon's tones). So the drawing follows the app, and renaming or removing an app intent the demo uses fails the site's `tsc`, in `make check`. What the app has no intent for is the site's: `device.*` (the phone, the window, the pointer, the spotlight, the hub map, the drawn notice and approval) and the demo's own row and tile intents (`demoRow`, which is the app's `listItem` plus the demo's flash, `machineTile`, `mapNode`, `toolRow`, `deviceGroup`).
+- **Pick an intent; if none fits, add one in `components/ui/intents.ts`, merging rather than adding a near-duplicate.** A new intent says, in its comment, which existing intent it is not and why (`/** … Not \`copy\`: … */`), so the next one reuses before it adds.
+- **Spacing scale.** The app's (gap, padding and margin 0, 0.5, 1, 1.5, 2, 2.5, 3, 4) for what the demo draws and for a section's details, and the page's larger steps for its rhythm: 5, 6, 7, 8, 10, 12, 14, 16, 20, 28. Margin also `px` (a caret's hairline) and `auto`. Nothing negative. Other steps live inside a primitive.
+- Enforced by `scripts/check-styles.mjs` (part of `npm run lint`): layout-only class strings, the spacing scale, no native controls, no import of the app's builders (`components/ui/styles`), one text and one box intent per element, no intent on a component with its own look; outside `components/ui/` and tests. It has no allowlist; a case it cannot express becomes an intent or a variant in ui.
+
 ## Component decoupling
 
-Composition over props, one job per component. Before writing a styled element in a section, look in `components/shared/`. A pattern used twice goes there.
+Composition over props, one job per component. Before writing a styled element in a section, look in `components/ui/`. A pattern used twice goes there.
 
 ## Modern React conventions
 
@@ -97,7 +106,7 @@ None. The site calls no API (see Stack). If it ever shows live data, it uses `op
 
 - Install: `npm ci` here and in `../app` (the demo build and the tokens come from it).
 - Dev server: `npm run dev`. `/demo/` needs a build.
-- The one gate, run before every commit and by `make check` in CI: `npm run check`. It runs lint (oxlint and the token check), `prettier --check`, the colocated-test check, `tsc` and the tests.
+- The one gate, run before every commit and by `make check` in CI: `npm run check`. It runs lint (oxlint, the token check and the styling check), `prettier --check`, the colocated-test check, `tsc` and the tests.
 - Build: `npm run build`. That is the app's demo build at base `/demo/` (given `MUXTOWER_SITE_APP_URL` as `MUXTOWER_DEMO_APP_URL`, for its "Connect your own daemon" card), plus `build:site`: `astro build` into `dist/`, and `scripts/copy-demo.mjs` copying `../app/dist-demo` into `dist/demo/`. `npm run typecheck` is `astro check` and `tsc`.
 - Preview: `npm run preview`.
 - Deploy: `npm run deploy`, to Cloudflare Workers static assets via the `cf` CLI. The config is in `deploy/`. The project's domain is muxtower.dev: `MUXTOWER_SITE_DOMAIN=muxtower.dev MUXTOWER_SITE_APP_URL=https://app.muxtower.dev npm run deploy` binds it as the Worker's custom domain (unset, only workers.dev), and `src/layouts/base.astro` writes the link-preview tags (`og:image` = `public/og.png`, 1200×630) for it. `deploy/www/` is a Worker of its own on www.muxtower.dev that only 301s to the apex (`npm ci && npx cf deploy` there). No personal domains or account handles, ever; the workers.dev addresses stay off (a domain bound turns them off).

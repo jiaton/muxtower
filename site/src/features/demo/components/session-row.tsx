@@ -3,6 +3,8 @@ import { motion } from 'motion/react'
 import { cn } from '@/lib/utils'
 import { metaOf, type Session } from '../model/world'
 import { AgentMark, StateMark } from './marks'
+import { ink as appInk } from '@app/components/ui/intents'
+import { demoRow, demoRowTitle, demoSideRow, ink } from '@/components/ui/intents'
 
 interface Props {
   session: Session
@@ -23,22 +25,17 @@ export function SessionRow({ session, target, flash, selected, compact }: Props)
     <motion.div
       {...enter}
       data-demo={target}
-      className={cn(
-        'relative flex gap-2.5 border-b border-border px-3 py-2 transition-colors duration-500',
-        session.parent && 'pl-8',
-        selected && 'bg-muted',
-        flash && 'bg-state-busy-soft',
-      )}
+      className={cn(demoRow({ selected: !!selected, flash }), 'relative flex gap-2.5 px-3 py-2', session.parent && 'pl-8')}
     >
-      {session.parent && <CornerDownRight className="absolute top-2.5 left-3 size-3.5 text-fg-muted" />}
+      {session.parent && <CornerDownRight className={`${appInk.quiet} absolute top-2.5 left-3 size-3.5`} />}
       <StateMark state={session.state} className="mt-0.5" />
       <div className="min-w-0 flex-1">
-        <p className={cn('truncate text-sm', session.state === 'unread' ? 'font-semibold' : 'font-medium')}>{session.name}</p>
-        <p className="flex items-center gap-1 truncate text-xs text-fg-muted">
+        <p className={`${demoRowTitle({ unread: session.state === 'unread' })} truncate`}>{session.name}</p>
+        <p className={`${appInk.meta} flex items-center gap-1 truncate`}>
           <AgentMark agent={session.agent} />
           {metaOf(session)}
         </p>
-        {!compact && <p className="mt-0.5 truncate text-xs">{session.last}</p>}
+        {!compact && <p className={`${ink.small} mt-0.5 truncate`}>{session.last}</p>}
       </div>
     </motion.div>
   )
@@ -47,16 +44,9 @@ export function SessionRow({ session, target, flash, selected, compact }: Props)
 /** Side chats fold into one line under their parent ("1 side chat · 1 unread"), as the app lists them. */
 function SideChatLine({ target, flash, unread }: { target: string; flash: boolean; unread: boolean }) {
   return (
-    <motion.div
-      {...enter}
-      data-demo={target}
-      className={cn(
-        'flex items-center gap-1.5 border-b border-border py-1.5 pr-3 pl-9 text-xs text-fg-muted transition-colors duration-500',
-        flash && 'bg-state-busy-soft',
-      )}
-    >
+    <motion.div {...enter} data-demo={target} className={`${demoSideRow({ flash })} flex items-center gap-1.5 py-1.5 pr-3 pl-8`}>
       <MessageSquareText className="size-3.5 shrink-0" />1 side chat
-      {unread && <span className="font-medium text-accent">· 1 unread</span>}
+      {unread && <span className={appInk.highlight}>· 1 unread</span>}
     </motion.div>
   )
 }

@@ -1,11 +1,12 @@
 import { Pause, Play, RotateCcw } from 'lucide-react'
-import { RichText } from '@/components/shared/rich-text'
+import { RichText } from '@/components/ui/rich-text'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 import type { Player } from '../hooks/use-player'
 import { beatIndexAt } from '../model/player'
 import { BEATS, DURATION } from '../model/script'
+import { ink } from '@/components/ui/intents'
 
 /** What the demo is showing now, in one sentence, and the beats to jump between. */
 export function Controls({ player, className }: { player: Player; className?: string }) {
@@ -38,7 +39,7 @@ export function Controls({ player, className }: { player: Player; className?: st
           <RotateCcw />
         </Button>
       </div>
-      <p className="min-h-14 text-lg leading-snug text-balance max-md:order-first sm:text-xl" aria-live="polite">
+      <p className={`${ink.caption} min-h-14 text-balance max-md:order-first`} aria-live="polite">
         <RichText text={beat.caption} />
       </p>
     </div>

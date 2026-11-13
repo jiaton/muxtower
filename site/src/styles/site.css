@@ -8,6 +8,8 @@
 @import '@fontsource-variable/geist-mono';
 
 @source '../';
+/* The app's looks the demo uses (its intents): their classes are generated here too. */
+@source '../../../app/src/components/ui';
 
 @theme inline {
   --color-background: var(--color-bg);

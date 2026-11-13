@@ -2,6 +2,7 @@ import { Cloud, Globe, HardDrive, Laptop, Monitor, Server, Smartphone, type Luci
 import { forwardRef, useRef } from 'react'
 import { AnimatedBeam } from '@/components/ui/animated-beam'
 import { cn } from '@/lib/utils'
+import { beamNode, ink } from '@/components/ui/intents'
 
 /** One machine or device in the drawing: an icon in a circle, its name under it. */
 const Node = forwardRef<HTMLDivElement, { icon: LucideIcon; label: string; sub?: string; hub?: boolean }>(function Node(
@@ -12,16 +13,13 @@ const Node = forwardRef<HTMLDivElement, { icon: LucideIcon; label: string; sub?:
     <div className="flex flex-col items-center gap-2">
       <div
         ref={ref}
-        className={cn(
-          'z-10 grid place-items-center rounded-full border border-border bg-card shadow-card-soft',
-          hub ? 'size-20 border-primary/40 sm:size-24' : 'size-12 sm:size-14',
-        )}
+        className={cn(beamNode({ hub: !!hub }), 'z-10 grid place-items-center', hub ? 'size-20 sm:size-24' : 'size-12 sm:size-14')}
       >
-        <Icon className={cn(hub ? 'size-8 text-primary sm:size-9' : 'size-5 text-foreground sm:size-6')} aria-hidden />
+        <Icon className={hub ? `${ink.accent} size-8 sm:size-9` : `${ink.normal} size-5 sm:size-6`} aria-hidden />
       </div>
-      <p className="text-center font-mono text-xs leading-tight">
+      <p className={`${ink.nodeLabel} text-center`}>
         {label}
-        {sub && <span className="block text-muted-foreground">{sub}</span>}
+        {sub && <span className={`${ink.quiet} block`}>{sub}</span>}
       </p>
     </div>
   )

@@ -2,6 +2,8 @@ import { Check, X } from 'lucide-react'
 import { motion } from 'motion/react'
 import { Button } from '@/components/ui/button'
 import type { Pending } from '../model/world'
+import { ink as appInk } from '@app/components/ui/intents'
+import { device } from '@/components/ui/intents'
 
 /** What an agent asks to run, as the app shows it above the session: the tool, the exact command (from
  *  its hooks), and the options of its own dialog, the recommended one first in color. */
@@ -11,10 +13,10 @@ export function ApprovalCard({ pending, target }: { pending: Pending; target: st
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
       data-demo={target}
-      className="flex flex-col gap-1.5 border-b border-border bg-state-permission-soft p-3"
+      className={`${device.approval} flex flex-col gap-1.5 p-3`}
     >
-      <p className="text-xs font-medium tracking-wide text-fg-muted uppercase">{pending.tool}</p>
-      <p className="rounded-sm bg-background px-2 py-1 font-mono text-xs">{pending.command}</p>
+      <p className={appInk.eyebrow}>{pending.tool}</p>
+      <p className={`${device.command} px-2 py-1`}>{pending.command}</p>
       {pending.options.map((option, i) => (
         <Button
           key={option}

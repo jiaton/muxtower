@@ -1,5 +1,6 @@
 import { motion } from 'motion/react'
 import type { Box } from '../hooks/use-target-box'
+import { device } from '@/components/ui/intents'
 
 /** The pointer that walks the visitor through the demo: it glides to its target and presses it. */
 export function Cursor({ box, pressed }: { box: Box | null; pressed: boolean }) {
@@ -13,7 +14,7 @@ export function Cursor({ box, pressed }: { box: Box | null; pressed: boolean }) 
       transition={{ type: 'tween', ease: [0.33, 1, 0.68, 1], duration: 0.55 }}
     >
       <motion.span
-        className="absolute -top-5 -left-5 size-10 rounded-full bg-glow"
+        className={`${device.cursorGlow} absolute -top-5 -left-5 size-10`}
         animate={{ scale: pressed ? 1.6 : 0.6, opacity: pressed ? 1 : 0 }}
         transition={{ duration: 0.25 }}
       />
@@ -21,13 +22,13 @@ export function Cursor({ box, pressed }: { box: Box | null; pressed: boolean }) 
         width="22"
         height="26"
         viewBox="0 0 22 26"
-        className="relative drop-shadow-lg"
+        className={`${device.cursorShadow} relative`}
         animate={{ scale: pressed ? 0.85 : 1 }}
         transition={{ duration: 0.12 }}
       >
         <path
           d="M2 2 L2 21 L7.2 16.4 L10.6 24 L14 22.5 L10.7 15 L18 15 Z"
-          className="fill-cursor stroke-cursor-edge"
+          className={device.cursorArrow}
           strokeWidth="1.5"
           strokeLinejoin="round"
         />

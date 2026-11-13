@@ -15,10 +15,15 @@ const badgeVariants = cva(
         outline: 'border-border text-foreground [a&]:hover:bg-muted [a&]:hover:text-foreground',
         ghost: '[a&]:hover:bg-muted [a&]:hover:text-foreground',
         link: 'text-primary underline-offset-4 [a&]:hover:underline',
+        /** The hero's line over its headline: on the page's ground, roomier. */
+        eyebrow: 'border-border bg-background/80 px-3 py-1 font-mono font-normal text-foreground',
       },
+      /** What it holds: a label (medium), plain words, or machine text. */
+      text: { label: '', plain: 'font-normal', code: 'font-mono' },
     },
     defaultVariants: {
       variant: 'default',
+      text: 'label',
     },
   },
 )
@@ -26,12 +31,13 @@ const badgeVariants = cva(
 function Badge({
   className,
   variant = 'default',
+  text,
   asChild = false,
   ...props
 }: React.ComponentProps<'span'> & VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
   const Comp = asChild ? Slot.Root : 'span'
 
-  return <Comp data-slot="badge" data-variant={variant} className={cn(badgeVariants({ variant }), className)} {...props} />
+  return <Comp data-slot="badge" data-variant={variant} className={cn(badgeVariants({ variant, text }), className)} {...props} />
 }
 
 export { Badge, badgeVariants }

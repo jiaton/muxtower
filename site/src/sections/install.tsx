@@ -1,12 +1,13 @@
 import { ArrowUpRight } from 'lucide-react'
-import { Section, SectionHeading } from '@/components/shared/section'
-import { Terminal } from '@/components/shared/terminal'
+import { Section, SectionHeading } from '@/components/ui/section'
+import { Terminal } from '@/components/ui/terminal'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { config } from '@/config'
 import { installTabs } from '@/content/lists'
 import { hostedApp, install } from '@/content/page'
+import { ink } from '@/components/ui/intents'
 
 export function Install() {
   return (
@@ -15,9 +16,9 @@ export function Install() {
         <div className="flex flex-col">
           <SectionHeading eyebrow={install.eyebrow} title={install.title} lead={install.lead} />
           {config.appUrl && (
-            <Card className="gap-3 p-5 shadow-card-soft">
-              <p className="font-medium">{hostedApp.title}</p>
-              <p className="text-sm text-muted-foreground">{hostedApp.text}</p>
+            <Card soft className="gap-3 p-5">
+              <p className={ink.strong}>{hostedApp.title}</p>
+              <p className={ink.note}>{hostedApp.text}</p>
               <Button asChild variant="outline" className="self-start">
                 <a href={config.appUrl} target="_blank" rel="noreferrer">
                   {hostedApp.action}
@@ -41,7 +42,7 @@ export function Install() {
                 title={tab.id === 'join' ? 'on the hub, then on each machine' : 'on the machine your agents run on'}
                 lines={tab.lines}
               />
-              <p className="text-sm text-muted-foreground">{tab.note}</p>
+              <p className={ink.note}>{tab.note}</p>
             </TabsContent>
           ))}
         </Tabs>

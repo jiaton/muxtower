@@ -16,6 +16,11 @@ import { cn } from '@/lib/utils'
  * @param {string} [className] - Additional CSS classes to apply to the SVG container
  * @param {boolean} [glow=false] - Whether dots should have a glowing animation effect
  */
+const FADES = {
+  top: 'mask-radial-from-0% mask-radial-to-70% mask-radial-at-top opacity-70',
+  middle: 'mask-radial-from-0% mask-radial-to-80% opacity-70',
+} as const
+
 interface DotPatternProps extends React.SVGProps<SVGSVGElement> {
   width?: number
   height?: number
@@ -26,6 +31,8 @@ interface DotPatternProps extends React.SVGProps<SVGSVGElement> {
   cr?: number
   className?: string
   glow?: boolean
+  /** Faded out from the top (behind the hero) or from the middle (behind a closing call). */
+  fade?: keyof typeof FADES
   [key: string]: unknown
 }
 
@@ -69,6 +76,7 @@ export function DotPattern({
   cr = 1,
   className,
   glow = false,
+  fade,
   ...props
 }: DotPatternProps) {
   const id = useId()
@@ -108,7 +116,7 @@ export function DotPattern({
     <svg
       ref={containerRef}
       aria-hidden="true"
-      className={cn('pointer-events-none absolute inset-0 h-full w-full text-border', className)}
+      className={cn('pointer-events-none absolute inset-0 h-full w-full text-border', fade && FADES[fade], className)}
       {...props}
     >
       <defs>

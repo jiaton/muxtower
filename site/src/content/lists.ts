@@ -1,4 +1,4 @@
-import type { TerminalLine } from '@/components/shared/terminal'
+import type { TerminalLine } from '@/components/ui/terminal'
 
 /** Transcripts are muxtower's real commands and the exact shape of what they print. */
 export const securityList = [

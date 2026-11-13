@@ -1,11 +1,12 @@
 import { ArrowDown, AudioLines, Bell, Bot, Check, Code2, Keyboard, Laptop, Quote, RefreshCw, Smartphone } from 'lucide-react'
-import { FeatureClip } from '@/components/shared/feature-clip'
-import { Section, SectionHeading } from '@/components/shared/section'
+import { FeatureClip } from '@/components/ui/feature-clip'
+import { Section, SectionHeading } from '@/components/ui/section'
 import { Badge } from '@/components/ui/badge'
 import { Card } from '@/components/ui/card'
 import { featureCells as c } from '@/content/features'
 import { features } from '@/content/page'
 import { cn } from '@/lib/utils'
+import { ink, look } from '@/components/ui/intents'
 
 /** One cell of the bento: a picture on top, a title and one line under it. */
 function Cell({
@@ -25,19 +26,19 @@ function Cell({
   children: React.ReactNode
 }) {
   return (
-    <Card className={cn('gap-0 overflow-hidden p-0 shadow-card-soft', className)}>
-      <div className="flex min-h-48 flex-1 items-center justify-center border-b border-border bg-background p-6">{children}</div>
+    <Card soft className={cn('gap-0 overflow-hidden p-0', className)}>
+      <div className={`${look.previewStage} flex min-h-48 flex-1 items-center justify-center p-6`}>{children}</div>
       <div className="flex flex-col gap-1.5 p-6">
-        <h3 className="flex items-center gap-2 font-semibold">
-          <Icon className="size-4 text-primary" aria-hidden />
+        <h3 className={`${ink.heading} flex items-center gap-2`}>
+          <Icon className={`${ink.accent} size-4`} aria-hidden />
           {title}
         </h3>
-        <p className="text-sm leading-relaxed text-muted-foreground">{text}</p>
+        <p className={ink.copy}>{text}</p>
         {points ? (
-          <ul className="mt-1 grid gap-x-6 gap-y-1 text-sm text-muted-foreground sm:grid-cols-2">
+          <ul className={`${ink.note} mt-1 grid gap-x-6 gap-y-1 sm:grid-cols-2`}>
             {points.map((point) => (
               <li key={point} className="flex items-center gap-2">
-                <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+                <span className={`${look.bullet} size-1.5 shrink-0`} aria-hidden />
                 {point}
               </li>
             ))}
@@ -52,19 +53,19 @@ function Reach() {
   const n = c.reach.notification
   return (
     <div className="flex w-full max-w-md flex-col gap-3">
-      <div className="flex gap-3 rounded-xl border border-border bg-card p-3 shadow-card-soft">
-        <img src="/icon.svg" alt="" className="mt-0.5 size-8 rounded-md" />
-        <div className="min-w-0 text-sm">
+      <div className={`${look.card} flex gap-3 p-3`}>
+        <img src="/icon.svg" alt="" className={`${look.appIcon} mt-0.5 size-8`} />
+        <div className={`${ink.body} min-w-0`}>
           <p className="flex justify-between gap-2">
-            <span className="font-semibold">{n.title}</span>
-            <span className="text-xs text-muted-foreground">now</span>
+            <span className={ink.heading}>{n.title}</span>
+            <span className={ink.meta}>now</span>
           </p>
           <p>{n.body}</p>
-          <p className="text-muted-foreground">{n.where}</p>
+          <p className={ink.quiet}>{n.where}</p>
         </div>
       </div>
-      <div className="ml-auto flex max-w-xs flex-col gap-1.5 rounded-xl bg-primary px-3.5 py-2.5 text-sm text-primary-foreground">
-        <p className="flex items-center gap-1.5 border-l-2 border-primary-foreground/50 pl-2 text-xs opacity-80">
+      <div className={`${look.askBubble} ml-auto flex max-w-xs flex-col gap-1.5 px-3 py-2.5`}>
+        <p className={`${look.bubbleQuote} flex items-center gap-1.5 pl-2`}>
           <Quote className="size-3" aria-hidden />
           {c.reach.quote}
         </p>
@@ -72,7 +73,7 @@ function Reach() {
       </div>
       <div className="flex flex-wrap gap-1.5">
         {c.reach.chips.map((chip) => (
-          <Badge key={chip} variant="outline" className="font-normal">
+          <Badge key={chip} variant="outline" text="plain">
             {chip}
           </Badge>
         ))}
@@ -83,9 +84,9 @@ function Reach() {
 
 function Assistant() {
   return (
-    <div className="flex w-full flex-col gap-2 text-sm">
-      <p className="ml-auto max-w-[85%] rounded-xl bg-primary px-3 py-2 text-primary-foreground">{c.assistant.ask}</p>
-      <p className="max-w-[85%] rounded-xl bg-muted px-3 py-2">{c.assistant.answer}</p>
+    <div className={`${ink.body} flex w-full flex-col gap-2`}>
+      <p className={`${look.askBubble} ml-auto max-w-[85%] px-3 py-2`}>{c.assistant.ask}</p>
+      <p className={`${look.answerBubble} max-w-[85%] px-3 py-2`}>{c.assistant.answer}</p>
     </div>
   )
 }
@@ -95,13 +96,13 @@ function Desk() {
     <div className="flex w-full flex-col items-center gap-2">
       <div className="flex flex-wrap justify-center gap-1.5">
         {c.desk.apps.map((app) => (
-          <Badge key={app} variant="secondary" className="gap-1.5 font-normal">
+          <Badge key={app} variant="secondary" text="plain" className="gap-1.5">
             <Laptop className="size-3" aria-hidden />
             {app}
           </Badge>
         ))}
       </div>
-      <ArrowDown className="size-4 text-muted-foreground" aria-hidden />
+      <ArrowDown className={`${ink.quiet} size-4`} aria-hidden />
       <Badge className="gap-1.5">
         <Smartphone className="size-3" aria-hidden />
         One list on your phone
@@ -112,16 +113,16 @@ function Desk() {
 
 function Updates() {
   return (
-    <div className="flex w-full flex-col gap-2 font-mono text-xs">
-      <p className="flex items-center justify-between rounded-lg border border-primary/40 bg-card px-3 py-2">
-        <span className="font-semibold">nas · hub</span>
-        <span className="text-primary">{c.updates.version}</span>
+    <div className={`${ink.codeSmall} flex w-full flex-col gap-2`}>
+      <p className={`${look.highlightCard} flex items-center justify-between px-3 py-2`}>
+        <span className={ink.heading}>nas · hub</span>
+        <span className={ink.accent}>{c.updates.version}</span>
       </p>
       {c.updates.machines.map((m) => (
         <p key={m} className="flex items-center justify-between px-3">
           <span>{m}</span>
-          <span className="flex items-center gap-1 text-muted-foreground">
-            <Check className="size-3 text-success" aria-hidden /> {c.updates.version}
+          <span className={`${ink.quiet} flex items-center gap-1`}>
+            <Check className={`${ink.success} size-3`} aria-hidden /> {c.updates.version}
           </span>
         </p>
       ))}
@@ -131,7 +132,7 @@ function Updates() {
 
 function Api() {
   return (
-    <pre className="w-full rounded-lg bg-terminal-bg p-4 font-mono text-xs leading-relaxed text-terminal-fg">
+    <pre className={`${look.terminalBlock} w-full p-4`}>
       {c.api.lines.map((l) => (
         <div key={l}>{l}</div>
       ))}

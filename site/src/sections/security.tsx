@@ -1,10 +1,11 @@
 import { ArrowUpRight, Ban, CloudOff, DoorOpen, KeyRound, Ticket, type LucideIcon } from 'lucide-react'
-import { Section, SectionHeading } from '@/components/shared/section'
+import { Section, SectionHeading } from '@/components/ui/section'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { config } from '@/config'
 import { securityList } from '@/content/lists'
 import { security } from '@/content/page'
+import { ink } from '@/components/ui/intents'
 
 const ICONS: Record<(typeof securityList)[number]['icon'], LucideIcon> = {
   key: KeyRound,
@@ -22,10 +23,10 @@ export function Security() {
         {securityList.map((item) => {
           const Icon = ICONS[item.icon]
           return (
-            <Card key={item.title} className="gap-3 p-5 shadow-card-soft">
-              <Icon className="size-5 text-primary" aria-hidden />
-              <h3 className="font-medium">{item.title}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">{item.text}</p>
+            <Card soft key={item.title} className="gap-3 p-5">
+              <Icon className={`${ink.accent} size-5`} aria-hidden />
+              <h3 className={ink.strong}>{item.title}</h3>
+              <p className={ink.copy}>{item.text}</p>
             </Card>
           )
         })}

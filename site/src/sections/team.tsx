@@ -1,8 +1,9 @@
 import { Check } from 'lucide-react'
-import { FeatureClip } from '@/components/shared/feature-clip'
-import { Section, SectionHeading } from '@/components/shared/section'
+import { FeatureClip } from '@/components/ui/feature-clip'
+import { Section, SectionHeading } from '@/components/ui/section'
 import { team } from '@/content/page'
 import { TeamExamples } from './team-examples'
+import { ink } from '@/components/ui/intents'
 
 export function Team() {
   return (
@@ -13,7 +14,7 @@ export function Team() {
           <ul className="flex flex-col gap-3">
             {team.facts.map((f) => (
               <li key={f} className="flex items-center gap-3">
-                <Check className="size-4 shrink-0 text-primary" aria-hidden />
+                <Check className={`${ink.accent} size-4 shrink-0`} aria-hidden />
                 {f}
               </li>
             ))}

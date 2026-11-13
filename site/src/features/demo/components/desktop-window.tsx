@@ -8,6 +8,8 @@ import { HubDownBanner } from './hub-down-banner'
 import { AgentMark, StateMark } from './marks'
 import { MessageItem } from './message'
 import { SessionRow } from './session-row'
+import { ink as appInk, look as appLook } from '@app/components/ui/intents'
+import { device, deviceGroup } from '@/components/ui/intents'
 
 /** The hub's web app in a browser window, as it looks on a computer: views and machines, the sessions
  *  by machine, and the open session's conversation. */
@@ -21,50 +23,50 @@ export function DesktopWindow({ world, className }: { world: World; className?: 
     ['Working', n.working],
   ]
   return (
-    <div className={cn('flex flex-col overflow-hidden rounded-xl bg-background shadow-window', className)}>
-      <div className="flex items-center gap-3 border-b border-border bg-muted px-4 py-2.5">
+    <div className={cn(device.window, 'flex flex-col overflow-hidden', className)}>
+      <div className={`${device.titleBar} flex items-center gap-3 px-4 py-2.5`}>
         <div className="flex gap-1.5" aria-hidden>
           {[0, 1, 2].map((i) => (
-            <span key={i} className="size-3 rounded-full bg-border" />
+            <span key={i} className={`${device.trafficLight} size-3`} />
           ))}
         </div>
-        <div className="mx-auto flex items-center gap-1.5 rounded-md bg-background px-3 py-1 font-mono text-xs text-fg-muted">
+        <div className={`${device.addressBar} mx-auto flex items-center gap-1.5 px-3 py-1`}>
           <Lock className="size-3" /> https://hub.example
         </div>
       </div>
-      {world.hubDown && <HubDownBanner target="banner" className="border-b border-border" />}
+      {world.hubDown && <HubDownBanner target="banner" ruled />}
       <div className="grid min-h-0 flex-1 grid-cols-[9.5rem_17rem_minmax(0,1fr)]">
-        <nav aria-label="Demo sidebar" className="flex flex-col gap-4 border-r border-border bg-surface p-3 text-sm">
+        <nav aria-label="Demo sidebar" className={`${device.sidebar} flex flex-col gap-4 p-3`}>
           <div className="flex flex-col gap-0.5">
             {views.map(([label, count]) => (
-              <div key={label} className="flex justify-between rounded-md px-2 py-1 first:bg-muted">
+              <div key={label} className={`${device.sidebarView} flex justify-between px-2 py-1`}>
                 <span>{label}</span>
-                <span className="text-fg-muted">{count}</span>
+                <span className={appInk.quiet}>{count}</span>
               </div>
             ))}
           </div>
           <div data-demo="nav-devices" className="flex flex-col gap-0.5">
-            <p className="px-2 text-xs font-medium tracking-wide text-fg-muted uppercase">Devices</p>
+            <p className={`${appInk.eyebrow} px-2`}>Devices</p>
             {DEVICES.map((d) => (
-              <div key={d.id} className="flex items-center gap-2 rounded-md px-2 py-1">
-                {d.hub ? <Server className="size-3.5 text-fg-muted" /> : <Monitor className="size-3.5 text-fg-muted" />}
+              <div key={d.id} className={`${device.sidebarItem} flex items-center gap-2 px-2 py-1`}>
+                {d.hub ? <Server className={`${appInk.quiet} size-3.5`} /> : <Monitor className={`${appInk.quiet} size-3.5`} />}
                 <span className="flex-1">{d.name}</span>
                 {d.hub && <Badge variant="secondary">hub</Badge>}
-                <span className="text-fg-muted">{sessionsOn(world, d.id).length}</span>
+                <span className={appInk.quiet}>{sessionsOn(world, d.id).length}</span>
               </div>
             ))}
           </div>
         </nav>
-        <div data-demo="list" className="min-h-0 overflow-hidden border-r border-border">
-          {groupsByDevice(world).map(({ device, sessions }) => (
+        <div data-demo="list" className={`${appLook.rule.side} min-h-0 overflow-hidden`}>
+          {groupsByDevice(world).map(({ device: machine, sessions }) => (
             <section
-              key={device.id}
-              aria-label={device.name}
-              data-demo={`group-${device.id}`}
-              className={cn('transition-opacity', device.hub && world.hubDown && 'opacity-40')}
+              key={machine.id}
+              aria-label={machine.name}
+              data-demo={`group-${machine.id}`}
+              className={deviceGroup({ off: !!machine.hub && world.hubDown })}
             >
-              <p className="bg-muted px-3 py-1 text-xs font-medium text-fg-muted">
-                {device.name} · {device.hub && world.hubDown ? 'unreachable' : device.kind}
+              <p className={`${device.groupHeader} px-3 py-1`}>
+                {machine.name} · {machine.hub && world.hubDown ? 'unreachable' : machine.kind}
               </p>
               {sessions.map((s) => (
                 <SessionRow
@@ -80,12 +82,12 @@ export function DesktopWindow({ world, className }: { world: World; className?: 
         </div>
         {open && (
           <div data-demo="pane" className="flex min-h-0 flex-col">
-            <div className="flex flex-col gap-0.5 border-b border-border px-4 py-2">
+            <div className={`${appLook.rule.bottom} flex flex-col gap-0.5 px-4 py-2`}>
               <p className="flex items-center gap-2">
                 <StateMark state={open.state} />
-                <span className="font-medium">{open.name}</span>
+                <span className={appInk.strong}>{open.name}</span>
               </p>
-              <p className="flex items-center gap-1 truncate text-xs text-fg-muted">
+              <p className={`${appInk.meta} flex items-center gap-1 truncate`}>
                 <AgentMark agent={open.agent} />
                 {[open.role, open.agent === 'claude' ? 'Claude Code' : 'Codex', deviceName(open.device), open.folder, open.source]
                   .filter(Boolean)
@@ -98,8 +100,8 @@ export function DesktopWindow({ world, className }: { world: World; className?: 
                 <MessageItem key={m.id} message={m} target={`pane-msg-${m.id}`} />
               ))}
             </div>
-            <div className="border-t border-border p-3">
-              <p className="rounded-lg border border-border px-3 py-2 text-sm text-fg-muted">Message the agent</p>
+            <div className={`${appLook.rule.top} p-3`}>
+              <p className={`${device.inputBox} ${appInk.quiet} px-3 py-2`}>Message the agent</p>
             </div>
           </div>
         )}

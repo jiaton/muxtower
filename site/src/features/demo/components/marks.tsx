@@ -1,12 +1,14 @@
 import { Asterisk, Circle, CircleCheck, Hexagon, LoaderCircle, ShieldAlert } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Agent, SessionState } from '../model/world'
+import { stateInk } from '@app/components/ui/intents'
 
+// Each state's mark in the app's own tone (`stateInk`), so the drawing follows the app.
 const STATE = {
-  working: { icon: LoaderCircle, label: 'Working', className: 'animate-spin text-state-busy' },
-  idle: { icon: Circle, label: 'Idle', className: 'text-state-idle' },
-  unread: { icon: CircleCheck, label: 'Finished, unread', className: 'text-accent' },
-  permission: { icon: ShieldAlert, label: 'Needs approval', className: 'text-state-permission' },
+  working: { icon: LoaderCircle, label: 'Working', className: stateInk.busy },
+  idle: { icon: Circle, label: 'Idle', className: stateInk.idle },
+  unread: { icon: CircleCheck, label: 'Finished, unread', className: stateInk.unread },
+  permission: { icon: ShieldAlert, label: 'Needs approval', className: stateInk.needs_permission },
 } satisfies Record<SessionState, { icon: typeof Circle; label: string; className: string }>
 
 /** A session's state, drawn as the app draws it. */

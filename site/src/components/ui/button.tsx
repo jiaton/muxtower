@@ -34,6 +34,8 @@ const buttonVariants = cva(
         'icon-lg': 'size-10',
         step: 'h-auto w-full gap-1.5 px-0 py-1 text-xs',
       },
+      /** Round instead of rounded (a send button). */
+      round: { true: 'rounded-full' },
     },
     defaultVariants: {
       variant: 'default',
@@ -46,6 +48,7 @@ function Button({
   className,
   variant = 'default',
   size = 'default',
+  round,
   asChild = false,
   ...props
 }: React.ComponentProps<'button'> &
@@ -59,7 +62,7 @@ function Button({
       data-slot="button"
       data-variant={variant}
       data-size={size}
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={cn(buttonVariants({ variant, size, round, className }))}
       {...props}
     />
   )

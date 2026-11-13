@@ -44,11 +44,16 @@ function TableHead({ className, ...props }: React.ComponentProps<'th'>) {
   )
 }
 
-function TableCell({ className, ...props }: React.ComponentProps<'td'>) {
+/** A cell; `numeric` lines its figure up on the right. */
+function TableCell({ className, numeric, ...props }: React.ComponentProps<'td'> & { numeric?: boolean }) {
   return (
     <td
       data-slot="table-cell"
-      className={cn('p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]', className)}
+      className={cn(
+        'p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]',
+        numeric && 'text-right tabular-nums',
+        className,
+      )}
       {...props}
     />
   )

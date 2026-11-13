@@ -1,5 +1,5 @@
-import { RichText } from '@/components/shared/rich-text'
-import { Section, SectionHeading } from '@/components/shared/section'
+import { RichText } from '@/components/ui/rich-text'
+import { Section, SectionHeading } from '@/components/ui/section'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { faqTitle, questions } from '@/content/faq'
 
@@ -13,8 +13,8 @@ export function Faq() {
         <Accordion type="single" collapsible>
           {questions.map((item) => (
             <AccordionItem key={item.q} value={item.q}>
-              <AccordionTrigger className="text-base">{item.q}</AccordionTrigger>
-              <AccordionContent className="text-base leading-relaxed text-muted-foreground">
+              <AccordionTrigger>{item.q}</AccordionTrigger>
+              <AccordionContent>
                 <RichText text={item.a} />
               </AccordionContent>
             </AccordionItem>

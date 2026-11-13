@@ -10,7 +10,7 @@
     "build:site": "astro build && node scripts/copy-demo.mjs",
     "preview": "astro preview",
     "typecheck": "astro check && tsc --noEmit",
-    "lint": "oxlint src && node scripts/check-tokens.mjs",
+    "lint": "oxlint src && node scripts/check-tokens.mjs && node scripts/check-styles.mjs",
     "deploy": "npm run build && cd deploy && npm ci && cf deploy",
     "test": "vitest run",
     "format": "prettier --write src scripts",

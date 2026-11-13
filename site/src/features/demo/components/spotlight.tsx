@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react'
-import { RichText } from '@/components/shared/rich-text'
+import { RichText } from '@/components/ui/rich-text'
 import type { Box } from '../hooks/use-target-box'
+import { device } from '@/components/ui/intents'
 
 const PAD = 8
 
@@ -16,7 +17,7 @@ export function Spotlight({ box, note }: { box: Box | null; note?: string }) {
         <motion.div
           key="spotlight"
           aria-hidden
-          className="pointer-events-none absolute top-0 left-0 z-20 rounded-lg shadow-spotlight ring-2 ring-primary"
+          className={`${device.spotlight} pointer-events-none absolute top-0 left-0 z-20`}
           initial={{ opacity: 0, ...frame }}
           animate={{ opacity: 1, ...frame }}
           exit={{ opacity: 0 }}
@@ -29,7 +30,7 @@ export function Spotlight({ box, note }: { box: Box | null; note?: string }) {
                 initial={{ opacity: 0, y: 4 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="absolute rounded-md bg-primary px-2.5 py-1 text-sm font-medium whitespace-nowrap text-primary-foreground shadow-card"
+                className={`${device.spotlightLabel} absolute px-2.5 py-1 whitespace-nowrap`}
                 style={inside ? { top: 8, right: 8 } : { top: -38, left: 0 }}
               >
                 <RichText text={note} />

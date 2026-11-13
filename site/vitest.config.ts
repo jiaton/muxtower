@@ -4,7 +4,12 @@ import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   plugins: [react()],
-  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      '@app': fileURLToPath(new URL('../app/src', import.meta.url)),
+    },
+  },
   envPrefix: ['PUBLIC_', 'MUXTOWER_SITE_'],
   test: {
     environment: 'jsdom',

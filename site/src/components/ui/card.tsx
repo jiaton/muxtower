@@ -1,11 +1,16 @@
 import * as React from 'react'
 import { cn } from 'cn'
 
-function Card({ className, ...props }: React.ComponentProps<'div'>) {
+/** A card; `soft` lifts it with the page's soft shadow (a marketing card) instead of the small one. */
+function Card({ className, soft, ...props }: React.ComponentProps<'div'> & { soft?: boolean }) {
   return (
     <div
       data-slot="card"
-      className={cn('flex flex-col gap-6 rounded-xl border bg-card py-6 text-card-foreground shadow-sm', className)}
+      className={cn(
+        'flex flex-col gap-6 rounded-xl border bg-card py-6 text-card-foreground shadow-sm',
+        soft && 'shadow-card-soft',
+        className,
+      )}
       {...props}
     />
   )
