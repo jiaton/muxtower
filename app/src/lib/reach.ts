@@ -24,7 +24,13 @@ export function isPrivate(hostname: string): boolean {
   if (h.endsWith('.local') || h.endsWith('.ts.net')) return true
   const [a, b] = h.split('.').map(Number)
   if (/^\d+\.\d+\.\d+\.\d+$/.test(h))
-    return a === 10 || (a === 172 && b >= 16 && b < 32) || (a === 192 && b === 168) || (a === 169 && b === 254) || (a === 100 && b >= 64 && b < 128)
+    return (
+      a === 10 ||
+      (a === 172 && b >= 16 && b < 32) ||
+      (a === 192 && b === 168) ||
+      (a === 169 && b === 254) ||
+      (a === 100 && b >= 64 && b < 128)
+    )
   return /^f[cd][0-9a-f]{2}:/.test(h) || h.startsWith('fe80:')
 }
 

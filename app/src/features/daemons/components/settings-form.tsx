@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch'
 import type { SettingView } from '@/lib/api/types'
 import { useChangeSettings, useMachineSettings } from '../api/use-settings'
 import { ink, look } from '@/components/ui/intents'
+import { Loading } from '@/components/ui/skeleton'
 
 /** The settings in their sections, in the order the daemon lists them. */
 export function sectionsOf(settings: SettingView[]): { section: string; settings: SettingView[] }[] {
@@ -24,7 +25,7 @@ export function SettingsForm({ daemonId, node, extras }: { daemonId: string; nod
   const listed = useMachineSettings(daemonId, node)
   const change = useChangeSettings(daemonId, node)
   if (listed.error) return <Banner tone="error">{listed.error.message}</Banner>
-  if (!listed.data) return <p className={ink.hint}>Loading…</p>
+  if (!listed.data) return <Loading />
   const { machine, settings } = listed.data
   const pending = settings.filter((s) => s.pending)
   const set = (key: string, value: unknown) => change.mutate({ [key]: value })

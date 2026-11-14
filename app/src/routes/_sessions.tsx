@@ -17,6 +17,8 @@ import { useSidebarPull } from '@/features/sessions/hooks/use-sidebar-pull'
 import { useSidebarDrawer } from '@/lib/sidebar-drawer'
 import { NewSessionDialog } from '@/features/sessions/components/new-session-dialog'
 import { SessionList } from '@/features/sessions/components/session-list'
+import { ListSkeleton } from '@/features/sessions/components/list-skeleton'
+import { Loading } from '@/components/ui/skeleton'
 import { useOpenedHere } from '@/features/sessions/hooks/use-opened-here'
 import { useScrollMemory } from '@/features/sessions/hooks/use-scroll-memory'
 import { useSessionEntries } from '@/features/sessions/hooks/use-session-entries'
@@ -170,7 +172,11 @@ function SessionsLayout() {
                   ) : null
                 }
               />
-            ) : loading ? null : (
+            ) : loading ? (
+              <Loading label="Loading sessions…">
+                <ListSkeleton />
+              </Loading>
+            ) : (
               <div className="p-4">
                 {query.q ? (
                   <EmptyState icon={<SearchX />} title={`No sessions match “${query.q}”`} />

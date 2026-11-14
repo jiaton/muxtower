@@ -12,6 +12,7 @@ import { useSessionEntries } from '../hooks/use-session-entries'
 
 import { Label } from '@/components/ui/label'
 import { ink, look } from '@/components/ui/intents'
+import { Loading } from '@/components/ui/skeleton'
 
 const count = (n: number) => `${n} session${n === 1 ? '' : 's'}`
 
@@ -116,8 +117,10 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
                 <TaskLine key={task.id} task={task} sessionId={session.id} />
               ))}
             </ul>
+          ) : tasks.isLoading ? (
+            <Loading label="Loading tasks…" />
           ) : (
-            <p className={`${ink.hint} py-2`}>{tasks.isLoading ? 'Loading…' : 'No tasks sent or received yet.'}</p>
+            <p className={`${ink.hint} py-2`}>No tasks sent or received yet.</p>
           )}
         </section>
       </DialogContent>

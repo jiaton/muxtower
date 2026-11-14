@@ -15,8 +15,23 @@ const LISTED: MachineSettings = {
   machine: 'box',
   settings: [
     setting('recovery.mode', { label: 'Interrupted sessions', choices: ['ask', 'auto', 'off'], value: 'ask', default: 'ask' }),
-    setting('summaries.provider', { section: 'Summaries', label: 'Summarize with', choices: ['off', 'codex'], value: 'codex', source: 'config_file' }),
-    setting('summaries.min_chars', { section: 'Summaries', label: 'Longer than', kind: 'number', value: 800, default: 400, source: 'app', applies: 'restart', pending: true }),
+    setting('summaries.provider', {
+      section: 'Summaries',
+      label: 'Summarize with',
+      choices: ['off', 'codex'],
+      value: 'codex',
+      source: 'config_file',
+    }),
+    setting('summaries.min_chars', {
+      section: 'Summaries',
+      label: 'Longer than',
+      kind: 'number',
+      value: 800,
+      default: 400,
+      source: 'app',
+      applies: 'restart',
+      pending: true,
+    }),
   ],
 }
 

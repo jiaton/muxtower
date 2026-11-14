@@ -41,8 +41,7 @@ export function useDaemonStreams() {
             const ansi = bases.patch(frame.session_id, frame.base, frame.seq, frame.ops)
             if (ansi === null) stream.resubscribe({ type: 'subscribe', topic: 'screen', session_id: frame.session_id, history: 0 })
             else queryClient.setQueryData(daemonKey(daemon.id, 'screen', frame.session_id), ansi)
-          }
-          else if (frame.type === 'conversation')
+          } else if (frame.type === 'conversation')
             queryClient.setQueryData<ConversationItem[]>(daemonKey(daemon.id, 'conversation', frame.session_id), (shown) =>
               mergeItems(shown, frame.items),
             )
@@ -67,7 +66,12 @@ export function useStreamSubscription(daemonId: string, message: StreamSubscribe
 /** A daemon marked rejected gets one check per app start: if its token works after all (the 401 came
  *  from something in front of it, or the device was paired again elsewhere), it is used again. */
 export function useRecheckRejected() {
-  const rejected = useDaemonsStore((s) => s.daemons.filter((d) => d.rejected && d.token).map((d) => d.id).join(','))
+  const rejected = useDaemonsStore((s) =>
+    s.daemons
+      .filter((d) => d.rejected && d.token)
+      .map((d) => d.id)
+      .join(','),
+  )
   useEffect(() => {
     for (const id of rejected.split(',').filter(Boolean)) {
       const daemon = useDaemonsStore.getState().daemons.find((d) => d.id === id)

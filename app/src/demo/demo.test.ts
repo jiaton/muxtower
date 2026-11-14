@@ -51,7 +51,16 @@ describe('the demo world', () => {
 
   // The story sessions join partway through their work; the small ones other stories add (a plain
   // folder, an interrupted session) need no history.
-  const STORIES = ['shop-api', 'web-app', 'docs', 'laptop~infra', 'release-notes', 'release-notes-fork', 'changelog-fork', 'release-post-fork']
+  const STORIES = [
+    'shop-api',
+    'web-app',
+    'docs',
+    'laptop~infra',
+    'release-notes',
+    'release-notes-fork',
+    'changelog-fork',
+    'release-post-fork',
+  ]
 
   it('keeps every conversation in order, and joins each story session mid-task: earlier work in order, the screen and conversation alike', () => {
     const { w } = world()
@@ -77,7 +86,12 @@ describe('the demo world', () => {
   it('takes a cast of its own: sessions added and removed, and marks that keep a row in its place', () => {
     const { w, frames } = world()
     for (const s of w.sessions()) w.remove(s.id)
-    w.add({ session: demoSession({ id: 'pm', name: 'Order tracking', cwd: '/home/dev/code/acme-shop' }), history: [], footer: [], items: [] })
+    w.add({
+      session: demoSession({ id: 'pm', name: 'Order tracking', cwd: '/home/dev/code/acme-shop' }),
+      history: [],
+      footer: [],
+      items: [],
+    })
     expect(w.sessions().map((s) => s.id)).toEqual(['pm'])
     const at = w.session('pm')!.updated_at
     w.mark('pm', { team_role: 'pm', state: 'busy' })

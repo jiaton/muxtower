@@ -15,7 +15,10 @@ type Listener = (e: { target?: unknown; preventDefault: () => void }) => void
 /** One page load: the inline script, then (for the demo) its entry's storage swap. Returns what fails on
  *  that page: a lazy chunk (`vite:preloadError`), or the script at `src`; reloads are counted in `reloads`. */
 async function load(demo: boolean, reloads: { count: number }, src?: string) {
-  for (const [name, real] of [['sessionStorage', realSession], ['localStorage', realLocal]] as const) {
+  for (const [name, real] of [
+    ['sessionStorage', realSession],
+    ['localStorage', realLocal],
+  ] as const) {
     Object.defineProperty(globalThis, name, { value: real, configurable: true })
   }
   document.body.innerHTML = '<div id="root"></div>'

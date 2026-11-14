@@ -17,6 +17,7 @@ import { useDaemonSessions, useSession } from '@/features/sessions/api/use-sessi
 import { useMentionSource } from '@/features/mentions/hooks/use-mention-source'
 import { SessionActionsMenu } from '@/features/sessions/components/session-actions-menu'
 import { FocusToggle } from '@/features/sessions/components/focus-toggle'
+import { SessionSkeleton } from '@/features/sessions/components/session-skeleton'
 import { FullScreenItem } from '@/features/sessions/components/full-screen-item'
 import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { canFullScreen } from '@/lib/layout-prefs'
@@ -74,7 +75,7 @@ function SessionPage() {
   useFollowFallback(daemonId, sessionId)
   const query = useSession(daemonId, sessionId)
   return (
-    <QueryState query={query}>
+    <QueryState query={query} skeleton={<SessionSkeleton />} page>
       {() =>
         query.session ? (
           // Keyed: another session starts from its own defaults (view, history depth, fit).

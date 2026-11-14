@@ -123,7 +123,7 @@ A daemon can also be a hub: other computers' daemons join it as nodes (`docs/des
 ## Accessibility, loading, error states
 
 - Every interactive element has an accessible name; icon buttons get `aria-label`.
-- Query loading/error/empty go through `src/components/query-state.tsx`; a disabled query is not "loading".
+- Query loading/error/empty go through `src/components/query-state.tsx`; a disabled query is not "loading". Loading shows nothing for 150 ms (`SHOW_AFTER_MS`), then the caller's `skeleton`: placeholders in the shape of what comes, from `Skeleton` (`components/ui/skeleton.tsx`: line, title, badge, icon, control, block; pulsing, still under reduced motion), laid out as the real thing so nothing moves when it arrives (`SessionSkeleton`, `ListSkeleton`); without one, a quiet line (`Loading`). A failed page (`page`) is a centred notice with Retry; elsewhere a Banner. Before the app's script runs, `index.html` shows its own boot screen in #root (token colours, light and dark), replaced by the first render.
 - A daemon that is unreachable or rejects its token shows a per-daemon banner, not a global failure.
 
 ## Testing

@@ -12,8 +12,8 @@ export function PresetWarning() {
       <Banner tone="warning">
         <TriangleAlert />
         <span>
-          This deployment's config.json contains daemon tokens but does not set <code>acknowledge_public_tokens</code>, so
-          they were ignored. Remove them, or put the app behind an access gate and acknowledge.
+          This deployment's config.json contains daemon tokens but does not set <code>acknowledge_public_tokens</code>, so they were
+          ignored. Remove them, or put the app behind an access gate and acknowledge.
         </span>
       </Banner>
     )
@@ -22,8 +22,8 @@ export function PresetWarning() {
       <Banner tone="warning">
         <TriangleAlert />
         <span>
-          This deployment comes with daemon tokens built in. Anyone who can open this page controls those daemons: keep it
-          behind an access gate (Cloudflare Access, your own SSO).
+          This deployment comes with daemon tokens built in. Anyone who can open this page controls those daemons: keep it behind an access
+          gate (Cloudflare Access, your own SSO).
         </span>
       </Banner>
     )
