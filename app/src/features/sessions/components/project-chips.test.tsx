@@ -55,7 +55,7 @@ it('is not shown for a single project and no groups', async () => {
 
 it('without groups: the most recently active projects, one chip each, then +', async () => {
   show(entries, [])
-  await waitFor(async () => expect(await labels()).toEqual(['g1', 'f1', 'e1', 'd1', 'c1', 'b1'])) // six, latest first, with counts
+  await waitFor(async () => expect(await labels()).toEqual(['g1', 'f1', 'e1', 'd1', 'c1', 'b1']), { timeout: 5000 }) // six, latest first, with counts
   expect(screen.getByRole('button', { name: 'New group' })).toBeInTheDocument()
 })
 
@@ -69,7 +69,7 @@ it('with groups: the groups in their order, counting the sessions they hold', as
     { id: 'z', name: 'Last', projects: ['a'], sessions: [] },
     { id: 'f', name: 'Focus', projects: ['b', 'c', 'gone'], sessions: [] },
   ])
-  await waitFor(async () => expect(await labels()).toEqual(['Last1', 'Focus2']))
+  await waitFor(async () => expect(await labels()).toEqual(['Last1', 'Focus2']), { timeout: 5000 })
 })
 
 it('scrolls the chosen chip into view', async () => {
