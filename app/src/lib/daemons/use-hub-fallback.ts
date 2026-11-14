@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { ApiError, createDaemonClient, unwrap } from '@/lib/api/client'
 import { useStreamStatus } from '@/lib/api/stream-status'
 import { DOWN_AFTER_MS, PROBE_EVERY_MS, REFRESH_EVERY_MS, nodesBack, probeOf, useFallback, type Probe } from './fallback'
+import { onResume, settling } from '../resume'
 import { useDaemonsStore } from './store'
 import type { Daemon } from './types'
 
@@ -37,9 +38,14 @@ export function useHubFallback() {
         const { daemons, setDirect } = useDaemonsStore.getState()
         const { down, setDown } = useFallback.getState()
         const now = Date.now()
+        const away = settling(now) // hidden, or just back: what failed says nothing yet
         for (const hub of daemons.filter((d) => !d.via && d.token && !d.rejected)) {
           const seen = memory.current.get(hub.id) ?? {}
           memory.current.set(hub.id, seen)
+          if (away && !(hub.id in down)) {
+            seen.closedSince = undefined // a socket closed in the background is no outage: count from now
+            continue
+          }
           const nodes = daemons.filter((d) => d.via === hub.id).map((d) => d.node ?? d.name)
           const open = statusRef.current[hub.id] === 'open'
           if (hub.id in down) {
@@ -77,6 +83,14 @@ export function useHubFallback() {
     }
     const timer = setInterval(() => void tick(), TICK_MS)
     void tick()
-    return () => clearInterval(timer)
+    // Back: a hub taken for down is asked again at once (it may well answer now), not at its next probe.
+    const stop = onResume(() => {
+      for (const seen of memory.current.values()) seen.probed = undefined
+      void tick()
+    })
+    return () => {
+      clearInterval(timer)
+      stop()
+    }
   }, [])
 }

@@ -5,6 +5,7 @@ import { ApiError } from '@/lib/api/client'
 import { useStreamStatus } from '@/lib/api/streams'
 import { whyUnreachable } from '@/lib/reach'
 import { useFallback } from '@/lib/daemons/fallback'
+import { useSettling } from '@/lib/resume'
 import { useDaemonsStore, useRejectedDaemons } from '@/lib/daemons/store'
 import type { DaemonSessions } from '../api/use-sessions'
 
@@ -18,9 +19,11 @@ export function DaemonAlerts({ daemons }: { daemons: DaemonSessions[] }) {
   const status = useStreamStatus((s) => s.status)
   const down = useFallback((f) => f.down)
   const all = useDaemonsStore((s) => s.daemons)
+  // Just back (or hidden): a request that failed while away is no outage; the app is asking again.
+  const back = useSettling()
   const blocked = daemons.filter((d) => status[d.daemon.id] === 'blocked')
-  const failing = daemons.filter((d) => d.error && status[d.daemon.id] !== 'blocked' && !(d.daemon.id in down))
-  const hubsDown = all.filter((d) => d.id in down)
+  const failing = back ? [] : daemons.filter((d) => d.error && status[d.daemon.id] !== 'blocked' && !(d.daemon.id in down))
+  const hubsDown = back ? [] : all.filter((d) => d.id in down) // being asked again right now
   if (!rejected.length && !blocked.length && !failing.length && !hubsDown.length) return null
   return (
     <div className="flex flex-col gap-2 p-3">

@@ -6,6 +6,7 @@ import { DaemonStream } from './stream'
 import { setStreamStatus } from './stream-status'
 import { mergeItems } from './conversation'
 import type { ConversationItem, StreamSubscribe } from './types'
+import { onResume } from '../resume'
 
 const streams = new Map<string, { stream: DaemonStream; signature: string }>()
 
@@ -53,6 +54,9 @@ export function useDaemonStreams() {
     }
   }, [daemons])
 }
+
+/** Back (`onResume`): what the page shows is asked for again at once, not only when it next would be. */
+onResume(() => void queryClient.refetchQueries({ type: 'active' }))
 
 /** Subscribes to a topic on a daemon's stream for as long as the calling component is mounted. */
 export function useStreamSubscription(daemonId: string, message: StreamSubscribe | null) {

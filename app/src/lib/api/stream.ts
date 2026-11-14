@@ -5,6 +5,7 @@ import { Heartbeat } from './heartbeat'
 import { openSocket } from './stream-open'
 import type { StreamStatus } from './stream-status'
 import type { ServerFrame, StreamPing, StreamSubscribe } from './types'
+import { onResume } from '../resume'
 
 interface Handlers {
   onFrame: (frame: ServerFrame) => void
@@ -58,16 +59,16 @@ export class DaemonStream {
     this.handlers = handlers
   }
 
+  private unwatch: (() => void) | undefined
+
   start() {
-    globalThis.document?.addEventListener('visibilitychange', this.woken)
-    globalThis.addEventListener?.('online', this.woken)
+    this.unwatch = onResume(this.woken) // shown again, restored, focused or back online: at once
     void this.connect()
   }
 
   stop() {
     this.stopped = true
-    globalThis.document?.removeEventListener('visibilitychange', this.woken)
-    globalThis.removeEventListener?.('online', this.woken)
+    this.unwatch?.()
     clearTimeout(this.timer)
     this.heartbeat.stop()
     this.ws?.close()

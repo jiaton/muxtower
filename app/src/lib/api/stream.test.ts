@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { IDLE_MS, PONG_TIMEOUT_MS } from './heartbeat'
 import { DaemonStream } from './stream'
+import { resetResume } from '../resume'
 
 const noop = { onFrame: () => {}, onStatus: () => {}, onAuth: () => {} }
 
@@ -53,6 +54,7 @@ describe('stream reconnects', () => {
 
   beforeEach(() => {
     vi.useFakeTimers()
+    resetResume()
     FakeSocket.made = []
     statuses = []
     vi.stubGlobal('WebSocket', FakeSocket)
@@ -83,8 +85,17 @@ describe('stream reconnects', () => {
     await vi.waitFor(() => expect(FakeSocket.made).toHaveLength(2)) // no timer advanced
     FakeSocket.made[1].open()
     await vi.waitFor(() => expect(statuses.at(-1)).toBe('open'))
+    await vi.advanceTimersByTimeAsync(1_000) // a later return, not the same one seen twice
     window.dispatchEvent(new Event('online')) // already open: it asks instead of connecting again
     expect(FakeSocket.made[1].sent.at(-1)).toBe('{"type":"ping"}')
+    stream.stop()
+  })
+
+  it('connects at once when the page comes back from the back-forward cache or gets the focus', async () => {
+    const stream = await connected()
+    FakeSocket.made[0].drop()
+    window.dispatchEvent(new Event('pageshow'))
+    await vi.waitFor(() => expect(FakeSocket.made).toHaveLength(2))
     stream.stop()
   })
 
