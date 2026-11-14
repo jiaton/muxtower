@@ -124,6 +124,16 @@ async function run(r: Recorder) {
 
   r.caption('Hold it for everything else')
   await phone.focus(null)
+  // Down the list to the release notes and their forks, the tree in view.
+  await row(page, 'Release notes for 2.4').evaluate((el) => {
+    let list = el.parentElement
+    while (list && !(list.scrollHeight > list.clientHeight && getComputedStyle(list).overflowY !== 'visible'))
+      list = list.parentElement
+    if (!list) return
+    const top = el.getBoundingClientRect().top - list.getBoundingClientRect().top
+    list.scrollBy({ top: top - 160, behavior: 'smooth' })
+  })
+  await r.wait(700)
   await phone.press(row(page, 'Release notes for 2.4'), 600)
   await r.wait(500)
   await phone.click(page.getByRole('menuitemradio', { name: /Only when it needs me/ }).first(), 1000)
