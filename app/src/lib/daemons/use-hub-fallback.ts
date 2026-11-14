@@ -2,16 +2,18 @@ import { useEffect, useRef } from 'react'
 import { ApiError, createDaemonClient, unwrap } from '@/lib/api/client'
 import { useStreamStatus } from '@/lib/api/stream-status'
 import { DOWN_AFTER_MS, PROBE_EVERY_MS, REFRESH_EVERY_MS, nodesBack, probeOf, useFallback, type Probe } from './fallback'
-import { onResume, settling } from '../resume'
+import { SETTLE_MS, onResume, settling } from '../resume'
 import { useDaemonsStore } from './store'
 import type { Daemon } from './types'
 
 const TICK_MS = 3_000
+const RESUME_PROBE_MS = 2_000 // after coming back: the hub is asked with a short wait, twice
+const RESUME_RETRY_MS = 1_000
 
-async function probe(hub: Daemon): Promise<Probe> {
+async function probe(hub: Daemon, timeoutMs = 5_000): Promise<Probe> {
   const client = createDaemonClient(hub)
   try {
-    const res = await client.GET('/v1/me', { signal: AbortSignal.timeout(5_000) })
+    const res = await client.GET('/v1/me', { signal: AbortSignal.timeout(timeoutMs) })
     unwrap(res)
     return 'up'
   } catch (error) {
@@ -83,13 +85,30 @@ export function useHubFallback() {
     }
     const timer = setInterval(() => void tick(), TICK_MS)
     void tick()
-    // Back: a hub taken for down is asked again at once (it may well answer now), not at its next probe.
+    // Back: a hub taken for down is asked again at once (it may well answer now), not at its next probe;
+    // once settled, one whose stream is still not back is asked too, twice, and taken for down only if
+    // neither answers: a real outage shows about 8 s after coming back, never one from the time away.
+    let confirm: ReturnType<typeof setTimeout> | undefined
     const stop = onResume(() => {
       for (const seen of memory.current.values()) seen.probed = undefined
       void tick()
+      clearTimeout(confirm)
+      confirm = setTimeout(() => void confirmDown(), SETTLE_MS + 50)
     })
+    const confirmDown = async () => {
+      const { daemons } = useDaemonsStore.getState()
+      const { down, setDown } = useFallback.getState()
+      for (const hub of daemons.filter((d) => !d.via && d.token && !d.rejected && !(d.id in down))) {
+        if (statusRef.current[hub.id] === 'open' || !daemons.some((d) => d.via === hub.id)) continue
+        if ((await probe(hub, RESUME_PROBE_MS)) !== 'down') continue
+        await new Promise((r) => setTimeout(r, RESUME_RETRY_MS))
+        if (statusRef.current[hub.id] === 'open') continue
+        if ((await probe(hub, RESUME_PROBE_MS)) === 'down') setDown(hub.id, true)
+      }
+    }
     return () => {
       clearInterval(timer)
+      clearTimeout(confirm)
       stop()
     }
   }, [])

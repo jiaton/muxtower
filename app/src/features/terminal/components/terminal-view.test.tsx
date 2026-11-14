@@ -60,23 +60,33 @@ it('keeps the reader where they are while output pushes lines off the top, and t
   expect(shownLines()).toHaveLength(50)
 })
 
-it('resizes the pane for a real change of height, not for a bar shown over it a moment', () => {
+it('never resizes the pane for what comes and goes around the view; a window resized once', () => {
   const onFit = vi.fn()
   render(<TerminalView ansi={output(0, 50)} fontSize={13} onFit={onFit} />)
   act(() => vi.advanceTimersByTime(300))
   expect(onFit).toHaveBeenCalledTimes(1)
   const rows = onFit.mock.calls[0]![0].rows
-  boxHeight -= 2 * LINE_PX // Live's bar: two rows
+  for (const shrink of [3, 6, 12]) {
+    boxHeight -= shrink * LINE_PX // Live's row, a quote card, the + panel, a long draft
+    act(() => {
+      resized!()
+      vi.advanceTimersByTime(300)
+    })
+  }
+  boxHeight += 21 * LINE_PX // all gone again
   act(() => {
     resized!()
     vi.advanceTimersByTime(300)
   })
-  expect(onFit).toHaveBeenCalledTimes(1)
-  boxHeight -= 10 * LINE_PX // the keyboard
+  expect(onFit).toHaveBeenCalledTimes(1) // nothing sent: no repaint
+  const tall = window.innerHeight
+  Object.defineProperty(window, 'innerHeight', { value: tall - 10 * LINE_PX, configurable: true })
+  boxHeight -= 10 * LINE_PX // the window made shorter
   act(() => {
     resized!()
     vi.advanceTimersByTime(300)
   })
   expect(onFit).toHaveBeenCalledTimes(2)
-  expect(onFit.mock.calls[1]![0].rows).toBe(rows - 12)
+  expect(onFit.mock.calls[1]![0].rows).toBe(rows - 10)
+  Object.defineProperty(window, 'innerHeight', { value: tall, configurable: true })
 })

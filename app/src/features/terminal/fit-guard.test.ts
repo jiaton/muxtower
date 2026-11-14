@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { BOUNCE_MS, FitGuard, KeyboardProofHeight, heldScreen, visibleChars } from './fit-guard'
+import { BOUNCE_MS, FitGuard, StableHeight, frameOf, heldScreen, visibleChars } from './fit-guard'
 
 describe('FitGuard', () => {
   it('sends a new size, never the same one again, nor one a couple of rows off', () => {
@@ -18,19 +18,24 @@ describe('FitGuard', () => {
   })
 })
 
-describe('KeyboardProofHeight', () => {
+describe('StableHeight', () => {
+  const win = (innerWidth: number, innerHeight: number) => ({ innerWidth, innerHeight })
   it('on a touch screen: the soft keyboard never changes the height fitted; a new width does', () => {
-    const k = new KeyboardProofHeight()
-    expect(k.height(390, 700, true)).toBe(700)
-    expect(k.height(390, 380, true)).toBe(700) // keyboard up
-    expect(k.height(390, 700, true)).toBe(700) // and down: nothing new to send
-    expect(k.height(844, 300, true)).toBe(300) // rotated: fitted once, to its own height
-    expect(k.height(844, 330, true)).toBe(330) // taller than seen: fitted
+    const k = new StableHeight()
+    expect(k.height(frameOf(390, true, win(390, 844)), 700)).toBe(700)
+    expect(k.height(frameOf(390, true, win(390, 480)), 380)).toBe(700) // keyboard up (the window shrank too)
+    expect(k.height(frameOf(390, true, win(390, 844)), 700)).toBe(700) // and down: nothing new to send
+    expect(k.height(frameOf(844, true, win(844, 390)), 300)).toBe(300) // rotated: fitted once
   })
-  it('with a mouse: the height as it is', () => {
-    const k = new KeyboardProofHeight()
-    expect(k.height(1200, 700, false)).toBe(700)
-    expect(k.height(1200, 380, false)).toBe(380)
+  it('with a mouse: the Live row, quotes, the + panel or a long draft never change it; the window does', () => {
+    const k = new StableHeight()
+    const frame = frameOf(900, false, win(1440, 900))
+    expect(k.height(frame, 700)).toBe(700)
+    expect(k.height(frame, 652)).toBe(700) // Live on: the footer took 48 px
+    expect(k.height(frame, 560)).toBe(700) // a quote card, a 5-line draft
+    expect(k.height(frame, 700)).toBe(700) // all gone again: nothing to send
+    expect(k.height(frameOf(900, false, win(1440, 700)), 500)).toBe(500) // the window made shorter: fitted
+    expect(k.height(frameOf(640, false, win(1440, 700)), 500)).toBe(500) // a pane shown beside it (focus mode)
   })
 })
 

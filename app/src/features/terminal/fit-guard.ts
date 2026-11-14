@@ -27,23 +27,29 @@ export class FitGuard {
 }
 
 /**
- * The height a pane is fitted to. On a touch screen it is the tallest the view has been at this width,
- * which is its height with the soft keyboard closed: the keyboard opening and closing never resizes the
- * pane (Claude Code would clear and redraw its whole screen for it), the view just gets shorter, pinned
- * to its bottom, and scrolls. A new width (rotation, a real resize) starts again from its own height.
- * With a mouse and keyboard the height is the height.
+ * The height a pane is fitted to: the tallest the view has been in this frame, which is its height without
+ * what comes and goes around it (the soft keyboard, the Live row, quotes and pictures in the message box,
+ * the + panel, a banner, a draft of several lines). Those never resize the pane (Claude Code would clear
+ * and redraw its whole screen); the view just gets shorter, pinned to its bottom, and scrolls. A new frame
+ * starts again from its own height: on a touch screen a new width (rotation, a fold opened; the keyboard
+ * changes the window's height there, so the height cannot say), elsewhere a new width or window size
+ * (`frameOf`).
  */
-export class KeyboardProofHeight {
-  private width = -1
+export class StableHeight {
+  private frame = ''
   private tallest = 0
 
-  height(width: number, height: number, touch: boolean): number {
-    if (!touch) return height
-    if (width !== this.width) [this.width, this.tallest] = [width, height]
+  height(frame: string, height: number): number {
+    if (frame !== this.frame) [this.frame, this.tallest] = [frame, height]
     else this.tallest = Math.max(this.tallest, height)
     return this.tallest
   }
 }
+
+/** What a pane's fitted height is kept for: the view's width, and on a screen with a mouse the window's
+ *  size too (resizing the window is a real change; on a phone the keyboard resizes it, which is not). */
+export const frameOf = (width: number, touch: boolean, window: { innerWidth: number; innerHeight: number }) =>
+  touch ? `${width}` : `${width} ${window.innerWidth}x${window.innerHeight}`
 
 /** Shown after a fit, until the agent has redrawn: the screen before it, while the new one is mostly
  *  blank (the agent clears before it paints), for at most HOLD_MS. */

@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react'
  * at once (`onResume`), and for SETTLE_MS after it (and while hidden) nothing is called unreachable or
  * switched over to a node on the strength of a failure (`settling`): only one seen after that counts.
  */
-export const SETTLE_MS = 5_000
+export const SETTLE_MS = 3_000
 const DEDUPE_MS = 1_000 // the several events one return sends (visibility, focus, pageshow): once
 
 const listeners = new Set<() => void>()
