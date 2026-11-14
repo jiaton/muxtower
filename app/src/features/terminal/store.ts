@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { quoteOf, type Quote } from './quotes'
+import { mergeWithDefaults } from '@/lib/persist-merge'
 
 export const FONT_SIZES = [10, 11, 12, 13, 14, 16, 18] as const
 /** How many screens tall a fitted pane is: a full-screen program (Claude Code's fullscreen renderer)
@@ -28,7 +29,7 @@ export const useTerminalPrefs = create<TerminalPrefs>()(
       screens: 2,
       setScreens: (screens) => set({ screens }),
     }),
-    { name: 'muxtower.terminal', version: 1 },
+    { name: 'muxtower.terminal', version: 1, merge: mergeWithDefaults },
   ),
 )
 
@@ -93,6 +94,7 @@ export const useDrafts = create<Drafts>()(
     }),
     {
       name: 'muxtower.drafts',
+      merge: mergeWithDefaults,
       version: 2,
       partialize: ({ drafts, quotes }) => ({ drafts, quotes }),
       // 1: quotes were their text alone (no reply of their own).

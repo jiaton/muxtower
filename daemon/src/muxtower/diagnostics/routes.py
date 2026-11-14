@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request, Response
@@ -11,6 +12,8 @@ from muxtower.diagnostics.service import MAX_BODY_BYTES, MAX_ENTRIES, Diagnostic
 from muxtower.errors import Invalid
 
 router = APIRouter(prefix="/v1", tags=["diagnostics"])
+logger = logging.getLogger("muxtower.diagnostics")
+APP_ERRORS = "app-errors"  # the app's uncaught errors (app/src/lib/error-report.ts)
 
 
 class DiagnosticsBatch(BaseModel):
@@ -38,8 +41,9 @@ async def append_diagnostics(
     audit: Audit,
 ) -> Response:  # fmt: skip
     """Appends a device's diagnostic entries to `<state_dir>/diagnostics/<source>.jsonl`, one line each with
-    the device's name and when it arrived. Entries must be counters and timestamps only: the daemon stores
-    them as they come, and nothing from them is audited."""
+    the device's name and when it arrived. Entries must be counters and timestamps only (the app's errors:
+    message, stack, version, route pattern, browser; logged too): the daemon stores them as they come, and
+    nothing from them is audited."""
     body = await request.body()
     if len(body) > MAX_BODY_BYTES:
         raise Invalid("diagnostics batch too large")
@@ -48,6 +52,12 @@ async def append_diagnostics(
     except (ValueError, ValidationError) as error:
         raise Invalid(f"bad diagnostics batch: {error}") from None
     await asyncio.to_thread(service.append, batch.source, device.name, batch.entries)
+    if batch.source == APP_ERRORS:  # the app failing on a device: said in the daemon's own log too
+        for entry in batch.entries[:5]:
+            logger.warning(
+                "app error on %s (%s, %s): %s", device.name, entry.get("version"), entry.get("route"),
+                str(entry.get("message"))[:300],
+            )  # fmt: skip
     await asyncio.to_thread(
         audit.record, device.name, "diagnostics", None, f"source={batch.source} n={len(batch.entries)}"
     )

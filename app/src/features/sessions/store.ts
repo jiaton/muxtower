@@ -4,6 +4,7 @@ import type { Pull } from '@/components/ui/gesture'
 import type { GroupBy } from './model/query'
 import type { ListSearch } from './model/search'
 import type { NewSessionPreset } from './model/new-here'
+import { mergeWithDefaults } from '@/lib/persist-merge'
 
 interface ListPrefs {
   /** How the list is grouped when the URL does not say. */
@@ -33,7 +34,7 @@ export const useListPrefs = create<ListPrefs>()(
       collapsed: [],
       toggleCollapsed: (key) => set((s) => ({ collapsed: toggle(s.collapsed, key) })),
     }),
-    { name: 'muxtower.list', version: 1 },
+    { name: 'muxtower.list', version: 1, merge: mergeWithDefaults },
   ),
 )
 
@@ -87,7 +88,7 @@ export const useSessionViews = create<SessionViews>()(
           return { views: { ...Object.fromEntries(kept), [key]: view }, last: view }
         }),
     }),
-    { name: 'muxtower.views', version: 1 },
+    { name: 'muxtower.views', version: 1, merge: mergeWithDefaults },
   ),
 )
 
@@ -103,7 +104,7 @@ export const useNewSessionPrefs = create<NewSessionPrefs>()(
       runtime: 'claude-code',
       setRuntime: (runtime) => set({ runtime }),
     }),
-    { name: 'muxtower.new-session', version: 1 },
+    { name: 'muxtower.new-session', version: 1, merge: mergeWithDefaults },
   ),
 )
 

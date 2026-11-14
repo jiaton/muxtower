@@ -4,6 +4,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { randomId } from '@/lib/id'
 import { isActive, useFallback, withDirect, type DirectNode } from './fallback'
 import type { Daemon } from './types'
+import { mergeWithDefaults } from '../persist-merge'
 
 interface DaemonsState {
   daemons: Daemon[]
@@ -44,7 +45,7 @@ export const useDaemonsStore = create<DaemonsState>()(
           return hub ? { daemons: withDirect(s.daemons, hub, found) } : s
         }),
     }),
-    { name: 'muxtower.daemons', version: 1 },
+    { name: 'muxtower.daemons', version: 1, merge: mergeWithDefaults },
   ),
 )
 

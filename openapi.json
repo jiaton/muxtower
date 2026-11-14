@@ -3700,7 +3700,7 @@
     },
     "/v1/diagnostics": {
       "post": {
-        "description": "Appends a device's diagnostic entries to `<state_dir>/diagnostics/<source>.jsonl`, one line each with\nthe device's name and when it arrived. Entries must be counters and timestamps only: the daemon stores\nthem as they come, and nothing from them is audited.",
+        "description": "Appends a device's diagnostic entries to `<state_dir>/diagnostics/<source>.jsonl`, one line each with\nthe device's name and when it arrived. Entries must be counters and timestamps only (the app's errors:\nmessage, stack, version, route pattern, browser; logged too): the daemon stores them as they come, and\nnothing from them is audited.",
         "operationId": "append_diagnostics_v1_diagnostics_post",
         "requestBody": {
           "content": {

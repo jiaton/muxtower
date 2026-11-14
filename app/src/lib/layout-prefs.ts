@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { SIDEBAR_QUERY, SPLIT_QUERY, useMediaQuery } from './use-media-query'
+import { mergeWithDefaults } from './persist-merge'
 
 /**
  * Which panes stand beside an open session, per browser: the sidebar (from `lg`) and the session list
@@ -27,7 +28,7 @@ export const useLayoutPrefs = create<LayoutPrefs>()(
       setList: (list) => set({ list }),
       toggleFocus: () => set((s) => (s.sidebar || s.list ? { sidebar: false, list: false } : { sidebar: true, list: true })),
     }),
-    { name: 'muxtower.layout', version: 1 },
+    { name: 'muxtower.layout', version: 1, merge: mergeWithDefaults },
   ),
 )
 

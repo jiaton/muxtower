@@ -145,8 +145,9 @@ export interface paths {
         /**
          * Append Diagnostics
          * @description Appends a device's diagnostic entries to `<state_dir>/diagnostics/<source>.jsonl`, one line each with
-         *     the device's name and when it arrived. Entries must be counters and timestamps only: the daemon stores
-         *     them as they come, and nothing from them is audited.
+         *     the device's name and when it arrived. Entries must be counters and timestamps only (the app's errors:
+         *     message, stack, version, route pattern, browser; logged too): the daemon stores them as they come, and
+         *     nothing from them is audited.
          */
         post: operations["append_diagnostics_v1_diagnostics_post"];
         delete?: never;

@@ -58,7 +58,9 @@ export default defineConfig(({ mode }) => ({
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(APP_VERSION),
     'import.meta.env.VITE_WEB_ANALYTICS_TOKEN': JSON.stringify(mode === 'demo' ? '' : ANALYTICS_TOKEN),
   },
-  build: mode === 'demo' ? { outDir: 'dist-demo' } : undefined,
+  // Source maps written beside the bundle but not linked from it ('hidden'): the stack of an error a device
+  // reports (`lib/error-report.ts`) is mapped back with them, and no browser fetches them.
+  build: mode === 'demo' ? { outDir: 'dist-demo' } : { sourcemap: 'hidden' },
   worker: { format: 'es', plugins: () => [kwsWasmFromCdn()] },
   optimizeDeps: { exclude: ['@sherpaw/kws'] },
   plugins: [
