@@ -2,6 +2,7 @@ import type { components } from '@/lib/api/schema'
 import { APP_VERSION } from '@/lib/app-update'
 import type { MachineUsage, NodeInfo, RuntimeInfo, Session } from '@/lib/api/types'
 import { DEMO_DAEMON, HOME, NODE } from './scenes/session'
+import { startedScene } from './scenes/started'
 import { plain } from './scenes/terminal'
 import { DemoSettings } from './settings'
 import { dictionary, saveDictionary } from './dictionary'
@@ -76,6 +77,25 @@ const STARTING_GROUPS: ChipGroup[] = [
   { id: 'ops', name: 'Ops', projects: ['acme/infra', ':other'], sessions: [] },
 ]
 const chipGroups = (world: World) => CHIP_GROUPS.get(world) ?? STARTING_GROUPS
+
+/** How many sessions the reader has started in this visit (for their ids). */
+const STARTED = new WeakMap<World, number>()
+
+/** `POST /v1/sessions`: a made-up session where the reader asked, playing its first message if given. */
+function start(world: World, body: Record<string, unknown>): Response {
+  const text = (key: string) => (typeof body[key] === 'string' ? (body[key] as string) : null)
+  const runtime = text('runtime')
+  if (!runtime || !RUNTIMES.some((r) => r.name === runtime)) return refuse(422, 'no such runtime')
+  const node = text('node')
+  if (node && !NODES.some((n) => n.name === node)) return refuse(404, `no node named ${node}`)
+  const n = (STARTED.get(world) ?? 0) + 1
+  STARTED.set(world, n)
+  const scene = startedScene({ runtime, node, cwd: text('cwd'), name: text('name') }, world.sessions(), n)
+  world.add(scene)
+  const prompt = text('prompt')?.trim()
+  if (prompt) world.input(scene.session.id, prompt, true)
+  return json(world.session(scene.session.id), 201)
+}
 
 /** The names each demo session went by before the one it has: its agent's, then each it was renamed from. */
 const EARLIER = new WeakMap<World, Map<string, { name: string; source: string; last_seen: string }[]>>()
@@ -174,6 +194,7 @@ const ROUTES: Record<string, (world: World, body: Record<string, unknown>, url: 
   },
   'GET /v1/health': () => json({ status: 'ok', version: 'demo' }),
   'GET /v1/sessions': (world) => json(world.sessions()),
+  'POST /v1/sessions': start,
   'GET /v1/runtimes': () => json(RUNTIMES),
   'GET /v1/nodes': () => json(NODES),
   'GET /v1/devices': () => json([{ name: 'This browser', created_at: new Date().toISOString(), last_used_at: null, current: true }]),

@@ -225,5 +225,6 @@ export function tidyUp(): Scene {
     history: [...claudeWelcome('~/code'), ...said('Which repositories here have no README?'), ...answered('Only web-app.')],
     footer: claudeInput,
     items: [prompt(1, { text: 'Which repositories here have no README?', at: ago(41) }), reply(2, { text: 'Only web-app.' })],
+    reply: talk('claude', 10),
   }
 }

@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ServerFrame } from '@/lib/api/types'
 import { scenes } from './scenes'
-import { DEMO_DAEMON, demoSession } from './scenes/session'
+import { DEMO_ANSWER, DEMO_DAEMON, demoSession } from './scenes/session'
 import { WIDTH, plain } from './scenes/terminal'
 import { respond } from './server'
 import { DemoSocket } from './socket'
@@ -99,6 +99,16 @@ describe('the demo world', () => {
     expect(frames.at(-1)).toMatchObject({ type: 'sessions' })
   })
 
+  it('answers a message in every session that is not archived, so none is left "Not delivered"', () => {
+    const { w, runAll } = world()
+    runAll()
+    for (const session of w.sessions().filter((s) => !s.archived_at)) {
+      w.input(session.id, 'Anything left?', true)
+      runAll()
+      expect(w.items(session.id).at(-1)?.text, session.id).toBe(DEMO_ANSWER)
+    }
+  })
+
   it('redraws a screen at the width it is resized to, and back once released', () => {
     const { w, frames } = world()
     const widest = (id: string) =>
@@ -148,7 +158,7 @@ describe('the demo daemon over HTTP', () => {
     })
     expect((await call(w, 'POST', '/v1/sessions/web-app/approve', {})).status).toBe(409)
     expect((await call(w, 'POST', '/v1/sessions/docs/read', { read: true })).status).toBe(204)
-    expect((await call(w, 'POST', '/v1/sessions', { runtime: 'claude' })).status).toBe(409)
+    expect((await call(w, 'DELETE', '/v1/devices/This%20browser')).status).toBe(409) // not part of the demo
     expect((await (await call(w, 'GET', '/v1/sessions/shop-api/tasks')).json())[0].from_id).toBe('release-notes')
     expect((await call(w, 'POST', '/v1/sessions/web-app/resize', { cols: 90, rows: 40 })).status).toBe(204)
     expect(plain((await (await call(w, 'GET', '/v1/sessions/web-app/screen')).json()).ansi)).toContain(`╭${'─'.repeat(88)}╮`)
@@ -161,6 +171,37 @@ describe('the demo daemon over HTTP', () => {
     const [started] = await (await call(w, 'POST', '/v1/recovery', { session_ids: ['laptop~migrations', 'docs'] })).json()
     expect([started.id, started.interrupted_at, started.capabilities.screen]).toEqual(['laptop~migrations', null, true])
     expect(await (await call(w, 'POST', '/v1/recovery', { session_ids: ['laptop~migrations'] })).json()).toEqual([])
+  })
+
+  it('starts a session where asked: named from its folder, in the project of that folder, its first message answered', async () => {
+    const { w, runAll } = world()
+    const res = await call(w, 'POST', '/v1/sessions', { runtime: 'claude-code', cwd: '~/code/shop-api', prompt: 'Add a health check' })
+    expect(res.status).toBe(201)
+    const made = await res.json()
+    expect([made.name, made.cwd, made.machine, made.node, made.project]).toEqual([
+      'shop-api',
+      '/home/dev/code/shop-api',
+      'build-box',
+      null,
+      'acme/shop-api',
+    ])
+    expect(made.state).toBe('busy')
+    runAll()
+    expect(w.items(made.id).map((i) => i.kind)).toEqual(['prompt', 'reply'])
+    expect(w.screen(made.id)).toContain('Add a health check')
+
+    const there = await (await call(w, 'POST', '/v1/sessions', { runtime: 'codex', node: 'laptop', cwd: null, name: 'Try codex' })).json()
+    expect([there.id, there.name, there.cwd, there.machine, there.node, there.runtime]).toEqual([
+      'laptop~new-2',
+      'Try codex',
+      '/Users/dev/code',
+      'laptop',
+      'laptop',
+      'codex',
+    ])
+    expect(w.items(there.id)).toEqual([]) // no first message, nothing said
+    expect((await call(w, 'POST', '/v1/sessions', { runtime: 'claude-code', node: 'elsewhere' })).status).toBe(404)
+    expect((await call(w, 'POST', '/v1/sessions', { runtime: 'vim' })).status).toBe(422)
   })
 
   it('keeps a voice dictionary of made-up words, all of which fit in the prompt', async () => {
