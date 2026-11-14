@@ -9,7 +9,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build && node scripts/write-config.mjs",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint src scripts && node scripts/check-limits.mjs",
+    "lint": "oxlint --react-plugin -D react/rules-of-hooks src scripts && node scripts/check-limits.mjs",
     "test": "vitest run",
     "gen:api": "openapi-typescript ../openapi.json -o src/hub/schema.d.ts",
     "pack": "npm run build && node scripts/pack.mjs"

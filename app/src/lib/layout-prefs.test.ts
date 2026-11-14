@@ -1,5 +1,5 @@
 import { renderHook } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { useFocusShortcut, useLayoutPrefs } from './layout-prefs'
 
 afterEach(() => useLayoutPrefs.setState({ sidebar: true, list: true }))
@@ -32,5 +32,32 @@ describe('focus mode', () => {
     rerender({ on: false })
     press({ code: 'KeyF', altKey: true })
     expect(useLayoutPrefs.getState().list).toBe(false)
+  })
+})
+
+describe('the docking hooks when the screen changes (a phone rotated, a Fold opened)', () => {
+  it('keep their hooks in order while the media queries flip: no crash', async () => {
+    const { act: actNow, renderHook: render } = await import('@testing-library/react')
+    const { useListBeside, useSidebarDocked } = await import('./layout-prefs')
+    let wide = false
+    const listeners = new Set<() => void>()
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      get matches() {
+        return wide
+      },
+      media: query,
+      addEventListener: (_: string, l: () => void) => listeners.add(l),
+      removeEventListener: (_: string, l: () => void) => listeners.delete(l),
+    }))
+    const { result } = render(() => [useSidebarDocked(), useListBeside()])
+    expect(result.current).toEqual([false, false]) // narrow: before the fix, the store's hook was skipped here
+    for (const next of [true, false, true]) {
+      actNow(() => {
+        wide = next
+        for (const l of listeners) l()
+      })
+      expect(result.current).toEqual([next, next])
+    }
+    vi.unstubAllGlobals()
   })
 })

@@ -11,7 +11,7 @@
     "dev:demo": "vite --mode demo",
     "preview": "vite preview",
     "typecheck": "tsr generate && tsc -b --noEmit",
-    "lint": "oxlint src && npm run check:tokens",
+    "lint": "oxlint --react-plugin -D react/rules-of-hooks src && npm run check:tokens",
     "check:tokens": "node scripts/check-tokens.mjs && node scripts/check-styles.mjs",
     "test": "vitest run",
     "gen:api": "openapi-typescript ../openapi.json -o src/lib/api/schema.d.ts",

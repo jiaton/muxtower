@@ -34,12 +34,18 @@ export const useLayoutPrefs = create<LayoutPrefs>()(
 
 /** Whether the sidebar is docked: wide enough, and not hidden. */
 export function useSidebarDocked() {
-  return useMediaQuery(SIDEBAR_QUERY) && useLayoutPrefs((s) => s.sidebar)
+  // Both hooks on every render: one skipped behind `&&` changed their order when the media query flipped
+  // (a phone rotated, a Fold opened), which React cannot follow (the page crashed).
+  const wide = useMediaQuery(SIDEBAR_QUERY)
+  const shown = useLayoutPrefs((s) => s.sidebar)
+  return wide && shown
 }
 
 /** Whether the list stands beside an open session: wide enough, and not hidden. */
 export function useListBeside() {
-  return useMediaQuery(SPLIT_QUERY) && useLayoutPrefs((s) => s.list)
+  const wide = useMediaQuery(SPLIT_QUERY)
+  const shown = useLayoutPrefs((s) => s.list)
+  return wide && shown
 }
 
 /** Whether this screen could show the list beside a session at all (focus mode means something here). */
