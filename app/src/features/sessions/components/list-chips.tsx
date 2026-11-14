@@ -9,6 +9,8 @@ import { scopeSearch, type ListSearch, type Scope } from '../model/search'
 import { Divider } from '@/components/ui/divider'
 import { chip, chipCount } from '@/components/ui/chip'
 import { bleedRow } from '@/components/ui/list-row'
+import { Skeleton } from '@/components/ui/skeleton'
+import { useCountsKnown } from '../hooks/use-counts-known'
 
 const VIEW_CHIP: Partial<Record<View, string>> = { all: 'All', needs: 'Needs you', unread: 'Unread', working: 'Working' }
 
@@ -93,6 +95,7 @@ export function Chip({
   tone?: 'needs' | 'unread'
   children: ReactNode
 } & Omit<ComponentProps<'a'>, 'children' | 'href'>) {
+  const known = useCountsKnown()
   return (
     <Link
       {...rest}
@@ -103,9 +106,13 @@ export function Chip({
       className={cn(rest.className, chip({ kind: 'filter' }))}
     >
       {children}
-      <span className={chipCount({ tone: !count ? 'muted' : tone === 'needs' ? 'warning' : tone === 'unread' ? 'accent' : 'muted' })}>
-        {count}
-      </span>
+      {known ? (
+        <span className={chipCount({ tone: !count ? 'muted' : tone === 'needs' ? 'warning' : tone === 'unread' ? 'accent' : 'muted' })}>
+          {count}
+        </span>
+      ) : (
+        <Skeleton shape="count" /> // not "0": the sessions have not come yet
+      )}
     </Link>
   )
 }

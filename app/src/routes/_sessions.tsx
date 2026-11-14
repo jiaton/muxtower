@@ -18,7 +18,7 @@ import { useSidebarDrawer } from '@/lib/sidebar-drawer'
 import { NewSessionDialog } from '@/features/sessions/components/new-session-dialog'
 import { SessionList } from '@/features/sessions/components/session-list'
 import { ListSkeleton } from '@/features/sessions/components/list-skeleton'
-import { Loading } from '@/components/ui/skeleton'
+import { Loading, Skeleton } from '@/components/ui/skeleton'
 import { useOpenedHere } from '@/features/sessions/hooks/use-opened-here'
 import { useScrollMemory } from '@/features/sessions/hooks/use-scroll-memory'
 import { useSessionEntries } from '@/features/sessions/hooks/use-session-entries'
@@ -114,7 +114,7 @@ function SessionsLayout() {
                 {query.folder ? folderName(title) : title}
               </h1>
             }
-            subtitle={within ? `${within} · ${counted}` : counted}
+            subtitle={loading ? <Skeleton className="w-20" /> : within ? `${within} · ${counted}` : counted}
             actions={
               <>
                 {open && split ? (

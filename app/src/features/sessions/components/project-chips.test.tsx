@@ -21,7 +21,9 @@ const entry = (id: string, project: string, minute: number): SessionEntry => ({
 })
 const entries = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((p, i) => entry(p, p, i))
 
-function show(sessions: SessionEntry[], groups: ChipGroup[], chip?: string) {
+function show(sessions: SessionEntry[], groups: ChipGroup[], chip?: string, listed = true) {
+  // The daemon's list has come (or not: `listed`), which counts wait for.
+  server.use(http.get(`${DAEMON_URL}/v1/sessions`, () => (listed ? HttpResponse.json([]) : new Promise(() => {}))))
   addDaemon()
   const root = createRootRoute({
     component: () => <ProjectChips query={{ view: 'all', group: 'status' }} search={{ chip }} entries={sessions} groups={groups} />,
@@ -53,8 +55,13 @@ it('is not shown for a single project and no groups', async () => {
 
 it('without groups: the most recently active projects, one chip each, then +', async () => {
   show(entries, [])
-  expect(await labels()).toEqual(['g1', 'f1', 'e1', 'd1', 'c1', 'b1']) // six, latest first, with counts
+  await waitFor(async () => expect(await labels()).toEqual(['g1', 'f1', 'e1', 'd1', 'c1', 'b1'])) // six, latest first, with counts
   expect(screen.getByRole('button', { name: 'New group' })).toBeInTheDocument()
+})
+
+it('before the first list has come, no counts: placeholders, never a "0"', async () => {
+  show(entries, [], undefined, false)
+  expect(await labels()).toEqual(['g', 'f', 'e', 'd', 'c', 'b'])
 })
 
 it('with groups: the groups in their order, counting the sessions they hold', async () => {
@@ -62,7 +69,7 @@ it('with groups: the groups in their order, counting the sessions they hold', as
     { id: 'z', name: 'Last', projects: ['a'], sessions: [] },
     { id: 'f', name: 'Focus', projects: ['b', 'c', 'gone'], sessions: [] },
   ])
-  expect(await labels()).toEqual(['Last1', 'Focus2'])
+  await waitFor(async () => expect(await labels()).toEqual(['Last1', 'Focus2']))
 })
 
 it('scrolls the chosen chip into view', async () => {

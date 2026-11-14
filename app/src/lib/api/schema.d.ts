@@ -4,4098 +4,4104 @@
  */
 
 export interface paths {
-    "/v1/asr": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Transcribe
-         * @description Speech to text: the body is the recording (WAV from the glasses). `language` (e.g. `zh`, `en`)
-         *     pins the language; without it the provider detects it. `source` names what asked (`live`: the app's
-         *     Live mode), for the audit log's counts. `hint=command`: the recording may be only a spoken command
-         *     (send, pause…): transcribed with a prompt of those words (`words`: the app's, in the languages it
-         *     listens for; else the English ones), in the configured language if one is set. Nothing is stored.
-         */
-        post: operations["transcribe_v1_asr_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/asr/dictionary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Dictionary
-         * @description The voice dictionary (kept on this daemon: the hub, for every device): its words, its corrections,
-         *     and how many of the words fit in what speech to text reads of its prompt.
-         */
-        get: operations["get_dictionary_v1_asr_dictionary_get"];
-        /**
-         * Put Dictionary
-         * @description Replaces it whole (at most 200 words and 200 corrections, each up to 80 characters).
-         */
-        put: operations["put_dictionary_v1_asr_dictionary_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/chip-groups": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Chip Groups
-         * @description The owner's groups of projects, in their order; the same on every device (kept on the hub).
-         */
-        get: operations["get_chip_groups_v1_chip_groups_get"];
-        /**
-         * Put Chip Groups
-         * @description Replaces them all with this ordered list (at most 20 groups of 40 projects and 100 sessions, names of
-         *     40 characters).
-         */
-        put: operations["put_chip_groups_v1_chip_groups_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/claude-login": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Claude Login
-         * @description Starts `claude auth login` on this daemon's machine (`sessions/login.py`): open `url`, sign in, and
-         *     type the code the page gives into the session it returns.
-         */
-        post: operations["claude_login_v1_claude_login_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/devices": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Devices */
-        get: operations["list_devices_v1_devices_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/devices/{name}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Revoke Device */
-        delete: operations["revoke_device_v1_devices__name__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/diagnostics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Append Diagnostics
-         * @description Appends a device's diagnostic entries to `<state_dir>/diagnostics/<source>.jsonl`, one line each with
-         *     the device's name and when it arrived. Entries must be counters and timestamps only: the daemon stores
-         *     them as they come, and nothing from them is audited.
-         */
-        post: operations["append_diagnostics_v1_diagnostics_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Health */
-        get: operations["health_v1_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/hub": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Hub Status */
-        get: operations["hub_status_v1_hub_get"];
-        put?: never;
-        /**
-         * Join Hub
-         * @description Joins this daemon to a hub as a node, with a pairing code made on the hub.
-         */
-        post: operations["join_hub_v1_hub_post"];
-        /**
-         * Leave Hub
-         * @description Stops reporting to the hub; the hub still lists this node (offline) until it is removed there.
-         */
-        delete: operations["leave_hub_v1_hub_delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Me
-         * @description Lets a client check that its token works and learn the daemon's display name.
-         */
-        get: operations["me_v1_me_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/nodes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Nodes */
-        get: operations["list_nodes_v1_nodes_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/nodes/claim": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Claim Node
-         * @description Public: a daemon redeems a pairing code made here to join as a node. Its token opens its link
-         *     and nothing else.
-         */
-        post: operations["claim_node_v1_nodes_claim_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/nodes/direct": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Direct Tokens
-         * @description For this device: each connected node's address and a device token of its own, to reach it directly
-         *     while the hub is down (made anew each time; revoking this device here revokes them).
-         */
-        post: operations["direct_tokens_v1_nodes_direct_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/nodes/{name}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Remove Node
-         * @description Forgets a node: its link closes, its sessions leave the lists, and it can no longer link.
-         */
-        delete: operations["remove_node_v1_nodes__name__delete"];
-        options?: never;
-        head?: never;
-        /**
-         * Set Direct Url
-         * @description The owner's address for reaching a node itself while the hub is down, over the one it reports.
-         */
-        patch: operations["set_direct_url_v1_nodes__name__patch"];
-        trace?: never;
-    };
-    "/v1/pair/claim": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Claim Pair Code
-         * @description Public: redeems a one-time code for this device's own token.
-         */
-        post: operations["claim_pair_code_v1_pair_claim_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/pair/codes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Create Pair Code
-         * @description A paired device (or the CLI) asks for a one-time code to hand to a new device.
-         */
-        post: operations["create_pair_code_v1_pair_codes_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/push/key": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Vapid Key */
-        get: operations["vapid_key_v1_push_key_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/push/subscriptions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Subscribe */
-        post: operations["subscribe_v1_push_subscriptions_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/push/subscriptions/{subscription_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Unsubscribe */
-        delete: operations["unsubscribe_v1_push_subscriptions__subscription_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/recovery": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Interrupted
-         * @description The sessions a restart interrupted, waiting to be started again (POST) or removed (DELETE the session).
-         */
-        get: operations["interrupted_v1_recovery_get"];
-        put?: never;
-        /**
-         * Recover
-         * @description Starts them again, each in its folder with its options, resuming its conversation, under its own id.
-         *     Nothing is sent to them.
-         */
-        post: operations["recover_v1_recovery_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/runtimes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List Runtimes
-         * @description What can be started here (a node's are in GET /v1/nodes).
-         */
-        get: operations["list_runtimes_v1_runtimes_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List Sessions */
-        get: operations["list_sessions_v1_sessions_get"];
-        put?: never;
-        /** Create Session */
-        post: operations["create_session_v1_sessions_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Session */
-        get: operations["get_session_v1_sessions__session_id__get"];
-        put?: never;
-        post?: never;
-        /**
-         * Terminate Session
-         * @description Stops the session (`capabilities.terminate`); an archived one is deleted from the archive.
-         */
-        delete: operations["terminate_session_v1_sessions__session_id__delete"];
-        options?: never;
-        head?: never;
-        /** Update Session */
-        patch: operations["update_session_v1_sessions__session_id__patch"];
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/approve": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Approve */
-        post: operations["approve_v1_sessions__session_id__approve_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/archive": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Archive Session
-         * @description Ends the session (closes its tmux pane, archives it on Remote Control) and keeps its conversation
-         *     to read under `archived_at` (`capabilities.archive`).
-         */
-        post: operations["archive_session_v1_sessions__session_id__archive_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/conversation": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Conversation
-         * @description Structured conversation items after `after` (0 = the latest `limit`). Only for sessions whose
-         *     capabilities include `conversation`; others have a screen instead.
-         */
-        get: operations["get_conversation_v1_sessions__session_id__conversation_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/deny": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Deny */
-        post: operations["deny_v1_sessions__session_id__deny_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/hide": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Hide Session
-         * @description Hide it from the lists (`{"hidden": false}` shows it again); the same on every device.
-         */
-        post: operations["hide_session_v1_sessions__session_id__hide_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/image": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Image
-         * @description An image the session's conversation shows (`ConversationItem.images`), from the machine it runs on.
-         *     No other file: 404 for a path the conversation does not show, 409 when the session runs elsewhere.
-         */
-        get: operations["get_image_v1_sessions__session_id__image_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/input": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Send Input */
-        post: operations["send_input_v1_sessions__session_id__input_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/names": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Session Names
-         * @description Other names it went by, latest first (at most 10, not the one it has): offered when renaming it.
-         */
-        get: operations["session_names_v1_sessions__session_id__names_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/notify": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Set Notify
-         * @description Which push notifications it sends: all, only when it needs the owner, or none; the same on every
-         *     device.
-         */
-        put: operations["set_notify_v1_sessions__session_id__notify_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/pin": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Pin Session
-         * @description Pin it above the others in the lists (`{"pinned": false}` unpins it); the same on every device.
-         */
-        post: operations["pin_session_v1_sessions__session_id__pin_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/placement": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Place Session
-         * @description Where it runs, for a session whose source does not say (`capabilities.place`); empty fields clear.
-         */
-        put: operations["place_session_v1_sessions__session_id__placement_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/placement/detect": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Detect Placement
-         * @description Reads the session's whole log for the folder its tool calls ran in: a suggestion to place it there
-         *     (PUT /placement), nothing is kept.
-         */
-        post: operations["detect_placement_v1_sessions__session_id__placement_detect_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/read": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Mark Read
-         * @description A client looks at the session (sent on opening and every few seconds while open), or the owner marks
-         *     it unread to come back to.
-         */
-        post: operations["mark_read_v1_sessions__session_id__read_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/resize": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Resize */
-        post: operations["resize_v1_sessions__session_id__resize_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/resize/release": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Release Size */
-        post: operations["release_size_v1_sessions__session_id__resize_release_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/screen": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get Screen */
-        get: operations["get_screen_v1_sessions__session_id__screen_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/summary": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Request Summary
-         * @description Asks for a short version of the session's last reply. `pending` means it is being made: the session
-         *     list is pushed again once `reply_summary` is filled in.
-         */
-        post: operations["request_summary_v1_sessions__session_id__summary_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/tasks": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Session Tasks
-         * @description The tasks it was sent and sent, newest first.
-         */
-        get: operations["session_tasks_v1_sessions__session_id__tasks_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/sessions/{session_id}/team": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /** Update Team */
-        put: operations["update_team_v1_sessions__session_id__team_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/settings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Get Settings
-         * @description The features the app may change, with where each value comes from and when a change applies.
-         */
-        get: operations["get_settings_v1_settings_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * Change Settings
-         * @description Changes some (all or none); a key the config file sets is refused. Each change is audited.
-         */
-        patch: operations["change_settings_v1_settings_patch"];
-        trace?: never;
-    };
-    "/v1/stream/cookie": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Stream Cookie
-         * @description Sets an HttpOnly cookie that authenticates /v1/stream for a same-origin page.
-         */
-        post: operations["stream_cookie_v1_stream_cookie_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/stream/schema": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Stream Schema */
-        get: operations["stream_schema_v1_stream_schema_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/tasks/latest": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Latest Tasks
-         * @description The last task each of these sessions was sent (as `my_team` shows it), by session id; a session sent
-         *     none is left out. For a team card: one request for every member.
-         */
-        get: operations["latest_tasks_v1_tasks_latest_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/usage": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Usage
-         * @description What the daemon on each machine uses: this one first, then each node joined to it (as it last said),
-         *     with what is over its threshold (`alerts`). Sampled every few seconds; asking costs nothing.
-         */
-        get: operations["usage_v1_usage_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
+  '/v1/asr': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Transcribe
+     * @description Speech to text: the body is the recording (WAV from the glasses). `language` (e.g. `zh`, `en`)
+     *     pins the language; without it the provider detects it. `source` names what asked (`live`: the app's
+     *     Live mode), for the audit log's counts. `hint=command`: the recording may be only a spoken command
+     *     (send, pause…): transcribed with a prompt of those words (`words`: the app's, in the languages it
+     *     listens for; else the English ones), in the configured language if one is set. Nothing is stored.
+     */
+    post: operations['transcribe_v1_asr_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/asr/dictionary': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Dictionary
+     * @description The voice dictionary (kept on this daemon: the hub, for every device): its words, its corrections,
+     *     and how many of the words fit in what speech to text reads of its prompt.
+     */
+    get: operations['get_dictionary_v1_asr_dictionary_get']
+    /**
+     * Put Dictionary
+     * @description Replaces it whole (at most 200 words and 200 corrections, each up to 80 characters).
+     */
+    put: operations['put_dictionary_v1_asr_dictionary_put']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/chip-groups': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Chip Groups
+     * @description The owner's groups of projects, in their order; the same on every device (kept on the hub).
+     */
+    get: operations['get_chip_groups_v1_chip_groups_get']
+    /**
+     * Put Chip Groups
+     * @description Replaces them all with this ordered list (at most 20 groups of 40 projects and 100 sessions, names of
+     *     40 characters).
+     */
+    put: operations['put_chip_groups_v1_chip_groups_put']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/claude-login': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Claude Login
+     * @description Starts `claude auth login` on this daemon's machine (`sessions/login.py`): open `url`, sign in, and
+     *     type the code the page gives into the session it returns.
+     */
+    post: operations['claude_login_v1_claude_login_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/devices': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List Devices */
+    get: operations['list_devices_v1_devices_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/devices/{name}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /** Revoke Device */
+    delete: operations['revoke_device_v1_devices__name__delete']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/diagnostics': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Append Diagnostics
+     * @description Appends a device's diagnostic entries to `<state_dir>/diagnostics/<source>.jsonl`, one line each with
+     *     the device's name and when it arrived. Entries must be counters and timestamps only: the daemon stores
+     *     them as they come, and nothing from them is audited.
+     */
+    post: operations['append_diagnostics_v1_diagnostics_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/health': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Health */
+    get: operations['health_v1_health_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/hub': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Hub Status */
+    get: operations['hub_status_v1_hub_get']
+    put?: never
+    /**
+     * Join Hub
+     * @description Joins this daemon to a hub as a node, with a pairing code made on the hub.
+     */
+    post: operations['join_hub_v1_hub_post']
+    /**
+     * Leave Hub
+     * @description Stops reporting to the hub; the hub still lists this node (offline) until it is removed there.
+     */
+    delete: operations['leave_hub_v1_hub_delete']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/me': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Me
+     * @description Lets a client check that its token works and learn the daemon's display name.
+     */
+    get: operations['me_v1_me_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/nodes': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List Nodes */
+    get: operations['list_nodes_v1_nodes_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/nodes/claim': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Claim Node
+     * @description Public: a daemon redeems a pairing code made here to join as a node. Its token opens its link
+     *     and nothing else.
+     */
+    post: operations['claim_node_v1_nodes_claim_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/nodes/direct': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Direct Tokens
+     * @description For this device: each connected node's address and a device token of its own, to reach it directly
+     *     while the hub is down (made anew each time; revoking this device here revokes them).
+     */
+    post: operations['direct_tokens_v1_nodes_direct_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/nodes/{name}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /**
+     * Remove Node
+     * @description Forgets a node: its link closes, its sessions leave the lists, and it can no longer link.
+     */
+    delete: operations['remove_node_v1_nodes__name__delete']
+    options?: never
+    head?: never
+    /**
+     * Set Direct Url
+     * @description The owner's address for reaching a node itself while the hub is down, over the one it reports.
+     */
+    patch: operations['set_direct_url_v1_nodes__name__patch']
+    trace?: never
+  }
+  '/v1/pair/claim': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Claim Pair Code
+     * @description Public: redeems a one-time code for this device's own token.
+     */
+    post: operations['claim_pair_code_v1_pair_claim_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/pair/codes': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Create Pair Code
+     * @description A paired device (or the CLI) asks for a one-time code to hand to a new device.
+     */
+    post: operations['create_pair_code_v1_pair_codes_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/push/key': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Vapid Key */
+    get: operations['vapid_key_v1_push_key_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/push/subscriptions': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Subscribe */
+    post: operations['subscribe_v1_push_subscriptions_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/push/subscriptions/{subscription_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    post?: never
+    /** Unsubscribe */
+    delete: operations['unsubscribe_v1_push_subscriptions__subscription_id__delete']
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/recovery': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Interrupted
+     * @description The sessions a restart interrupted, waiting to be started again (POST) or removed (DELETE the session).
+     */
+    get: operations['interrupted_v1_recovery_get']
+    put?: never
+    /**
+     * Recover
+     * @description Starts them again, each in its folder with its options, resuming its conversation, under its own id.
+     *     Nothing is sent to them.
+     */
+    post: operations['recover_v1_recovery_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/runtimes': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * List Runtimes
+     * @description What can be started here (a node's are in GET /v1/nodes).
+     */
+    get: operations['list_runtimes_v1_runtimes_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** List Sessions */
+    get: operations['list_sessions_v1_sessions_get']
+    put?: never
+    /** Create Session */
+    post: operations['create_session_v1_sessions_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions/{session_id}': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get Session */
+    get: operations['get_session_v1_sessions__session_id__get']
+    put?: never
+    post?: never
+    /**
+     * Terminate Session
+     * @description Stops the session (`capabilities.terminate`); an archived one is deleted from the archive.
+     */
+    delete: operations['terminate_session_v1_sessions__session_id__delete']
+    options?: never
+    head?: never
+    /** Update Session */
+    patch: operations['update_session_v1_sessions__session_id__patch']
+    trace?: never
+  }
+  '/v1/sessions/{session_id}/approve': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Approve */
+    post: operations['approve_v1_sessions__session_id__approve_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions/{session_id}/archive': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Archive Session
+     * @description Ends the session (closes its tmux pane, archives it on Remote Control) and keeps its conversation
+     *     to read under `archived_at` (`capabilities.archive`).
+     */
+    post: operations['archive_session_v1_sessions__session_id__archive_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions/{session_id}/conversation': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Conversation
+     * @description Structured conversation items after `after` (0 = the latest `limit`). Only for sessions whose
+     *     capabilities include `conversation`; others have a screen instead.
+     */
+    get: operations['get_conversation_v1_sessions__session_id__conversation_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions/{session_id}/deny': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Deny */
+    post: operations['deny_v1_sessions__session_id__deny_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions/{session_id}/hide': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Hide Session
+     * @description Hide it from the lists (`{"hidden": false}` shows it again); the same on every device.
+     */
+    post: operations['hide_session_v1_sessions__session_id__hide_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions/{session_id}/image': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Image
+     * @description An image the session's conversation shows (`ConversationItem.images`), from the machine it runs on.
+     *     No other file: 404 for a path the conversation does not show, 409 when the session runs elsewhere.
+     */
+    get: operations['get_image_v1_sessions__session_id__image_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions/{session_id}/input': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Send Input */
+    post: operations['send_input_v1_sessions__session_id__input_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions/{session_id}/names': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Session Names
+     * @description Other names it went by, latest first (at most 10, not the one it has): offered when renaming it.
+     */
+    get: operations['session_names_v1_sessions__session_id__names_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions/{session_id}/notify': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /**
+     * Set Notify
+     * @description Which push notifications it sends: all, only when it needs the owner, or none; the same on every
+     *     device.
+     */
+    put: operations['set_notify_v1_sessions__session_id__notify_put']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions/{session_id}/pin': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Pin Session
+     * @description Pin it above the others in the lists (`{"pinned": false}` unpins it); the same on every device.
+     */
+    post: operations['pin_session_v1_sessions__session_id__pin_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions/{session_id}/placement': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /**
+     * Place Session
+     * @description Where it runs, for a session whose source does not say (`capabilities.place`); empty fields clear.
+     */
+    put: operations['place_session_v1_sessions__session_id__placement_put']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions/{session_id}/placement/detect': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Detect Placement
+     * @description Reads the session's whole log for the folder its tool calls ran in: a suggestion to place it there
+     *     (PUT /placement), nothing is kept.
+     */
+    post: operations['detect_placement_v1_sessions__session_id__placement_detect_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions/{session_id}/read': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Mark Read
+     * @description A client looks at the session (sent on opening and every few seconds while open), or the owner marks
+     *     it unread to come back to.
+     */
+    post: operations['mark_read_v1_sessions__session_id__read_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions/{session_id}/resize': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Resize */
+    post: operations['resize_v1_sessions__session_id__resize_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions/{session_id}/resize/release': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /** Release Size */
+    post: operations['release_size_v1_sessions__session_id__resize_release_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions/{session_id}/screen': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Get Screen */
+    get: operations['get_screen_v1_sessions__session_id__screen_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions/{session_id}/summary': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Request Summary
+     * @description Asks for a short version of the session's last reply. `pending` means it is being made: the session
+     *     list is pushed again once `reply_summary` is filled in.
+     */
+    post: operations['request_summary_v1_sessions__session_id__summary_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions/{session_id}/tasks': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Session Tasks
+     * @description The tasks it was sent and sent, newest first.
+     */
+    get: operations['session_tasks_v1_sessions__session_id__tasks_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/sessions/{session_id}/team': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    /** Update Team */
+    put: operations['update_team_v1_sessions__session_id__team_put']
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/settings': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Get Settings
+     * @description The features the app may change, with where each value comes from and when a change applies.
+     */
+    get: operations['get_settings_v1_settings_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    /**
+     * Change Settings
+     * @description Changes some (all or none); a key the config file sets is refused. Each change is audited.
+     */
+    patch: operations['change_settings_v1_settings_patch']
+    trace?: never
+  }
+  '/v1/stream/cookie': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    get?: never
+    put?: never
+    /**
+     * Stream Cookie
+     * @description Sets an HttpOnly cookie that authenticates /v1/stream for a same-origin page.
+     */
+    post: operations['stream_cookie_v1_stream_cookie_post']
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/stream/schema': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /** Stream Schema */
+    get: operations['stream_schema_v1_stream_schema_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/tasks/latest': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Latest Tasks
+     * @description The last task each of these sessions was sent (as `my_team` shows it), by session id; a session sent
+     *     none is left out. For a team card: one request for every member.
+     */
+    get: operations['latest_tasks_v1_tasks_latest_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
+  '/v1/usage': {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    /**
+     * Usage
+     * @description What the daemon on each machine uses: this one first, then each node joined to it (as it last said),
+     *     with what is over its threshold (`alerts`). Sampled every few seconds; asking costs nothing.
+     */
+    get: operations['usage_v1_usage_get']
+    put?: never
+    post?: never
+    delete?: never
+    options?: never
+    head?: never
+    patch?: never
+    trace?: never
+  }
 }
-export type webhooks = Record<string, never>;
+export type webhooks = Record<string, never>
 export interface components {
-    schemas: {
-        /**
-         * AgentState
-         * @enum {string}
-         */
-        AgentState: "needs_permission" | "needs_answer" | "needs_trust" | "plan_review" | "error" | "busy" | "idle" | "unknown";
-        /**
-         * AlsoWriting
-         * @description Another session of this machine that wrote in the same git worktree lately (`writes/`).
-         */
-        AlsoWriting: {
-            /**
-             * Files
-             * @description written by both, relative to the worktree
-             */
-            files: string[];
-            /** Name */
-            name: string;
-            /** Session Id */
-            session_id: string;
-            /** Worktree */
-            worktree: string;
-        };
-        /** ApprovalResult */
-        ApprovalResult: {
-            /** Option */
-            option: string | null;
-            /** Session Id */
-            session_id: string;
-            state: components["schemas"]["AgentState"];
-        };
-        /** Approve */
-        Approve: {
-            /**
-             * Answers
-             * @description for a prompt with `questions`: the labels picked for each question, in order
-             */
-            answers?: string[][] | null;
-            /**
-             * Option
-             * @description option key to pick; default per runtime rules
-             */
-            option?: string | null;
-        };
-        /**
-         * Capabilities
-         * @description What a client may offer for this session (sources differ).
-         */
-        Capabilities: {
-            /**
-             * Archive
-             * @description it can be archived: ended, and kept to read (POST /archive)
-             * @default false
-             */
-            archive: boolean;
-            /**
-             * Archive Ends
-             * @description archiving ends it; false: it runs where muxtower cannot end it (Claude's desktop app), and archiving it only hides it here (`sessions/endable.py`)
-             * @default true
-             */
-            archive_ends: boolean;
-            /**
-             * Conversation
-             * @description structured conversation items exist (GET /conversation)
-             */
-            conversation: boolean;
-            /**
-             * Images
-             * @description a message to it may carry images (SendInput.images)
-             * @default false
-             */
-            images: boolean;
-            /**
-             * Keys
-             * @description tmux key names input accepts; empty = any
-             */
-            keys: string[];
-            /**
-             * Place
-             * @description where it runs can be set by the owner or detected from its log (/placement)
-             * @default false
-             */
-            place: boolean;
-            /** Rename */
-            rename: boolean;
-            /** Resize */
-            resize: boolean;
-            /**
-             * Screen
-             * @description a terminal screen can be shown (GET /screen)
-             */
-            screen: boolean;
-            /**
-             * Terminate
-             * @description it can be stopped (DELETE); for an archived one: deleted from the archive
-             */
-            terminate: boolean;
-        };
-        /** ChangeSettings */
-        ChangeSettings: {
-            /**
-             * Values
-             * @description dotted key → value; null puts it back to its default
-             */
-            values: {
-                [key: string]: unknown;
-            };
-        };
-        /** ChipGroup */
-        ChipGroup: {
-            /** Id */
-            id: string;
-            /** Name */
-            name: string;
-            /**
-             * Projects
-             * @description project names as the app reads them from sessions; ':other': sessions of no project
-             */
-            projects: string[];
-            /**
-             * Sessions
-             * @description single sessions it holds besides whole projects: their ids as the hub lists them
-             */
-            sessions?: string[];
-        };
-        /** ChipGroups */
-        ChipGroups: {
-            /**
-             * Groups
-             * @description in the order the chips show them
-             */
-            groups: components["schemas"]["ChipGroup"][];
-        };
-        /** ClaimRequest */
-        ClaimRequest: {
-            /** Code */
-            code: string;
-            /** Device Name */
-            device_name: string;
-        };
-        /** ClaimResult */
-        ClaimResult: {
-            /** Daemon Name */
-            daemon_name: string;
-            /** Device Name */
-            device_name: string;
-            /** Token */
-            token: string;
-        };
-        /** Conversation */
-        Conversation: {
-            /** Items */
-            items: components["schemas"]["ConversationItem"][];
-            /** Latest Seq */
-            latest_seq: number;
-            /** Session Id */
-            session_id: string;
-        };
-        /**
-         * ConversationFrame
-         * @description New or changed conversation items (merge by `seq`).
-         */
-        ConversationFrame: {
-            /** Items */
-            items: components["schemas"]["ConversationItem"][];
-            /** Session Id */
-            session_id: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "conversation";
-        };
-        /**
-         * ConversationItem
-         * @description One normalized entry of a session's conversation. `seq` orders items; an item can be sent again
-         *     with the same `seq` when its status changes (a tool finishing, a prompt being answered).
-         */
-        ConversationItem: {
-            /**
-             * Actions
-             * @description next_step: replies to pick, each sent as the owner's message
-             */
-            actions?: components["schemas"]["NextStepAction"][];
-            /**
-             * Ask
-             * @description next_step: the question its actions answer
-             */
-            ask?: string | null;
-            /** At */
-            at?: string | null;
-            /**
-             * Description
-             * @description a tool call's own one-line account of itself, when the agent gave one
-             */
-            description?: string | null;
-            /**
-             * Images
-             * @description paths of the images it shows (a file looked at or sent, a path in a message), for GET /v1/sessions/{id}/image
-             */
-            images?: string[];
-            kind: components["schemas"]["ConversationItemKind"];
-            /** Seq */
-            seq: number;
-            status?: components["schemas"]["ItemStatus"] | null;
-            /** Text */
-            text?: string | null;
-            /** Tool Name */
-            tool_name?: string | null;
-        };
-        /**
-         * ConversationItemKind
-         * @enum {string}
-         */
-        ConversationItemKind: "prompt" | "reply" | "tool" | "approval" | "question" | "result" | "next_step";
-        /** Correction */
-        Correction: {
-            /**
-             * Heard
-             * @description what speech to text writes
-             */
-            heard: string;
-            /**
-             * Write
-             * @description what to write instead (literal; empty: drop it)
-             */
-            write: string;
-        };
-        /** CreateSession */
-        CreateSession: {
-            /**
-             * Args
-             * @description extra arguments for the agent binary
-             */
-            args?: string[];
-            /**
-             * Cwd
-             * @description its folder; none: the machine's default ([sessions] default_cwd)
-             */
-            cwd?: string | null;
-            /**
-             * Headless
-             * @description run it without a terminal, where the runtime can (`RuntimeInfo.headless`)
-             * @default false
-             */
-            headless: boolean;
-            /** Name */
-            name?: string | null;
-            /**
-             * Node
-             * @description start it on this node instead of here (GET /v1/nodes)
-             */
-            node?: string | null;
-            /**
-             * Permission Mode
-             * @description one of its runtime's `permission_modes`, or "agent" (its own settings); null: the configured default (`launch.<runtime>_mode`)
-             */
-            permission_mode?: string | null;
-            /**
-             * Prompt
-             * @description its first message, given after every option (`--`): any length, lines and characters
-             */
-            prompt?: string | null;
-            /** Runtime */
-            runtime: string;
-        };
-        /** DetectedFolder */
-        DetectedFolder: {
-            /**
-             * Folder
-             * @description the folder its log names, to place it there; null when none
-             */
-            folder: string | null;
-        };
-        /** Device */
-        Device: {
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
-             * Current
-             * @description the device making this request
-             */
-            current: boolean;
-            /** Last Used At */
-            last_used_at: string | null;
-            /** Name */
-            name: string;
-        };
-        /** Dictionary */
-        Dictionary: {
-            /**
-             * Corrections
-             * @description applied in order
-             */
-            corrections?: components["schemas"]["Correction"][];
-            /**
-             * Words
-             * @description in priority order
-             */
-            words?: string[];
-        };
-        /** DictionaryFit */
-        DictionaryFit: {
-            /**
-             * Budget
-             * @default 224
-             */
-            budget: number;
-            /**
-             * Tokens
-             * @description the prompt's estimated tokens
-             */
-            tokens: number;
-            /** Words */
-            words: number;
-            /**
-             * Words In Prompt
-             * @description how many of the words (the first ones) fit in what Whisper reads
-             */
-            words_in_prompt: number;
-        };
-        /** DictionaryView */
-        DictionaryView: {
-            /**
-             * Corrections
-             * @description applied in order
-             */
-            corrections?: components["schemas"]["Correction"][];
-            fit: components["schemas"]["DictionaryFit"];
-            /**
-             * Words
-             * @description in priority order
-             */
-            words?: string[];
-        };
-        /** DirectNode */
-        DirectNode: {
-            /** Node */
-            node: string;
-            /**
-             * Token
-             * @description a device token of that node, for this device
-             */
-            token: string;
-            /**
-             * Url
-             * @description https: where the app reaches it itself
-             */
-            url: string;
-        };
-        /** DirectUrl */
-        DirectUrl: {
-            /**
-             * Direct Url
-             * @description https; null: the address the node reports
-             */
-            direct_url: string | null;
-        };
-        /** ErrorFrame */
-        ErrorFrame: {
-            /** Message */
-            message: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "error";
-        };
-        /** Features */
-        Features: {
-            /**
-             * Asr
-             * @description POST /v1/asr turns speech into text
-             */
-            asr: boolean;
-            /**
-             * Summaries
-             * @description POST /v1/sessions/{id}/summary can make reply summaries
-             */
-            summaries: boolean;
-        };
-        /**
-         * GitPlace
-         * @description Where a session's folder sits in git, read on the machine it runs on.
-         */
-        GitPlace: {
-            /**
-             * Branch
-             * @description null: detached
-             */
-            branch?: string | null;
-            /**
-             * Remote
-             * @description its origin as owner/repo
-             */
-            remote?: string | null;
-            /**
-             * Repo
-             * @description the repository's main folder, which its worktrees share
-             */
-            repo: string;
-            /**
-             * Worktree
-             * @description the top folder of the worktree the session is in (`repo` for the main one)
-             */
-            worktree: string;
-        };
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
-        };
-        /** Health */
-        Health: {
-            /** Status */
-            status: string;
-            /** Version */
-            version: string;
-        };
-        /** HideSession */
-        HideSession: {
-            /**
-             * Hidden
-             * @default true
-             */
-            hidden: boolean;
-        };
-        /**
-         * HubStatus
-         * @description This daemon as a node of a hub, if it joined one.
-         */
-        HubStatus: {
-            /**
-             * Connected
-             * @default false
-             */
-            connected: boolean;
-            /**
-             * Error
-             * @description why it is not connected, when it tried
-             */
-            error?: string | null;
-            /**
-             * Hub Version
-             * @description the muxtower version the hub runs, as it said
-             */
-            hub_version?: string | null;
-            /**
-             * Name
-             * @description its name on the hub
-             */
-            name?: string | null;
-            /**
-             * Update
-             * @description the hub's version, when it is later than this one
-             */
-            update?: string | null;
-            /**
-             * Url
-             * @description the hub it joined; null when it joined none
-             */
-            url?: string | null;
-        };
-        /** ImageInput */
-        ImageInput: {
-            /**
-             * Data
-             * @description the image, base64
-             */
-            data: string;
-            /**
-             * Media Type
-             * @enum {string}
-             */
-            media_type: "image/png" | "image/jpeg" | "image/gif" | "image/webp";
-        };
-        /**
-         * ItemStatus
-         * @enum {string}
-         */
-        ItemStatus: "running" | "done" | "error" | "pending" | "allowed" | "denied" | "answered" | "dismissed" | "cancelled";
-        /** JoinHub */
-        JoinHub: {
-            /**
-             * Code
-             * @description a pairing code made on the hub
-             */
-            code: string;
-            /**
-             * Url
-             * @description the hub's address
-             */
-            url: string;
-        };
-        /** LoginStart */
-        LoginStart: {
-            session: components["schemas"]["Session"];
-            /**
-             * Url
-             * @description the page to sign in at, read off the session's screen; none if it showed none in time (the session then says why)
-             */
-            url: string | null;
-        };
-        /** MachineSettings */
-        MachineSettings: {
-            /** Machine */
-            machine: string;
-            /** Settings */
-            settings: components["schemas"]["SettingView"][];
-        };
-        /**
-         * MachineUsage
-         * @description What the daemon on one machine uses, sampled every few seconds. A value it cannot read there is null
-         *     (unknown), never 0.
-         */
-        MachineUsage: {
-            /** Alerts */
-            alerts?: components["schemas"]["UsageAlert"][];
-            /**
-             * Children
-             * @description null: cannot be read on this system
-             */
-            children?: components["schemas"]["ProcessUsage"][] | null;
-            /** Cpu 10M */
-            cpu_10m?: number | null;
-            /**
-             * Cpu 1M
-             * @description percent of one core, average over the last minute
-             */
-            cpu_1m?: number | null;
-            /** Machine */
-            machine: string;
-            /** Open Files */
-            open_files?: number | null;
-            /** Peak Rss Mb */
-            peak_rss_mb?: number | null;
-            /** Rss Mb */
-            rss_mb?: number | null;
-            /**
-             * Sampled At
-             * Format: date-time
-             */
-            sampled_at: string;
-            /**
-             * Stale
-             * @description a node's last report is old: it may be gone
-             * @default false
-             */
-            stale: boolean;
-            /** Threads */
-            threads?: number | null;
-            tick?: components["schemas"]["TickUsage"];
-        };
-        /** MarkRead */
-        MarkRead: {
-            /**
-             * Read
-             * @description false marks it unread, to come back to
-             * @default true
-             */
-            read: boolean;
-        };
-        /** Me */
-        Me: {
-            /**
-             * Claude Login Expired
-             * @description the Claude login this daemon reads Remote Control sessions with is missing or expired: those sessions (Claude Desktop's, the Claude app's) do not update until it is logged in again
-             * @default false
-             */
-            claude_login_expired: boolean;
-            /** Daemon Name */
-            daemon_name: string;
-            /**
-             * Default Folder
-             * @description where a new session starts when given no folder ([sessions] default_cwd, else home)
-             */
-            default_folder?: string | null;
-            features: components["schemas"]["Features"];
-            /** Token Name */
-            token_name: string;
-            /**
-             * Version
-             * @description the muxtower this daemon runs (null: an older one)
-             */
-            version?: string | null;
-        };
-        /** ModeInfo */
-        ModeInfo: {
-            /**
-             * Dangerous
-             * @default false
-             */
-            dangerous: boolean;
-            /** Id */
-            id: string;
-            /** Label */
-            label: string;
-        };
-        /** NextStepAction */
-        NextStepAction: {
-            /** Label */
-            label: string;
-            /**
-             * Message
-             * @description sent as the owner's message when picked
-             */
-            message: string;
-        };
-        /** NodeClaim */
-        NodeClaim: {
-            /**
-             * Code
-             * @description a pairing code made on the hub
-             */
-            code: string;
-            /**
-             * Name
-             * @description what the node calls itself; the hub may change it
-             */
-            name: string;
-        };
-        /** NodeClaimResult */
-        NodeClaimResult: {
-            /** Hub Name */
-            hub_name: string;
-            /**
-             * Name
-             * @description the name the hub gave it
-             */
-            name: string;
-            /**
-             * Token
-             * @description the node's own token, for the link only
-             */
-            token: string;
-        };
-        /**
-         * NodeInfo
-         * @description A daemon joined to this one: its sessions are listed here, as from any other source.
-         */
-        NodeInfo: {
-            /**
-             * Default Folder
-             * @description where a new session starts there when given none
-             */
-            default_folder?: string | null;
-            /**
-             * Direct Url
-             * @description the owner's address for it, used over the reported one
-             */
-            direct_url?: string | null;
-            /**
-             * Joined At
-             * Format: date-time
-             */
-            joined_at: string;
-            /**
-             * Last Seen
-             * @description when it was last connected
-             */
-            last_seen?: string | null;
-            /** Name */
-            name: string;
-            /** Online */
-            online: boolean;
-            /**
-             * Reported Url
-             * @description where it says the app can reach it itself
-             */
-            reported_url?: string | null;
-            /**
-             * Runtimes
-             * @description what can be started there
-             */
-            runtimes?: components["schemas"]["RuntimeInfo"][];
-            /**
-             * Sessions
-             * @description sessions it lists
-             */
-            sessions: number;
-            /**
-             * Update
-             * @description this daemon's version, when the node runs an older one
-             */
-            update?: string | null;
-            /** Version */
-            version?: string | null;
-        };
-        /**
-         * NotifyLevel
-         * @description Which push notifications a session sends, as the owner set it.
-         * @enum {string}
-         */
-        NotifyLevel: "all" | "needs" | "off";
-        /**
-         * Option
-         * @description One numbered choice in a dialog, e.g. key "2", label "Yes, allow reads during this session".
-         */
-        Option: {
-            /** Key */
-            key: string;
-            /** Label */
-            label: string;
-        };
-        /** PairCode */
-        PairCode: {
-            /**
-             * Code
-             * @description one-time code, e.g. K7QM-3XPA
-             */
-            code: string;
-            /**
-             * Expires At
-             * Format: date-time
-             */
-            expires_at: string;
-        };
-        /**
-         * PendingAction
-         * @description What the agent is waiting for. tool_name/detail come from hooks, else the screen; options from the screen.
-         */
-        PendingAction: {
-            /** Detail */
-            detail?: string | null;
-            /** Options */
-            options?: components["schemas"]["Option"][];
-            /**
-             * Questions
-             * @description a multiple-choice prompt's questions, when known: answer them all at once with `answers`
-             */
-            questions?: components["schemas"]["PendingQuestion"][];
-            /**
-             * Recommended
-             * @description option key approve picks when none is given
-             */
-            recommended?: string | null;
-            state: components["schemas"]["AgentState"];
-            /** Tool Name */
-            tool_name?: string | null;
-        };
-        /**
-         * PendingQuestion
-         * @description One question of an agent's multiple-choice prompt (Claude Code's AskUserQuestion), all of whose
-         *     questions are answered together (`Approve.answers`).
-         */
-        PendingQuestion: {
-            /** Header */
-            header?: string | null;
-            /**
-             * Multi Select
-             * @description any number of its options may be picked
-             * @default false
-             */
-            multi_select: boolean;
-            /** Options */
-            options: components["schemas"]["QuestionOption"][];
-            /** Question */
-            question: string;
-        };
-        /** PinSession */
-        PinSession: {
-            /**
-             * Pinned
-             * @default true
-             */
-            pinned: boolean;
-        };
-        /**
-         * Placement
-         * @description Where the owner says a session runs, over what its source reports; empty fields are not placed.
-         */
-        Placement: {
-            /**
-             * Folder
-             * @description a folder: a path, ~ for home
-             */
-            folder?: string | null;
-            /**
-             * Machine
-             * @description a machine, as the lists name it
-             */
-            machine?: string | null;
-        };
-        /** PongFrame */
-        PongFrame: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "pong";
-        };
-        /** ProcessUsage */
-        ProcessUsage: {
-            /**
-             * Cpu Percent
-             * @description of one core, over the last minute; null: unknown
-             */
-            cpu_percent?: number | null;
-            /** Name */
-            name: string;
-            /** Pid */
-            pid: number;
-            /** Rss Mb */
-            rss_mb?: number | null;
-        };
-        /** QuestionOption */
-        QuestionOption: {
-            /** Description */
-            description?: string | null;
-            /** Label */
-            label: string;
-        };
-        /** Recover */
-        Recover: {
-            /** Session Ids */
-            session_ids: string[];
-        };
-        /** Recovery */
-        Recovery: {
-            /**
-             * Mode
-             * @description ask | auto | off (`[recovery] mode`)
-             */
-            mode: string;
-            /**
-             * Sessions
-             * @description interrupted by a restart, here and on the nodes: to start again or remove
-             */
-            sessions: components["schemas"]["Session"][];
-        };
-        /** Resize */
-        Resize: {
-            /** Cols */
-            cols: number;
-            /** Rows */
-            rows: number;
-        };
-        /** RuntimeInfo */
-        RuntimeInfo: {
-            /** Available */
-            available: boolean;
-            /** Binary */
-            binary: string;
-            /**
-             * Default Mode
-             * @description new sessions' mode unless asked: "agent" adds none
-             * @default agent
-             */
-            default_mode: string;
-            /** Has Hooks */
-            has_hooks: boolean;
-            /**
-             * Headless
-             * @default false
-             */
-            headless: boolean;
-            /** Name */
-            name: string;
-            /**
-             * Permission Modes
-             * @description least to most permissive
-             */
-            permission_modes?: components["schemas"]["ModeInfo"][];
-        };
-        /** Screen */
-        Screen: {
-            /**
-             * Ansi
-             * @description screen with colors and scrollback, when requested
-             */
-            ansi: string | null;
-            /** Session Id */
-            session_id: string;
-            /**
-             * Text
-             * @description current screen, plain text
-             */
-            text: string;
-        };
-        /** ScreenFrame */
-        ScreenFrame: {
-            /** Ansi */
-            ansi: string;
-            /**
-             * Seq
-             * @description with encoding "lines": the number the next patch builds on
-             */
-            seq?: number | null;
-            /** Session Id */
-            session_id: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "screen";
-        };
-        /**
-         * ScreenPatchFrame
-         * @description The next screen as ops on the screen numbered `base` (`terminal/patches.py`): `[start, count]` copies
-         *     those lines of it, a string is a new line; joined with newlines, the screen numbered `seq`. A client
-         *     whose last screen is not `base` subscribes again for a full one.
-         */
-        ScreenPatchFrame: {
-            /** Base */
-            base: number;
-            /** Ops */
-            ops: (number[] | string)[];
-            /** Seq */
-            seq: number;
-            /** Session Id */
-            session_id: string;
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "screen_patch";
-        };
-        /**
-         * SendInput
-         * @description Either literal `text` (optionally followed by Enter) or one tmux `key` name. A message (`text`) may
-         *     carry `images` where the session takes them (`capabilities.images`).
-         */
-        SendInput: {
-            /**
-             * Enter
-             * @default false
-             */
-            enter: boolean;
-            /** Images */
-            images?: components["schemas"]["ImageInput"][];
-            /** Key */
-            key?: string | null;
-            /** Text */
-            text?: string | null;
-        };
-        /** Session */
-        Session: {
-            /**
-             * Account
-             * @description the account its agent runs as, as far as known (an email, or "API key")
-             */
-            account?: string | null;
-            /**
-             * Agent Name
-             * @description the name its agent gives it (Claude Code's title), offered when renaming
-             */
-            agent_name?: string | null;
-            /**
-             * Also Writing
-             * @description other running sessions here that wrote files in the same worktree within the last minutes (file-editing tools only, not Bash): a hint, nothing is held back
-             */
-            also_writing?: components["schemas"]["AlsoWriting"][];
-            /**
-             * Alt Screen
-             * @description draws full screen (alternate screen): tmux keeps no scrollback, see the conversation
-             * @default false
-             */
-            alt_screen: boolean;
-            /**
-             * Archived At
-             * @description when the owner archived it: it no longer runs, its conversation stays readable
-             */
-            archived_at?: string | null;
-            /** Auto Approve */
-            auto_approve: boolean;
-            /** Can Auto Approve */
-            can_auto_approve: boolean;
-            capabilities: components["schemas"]["Capabilities"];
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Cwd */
-            cwd: string;
-            /**
-             * Finished At
-             * @description when it last finished a turn
-             */
-            finished_at?: string | null;
-            /**
-             * Fork Of
-             * @description the session it was forked from, as listed here (a side chat's too)
-             */
-            fork_of?: string | null;
-            /** @description its folder's repository; null outside one, or elsewhere */
-            git?: components["schemas"]["GitPlace"] | null;
-            /**
-             * Hidden
-             * @description the owner hid it: kept out of the lists and done notifications
-             * @default false
-             */
-            hidden: boolean;
-            /** Id */
-            id: string;
-            /**
-             * In Background
-             * @description its agent moved the conversation to a background process of its own (Claude Code's ← on an empty prompt): it runs on there, its Remote Control session and transcript with it; its terminal shows Claude Code's agents view, where Enter opens it again
-             * @default false
-             */
-            in_background: boolean;
-            /**
-             * Interrupted At
-             * @description its machine restarted under it: kept to be resumed or removed (`/v1/recovery`)
-             */
-            interrupted_at?: string | null;
-            /** Last Message */
-            last_message: string | null;
-            /**
-             * Machine
-             * @description where it runs, as the owner named it
-             */
-            machine?: string | null;
-            /** Matched Rule */
-            matched_rule: string | null;
-            /** Name */
-            name: string;
-            /** Needs Attention */
-            needs_attention: boolean;
-            /**
-             * Node
-             * @description the node (another daemon joined to this one) it is reached through
-             */
-            node?: string | null;
-            /**
-             * @description which push notifications it sends
-             * @default all
-             */
-            notify: components["schemas"]["NotifyLevel"];
-            /**
-             * Offline
-             * @description its node is not connected: the last known view, read only until it is back
-             * @default false
-             */
-            offline: boolean;
-            /**
-             * On Host
-             * @description its agent runs on the daemon that lists it
-             * @default false
-             */
-            on_host: boolean;
-            /**
-             * Origin
-             * @description where it was started: cli, desktop_app, android…
-             */
-            origin?: string | null;
-            /**
-             * Output At
-             * @description when the agent last said or did something (a reply, a tool call, the end of a turn), where its source tells; unread is about output after the owner last looked, not about other events (updated_at moves with those too: a reconnect, a restart)
-             */
-            output_at?: string | null;
-            pending: components["schemas"]["PendingAction"] | null;
-            /**
-             * Permission Mode
-             * @description the permission mode it was started in, if one
-             */
-            permission_mode?: string | null;
-            /**
-             * Pinned
-             * @description the owner pinned it: listed above the others
-             * @default false
-             */
-            pinned: boolean;
-            /** @description where the owner placed it; `machine` and `cwd` already follow it */
-            placement?: components["schemas"]["Placement"] | null;
-            /**
-             * Project
-             * @description its project, as its team record keeps it (`my_team` says the same): set by an agent or the owner, else worked out once from git when it was first seen (`project_auto`); null until then
-             */
-            project?: string | null;
-            /**
-             * Project Anchor
-             * @description where its project sits in its device's folder tree: the main folder of the repository most of the project's sessions there run in, else their folder (`sessions/anchors.py`); null: at the top
-             */
-            project_anchor?: string | null;
-            /**
-             * Project Auto
-             * @description `project` was worked out by muxtower, not set
-             * @default false
-             */
-            project_auto: boolean;
-            /**
-             * Project Source
-             * @description where `project` came from: set by an agent or the owner, or worked out from its git remote, its repository's folder, or (outside git) its folder; the lists place it by its folder in that last case
-             */
-            project_source?: ("set" | "git remote" | "git root" | "folder") | null;
-            /**
-             * Remote Id
-             * @description the controller session of this agent (Claude Code's Remote Control session, a Codex thread of the shared app-server), when it has one; listed once, under this id
-             */
-            remote_id?: string | null;
-            /**
-             * Reply Summary
-             * @description a few lines condensing last_message, once the hub has made them (long replies)
-             */
-            reply_summary?: string | null;
-            role?: components["schemas"]["SessionRole"] | null;
-            /** Runtime */
-            runtime: string;
-            /**
-             * Side Chat
-             * @description something asked on the side of `fork_of` (Claude desktop's side chat)
-             * @default false
-             */
-            side_chat: boolean;
-            source: components["schemas"]["SessionSource"];
-            state: components["schemas"]["AgentState"];
-            state_source: components["schemas"]["StateSource"];
-            summary?: components["schemas"]["TurnSummary"] | null;
-            /**
-             * Team Note
-             * @description one more line about its team role
-             */
-            team_note?: string | null;
-            /**
-             * Team Role
-             * @description what it is for in its team (free text; `teams/`)
-             */
-            team_role?: string | null;
-            /**
-             * Terminal Attached
-             * @description a terminal is attached to its tmux session, so someone may be watching it at its own size
-             * @default false
-             */
-            terminal_attached: boolean;
-            /**
-             * Tmux Pane
-             * @description pane id, e.g. %12, for attaching to the exact pane
-             */
-            tmux_pane?: string | null;
-            /** Tmux Session */
-            tmux_session?: string | null;
-            /**
-             * Tmux Socket
-             * @description tmux server: "default" or a -L socket name
-             */
-            tmux_socket?: string | null;
-            /**
-             * Unread
-             * @description finished a turn (or has news) since the owner last looked, or marked unread
-             * @default false
-             */
-            unread: boolean;
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
-            /**
-             * Working Dir
-             * @description where the agent works now, when that is inside `cwd` and not it (where it started, which is where it is listed)
-             */
-            working_dir?: string | null;
-        };
-        /** SessionName */
-        SessionName: {
-            /**
-             * Last Seen
-             * Format: date-time
-             */
-            last_seen: string;
-            /** Name */
-            name: string;
-            /**
-             * Source
-             * @description muxtower | claude (its own title) | set in claude | remote control | codex
-             */
-            source: string;
-        };
-        /** SessionNotify */
-        SessionNotify: {
-            level: components["schemas"]["NotifyLevel"];
-        };
-        /**
-         * SessionRole
-         * @enum {string}
-         */
-        SessionRole: "concierge";
-        /**
-         * SessionSource
-         * @enum {string}
-         */
-        SessionSource: "launched" | "adopted" | "remote_control" | "codex" | "codex_shared";
-        /** SessionsFrame */
-        SessionsFrame: {
-            /** Sessions */
-            sessions: components["schemas"]["Session"][];
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "sessions";
-        };
-        /** SettingView */
-        SettingView: {
-            /**
-             * Applies
-             * @enum {string}
-             */
-            applies: "now" | "restart";
-            /** Choices */
-            choices: string[];
-            /** Default */
-            default: unknown;
-            /** Help */
-            help: string;
-            /**
-             * Key
-             * @description dotted, as in the config file: `recovery.mode` is `[recovery] mode`
-             */
-            key: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "choice" | "bool" | "number" | "text" | "args";
-            /** Label */
-            label: string;
-            /**
-             * Pending
-             * @description changed since the daemon started: applies when it restarts
-             */
-            pending: boolean;
-            /** Section */
-            section: string;
-            /**
-             * Source
-             * @description config_file: set there, and not changed from the app
-             * @enum {string}
-             */
-            source: "default" | "app" | "config_file";
-            /**
-             * Value
-             * @description what applies: once the daemon restarts, where `pending`
-             */
-            value: unknown;
-        };
-        /**
-         * SlowRule
-         * @description The screen rule that took longest in the latest ticks.
-         */
-        SlowRule: {
-            /** Ms */
-            ms: number;
-            /** Rule */
-            rule: string;
-            /** Session Id */
-            session_id: string;
-            /** Session Name */
-            session_name?: string | null;
-        };
-        /**
-         * StateSource
-         * @enum {string}
-         */
-        StateSource: "hook" | "screen" | "default" | "remote";
-        /**
-         * StreamPing
-         * @description Is this connection still alive? Answered with a `pong` frame (a daemon older than this answers with an
-         *     `error` frame: any frame says the connection works).
-         */
-        StreamPing: {
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "ping";
-        };
-        /**
-         * StreamSchema
-         * @description Documents the WebSocket message shapes so they reach the generated client types.
-         */
-        StreamSchema: {
-            /** Client */
-            client: components["schemas"]["StreamSubscribe"] | components["schemas"]["StreamPing"];
-            conversation?: components["schemas"]["ConversationFrame"] | null;
-            /** Server */
-            server: components["schemas"]["SessionsFrame"] | components["schemas"]["ScreenFrame"] | components["schemas"]["ScreenPatchFrame"] | components["schemas"]["ConversationFrame"] | components["schemas"]["ErrorFrame"] | components["schemas"]["PongFrame"];
-        };
-        /** StreamSubscribe */
-        StreamSubscribe: {
-            /**
-             * Encoding
-             * @description screen: "lines" sends a full screen (with its `seq`), then `screen_patch` frames; a client of its own may ignore it
-             * @default full
-             * @enum {string}
-             */
-            encoding: "full" | "lines";
-            /**
-             * History
-             * @default 200
-             */
-            history: number;
-            /** Session Id */
-            session_id?: string | null;
-            /**
-             * Topic
-             * @enum {string}
-             */
-            topic: "sessions" | "screen" | "conversation";
-            /**
-             * @description discriminator enum property added by openapi-typescript
-             * @enum {string}
-             */
-            type: "subscribe" | "unsubscribe";
-        };
-        /** Subscribe */
-        Subscribe: {
-            /**
-             * Client Ref
-             * @description opaque; echoed in every push (the app's daemon id)
-             */
-            client_ref: string;
-            /**
-             * Done
-             * @description also notify when a session finishes a turn
-             * @default true
-             */
-            done: boolean;
-            /** Endpoint */
-            endpoint: string;
-            keys: components["schemas"]["SubscriptionKeys"];
-            /**
-             * Muted
-             * @description session ids that never notify
-             */
-            muted?: string[];
-            /** States */
-            states?: components["schemas"]["AgentState"][];
-        };
-        /** Subscription */
-        Subscription: {
-            /** Client Ref */
-            client_ref: string;
-            /**
-             * Done
-             * @default true
-             */
-            done: boolean;
-            /** Id */
-            id: string;
-            /** Muted */
-            muted: string[];
-            /** States */
-            states: components["schemas"]["AgentState"][];
-        };
-        /** SubscriptionKeys */
-        SubscriptionKeys: {
-            /** Auth */
-            auth: string;
-            /** P256Dh */
-            p256dh: string;
-        };
-        /**
-         * SummaryState
-         * @enum {string}
-         */
-        SummaryState: "ready" | "pending" | "not_needed" | "unavailable";
-        /** SummaryStatus */
-        SummaryStatus: {
-            state: components["schemas"]["SummaryState"];
-        };
-        /** TeamTask */
-        TeamTask: {
-            /**
-             * At
-             * Format: date-time
-             */
-            at: string;
-            /** Delivered At */
-            delivered_at?: string | null;
-            /**
-             * From Id
-             * @description the session that sent it; null: a device
-             */
-            from_id: string | null;
-            /** From Label */
-            from_label: string;
-            /** Id */
-            id: number;
-            /**
-             * Status
-             * @description delivered | held | undeliverable
-             */
-            status: string;
-            /**
-             * Text
-             * @description its start, whole while it is held
-             */
-            text: string;
-            /** To Id */
-            to_id: string;
-        };
-        /**
-         * TickUsage
-         * @description The capture loop: each tick reads and classifies every pane.
-         */
-        TickUsage: {
-            /**
-             * Avg Ms
-             * @description over the last minute; null: no tick yet
-             */
-            avg_ms?: number | null;
-            /** Max Ms */
-            max_ms?: number | null;
-            slowest?: components["schemas"]["SlowRule"] | null;
-        };
-        /** Transcript */
-        Transcript: {
-            /**
-             * Language
-             * @description the language it was transcribed as (null: the provider detected it)
-             */
-            language?: string | null;
-            /** Text */
-            text: string;
-        };
-        /**
-         * TurnSummary
-         * @description A short account of the latest turn, written by the agent's platform (Remote Control) or by us.
-         */
-        TurnSummary: {
-            /**
-             * Detail
-             * @description one line: where the work stands
-             */
-            detail?: string | null;
-            /**
-             * Needs
-             * @description what the agent needs from the owner, if anything
-             */
-            needs?: string | null;
-            /**
-             * Noteworthy
-             * @default false
-             */
-            noteworthy: boolean;
-            /**
-             * Recent
-             * @description one or two sentences: what just happened
-             */
-            recent?: string | null;
-            /**
-             * Status
-             * @description e.g. completed, working, blocked
-             */
-            status?: string | null;
-        };
-        /** UpdateSession */
-        UpdateSession: {
-            /** Auto Approve */
-            auto_approve?: boolean | null;
-            /** Name */
-            name?: string | null;
-        };
-        /**
-         * UpdateTeam
-         * @description Only what is given changes. An empty role clears it.
-         */
-        UpdateTeam: {
-            /** Note */
-            note?: string | null;
-            /** Project */
-            project?: string | null;
-            /**
-             * Rename Project
-             * @description rename its project, for every session in it
-             * @default false
-             */
-            rename_project: boolean;
-            /** Role */
-            role?: string | null;
-        };
-        /** UsageAlert */
-        UsageAlert: {
-            /** Detail */
-            detail?: string | null;
-            /**
-             * Metric
-             * @description cpu | tick | memory
-             */
-            metric: string;
-            /** Threshold */
-            threshold: number;
-            /** Value */
-            value: number;
-        };
-        /** ValidationError */
-        ValidationError: {
-            /** Context */
-            ctx?: Record<string, never>;
-            /** Input */
-            input?: unknown;
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-        };
-        /** VapidKey */
-        VapidKey: {
-            /** Public Key */
-            public_key: string;
-        };
-    };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+  schemas: {
+    /**
+     * AgentState
+     * @enum {string}
+     */
+    AgentState: 'needs_permission' | 'needs_answer' | 'needs_trust' | 'plan_review' | 'error' | 'busy' | 'idle' | 'unknown'
+    /**
+     * AlsoWriting
+     * @description Another session of this machine that wrote in the same git worktree lately (`writes/`).
+     */
+    AlsoWriting: {
+      /**
+       * Files
+       * @description written by both, relative to the worktree
+       */
+      files: string[]
+      /** Name */
+      name: string
+      /** Session Id */
+      session_id: string
+      /** Worktree */
+      worktree: string
+    }
+    /** ApprovalResult */
+    ApprovalResult: {
+      /** Option */
+      option: string | null
+      /** Session Id */
+      session_id: string
+      state: components['schemas']['AgentState']
+    }
+    /** Approve */
+    Approve: {
+      /**
+       * Answers
+       * @description for a prompt with `questions`: the labels picked for each question, in order
+       */
+      answers?: string[][] | null
+      /**
+       * Option
+       * @description option key to pick; default per runtime rules
+       */
+      option?: string | null
+    }
+    /**
+     * Capabilities
+     * @description What a client may offer for this session (sources differ).
+     */
+    Capabilities: {
+      /**
+       * Archive
+       * @description it can be archived: ended, and kept to read (POST /archive)
+       * @default false
+       */
+      archive: boolean
+      /**
+       * Archive Ends
+       * @description archiving ends it; false: it runs where muxtower cannot end it (Claude's desktop app), and archiving it only hides it here (`sessions/endable.py`)
+       * @default true
+       */
+      archive_ends: boolean
+      /**
+       * Conversation
+       * @description structured conversation items exist (GET /conversation)
+       */
+      conversation: boolean
+      /**
+       * Images
+       * @description a message to it may carry images (SendInput.images)
+       * @default false
+       */
+      images: boolean
+      /**
+       * Keys
+       * @description tmux key names input accepts; empty = any
+       */
+      keys: string[]
+      /**
+       * Place
+       * @description where it runs can be set by the owner or detected from its log (/placement)
+       * @default false
+       */
+      place: boolean
+      /** Rename */
+      rename: boolean
+      /** Resize */
+      resize: boolean
+      /**
+       * Screen
+       * @description a terminal screen can be shown (GET /screen)
+       */
+      screen: boolean
+      /**
+       * Terminate
+       * @description it can be stopped (DELETE); for an archived one: deleted from the archive
+       */
+      terminate: boolean
+    }
+    /** ChangeSettings */
+    ChangeSettings: {
+      /**
+       * Values
+       * @description dotted key → value; null puts it back to its default
+       */
+      values: {
+        [key: string]: unknown
+      }
+    }
+    /** ChipGroup */
+    ChipGroup: {
+      /** Id */
+      id: string
+      /** Name */
+      name: string
+      /**
+       * Projects
+       * @description project names as the app reads them from sessions; ':other': sessions of no project
+       */
+      projects: string[]
+      /**
+       * Sessions
+       * @description single sessions it holds besides whole projects: their ids as the hub lists them
+       */
+      sessions?: string[]
+    }
+    /** ChipGroups */
+    ChipGroups: {
+      /**
+       * Groups
+       * @description in the order the chips show them
+       */
+      groups: components['schemas']['ChipGroup'][]
+    }
+    /** ClaimRequest */
+    ClaimRequest: {
+      /** Code */
+      code: string
+      /** Device Name */
+      device_name: string
+    }
+    /** ClaimResult */
+    ClaimResult: {
+      /** Daemon Name */
+      daemon_name: string
+      /** Device Name */
+      device_name: string
+      /** Token */
+      token: string
+    }
+    /** Conversation */
+    Conversation: {
+      /** Items */
+      items: components['schemas']['ConversationItem'][]
+      /** Latest Seq */
+      latest_seq: number
+      /** Session Id */
+      session_id: string
+    }
+    /**
+     * ConversationFrame
+     * @description New or changed conversation items (merge by `seq`).
+     */
+    ConversationFrame: {
+      /** Items */
+      items: components['schemas']['ConversationItem'][]
+      /** Session Id */
+      session_id: string
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'conversation'
+    }
+    /**
+     * ConversationItem
+     * @description One normalized entry of a session's conversation. `seq` orders items; an item can be sent again
+     *     with the same `seq` when its status changes (a tool finishing, a prompt being answered).
+     */
+    ConversationItem: {
+      /**
+       * Actions
+       * @description next_step: replies to pick, each sent as the owner's message
+       */
+      actions?: components['schemas']['NextStepAction'][]
+      /**
+       * Ask
+       * @description next_step: the question its actions answer
+       */
+      ask?: string | null
+      /** At */
+      at?: string | null
+      /**
+       * Description
+       * @description a tool call's own one-line account of itself, when the agent gave one
+       */
+      description?: string | null
+      /**
+       * Images
+       * @description paths of the images it shows (a file looked at or sent, a path in a message), for GET /v1/sessions/{id}/image
+       */
+      images?: string[]
+      kind: components['schemas']['ConversationItemKind']
+      /** Seq */
+      seq: number
+      status?: components['schemas']['ItemStatus'] | null
+      /** Text */
+      text?: string | null
+      /** Tool Name */
+      tool_name?: string | null
+    }
+    /**
+     * ConversationItemKind
+     * @enum {string}
+     */
+    ConversationItemKind: 'prompt' | 'reply' | 'tool' | 'approval' | 'question' | 'result' | 'next_step'
+    /** Correction */
+    Correction: {
+      /**
+       * Heard
+       * @description what speech to text writes
+       */
+      heard: string
+      /**
+       * Write
+       * @description what to write instead (literal; empty: drop it)
+       */
+      write: string
+    }
+    /** CreateSession */
+    CreateSession: {
+      /**
+       * Args
+       * @description extra arguments for the agent binary
+       */
+      args?: string[]
+      /**
+       * Cwd
+       * @description its folder; none: the machine's default ([sessions] default_cwd)
+       */
+      cwd?: string | null
+      /**
+       * Headless
+       * @description run it without a terminal, where the runtime can (`RuntimeInfo.headless`)
+       * @default false
+       */
+      headless: boolean
+      /** Name */
+      name?: string | null
+      /**
+       * Node
+       * @description start it on this node instead of here (GET /v1/nodes)
+       */
+      node?: string | null
+      /**
+       * Permission Mode
+       * @description one of its runtime's `permission_modes`, or "agent" (its own settings); null: the configured default (`launch.<runtime>_mode`)
+       */
+      permission_mode?: string | null
+      /**
+       * Prompt
+       * @description its first message, given after every option (`--`): any length, lines and characters
+       */
+      prompt?: string | null
+      /** Runtime */
+      runtime: string
+    }
+    /** DetectedFolder */
+    DetectedFolder: {
+      /**
+       * Folder
+       * @description the folder its log names, to place it there; null when none
+       */
+      folder: string | null
+    }
+    /** Device */
+    Device: {
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /**
+       * Current
+       * @description the device making this request
+       */
+      current: boolean
+      /** Last Used At */
+      last_used_at: string | null
+      /** Name */
+      name: string
+    }
+    /** Dictionary */
+    Dictionary: {
+      /**
+       * Corrections
+       * @description applied in order
+       */
+      corrections?: components['schemas']['Correction'][]
+      /**
+       * Words
+       * @description in priority order
+       */
+      words?: string[]
+    }
+    /** DictionaryFit */
+    DictionaryFit: {
+      /**
+       * Budget
+       * @default 224
+       */
+      budget: number
+      /**
+       * Tokens
+       * @description the prompt's estimated tokens
+       */
+      tokens: number
+      /** Words */
+      words: number
+      /**
+       * Words In Prompt
+       * @description how many of the words (the first ones) fit in what Whisper reads
+       */
+      words_in_prompt: number
+    }
+    /** DictionaryView */
+    DictionaryView: {
+      /**
+       * Corrections
+       * @description applied in order
+       */
+      corrections?: components['schemas']['Correction'][]
+      fit: components['schemas']['DictionaryFit']
+      /**
+       * Words
+       * @description in priority order
+       */
+      words?: string[]
+    }
+    /** DirectNode */
+    DirectNode: {
+      /** Node */
+      node: string
+      /**
+       * Token
+       * @description a device token of that node, for this device
+       */
+      token: string
+      /**
+       * Url
+       * @description https: where the app reaches it itself
+       */
+      url: string
+    }
+    /** DirectUrl */
+    DirectUrl: {
+      /**
+       * Direct Url
+       * @description https; null: the address the node reports
+       */
+      direct_url: string | null
+    }
+    /** ErrorFrame */
+    ErrorFrame: {
+      /** Message */
+      message: string
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'error'
+    }
+    /** Features */
+    Features: {
+      /**
+       * Asr
+       * @description POST /v1/asr turns speech into text
+       */
+      asr: boolean
+      /**
+       * Summaries
+       * @description POST /v1/sessions/{id}/summary can make reply summaries
+       */
+      summaries: boolean
+    }
+    /**
+     * GitPlace
+     * @description Where a session's folder sits in git, read on the machine it runs on.
+     */
+    GitPlace: {
+      /**
+       * Branch
+       * @description null: detached
+       */
+      branch?: string | null
+      /**
+       * Remote
+       * @description its origin as owner/repo
+       */
+      remote?: string | null
+      /**
+       * Repo
+       * @description the repository's main folder, which its worktrees share
+       */
+      repo: string
+      /**
+       * Worktree
+       * @description the top folder of the worktree the session is in (`repo` for the main one)
+       */
+      worktree: string
+    }
+    /** HTTPValidationError */
+    HTTPValidationError: {
+      /** Detail */
+      detail?: components['schemas']['ValidationError'][]
+    }
+    /** Health */
+    Health: {
+      /** Status */
+      status: string
+      /** Version */
+      version: string
+    }
+    /** HideSession */
+    HideSession: {
+      /**
+       * Hidden
+       * @default true
+       */
+      hidden: boolean
+    }
+    /**
+     * HubStatus
+     * @description This daemon as a node of a hub, if it joined one.
+     */
+    HubStatus: {
+      /**
+       * Connected
+       * @default false
+       */
+      connected: boolean
+      /**
+       * Error
+       * @description why it is not connected, when it tried
+       */
+      error?: string | null
+      /**
+       * Hub Version
+       * @description the muxtower version the hub runs, as it said
+       */
+      hub_version?: string | null
+      /**
+       * Name
+       * @description its name on the hub
+       */
+      name?: string | null
+      /**
+       * Update
+       * @description the hub's version, when it is later than this one
+       */
+      update?: string | null
+      /**
+       * Url
+       * @description the hub it joined; null when it joined none
+       */
+      url?: string | null
+    }
+    /** ImageInput */
+    ImageInput: {
+      /**
+       * Data
+       * @description the image, base64
+       */
+      data: string
+      /**
+       * Media Type
+       * @enum {string}
+       */
+      media_type: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp'
+    }
+    /**
+     * ItemStatus
+     * @enum {string}
+     */
+    ItemStatus: 'running' | 'done' | 'error' | 'pending' | 'allowed' | 'denied' | 'answered' | 'dismissed' | 'cancelled'
+    /** JoinHub */
+    JoinHub: {
+      /**
+       * Code
+       * @description a pairing code made on the hub
+       */
+      code: string
+      /**
+       * Url
+       * @description the hub's address
+       */
+      url: string
+    }
+    /** LoginStart */
+    LoginStart: {
+      session: components['schemas']['Session']
+      /**
+       * Url
+       * @description the page to sign in at, read off the session's screen; none if it showed none in time (the session then says why)
+       */
+      url: string | null
+    }
+    /** MachineSettings */
+    MachineSettings: {
+      /** Machine */
+      machine: string
+      /** Settings */
+      settings: components['schemas']['SettingView'][]
+    }
+    /**
+     * MachineUsage
+     * @description What the daemon on one machine uses, sampled every few seconds. A value it cannot read there is null
+     *     (unknown), never 0.
+     */
+    MachineUsage: {
+      /** Alerts */
+      alerts?: components['schemas']['UsageAlert'][]
+      /**
+       * Children
+       * @description null: cannot be read on this system
+       */
+      children?: components['schemas']['ProcessUsage'][] | null
+      /** Cpu 10M */
+      cpu_10m?: number | null
+      /**
+       * Cpu 1M
+       * @description percent of one core, average over the last minute
+       */
+      cpu_1m?: number | null
+      /** Machine */
+      machine: string
+      /** Open Files */
+      open_files?: number | null
+      /** Peak Rss Mb */
+      peak_rss_mb?: number | null
+      /** Rss Mb */
+      rss_mb?: number | null
+      /**
+       * Sampled At
+       * Format: date-time
+       */
+      sampled_at: string
+      /**
+       * Stale
+       * @description a node's last report is old: it may be gone
+       * @default false
+       */
+      stale: boolean
+      /** Threads */
+      threads?: number | null
+      tick?: components['schemas']['TickUsage']
+    }
+    /** MarkRead */
+    MarkRead: {
+      /**
+       * Read
+       * @description false marks it unread, to come back to
+       * @default true
+       */
+      read: boolean
+    }
+    /** Me */
+    Me: {
+      /**
+       * Claude Login Expired
+       * @description the Claude login this daemon reads Remote Control sessions with is missing or expired: those sessions (Claude Desktop's, the Claude app's) do not update until it is logged in again
+       * @default false
+       */
+      claude_login_expired: boolean
+      /** Daemon Name */
+      daemon_name: string
+      /**
+       * Default Folder
+       * @description where a new session starts when given no folder ([sessions] default_cwd, else home)
+       */
+      default_folder?: string | null
+      features: components['schemas']['Features']
+      /** Token Name */
+      token_name: string
+      /**
+       * Version
+       * @description the muxtower this daemon runs (null: an older one)
+       */
+      version?: string | null
+    }
+    /** ModeInfo */
+    ModeInfo: {
+      /**
+       * Dangerous
+       * @default false
+       */
+      dangerous: boolean
+      /** Id */
+      id: string
+      /** Label */
+      label: string
+    }
+    /** NextStepAction */
+    NextStepAction: {
+      /** Label */
+      label: string
+      /**
+       * Message
+       * @description sent as the owner's message when picked
+       */
+      message: string
+    }
+    /** NodeClaim */
+    NodeClaim: {
+      /**
+       * Code
+       * @description a pairing code made on the hub
+       */
+      code: string
+      /**
+       * Name
+       * @description what the node calls itself; the hub may change it
+       */
+      name: string
+    }
+    /** NodeClaimResult */
+    NodeClaimResult: {
+      /** Hub Name */
+      hub_name: string
+      /**
+       * Name
+       * @description the name the hub gave it
+       */
+      name: string
+      /**
+       * Token
+       * @description the node's own token, for the link only
+       */
+      token: string
+    }
+    /**
+     * NodeInfo
+     * @description A daemon joined to this one: its sessions are listed here, as from any other source.
+     */
+    NodeInfo: {
+      /**
+       * Default Folder
+       * @description where a new session starts there when given none
+       */
+      default_folder?: string | null
+      /**
+       * Direct Url
+       * @description the owner's address for it, used over the reported one
+       */
+      direct_url?: string | null
+      /**
+       * Joined At
+       * Format: date-time
+       */
+      joined_at: string
+      /**
+       * Last Seen
+       * @description when it was last connected
+       */
+      last_seen?: string | null
+      /** Name */
+      name: string
+      /** Online */
+      online: boolean
+      /**
+       * Reported Url
+       * @description where it says the app can reach it itself
+       */
+      reported_url?: string | null
+      /**
+       * Runtimes
+       * @description what can be started there
+       */
+      runtimes?: components['schemas']['RuntimeInfo'][]
+      /**
+       * Sessions
+       * @description sessions it lists
+       */
+      sessions: number
+      /**
+       * Update
+       * @description this daemon's version, when the node runs an older one
+       */
+      update?: string | null
+      /** Version */
+      version?: string | null
+    }
+    /**
+     * NotifyLevel
+     * @description Which push notifications a session sends, as the owner set it.
+     * @enum {string}
+     */
+    NotifyLevel: 'all' | 'needs' | 'off'
+    /**
+     * Option
+     * @description One numbered choice in a dialog, e.g. key "2", label "Yes, allow reads during this session".
+     */
+    Option: {
+      /** Key */
+      key: string
+      /** Label */
+      label: string
+    }
+    /** PairCode */
+    PairCode: {
+      /**
+       * Code
+       * @description one-time code, e.g. K7QM-3XPA
+       */
+      code: string
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string
+    }
+    /**
+     * PendingAction
+     * @description What the agent is waiting for. tool_name/detail come from hooks, else the screen; options from the screen.
+     */
+    PendingAction: {
+      /** Detail */
+      detail?: string | null
+      /** Options */
+      options?: components['schemas']['Option'][]
+      /**
+       * Questions
+       * @description a multiple-choice prompt's questions, when known: answer them all at once with `answers`
+       */
+      questions?: components['schemas']['PendingQuestion'][]
+      /**
+       * Recommended
+       * @description option key approve picks when none is given
+       */
+      recommended?: string | null
+      state: components['schemas']['AgentState']
+      /** Tool Name */
+      tool_name?: string | null
+    }
+    /**
+     * PendingQuestion
+     * @description One question of an agent's multiple-choice prompt (Claude Code's AskUserQuestion), all of whose
+     *     questions are answered together (`Approve.answers`).
+     */
+    PendingQuestion: {
+      /** Header */
+      header?: string | null
+      /**
+       * Multi Select
+       * @description any number of its options may be picked
+       * @default false
+       */
+      multi_select: boolean
+      /** Options */
+      options: components['schemas']['QuestionOption'][]
+      /** Question */
+      question: string
+    }
+    /** PinSession */
+    PinSession: {
+      /**
+       * Pinned
+       * @default true
+       */
+      pinned: boolean
+    }
+    /**
+     * Placement
+     * @description Where the owner says a session runs, over what its source reports; empty fields are not placed.
+     */
+    Placement: {
+      /**
+       * Folder
+       * @description a folder: a path, ~ for home
+       */
+      folder?: string | null
+      /**
+       * Machine
+       * @description a machine, as the lists name it
+       */
+      machine?: string | null
+    }
+    /** PongFrame */
+    PongFrame: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'pong'
+    }
+    /** ProcessUsage */
+    ProcessUsage: {
+      /**
+       * Cpu Percent
+       * @description of one core, over the last minute; null: unknown
+       */
+      cpu_percent?: number | null
+      /** Name */
+      name: string
+      /** Pid */
+      pid: number
+      /** Rss Mb */
+      rss_mb?: number | null
+    }
+    /** QuestionOption */
+    QuestionOption: {
+      /** Description */
+      description?: string | null
+      /** Label */
+      label: string
+    }
+    /** Recover */
+    Recover: {
+      /** Session Ids */
+      session_ids: string[]
+    }
+    /** Recovery */
+    Recovery: {
+      /**
+       * Mode
+       * @description ask | auto | off (`[recovery] mode`)
+       */
+      mode: string
+      /**
+       * Sessions
+       * @description interrupted by a restart, here and on the nodes: to start again or remove
+       */
+      sessions: components['schemas']['Session'][]
+    }
+    /** Resize */
+    Resize: {
+      /** Cols */
+      cols: number
+      /** Rows */
+      rows: number
+    }
+    /** RuntimeInfo */
+    RuntimeInfo: {
+      /** Available */
+      available: boolean
+      /** Binary */
+      binary: string
+      /**
+       * Default Mode
+       * @description new sessions' mode unless asked: "agent" adds none
+       * @default agent
+       */
+      default_mode: string
+      /** Has Hooks */
+      has_hooks: boolean
+      /**
+       * Headless
+       * @default false
+       */
+      headless: boolean
+      /** Name */
+      name: string
+      /**
+       * Permission Modes
+       * @description least to most permissive
+       */
+      permission_modes?: components['schemas']['ModeInfo'][]
+    }
+    /** Screen */
+    Screen: {
+      /**
+       * Ansi
+       * @description screen with colors and scrollback, when requested
+       */
+      ansi: string | null
+      /** Session Id */
+      session_id: string
+      /**
+       * Text
+       * @description current screen, plain text
+       */
+      text: string
+    }
+    /** ScreenFrame */
+    ScreenFrame: {
+      /** Ansi */
+      ansi: string
+      /**
+       * Seq
+       * @description with encoding "lines": the number the next patch builds on
+       */
+      seq?: number | null
+      /** Session Id */
+      session_id: string
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'screen'
+    }
+    /**
+     * ScreenPatchFrame
+     * @description The next screen as ops on the screen numbered `base` (`terminal/patches.py`): `[start, count]` copies
+     *     those lines of it, a string is a new line; joined with newlines, the screen numbered `seq`. A client
+     *     whose last screen is not `base` subscribes again for a full one.
+     */
+    ScreenPatchFrame: {
+      /** Base */
+      base: number
+      /** Ops */
+      ops: (number[] | string)[]
+      /** Seq */
+      seq: number
+      /** Session Id */
+      session_id: string
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'screen_patch'
+    }
+    /**
+     * SendInput
+     * @description Either literal `text` (optionally followed by Enter) or one tmux `key` name. A message (`text`) may
+     *     carry `images` where the session takes them (`capabilities.images`).
+     */
+    SendInput: {
+      /**
+       * Enter
+       * @default false
+       */
+      enter: boolean
+      /** Images */
+      images?: components['schemas']['ImageInput'][]
+      /** Key */
+      key?: string | null
+      /** Text */
+      text?: string | null
+    }
+    /** Session */
+    Session: {
+      /**
+       * Account
+       * @description the account its agent runs as, as far as known (an email, or "API key")
+       */
+      account?: string | null
+      /**
+       * Agent Name
+       * @description the name its agent gives it (Claude Code's title), offered when renaming
+       */
+      agent_name?: string | null
+      /**
+       * Also Writing
+       * @description other running sessions here that wrote files in the same worktree within the last minutes (file-editing tools only, not Bash): a hint, nothing is held back
+       */
+      also_writing?: components['schemas']['AlsoWriting'][]
+      /**
+       * Alt Screen
+       * @description draws full screen (alternate screen): tmux keeps no scrollback, see the conversation
+       * @default false
+       */
+      alt_screen: boolean
+      /**
+       * Archived At
+       * @description when the owner archived it: it no longer runs, its conversation stays readable
+       */
+      archived_at?: string | null
+      /** Auto Approve */
+      auto_approve: boolean
+      /** Can Auto Approve */
+      can_auto_approve: boolean
+      capabilities: components['schemas']['Capabilities']
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string
+      /** Cwd */
+      cwd: string
+      /**
+       * Finished At
+       * @description when it last finished a turn
+       */
+      finished_at?: string | null
+      /**
+       * Fork Of
+       * @description the session it was forked from, as listed here (a side chat's too)
+       */
+      fork_of?: string | null
+      /** @description its folder's repository; null outside one, or elsewhere */
+      git?: components['schemas']['GitPlace'] | null
+      /**
+       * Hidden
+       * @description the owner hid it: kept out of the lists and done notifications
+       * @default false
+       */
+      hidden: boolean
+      /** Id */
+      id: string
+      /**
+       * In Background
+       * @description its agent moved the conversation to a background process of its own (Claude Code's ← on an empty prompt): it runs on there, its Remote Control session and transcript with it; its terminal shows Claude Code's agents view, where Enter opens it again
+       * @default false
+       */
+      in_background: boolean
+      /**
+       * Interrupted At
+       * @description its machine restarted under it: kept to be resumed or removed (`/v1/recovery`)
+       */
+      interrupted_at?: string | null
+      /** Last Message */
+      last_message: string | null
+      /**
+       * Machine
+       * @description where it runs, as the owner named it
+       */
+      machine?: string | null
+      /** Matched Rule */
+      matched_rule: string | null
+      /** Name */
+      name: string
+      /** Needs Attention */
+      needs_attention: boolean
+      /**
+       * Node
+       * @description the node (another daemon joined to this one) it is reached through
+       */
+      node?: string | null
+      /**
+       * @description which push notifications it sends
+       * @default all
+       */
+      notify: components['schemas']['NotifyLevel']
+      /**
+       * Offline
+       * @description its node is not connected: the last known view, read only until it is back
+       * @default false
+       */
+      offline: boolean
+      /**
+       * On Host
+       * @description its agent runs on the daemon that lists it
+       * @default false
+       */
+      on_host: boolean
+      /**
+       * Origin
+       * @description where it was started: cli, desktop_app, android…
+       */
+      origin?: string | null
+      /**
+       * Output At
+       * @description when the agent last said or did something (a reply, a tool call, the end of a turn), where its source tells; unread is about output after the owner last looked, not about other events (updated_at moves with those too: a reconnect, a restart)
+       */
+      output_at?: string | null
+      pending: components['schemas']['PendingAction'] | null
+      /**
+       * Permission Mode
+       * @description the permission mode it was started in, if one
+       */
+      permission_mode?: string | null
+      /**
+       * Pinned
+       * @description the owner pinned it: listed above the others
+       * @default false
+       */
+      pinned: boolean
+      /** @description where the owner placed it; `machine` and `cwd` already follow it */
+      placement?: components['schemas']['Placement'] | null
+      /**
+       * Project
+       * @description its project, as its team record keeps it (`my_team` says the same): set by an agent or the owner, else worked out once from git when it was first seen (`project_auto`); null until then
+       */
+      project?: string | null
+      /**
+       * Project Anchor
+       * @description where its project sits in its device's folder tree: the main folder of the repository most of the project's sessions there run in, else their folder (`sessions/anchors.py`); null: at the top
+       */
+      project_anchor?: string | null
+      /**
+       * Project Auto
+       * @description `project` was worked out by muxtower, not set
+       * @default false
+       */
+      project_auto: boolean
+      /**
+       * Project Source
+       * @description where `project` came from: set by an agent or the owner, or worked out from its git remote, its repository's folder, or (outside git) its folder; the lists place it by its folder in that last case
+       */
+      project_source?: ('set' | 'git remote' | 'git root' | 'folder') | null
+      /**
+       * Remote Id
+       * @description the controller session of this agent (Claude Code's Remote Control session, a Codex thread of the shared app-server), when it has one; listed once, under this id
+       */
+      remote_id?: string | null
+      /**
+       * Reply Summary
+       * @description a few lines condensing last_message, once the hub has made them (long replies)
+       */
+      reply_summary?: string | null
+      role?: components['schemas']['SessionRole'] | null
+      /** Runtime */
+      runtime: string
+      /**
+       * Side Chat
+       * @description something asked on the side of `fork_of` (Claude desktop's side chat)
+       * @default false
+       */
+      side_chat: boolean
+      source: components['schemas']['SessionSource']
+      state: components['schemas']['AgentState']
+      state_source: components['schemas']['StateSource']
+      summary?: components['schemas']['TurnSummary'] | null
+      /**
+       * Team Note
+       * @description one more line about its team role
+       */
+      team_note?: string | null
+      /**
+       * Team Role
+       * @description what it is for in its team (free text; `teams/`)
+       */
+      team_role?: string | null
+      /**
+       * Terminal Attached
+       * @description a terminal is attached to its tmux session, so someone may be watching it at its own size
+       * @default false
+       */
+      terminal_attached: boolean
+      /**
+       * Tmux Pane
+       * @description pane id, e.g. %12, for attaching to the exact pane
+       */
+      tmux_pane?: string | null
+      /** Tmux Session */
+      tmux_session?: string | null
+      /**
+       * Tmux Socket
+       * @description tmux server: "default" or a -L socket name
+       */
+      tmux_socket?: string | null
+      /**
+       * Unread
+       * @description finished a turn (or has news) since the owner last looked, or marked unread
+       * @default false
+       */
+      unread: boolean
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string
+      /**
+       * Working Dir
+       * @description where the agent works now, when that is inside `cwd` and not it (where it started, which is where it is listed)
+       */
+      working_dir?: string | null
+    }
+    /** SessionName */
+    SessionName: {
+      /**
+       * Last Seen
+       * Format: date-time
+       */
+      last_seen: string
+      /** Name */
+      name: string
+      /**
+       * Source
+       * @description muxtower | claude (its own title) | set in claude | remote control | codex
+       */
+      source: string
+    }
+    /** SessionNotify */
+    SessionNotify: {
+      level: components['schemas']['NotifyLevel']
+    }
+    /**
+     * SessionRole
+     * @enum {string}
+     */
+    SessionRole: 'concierge'
+    /**
+     * SessionSource
+     * @enum {string}
+     */
+    SessionSource: 'launched' | 'adopted' | 'remote_control' | 'codex' | 'codex_shared'
+    /** SessionsFrame */
+    SessionsFrame: {
+      /** Sessions */
+      sessions: components['schemas']['Session'][]
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'sessions'
+    }
+    /** SettingView */
+    SettingView: {
+      /**
+       * Applies
+       * @enum {string}
+       */
+      applies: 'now' | 'restart'
+      /** Choices */
+      choices: string[]
+      /** Default */
+      default: unknown
+      /** Help */
+      help: string
+      /**
+       * Key
+       * @description dotted, as in the config file: `recovery.mode` is `[recovery] mode`
+       */
+      key: string
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: 'choice' | 'bool' | 'number' | 'text' | 'args'
+      /** Label */
+      label: string
+      /**
+       * Pending
+       * @description changed since the daemon started: applies when it restarts
+       */
+      pending: boolean
+      /** Section */
+      section: string
+      /**
+       * Source
+       * @description config_file: set there, and not changed from the app
+       * @enum {string}
+       */
+      source: 'default' | 'app' | 'config_file'
+      /**
+       * Value
+       * @description what applies: once the daemon restarts, where `pending`
+       */
+      value: unknown
+    }
+    /**
+     * SlowRule
+     * @description The screen rule that took longest in the latest ticks.
+     */
+    SlowRule: {
+      /** Ms */
+      ms: number
+      /** Rule */
+      rule: string
+      /** Session Id */
+      session_id: string
+      /** Session Name */
+      session_name?: string | null
+    }
+    /**
+     * StateSource
+     * @enum {string}
+     */
+    StateSource: 'hook' | 'screen' | 'default' | 'remote'
+    /**
+     * StreamPing
+     * @description Is this connection still alive? Answered with a `pong` frame (a daemon older than this answers with an
+     *     `error` frame: any frame says the connection works).
+     */
+    StreamPing: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'ping'
+    }
+    /**
+     * StreamSchema
+     * @description Documents the WebSocket message shapes so they reach the generated client types.
+     */
+    StreamSchema: {
+      /** Client */
+      client: components['schemas']['StreamSubscribe'] | components['schemas']['StreamPing']
+      conversation?: components['schemas']['ConversationFrame'] | null
+      /** Server */
+      server:
+        | components['schemas']['SessionsFrame']
+        | components['schemas']['ScreenFrame']
+        | components['schemas']['ScreenPatchFrame']
+        | components['schemas']['ConversationFrame']
+        | components['schemas']['ErrorFrame']
+        | components['schemas']['PongFrame']
+    }
+    /** StreamSubscribe */
+    StreamSubscribe: {
+      /**
+       * Encoding
+       * @description screen: "lines" sends a full screen (with its `seq`), then `screen_patch` frames; a client of its own may ignore it
+       * @default full
+       * @enum {string}
+       */
+      encoding: 'full' | 'lines'
+      /**
+       * History
+       * @default 200
+       */
+      history: number
+      /** Session Id */
+      session_id?: string | null
+      /**
+       * Topic
+       * @enum {string}
+       */
+      topic: 'sessions' | 'screen' | 'conversation'
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      type: 'subscribe' | 'unsubscribe'
+    }
+    /** Subscribe */
+    Subscribe: {
+      /**
+       * Client Ref
+       * @description opaque; echoed in every push (the app's daemon id)
+       */
+      client_ref: string
+      /**
+       * Done
+       * @description also notify when a session finishes a turn
+       * @default true
+       */
+      done: boolean
+      /** Endpoint */
+      endpoint: string
+      keys: components['schemas']['SubscriptionKeys']
+      /**
+       * Muted
+       * @description session ids that never notify
+       */
+      muted?: string[]
+      /** States */
+      states?: components['schemas']['AgentState'][]
+    }
+    /** Subscription */
+    Subscription: {
+      /** Client Ref */
+      client_ref: string
+      /**
+       * Done
+       * @default true
+       */
+      done: boolean
+      /** Id */
+      id: string
+      /** Muted */
+      muted: string[]
+      /** States */
+      states: components['schemas']['AgentState'][]
+    }
+    /** SubscriptionKeys */
+    SubscriptionKeys: {
+      /** Auth */
+      auth: string
+      /** P256Dh */
+      p256dh: string
+    }
+    /**
+     * SummaryState
+     * @enum {string}
+     */
+    SummaryState: 'ready' | 'pending' | 'not_needed' | 'unavailable'
+    /** SummaryStatus */
+    SummaryStatus: {
+      state: components['schemas']['SummaryState']
+    }
+    /** TeamTask */
+    TeamTask: {
+      /**
+       * At
+       * Format: date-time
+       */
+      at: string
+      /** Delivered At */
+      delivered_at?: string | null
+      /**
+       * From Id
+       * @description the session that sent it; null: a device
+       */
+      from_id: string | null
+      /** From Label */
+      from_label: string
+      /** Id */
+      id: number
+      /**
+       * Status
+       * @description delivered | held | undeliverable
+       */
+      status: string
+      /**
+       * Text
+       * @description its start, whole while it is held
+       */
+      text: string
+      /** To Id */
+      to_id: string
+    }
+    /**
+     * TickUsage
+     * @description The capture loop: each tick reads and classifies every pane.
+     */
+    TickUsage: {
+      /**
+       * Avg Ms
+       * @description over the last minute; null: no tick yet
+       */
+      avg_ms?: number | null
+      /** Max Ms */
+      max_ms?: number | null
+      slowest?: components['schemas']['SlowRule'] | null
+    }
+    /** Transcript */
+    Transcript: {
+      /**
+       * Language
+       * @description the language it was transcribed as (null: the provider detected it)
+       */
+      language?: string | null
+      /** Text */
+      text: string
+    }
+    /**
+     * TurnSummary
+     * @description A short account of the latest turn, written by the agent's platform (Remote Control) or by us.
+     */
+    TurnSummary: {
+      /**
+       * Detail
+       * @description one line: where the work stands
+       */
+      detail?: string | null
+      /**
+       * Needs
+       * @description what the agent needs from the owner, if anything
+       */
+      needs?: string | null
+      /**
+       * Noteworthy
+       * @default false
+       */
+      noteworthy: boolean
+      /**
+       * Recent
+       * @description one or two sentences: what just happened
+       */
+      recent?: string | null
+      /**
+       * Status
+       * @description e.g. completed, working, blocked
+       */
+      status?: string | null
+    }
+    /** UpdateSession */
+    UpdateSession: {
+      /** Auto Approve */
+      auto_approve?: boolean | null
+      /** Name */
+      name?: string | null
+    }
+    /**
+     * UpdateTeam
+     * @description Only what is given changes. An empty role clears it.
+     */
+    UpdateTeam: {
+      /** Note */
+      note?: string | null
+      /** Project */
+      project?: string | null
+      /**
+       * Rename Project
+       * @description rename its project, for every session in it
+       * @default false
+       */
+      rename_project: boolean
+      /** Role */
+      role?: string | null
+    }
+    /** UsageAlert */
+    UsageAlert: {
+      /** Detail */
+      detail?: string | null
+      /**
+       * Metric
+       * @description cpu | tick | memory
+       */
+      metric: string
+      /** Threshold */
+      threshold: number
+      /** Value */
+      value: number
+    }
+    /** ValidationError */
+    ValidationError: {
+      /** Context */
+      ctx?: Record<string, never>
+      /** Input */
+      input?: unknown
+      /** Location */
+      loc: (string | number)[]
+      /** Message */
+      msg: string
+      /** Error Type */
+      type: string
+    }
+    /** VapidKey */
+    VapidKey: {
+      /** Public Key */
+      public_key: string
+    }
+  }
+  responses: never
+  parameters: never
+  requestBodies: never
+  headers: never
+  pathItems: never
 }
-export type $defs = Record<string, never>;
+export type $defs = Record<string, never>
 export interface operations {
-    transcribe_v1_asr_post: {
-        parameters: {
-            query?: {
-                language?: string | null;
-                source?: string | null;
-                hint?: "command" | null;
-                words?: string[] | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "audio/m4a": string;
-                "audio/mp4": string;
-                "audio/mpeg": string;
-                "audio/ogg": string;
-                "audio/wav": string;
-                "audio/webm": string;
-                "audio/x-wav": string;
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Transcript"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_dictionary_v1_asr_dictionary_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DictionaryView"];
-                };
-            };
-        };
-    };
-    put_dictionary_v1_asr_dictionary_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Dictionary"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DictionaryView"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_chip_groups_v1_chip_groups_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChipGroups"];
-                };
-            };
-        };
-    };
-    put_chip_groups_v1_chip_groups_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChipGroups"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChipGroups"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    claude_login_v1_claude_login_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["LoginStart"];
-                };
-            };
-        };
-    };
-    list_devices_v1_devices_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Device"][];
-                };
-            };
-        };
-    };
-    revoke_device_v1_devices__name__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    append_diagnostics_v1_diagnostics_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Entries */
-                    entries: {
-                        [key: string]: unknown;
-                    }[];
-                    /**
-                     * Source
-                     * @description Which log: `g2` for the glasses
-                     */
-                    source: string;
-                };
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    health_v1_health_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Health"];
-                };
-            };
-        };
-    };
-    hub_status_v1_hub_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HubStatus"];
-                };
-            };
-        };
-    };
-    join_hub_v1_hub_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["JoinHub"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HubStatus"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    leave_hub_v1_hub_delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    me_v1_me_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Me"];
-                };
-            };
-        };
-    };
-    list_nodes_v1_nodes_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NodeInfo"][];
-                };
-            };
-        };
-    };
-    claim_node_v1_nodes_claim_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["NodeClaim"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NodeClaimResult"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    direct_tokens_v1_nodes_direct_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DirectNode"][];
-                };
-            };
-        };
-    };
-    remove_node_v1_nodes__name__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    set_direct_url_v1_nodes__name__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["DirectUrl"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    claim_pair_code_v1_pair_claim_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ClaimRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ClaimResult"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_pair_code_v1_pair_codes_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PairCode"];
-                };
-            };
-        };
-    };
-    vapid_key_v1_push_key_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["VapidKey"];
-                };
-            };
-        };
-    };
-    subscribe_v1_push_subscriptions_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Subscribe"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Subscription"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    unsubscribe_v1_push_subscriptions__subscription_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                subscription_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    interrupted_v1_recovery_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Recovery"];
-                };
-            };
-        };
-    };
-    recover_v1_recovery_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Recover"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Session"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    list_runtimes_v1_runtimes_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RuntimeInfo"][];
-                };
-            };
-        };
-    };
-    list_sessions_v1_sessions_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Session"][];
-                };
-            };
-        };
-    };
-    create_session_v1_sessions_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateSession"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Session"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_session_v1_sessions__session_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Session"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    terminate_session_v1_sessions__session_id__delete: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_session_v1_sessions__session_id__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateSession"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Session"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    approve_v1_sessions__session_id__approve_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Approve"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApprovalResult"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    archive_session_v1_sessions__session_id__archive_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_conversation_v1_sessions__session_id__conversation_get: {
-        parameters: {
-            query?: {
-                after?: number;
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Conversation"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    deny_v1_sessions__session_id__deny_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApprovalResult"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    hide_session_v1_sessions__session_id__hide_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["HideSession"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_image_v1_sessions__session_id__image_get: {
-        parameters: {
-            query: {
-                path: string;
-            };
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description the image file */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "image/*": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    send_input_v1_sessions__session_id__input_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SendInput"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    session_names_v1_sessions__session_id__names_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SessionName"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    set_notify_v1_sessions__session_id__notify_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SessionNotify"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Session"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    pin_session_v1_sessions__session_id__pin_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PinSession"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    place_session_v1_sessions__session_id__placement_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Placement"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Session"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    detect_placement_v1_sessions__session_id__placement_detect_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DetectedFolder"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    mark_read_v1_sessions__session_id__read_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MarkRead"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    resize_v1_sessions__session_id__resize_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["Resize"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    release_size_v1_sessions__session_id__resize_release_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_screen_v1_sessions__session_id__screen_get: {
-        parameters: {
-            query?: {
-                history?: number;
-            };
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Screen"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    request_summary_v1_sessions__session_id__summary_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SummaryStatus"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    session_tasks_v1_sessions__session_id__tasks_get: {
-        parameters: {
-            query?: {
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TeamTask"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    update_team_v1_sessions__session_id__team_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                session_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["UpdateTeam"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Session"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_settings_v1_settings_get: {
-        parameters: {
-            query?: {
-                /** @description a node of this hub: its settings, over the link, instead of this daemon's */
-                node?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MachineSettings"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    change_settings_v1_settings_patch: {
-        parameters: {
-            query?: {
-                /** @description a node of this hub: its settings, over the link, instead of this daemon's */
-                node?: string | null;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChangeSettings"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MachineSettings"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    stream_cookie_v1_stream_cookie_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    stream_schema_v1_stream_schema_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["StreamSchema"];
-                };
-            };
-        };
-    };
-    latest_tasks_v1_tasks_latest_get: {
-        parameters: {
-            query: {
-                /** @description session ids */
-                to: string[];
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: components["schemas"]["TeamTask"];
-                    };
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    usage_v1_usage_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MachineUsage"][];
-                };
-            };
-        };
-    };
+  transcribe_v1_asr_post: {
+    parameters: {
+      query?: {
+        language?: string | null
+        source?: string | null
+        hint?: 'command' | null
+        words?: string[] | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'audio/m4a': string
+        'audio/mp4': string
+        'audio/mpeg': string
+        'audio/ogg': string
+        'audio/wav': string
+        'audio/webm': string
+        'audio/x-wav': string
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Transcript']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_dictionary_v1_asr_dictionary_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['DictionaryView']
+        }
+      }
+    }
+  }
+  put_dictionary_v1_asr_dictionary_put: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['Dictionary']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['DictionaryView']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_chip_groups_v1_chip_groups_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ChipGroups']
+        }
+      }
+    }
+  }
+  put_chip_groups_v1_chip_groups_put: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ChipGroups']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ChipGroups']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  claude_login_v1_claude_login_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['LoginStart']
+        }
+      }
+    }
+  }
+  list_devices_v1_devices_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Device'][]
+        }
+      }
+    }
+  }
+  revoke_device_v1_devices__name__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        name: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  append_diagnostics_v1_diagnostics_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': {
+          /** Entries */
+          entries: {
+            [key: string]: unknown
+          }[]
+          /**
+           * Source
+           * @description Which log: `g2` for the glasses
+           */
+          source: string
+        }
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  health_v1_health_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Health']
+        }
+      }
+    }
+  }
+  hub_status_v1_hub_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HubStatus']
+        }
+      }
+    }
+  }
+  join_hub_v1_hub_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['JoinHub']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HubStatus']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  leave_hub_v1_hub_delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  me_v1_me_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Me']
+        }
+      }
+    }
+  }
+  list_nodes_v1_nodes_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['NodeInfo'][]
+        }
+      }
+    }
+  }
+  claim_node_v1_nodes_claim_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['NodeClaim']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['NodeClaimResult']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  direct_tokens_v1_nodes_direct_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['DirectNode'][]
+        }
+      }
+    }
+  }
+  remove_node_v1_nodes__name__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        name: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  set_direct_url_v1_nodes__name__patch: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        name: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['DirectUrl']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  claim_pair_code_v1_pair_claim_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ClaimRequest']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ClaimResult']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  create_pair_code_v1_pair_codes_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['PairCode']
+        }
+      }
+    }
+  }
+  vapid_key_v1_push_key_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['VapidKey']
+        }
+      }
+    }
+  }
+  subscribe_v1_push_subscriptions_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['Subscribe']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Subscription']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  unsubscribe_v1_push_subscriptions__subscription_id__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        subscription_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  interrupted_v1_recovery_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Recovery']
+        }
+      }
+    }
+  }
+  recover_v1_recovery_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['Recover']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Session'][]
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  list_runtimes_v1_runtimes_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['RuntimeInfo'][]
+        }
+      }
+    }
+  }
+  list_sessions_v1_sessions_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Session'][]
+        }
+      }
+    }
+  }
+  create_session_v1_sessions_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['CreateSession']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Session']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_session_v1_sessions__session_id__get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Session']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  terminate_session_v1_sessions__session_id__delete: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  update_session_v1_sessions__session_id__patch: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateSession']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Session']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  approve_v1_sessions__session_id__approve_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['Approve']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ApprovalResult']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  archive_session_v1_sessions__session_id__archive_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_conversation_v1_sessions__session_id__conversation_get: {
+    parameters: {
+      query?: {
+        after?: number
+        limit?: number
+      }
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Conversation']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  deny_v1_sessions__session_id__deny_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['ApprovalResult']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  hide_session_v1_sessions__session_id__hide_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['HideSession']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_image_v1_sessions__session_id__image_get: {
+    parameters: {
+      query: {
+        path: string
+      }
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description the image file */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'image/*': unknown
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  send_input_v1_sessions__session_id__input_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SendInput']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  session_names_v1_sessions__session_id__names_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SessionName'][]
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  set_notify_v1_sessions__session_id__notify_put: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['SessionNotify']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Session']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  pin_session_v1_sessions__session_id__pin_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['PinSession']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  place_session_v1_sessions__session_id__placement_put: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['Placement']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Session']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  detect_placement_v1_sessions__session_id__placement_detect_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['DetectedFolder']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  mark_read_v1_sessions__session_id__read_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['MarkRead']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  resize_v1_sessions__session_id__resize_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['Resize']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  release_size_v1_sessions__session_id__resize_release_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_screen_v1_sessions__session_id__screen_get: {
+    parameters: {
+      query?: {
+        history?: number
+      }
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Screen']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  request_summary_v1_sessions__session_id__summary_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['SummaryStatus']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  session_tasks_v1_sessions__session_id__tasks_get: {
+    parameters: {
+      query?: {
+        limit?: number
+      }
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['TeamTask'][]
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  update_team_v1_sessions__session_id__team_put: {
+    parameters: {
+      query?: never
+      header?: never
+      path: {
+        session_id: string
+      }
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['UpdateTeam']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['Session']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  get_settings_v1_settings_get: {
+    parameters: {
+      query?: {
+        /** @description a node of this hub: its settings, over the link, instead of this daemon's */
+        node?: string | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['MachineSettings']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  change_settings_v1_settings_patch: {
+    parameters: {
+      query?: {
+        /** @description a node of this hub: its settings, over the link, instead of this daemon's */
+        node?: string | null
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody: {
+      content: {
+        'application/json': components['schemas']['ChangeSettings']
+      }
+    }
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['MachineSettings']
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  stream_cookie_v1_stream_cookie_post: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown
+        }
+        content?: never
+      }
+    }
+  }
+  stream_schema_v1_stream_schema_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['StreamSchema']
+        }
+      }
+    }
+  }
+  latest_tasks_v1_tasks_latest_get: {
+    parameters: {
+      query: {
+        /** @description session ids */
+        to: string[]
+      }
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': {
+            [key: string]: components['schemas']['TeamTask']
+          }
+        }
+      }
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['HTTPValidationError']
+        }
+      }
+    }
+  }
+  usage_v1_usage_get: {
+    parameters: {
+      query?: never
+      header?: never
+      path?: never
+      cookie?: never
+    }
+    requestBody?: never
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown
+        }
+        content: {
+          'application/json': components['schemas']['MachineUsage'][]
+        }
+      }
+    }
+  }
 }
