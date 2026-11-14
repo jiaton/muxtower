@@ -1,6 +1,7 @@
 import { useId, useState, type InputHTMLAttributes, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { Input } from './input'
+import { keepFocus } from './gesture'
 
 export interface Suggestion {
   value: string
@@ -83,7 +84,7 @@ export function SuggestInput({
                 'flex cursor-pointer items-baseline gap-2 px-3 py-1.5 text-sm hover:bg-surface-muted',
                 i === active && 'bg-surface-muted',
               )}
-              onPointerDown={(e) => e.preventDefault()} // keep focus in the field
+              onPointerDown={keepFocus} // keep focus in the field
               onClick={() => pick(s)}
             >
               <span className="min-w-0 flex-1 truncate font-mono">{s.value}</span>

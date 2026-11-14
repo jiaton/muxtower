@@ -85,6 +85,7 @@ export function SelectionAction({
   const left = Math.min(Math.max(at.x, EDGE_PX), window.innerWidth - EDGE_PX)
   const top = Math.min(at.y + 10, window.innerHeight - EDGE_PX)
   const press = (e: PointerEvent) => {
+    if (e.button !== 0) return // another mouse button (back, forward) is the browser's
     acting.current = true
     e.preventDefault() // keep the selection (and the keyboard) as they are until it acts
   }

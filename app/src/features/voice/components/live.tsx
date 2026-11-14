@@ -11,6 +11,7 @@ import { enabledPacks } from '../live/packs'
 import { composerColumns } from '@/components/ui/bar'
 import { Dot } from '@/components/ui/indicators'
 import { ink, liveRow } from '@/components/ui/intents'
+import { keepFocus } from '@/components/ui/gesture'
 
 const NOTE_KEY = 'muxtower.live.phone-note'
 const FEEDBACK_MS = 2000 // how long what became of the last thing heard stays in place of the hint
@@ -48,7 +49,7 @@ export function LiveButton() {
             ? `Live, commands only: nothing is written (${SHORTCUT} writes again)`
             : `Live, writing what you say (${SHORTCUT} turns it off)`
       }
-      onPointerDown={(e) => e.preventDefault()} // keep the phone keyboard as it is
+      onPointerDown={keepFocus} // keep the phone keyboard as it is
       onClick={() => void toggleLive()}
     >
       {commandsOnly ? <Ear /> : <AudioLines />}

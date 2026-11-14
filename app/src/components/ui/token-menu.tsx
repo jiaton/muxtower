@@ -1,6 +1,7 @@
 import { ChevronRight } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import { cn } from '@/lib/cn'
+import { keepFocus } from './gesture'
 
 /** One row of a token menu: something to insert (`text`), or a group folded to one row (`group`: chosen, it
  *  opens in place). `label` is what the row shows. */
@@ -167,7 +168,7 @@ function TokenMenu({
               'flex min-h-8 cursor-pointer items-center gap-2 rounded-sm px-2 py-1 text-sm',
               i === active ? 'bg-surface-muted' : 'hover:bg-surface-muted/60',
             )}
-            onPointerDown={(e) => e.preventDefault()} // the field keeps the focus (and a phone its keyboard)
+            onPointerDown={keepFocus} // the field keeps the focus (and a phone its keyboard)
             onClick={() => onChoose(row)}
           >
             <span className="flex min-w-0 flex-1 items-center gap-2">{row.label}</span>

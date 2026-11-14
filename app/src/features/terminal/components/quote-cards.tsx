@@ -6,6 +6,7 @@ import { useTokenMenu, type TokenSource } from '@/components/ui/token-menu'
 import type { Quote } from '../quotes'
 import { Button } from '@/components/ui/button'
 import { ink, look, quoteCard } from '@/components/ui/intents'
+import { keepFocus } from '@/components/ui/gesture'
 
 /** The quotes of a message, at the top of its box, a line each. A tap opens one to the whole quote and a
  *  reply to that part alone, written right under it; closed, the start of its reply shows under it. Each
@@ -91,7 +92,7 @@ export function QuoteCards({
               round
               aria-label="Remove quote"
               className="shrink-0"
-              onPointerDown={(e) => e.preventDefault()} // keep the phone keyboard as it is
+              onPointerDown={keepFocus} // keep the phone keyboard as it is
               onClick={() => onChange(quotes.filter((_, j) => j !== i))}
             >
               <X className="size-3.5" aria-hidden />

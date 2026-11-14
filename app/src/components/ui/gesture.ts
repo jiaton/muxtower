@@ -114,3 +114,10 @@ export function sideways(target: EventTarget | null, root: HTMLElement, dx: numb
   }
   return false
 }
+
+/** Keeps the focus where it is (a text field, and a phone's keyboard with it) when a control is pressed:
+ *  the primary button or a finger only. Another mouse button is left alone, its back and forward above
+ *  all, which a pointerdown's default being prevented would cancel. */
+export function keepFocus(e: { button: number; preventDefault: () => void }) {
+  if (e.button === 0) e.preventDefault()
+}

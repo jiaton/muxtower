@@ -156,6 +156,10 @@ export function Pager({
     let timer: ReturnType<typeof setTimeout> | undefined
     const wheel = (e: WheelEvent) => {
       if (Math.abs(e.deltaX) <= Math.abs(e.deltaY) || sideways(e.target, el, -e.deltaX)) return
+      // No page that way (the first one, swiped back; the only one): the browser's own swipe, back or
+      // forward through history (a trackpad, a mouse's back and forward made gestures), is left to it.
+      const to = state.current.shown + Math.sign(e.deltaX)
+      if (sum !== Infinity && (to < 0 || to >= state.current.count)) return
       e.preventDefault()
       clearTimeout(timer)
       timer = setTimeout(() => (sum = 0), 200) // one scroll, until it stops

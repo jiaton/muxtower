@@ -22,6 +22,7 @@ import { composerField, composerText } from '@/components/ui/composer-field'
 import { FilePicker } from '@/components/ui/file-picker'
 import { look } from '@/components/ui/intents'
 import { Fold } from '@/components/ui/fold'
+import { keepFocus } from '@/components/ui/gesture'
 
 const NO_QUOTES: Quote[] = []
 const TOUCH = '(pointer: coarse)' // a phone: its keyboard covers half the screen, its return key is a new line
@@ -243,7 +244,7 @@ export function InputBar({
                 variant="secondary"
                 size="sm"
                 className="self-start"
-                onPointerDown={(e) => e.preventDefault()}
+                onPointerDown={keepFocus}
                 onClick={() => picker.current?.click()}
               >
                 <ImagePlus /> Add pictures
@@ -275,7 +276,7 @@ export function InputBar({
             aria-expanded={open}
             title={open ? 'Hide keys' : 'Keys: esc, tab, arrows, enter…'}
             className="shrink-0"
-            onPointerDown={(e) => e.preventDefault()} // keep the phone keyboard as it is
+            onPointerDown={keepFocus} // keep the phone keyboard as it is
             onClick={() => setOpen(!open)}
           >
             <Plus className={cn(look.turning, open && 'rotate-45')} />
@@ -347,7 +348,7 @@ export function InputBar({
                 className={cn('shrink-0', narrow && 'hidden')}
                 aria-label="Add pictures"
                 title="Add pictures (or paste or drop them in the textarea)"
-                onPointerDown={(e) => e.preventDefault()}
+                onPointerDown={keepFocus}
                 onClick={() => picker.current?.click()}
               >
                 <ImagePlus />

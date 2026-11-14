@@ -3,6 +3,7 @@ import { Spinner } from '@/components/ui/indicators'
 
 import { look } from '@/components/ui/intents'
 import { RemoveBadge } from '@/components/ui/remove-badge'
+import { keepFocus } from '@/components/ui/gesture'
 
 /** The pictures a message carries, above what is typed, each with its own remove; a placeholder for each
  *  still being made small. */
@@ -14,7 +15,7 @@ export function ImageCards({ items, pending = 0, onRemove }: { items: Attachment
           <img src={item.preview} alt={`Picture ${i + 1}`} className={`${look.frame} size-14 object-cover`} />
           <RemoveBadge
             aria-label={`Remove picture ${i + 1}`}
-            onPointerDown={(e) => e.preventDefault()}
+            onPointerDown={keepFocus}
             onClick={() => onRemove(item.id)}
             className="absolute -top-1.5 -right-1.5"
           />

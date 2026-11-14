@@ -12,6 +12,7 @@ export function useKeyRepeat(fire: (key: string) => void) {
 
   return (key: string, repeat: boolean) => ({
     onPointerDown: (e: React.PointerEvent) => {
+      if (e.button !== 0) return // another mouse button (back, forward) is the browser's
       e.preventDefault()
       fire(key)
       if (!repeat) return
