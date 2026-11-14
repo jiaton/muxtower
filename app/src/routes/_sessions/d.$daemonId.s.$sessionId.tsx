@@ -95,7 +95,7 @@ function SessionPage() {
 }
 
 /** Header; what the agent is waiting for, if anything; the terminal or the conversation (a session with
- *  both offers a switch in the header, never a swipe, and opens on the one it was left on); the input bar.
+ *  both offers a switch, and a swipe between them, and opens on the one it was left on); the input bar.
  *  Swiping right past the first view pulls the list open (a drawer on phones). An archived session is its
  *  conversation only; one whose node is offline says so, read only. */
 function SessionView({ daemonId, session }: { daemonId: string; session: Session }) {
@@ -111,7 +111,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
   const setView = (to: View) => choose(key, to)
   // The one chosen, where the session has it (a conversation can turn up after it opened).
   const view: View = !screen || (chosen === 'conversation' && hasConversation) ? 'conversation' : 'terminal'
-  // Both stay live while the session is open, so switching between them shows each as it is now (and the
+  // Both stay live while the session is open, so a swipe between them shows each as it is now (and the
   // pane keeps its fit, instead of being given back and fitted again).
   const terminal = useSessionTerminal(daemonId, session, screen)
   const conversation = useConversation(daemonId, session.id, hasConversation)
@@ -241,6 +241,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
             className={session.offline || session.interrupted_at ? 'hidden' : 'flex-1'}
             label="Session views"
             index={both && view === 'conversation' ? 1 : 0}
+            onIndexChange={(page) => both && setView(page === 1 ? 'conversation' : 'terminal')}
             pastStart={pullDrawer ?? undefined}
           >
             {screen ? (

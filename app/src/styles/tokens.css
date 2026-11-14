@@ -129,6 +129,16 @@
     @apply bg-bg font-sans text-fg antialiased;
     -webkit-tap-highlight-color: transparent;
   }
+
+  /* Like an app: a sideways swipe or a trackpad's two-finger swipe that reaches the end of what scrolls
+     never turns into the browser's back or forward (the session's views are swiped between instead; back
+     and forward go by the browser's buttons, the keys and a mouse's buttons). On the root and on every
+     scroller, present and to come. iOS Safari's edge swipe is the system's and stays. */
+  html,
+  body,
+  * {
+    overscroll-behavior-x: none;
+  }
 }
 
 /* The page's endless animations (a busy agent's spinner, a dot that pulses) run for hours. On their own

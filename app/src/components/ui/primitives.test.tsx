@@ -330,14 +330,15 @@ describe('Pager', () => {
     fireEvent.touchMove(pager, { touches: [{ clientX: 140, clientY: 104 }] })
     expect(pull.move.mock.calls.map(([px]) => px)).toEqual([0, 58, 118]) // not opened before it lets go
     expect(pull.end).not.toHaveBeenCalled()
-    expect(pager.firstElementChild).toHaveStyle({ transform: 'translateX(0%)' }) // the pages stay
+    expect(pager.firstElementChild).toHaveStyle({ transform: 'translateX(calc(0% + 0px))' }) // the pages stay
     fireEvent.touchEnd(pager, { changedTouches: [{ clientX: 140, clientY: 104 }] })
     expect(pull.end).toHaveBeenCalledWith(118, expect.any(Number))
   })
 
-  it("is never swiped between (the owner's choice): only `index` changes the page, sliding there", () => {
-    const { rerender } = render(
-      <Pager index={0} label="Views">
+  it('keeps a tilted swipe a swipe however it drifts, and lands on the next page as soon as it lets go', () => {
+    const onIndexChange = vi.fn()
+    render(
+      <Pager index={0} onIndexChange={onIndexChange} label="Views">
         <p>Terminal</p>
         <p>Conversation</p>
       </Pager>,
@@ -345,19 +346,12 @@ describe('Pager', () => {
     const pager = screen.getByRole('region', { name: 'Views' })
     Object.defineProperty(pager, 'clientWidth', { value: 400 })
     fireEvent.touchStart(pager, { touches: [{ clientX: 300, clientY: 100 }] })
-    fireEvent.touchMove(pager, { touches: [{ clientX: 290, clientY: 102 }] })
-    expect(fireEvent.touchMove(pager, { touches: [{ clientX: 60, clientY: 104 }] })).toBe(true) // not held: the page's
+    fireEvent.touchMove(pager, { touches: [{ clientX: 290, clientY: 108 }] }) // 39° off level: sideways
+    expect(fireEvent.touchMove(pager, { touches: [{ clientX: 80, clientY: 190 }] })).toBe(false) // drifts: no scroll
     fireEvent.touchEnd(pager, { touches: [] })
-    expect(screen.getByText('Conversation').parentElement?.getAttribute('aria-hidden')).toBe('true')
-    expect(pager.firstElementChild).toHaveStyle({ transform: 'translateX(0%)' })
-    rerender(
-      <Pager index={1} label="Views">
-        <p>Terminal</p>
-        <p>Conversation</p>
-      </Pager>,
-    )
-    expect(screen.getByText('Conversation').parentElement?.getAttribute('aria-hidden')).toBe('false')
-    expect(pager.firstElementChild).toHaveStyle({ transform: 'translateX(-100%)' })
+    expect(onIndexChange).toHaveBeenCalledWith(1)
+    expect(screen.getByText('Conversation').parentElement?.getAttribute('aria-hidden')).toBe('false') // takes taps now
+    expect(pager.firstElementChild).toHaveStyle({ transform: 'translateX(calc(-100% + 0px))' })
   })
 })
 
