@@ -4,6 +4,7 @@ import type { Session } from '@/lib/api/types'
 import { useDaemonClient } from '@/lib/daemons/use-daemon-client'
 import { daemonKey } from '@/lib/query'
 import { HISTORY_STEPS, usePaneSize, useScreen } from '../api/use-terminal'
+import { HOLD_MS, heldScreen } from '../fit-guard'
 import { useTerminalPrefs } from '../store'
 
 export const MAX_ROWS = 300 // the daemon's limit
@@ -29,6 +30,11 @@ export function useSessionTerminal(daemonId: string, session: Session, enabled: 
   const queryClient = useQueryClient()
   const mutate = useRef(paneSize.mutate)
   mutate.current = paneSize.mutate
+  // After a fit, the screen before it stays until the agent has painted the new one (it clears first):
+  // no black frame between the two (`heldScreen`).
+  const held = useRef<{ screen: string | undefined; until: number } | null>(null)
+  const lastShown = useRef<string | undefined>(undefined)
+  const [, redraw] = useState(0)
 
   useEffect(() => {
     if (!fit || sized) return
@@ -49,7 +55,9 @@ export function useSessionTerminal(daemonId: string, session: Session, enabled: 
 
   // As wide as the view and `screens` views tall: the view scrolls through the rest.
   const onFit = useCallback(
-    (size: { cols: number; rows: number }) =>
+    (size: { cols: number; rows: number }) => {
+      held.current = { screen: lastShown.current, until: Date.now() + HOLD_MS }
+      setTimeout(() => redraw((n) => n + 1), HOLD_MS) // held no longer: draw what came
       mutate.current(
         { cols: size.cols, rows: Math.min(MAX_ROWS, size.rows * screens) },
         {
@@ -58,7 +66,8 @@ export function useSessionTerminal(daemonId: string, session: Session, enabled: 
             setSized(true)
           },
         },
-      ),
+      )
+    },
     [screens, queryClient, daemonId, session.id],
   )
 
@@ -80,8 +89,11 @@ export function useSessionTerminal(daemonId: string, session: Session, enabled: 
     }
   }, [fit, client, session.id])
 
+  const shown = heldScreen(ready ? screen.data : undefined, held.current, Date.now())
+  if (shown !== undefined && shown === screen.data) held.current = null // the new one is in: nothing held
+  lastShown.current = shown
   return {
-    ansi: ready ? screen.data : undefined, // not a screen kept from another size meanwhile
+    ansi: shown, // not a screen kept from another size meanwhile, nor a blank one while the agent repaints
     error: screen.error,
     fontSize,
     fit,

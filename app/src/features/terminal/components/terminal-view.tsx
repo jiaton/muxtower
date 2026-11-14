@@ -8,7 +8,7 @@ import { align, collapseGap } from '../lines'
 import { useTerminalPrefs } from '../store'
 import { Spinner } from '@/components/ui/indicators'
 import { look } from '@/components/ui/intents'
-import { FitGuard } from '../fit-guard'
+import { FitGuard, KeyboardProofHeight } from '../fit-guard'
 
 interface Props {
   ansi: string | undefined
@@ -126,6 +126,8 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
     if (!scrollBox || !onFit) return
     let timer: ReturnType<typeof setTimeout> | undefined
     const guard = new FitGuard() // never the same size twice, never bouncing between two
+    const keyboard = new KeyboardProofHeight() // a phone's keyboard coming and going never resizes the pane
+    const touch = window.matchMedia?.('(pointer: coarse)').matches ?? false
     const measure = () => {
       // At the bottom, it stays there through the change at once (not a moment later, its last lines hidden).
       if (atBottom.current) scrollBox.scrollTop = scrollBox.scrollHeight
@@ -136,7 +138,8 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
         const width = scrollBox.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
         const height = scrollBox.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
         const cols = Math.max(20, Math.floor((width - 1) / (line.width / 10)))
-        const rows = Math.min(200, Math.max(5, Math.floor(height / line.height)))
+        const fitted = keyboard.height(Math.round(width), height, touch)
+        const rows = Math.min(200, Math.max(5, Math.floor(fitted / line.height)))
         if (!guard.allow({ cols, rows })) return
         setViewRows(rows)
         onFit({ cols, rows })
