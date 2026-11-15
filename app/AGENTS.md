@@ -40,14 +40,22 @@ to whole device pixels), every row the same.
 | Wide (CJK) | `textCells` 2, not emoji | the fallback font scaled to exactly 2 cells (`term-wide`) | `mixed`, `frames` |
 | Emoji | composed graphemes tmux 3.4 makes 2 cells | a 2-cell box, the glyph scaled to fit (`term-emoji`) | `mixed` |
 | Other narrow symbols | the rest, 1 cell | a box of their cells' width | `mixed` |
-| Backgrounds and inverse | a run's SGR 4x / 7 | today: inline-block runs, 1 px overlap below; step 2: painted cells | `backgrounds` |
-| Box drawing | U+2500–257F | today: the font, stretched to the row (`term-box`); step 2: painted lines through cell centres | `frames` |
-| Block elements and shades | U+2580–259F | today: the font; step 2: painted rectangles (shades as the colour at 25/50/75 %) | `blocks`, `shades`, `eighths`, `logo` |
-| Sextants and legacy blocks | U+1FB00–1FB3B, U+1FB70–1FB8B | step 3: painted | (step 3) |
-| Powerline | U+E0B0–E0B3 and kin | today: the font; step 3: painted triangles | `powerline` |
+| Backgrounds and inverse | a run's SGR 4x / 7 | painted: one rectangle per colour stretch, the row's full height | `backgrounds` |
+| Box drawing | U+2500–257F | painted: arms from the cell's middle (light, heavy, double with closed outer corners, dashed), arcs, diagonals | `frames` |
+| Block elements and shades | U+2580–259F | painted: rectangles; shades as the text colour mixed into the ground at 25/50/75 % | `blocks`, `shades`, `eighths`, `logo` |
+| Sextants and legacy eighths | U+1FB00–1FB3B, U+1FB70–1FB8B | painted: rectangles on a 2×3 grid, or eighths | `sextants` |
+| Powerline | U+E0B0–E0BF | painted: filled triangles and half circles, lines for the thin ones | `powerline` |
 
-The suite's known reds (`KNOWN_RED` in the spec) are classes still drawn by the font; a change that makes
-one pass must take it off that list (an expected failure that passes fails the run).
+Painted means `lib/paint.ts`: one SVG per row (`term-paint`), behind its text, in cell units (a cell 60 wide,
+a row 150 tall), edges snapped to device pixels, shapes that touch a row's edge reaching half a device pixel
+past it (no hairline where two rows' edges round apart). The characters stay in the text, transparent
+(`term-painted`), so a selection shows over them and copying gives them as they are. A line's HTML is kept
+by its text and the style it starts in (`ansiToLines`), so an update parses and paints only new lines.
+
+Besides `glyphs.spec.ts`, the suite checks the layer's cost (`scrollback.spec.ts`: a 2,000-line painted
+scrollback, output streaming in, within `renderMs`) and selection (`selection.spec.ts`: it shows over a
+painted background; copying gives the real characters). A fixture that cannot pass yet goes in the spec's
+`KNOWN_RED` (expected to fail; one that then passes fails the run, so it must come off); none is there now.
 
 ## Architecture (layered — do not collapse)
 
@@ -155,7 +163,7 @@ A daemon can also be a hub: other computers' daemons join it as nodes (`docs/des
 
 - Vitest + React Testing Library; network mocked with MSW at the HTTP boundary (`src/test/handlers.ts`), generated from the same schema types.
 - Every `features/*/api` hook has a test; every `components/ui` primitive has a render test before a second feature uses it.
-- Playwright E2E in `e2e/`: the terminal glyph suite (`make glyphs`, above), against Vite's dev server.
+- Playwright E2E in `e2e/`: the terminal suite (`make glyphs`: glyphs, scrollback cost, selection; above), against Vite's dev server.
 
 ## Forbidden
 

@@ -168,11 +168,22 @@
   line-height: 0;
 }
 
-/* Box drawing and blocks in the terminal (lib/ansi.ts): stretched to the row's height about their middle
-   (`--box-scale`, the row's height over the glyph's own, measured by the terminal view), so a frame's or a
-   table's │ meets the one above and below with no gap; their width is untouched. */
-.term-box {
-  transform: scaleY(var(--box-scale, 1));
+/* The terminal's painted layer (lib/paint.ts): one SVG per row, behind its text, its full height; what it
+   draws (backgrounds, box drawing, blocks) is left in the text transparent, so selecting and copying give
+   the characters. The row is its positioned, isolated box (terminal view), so the layer stays under the
+   row's text and the selection's highlight. */
+.term-paint {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+  user-select: none;
+  overflow: visible; /* shapes reach a little past the row's edges (paint.ts, BLEED) */
+}
+.term-painted {
+  color: transparent;
 }
 
 /* An emoji in the terminal (lib/ansi.ts): its colour glyph drawn in full in the cells tmux counts for it,

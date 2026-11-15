@@ -11,6 +11,7 @@ function cellsOf(html: string): number {
   const walk = (node: Node) => {
     if (node.nodeType === Node.TEXT_NODE) return void (cells += textCells(node.textContent ?? ''))
     const el = node as HTMLElement
+    if (el.classList?.contains('term-paint')) return // the painted layer, behind the cells
     if (el.classList?.contains('term-wide')) return void (cells += [...(el.textContent ?? '')].length * 2)
     const width = el.style?.width?.match(/^(\d+)ch$/)
     if (width) return void (cells += Number(width[1]))

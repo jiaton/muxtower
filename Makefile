@@ -16,7 +16,7 @@ check:
 	cd site && npm run check
 	$(MAKE) contract-check
 
-# The terminal glyph suite (app/e2e/glyphs.spec.ts): every fixture drawn at phone and desktop widths and
+# The terminal suite (app/e2e: glyphs, scrollback cost, selection): every fixture drawn at phone and desktop widths and
 # three pixel densities, checked in screenshots. About half a minute: CI runs it before every release.
 glyphs:
 	cd app && npx playwright install $(if $(CI),--with-deps,) chromium && npm run e2e:glyphs

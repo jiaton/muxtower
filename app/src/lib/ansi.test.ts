@@ -17,8 +17,8 @@ describe('ansiToLines', () => {
 
   it('handles 256-color, true color and inverse', () => {
     expect(ansiToLines('\x1b[38;5;246mx')[0]).toContain('rgb(')
-    expect(ansiToLines('\x1b[48;2;1;2;3my')[0]).toContain('background-color:rgb(1, 2, 3)')
-    expect(ansiToLines('\x1b[7mz')[0]).toContain('background-color:var(--color-terminal-fg)')
+    expect(ansiToLines('\x1b[48;2;1;2;3my')[0]).toContain('fill:rgb(1, 2, 3)') // painted (paint.ts)
+    expect(ansiToLines('\x1b[7mz')[0]).toContain('fill:var(--color-terminal-fg)')
   })
 
   it('drops other escape sequences', () => {
@@ -28,7 +28,7 @@ describe('ansiToLines', () => {
   it('gives non-ASCII exactly its cells: CJK scaled to two each, other wide characters and runs boxed', () => {
     expect(gridHtml('ab')).toBe('ab')
     expect(gridHtml('中文')).toBe('<span class="term-wide">中文</span>')
-    expect(gridHtml('x──y')).toBe('x<span class="inline-block overflow-hidden align-top term-box" style="width:2ch">──</span>y') // stretched to the row
+    expect(gridHtml('x──y')).toBe('x<span class="inline-block overflow-hidden align-top term-painted" style="width:2ch">──</span>y') // painted, the text kept
     expect(gridHtml('é')).toBe('<span class="inline-block overflow-hidden align-top" style="width:1ch">é</span>')
     expect(gridHtml('🚀')).toBe('<span class="inline-block align-top" style="width:2ch"><span class="term-emoji">🚀</span></span>') // its cells, drawn whole
     expect(gridHtml('好，ok')).toBe('<span class="term-wide">好，</span>ok') // full-width punctuation scales with it
@@ -61,8 +61,11 @@ describe('ansiToLines', () => {
     expect(cellsOf(ansiToLines(line)[0]!)).toBe(textCells(line)) // the columns after them stay where tmux has them
   })
 
-  it('a background fills its row: a box as tall as the row, as wide as its text', () => {
-    expect(ansiToLines('\x1b[48;5;237m> 你好  \x1b[0m')[0]).toContain('display:inline-block;vertical-align:top')
+  it('a background is painted under its cells, the row’s full height; the text stays as it is', () => {
+    const line = ansiToLines('ab\x1b[48;5;237m> 你好  \x1b[0m')[0]!
+    expect(line).toMatch(/^<svg class="term-paint"[^>]* viewBox="0 0 600 150"/) // 10 cells of 60, a row of 150
+    expect(line).toContain('<rect x="120" y="-5" width="480" height="160"') // from column 2, 8 cells, bled past the row
+    expect(line).not.toContain('background-color')
     expect(cellsOf(ansiToLines('\x1b[48;5;237m> 你好  \x1b[0m')[0]!)).toBe(textCells('> 你好  '))
   })
 
@@ -82,6 +85,7 @@ function cellsOf(html: string): number {
   const walk = (node: Node) => {
     if (node.nodeType === Node.TEXT_NODE) return void (cells += [...(node.textContent ?? '')].length)
     const el = node as HTMLElement
+    if (el.classList?.contains('term-paint')) return // the painted layer, behind the cells
     if (el.classList?.contains('term-wide')) return void (cells += [...(el.textContent ?? '')].length * 2)
     const width = el.style?.width?.match(/^(\d+)ch$/)
     if (width) return void (cells += Number(width[1]))

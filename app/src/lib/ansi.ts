@@ -4,6 +4,7 @@
  * rgb() values (this file is allow-listed by scripts/check-tokens.mjs for that reason).
  */
 import { cellWidth, textCells } from './cell-width'
+import { PAINTED, Painter, isPainted } from './paint'
 
 interface Style {
   fg?: string
@@ -81,9 +82,9 @@ const escapeHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '
 //   it may reach into the next cell, the columns after it staying where tmux has them), and scaled down
 //   only when wider than two cells (`term-emoji`, `--emoji-scale` measured by the terminal view);
 // - another wide character (a symbol) is boxed in its two cells, a glyph of its own font;
-// - a run of box drawing and blocks (U+2500–259F: rules, frames, a table's borders) is boxed in its cells
-//   and stretched to the row's height (`term-box`, tokens.css; the stretch measured by the terminal view),
-//   so a │ meets the one in the row above and below;
+// - a run of box drawing and blocks (U+2500–259F: rules, frames, a table's borders) is boxed in its cells,
+//   its text transparent (`term-painted`): the row's painted layer draws it (`paint.ts`), so a │ meets the
+//   one in the row above and below, and selecting or copying still gives the characters;
 // - a run of other non-ASCII (an accent, a symbol) is boxed in its cells.
 // The boxes clip: a glyph drawn wider than its cells would otherwise widen the view past the pane and let
 // it scroll sideways. Aligned to the top, since a clipping inline box sits on its bottom edge instead of
@@ -111,7 +112,6 @@ export const isCjk = (code: number) => CJK.some(([from, to]) => code >= from && 
 
 const box = (text: string, cells: number, extra = '') =>
   `<span class="inline-block overflow-hidden align-top${extra}" style="width:${cells}ch">${escapeHtml(text)}</span>`
-const isBoxDrawing = (code: number) => code >= 0x2500 && code <= 0x259f
 
 const EMOJI = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u
 const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
@@ -140,7 +140,7 @@ function textHtml(run: string): string {
   let cjk = ''
   const flush = () => {
     if (narrow) html += box(narrow, textCells(narrow))
-    if (lines) html += box(lines, textCells(lines), ' term-box')
+    if (lines) html += box(lines, textCells(lines), ' term-painted')
     if (cjk) html += `<span class="term-wide">${escapeHtml(cjk)}</span>`
     narrow = ''
     lines = ''
@@ -148,7 +148,7 @@ function textHtml(run: string): string {
   }
   for (const char of run) {
     const code = char.codePointAt(0)!
-    if (cellWidth(code) !== 2 && isBoxDrawing(code)) {
+    if (cellWidth(code) !== 2 && isPainted(code)) {
       if (cjk || narrow) flush()
       lines += char
     } else if (cellWidth(code) !== 2) {
@@ -177,9 +177,16 @@ export function gridHtml(text: string): string {
   return html + escapeHtml(text.slice(at))
 }
 
+/** The colours a run is drawn in: its text's, and its background's (none: the terminal's own). */
+function colours(s: Style): { fg?: string; bg?: string } {
+  return {
+    fg: s.inverse ? (s.bg ?? 'var(--color-terminal-bg)') : s.fg,
+    bg: s.inverse ? (s.fg ?? 'var(--color-terminal-fg)') : s.bg,
+  }
+}
+
 function wrap(text: string, s: Style, html = gridHtml(text)): string {
-  const fg = s.inverse ? (s.bg ?? 'var(--color-terminal-bg)') : s.fg
-  const bg = s.inverse ? (s.fg ?? 'var(--color-terminal-fg)') : s.bg
+  const { fg } = colours(s)
   const classes = [
     s.bold && 'font-semibold',
     s.dim && 'opacity-60',
@@ -189,15 +196,8 @@ function wrap(text: string, s: Style, html = gridHtml(text)): string {
   ]
     .filter(Boolean)
     .join(' ')
-  // A background fills its row, top to bottom (an inline run's would stop at its text, a seam showing
-  // between the rows of a block of them): a box as tall as the row, at its top, as wide as its text, and a
-  // pixel into the next (a row's height in device pixels is rarely whole: no hairline where they meet).
-  const css = [
-    fg && `color:${fg}`,
-    bg && `background-color:${bg};display:inline-block;vertical-align:top;padding-bottom:1px;margin-bottom:-1px`,
-  ]
-    .filter(Boolean)
-    .join(';')
+  // Its background is painted (the row's SVG, `paint.ts`), edge to edge of its cells and its row.
+  const css = fg ? `color:${fg}` : ''
   if (!classes && !css) return html
   return `<span${classes ? ` class="${classes}"` : ''}${css ? ` style="${css}"` : ''}>${html}</span>`
 }
@@ -210,21 +210,38 @@ interface Run {
   style: Style
 }
 
-/** A line's styled runs → HTML: each run as `gridHtml` draws it, so the line takes exactly its cells. */
+/** A line's styled runs → HTML: each run as `gridHtml` draws it, so the line takes exactly its cells, and
+ *  behind them the row's painted layer (`paint.ts`: backgrounds, box drawing, blocks), when it has any. */
 export function lineHtml(runs: Run[]): string {
-  return runs.map((r) => wrap(r.text, r.style)).join('')
+  const painter = new Painter()
+  let html = ''
+  let col = 0
+  for (const r of runs) {
+    const { fg, bg } = colours(r.style)
+    const cells = textCells(r.text)
+    if (bg) painter.background(col, cells, bg)
+    if (PAINTED.test(r.text)) {
+      let at = col
+      for (const { segment } of graphemes.segment(r.text)) {
+        const code = segment.codePointAt(0)!
+        if (segment.length === String.fromCodePoint(code).length && isPainted(code))
+          painter.glyph(at, code, fg ?? 'var(--color-terminal-fg)', bg ?? 'var(--color-terminal-bg)')
+        at += textCells(segment)
+      }
+    }
+    html += wrap(r.text, r.style)
+    col += cells
+  }
+  return painter.svg(col) + html
 }
 
-export function ansiToLines(text: string): string[] {
-  const lines: string[] = []
-  let line: Run[] = []
-  let style: Style = {}
-  for (const match of text.matchAll(TOKEN)) {
+/** One line's text → its HTML, and the style it leaves on for the next (SGR state runs across lines). */
+function parseLine(raw: string, start: Style): { html: string; end: Style } {
+  const line: Run[] = []
+  let style = start
+  for (const match of raw.matchAll(TOKEN)) {
     const token = match[0]
-    if (token === '\n') {
-      lines.push(lineHtml(line))
-      line = []
-    } else if (match[1] !== undefined) {
+    if (match[1] !== undefined) {
       style = applySgr(
         style,
         match[1]
@@ -236,6 +253,27 @@ export function ansiToLines(text: string): string[] {
       line.push({ text: token, style })
     }
   }
-  lines.push(lineHtml(line))
+  return { html: lineHtml(line), end: style }
+}
+
+// Lines already drawn, by the style they start in and their text: a screen mostly repeats the one before
+// (output scrolling up a row, a status line changing), so each update parses and paints only what is new.
+const CACHE_LINES = 8192
+const drawn = new Map<string, { html: string; end: Style }>()
+
+export function ansiToLines(text: string): string[] {
+  const lines: string[] = []
+  let style: Style = {}
+  for (const raw of text.split('\n')) {
+    const key = `${JSON.stringify(style)}\u0000${raw}`
+    let line = drawn.get(key)
+    if (!line) {
+      line = parseLine(raw, style)
+      drawn.set(key, line)
+      if (drawn.size > CACHE_LINES) drawn.delete(drawn.keys().next().value!)
+    }
+    lines.push(line.html)
+    style = line.end
+  }
   return lines
 }

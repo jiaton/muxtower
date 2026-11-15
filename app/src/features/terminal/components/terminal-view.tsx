@@ -138,7 +138,6 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
       // At the bottom, it stays there through the change at once (not a moment later, its last lines hidden).
       if (atBottom.current) scrollBox.scrollTop = scrollBox.scrollHeight
       setWideScale(scrollBox, probe.current, wideProbe.current)
-      setBoxScale(scrollBox, probe.current, glyphProbe.current)
       setEmojiScale(scrollBox, probe.current, emojiProbe.current)
       clearTimeout(timer)
       timer = setTimeout(() => {
@@ -182,7 +181,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
       <div
         ref={scroller}
         onScroll={onScroll}
-        className="min-h-0 flex-1 overflow-auto overscroll-y-contain [scrollbar-gutter:stable] p-2 font-mono whitespace-pre text-terminal-fg [-webkit-text-size-adjust:none] [overflow-anchor:none] [text-size-adjust:none] [&>div>div]:min-h-[1lh]"
+        className="min-h-0 flex-1 overflow-auto overscroll-y-contain [scrollbar-gutter:stable] p-2 font-mono whitespace-pre text-terminal-fg [-webkit-text-size-adjust:none] [overflow-anchor:none] [text-size-adjust:none] [&>div>div]:relative [&>div>div]:isolate [&>div>div]:min-h-[1lh]"
         style={{ fontSize, lineHeight: `${rowPx(fontSize, dpr)}px` }}
         role="log"
         aria-label="Session output"
@@ -232,14 +231,6 @@ function setWideScale(box: HTMLElement, cells: HTMLElement | null, wide: HTMLEle
   const cell = (cells?.getBoundingClientRect().width ?? 0) / 10
   const glyph = (wide?.getBoundingClientRect().width ?? 0) / 10
   if (cell > 0 && glyph > 0) box.style.setProperty('--wide-scale', String((2 * cell) / glyph))
-}
-
-/** How much box drawing is stretched to fill a row (`term-box`, tokens.css): the row's height over the
- *  glyphs' own (an inline run's height is its font's ascent to descent). */
-function setBoxScale(box: HTMLElement, row: HTMLElement | null, glyphs: HTMLElement | null) {
-  const rowHeight = row?.getBoundingClientRect().height ?? 0
-  const glyphHeight = glyphs?.getBoundingClientRect().height ?? 0
-  if (rowHeight > 0 && glyphHeight > 0) box.style.setProperty('--box-scale', String(rowHeight / glyphHeight))
 }
 
 /** How much an emoji is scaled to fit its two cells (`term-emoji`, tokens.css): two cells over the colour
