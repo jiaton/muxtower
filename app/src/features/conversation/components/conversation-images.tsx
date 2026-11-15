@@ -1,6 +1,6 @@
 import { ImageOff } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { ImageViewer } from '@/components/ui/image-viewer'
 import { useSessionImage } from '../api/use-session-image'
 import { Spinner } from '@/components/ui/indicators'
 import { Button } from '@/components/ui/button'
@@ -15,39 +15,84 @@ function useObjectUrl(blob: Blob | undefined) {
   return url
 }
 
-function SessionImage({ daemonId, sessionId, path }: { daemonId: string; sessionId: string; path: string }) {
+/** One image's file, as a URL for <img> (cached: a thumbnail and its large view load it once). */
+function useImageUrl(daemonId: string, sessionId: string, path: string) {
   const image = useSessionImage(daemonId, sessionId, path)
-  const url = useObjectUrl(image.data)
-  const [open, setOpen] = useState(false)
-  if (!url)
-    return (
-      <span className={`${look.panel} ${ink.meta} flex h-24 w-32 flex-col items-center justify-center gap-1 px-2 text-center`}>
-        {image.isError ? <ImageOff className="size-4" aria-hidden /> : <Spinner />}
-        <span className="w-full truncate">{image.isError ? `${baseName(path)} not available` : baseName(path)}</span>
-      </span>
-    )
+  return { url: useObjectUrl(image.data), failed: image.isError }
+}
+
+/** Every image a conversation shows, in order, opened large one at a time (`ImageViewer`). */
+const Gallery = createContext<((path: string) => void) | null>(null)
+
+/** Around a conversation: its images (`paths`, all of them, in the order it shows them) as one gallery, so
+ *  any of them opens large and the others are a swipe or an arrow key away. */
+export function ConversationGallery({
+  daemonId,
+  sessionId,
+  paths,
+  children,
+}: {
+  daemonId: string
+  sessionId: string
+  paths: string[]
+  children: ReactNode
+}) {
+  const [index, setIndex] = useState<number | null>(null)
+  const open = useCallback((path: string) => setIndex(Math.max(0, paths.indexOf(path))), [paths])
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="plain" title={path} className={`${look.panel} overflow-hidden`}>
-          <img src={url} alt={baseName(path)} className="block max-h-48 max-w-full object-contain" />
-        </Button>
-      </DialogTrigger>
-      <DialogContent title={baseName(path)} description={path} className="sm:max-w-4xl">
-        <img src={url} alt={baseName(path)} className="mx-auto max-h-[75dvh] max-w-full object-contain" />
-      </DialogContent>
-    </Dialog>
+    <Gallery.Provider value={open}>
+      {children}
+      <ImageViewer
+        count={paths.length}
+        index={index}
+        onIndexChange={setIndex}
+        onClose={() => setIndex(null)}
+        title={(i) => baseName(paths[i] ?? '')}
+        description={(i) => paths[i]}
+        slide={(i) => <Large key={paths[i]} daemonId={daemonId} sessionId={sessionId} path={paths[i] ?? ''} />}
+      />
+    </Gallery.Provider>
   )
 }
 
-/** The images an item shows (`ConversationItem.images`), small; one opens whole when tapped. */
-export function ConversationImages({ daemonId, sessionId, paths }: { daemonId: string; sessionId: string; paths: string[] }) {
-  if (!paths.length) return null
+function Large({ daemonId, sessionId, path }: { daemonId: string; sessionId: string; path: string }) {
+  const { url, failed } = useImageUrl(daemonId, sessionId, path)
+  if (!url) return failed ? <ImageOff className="size-6" aria-label={`${baseName(path)} not available`} /> : <Spinner />
+  return <img src={url} alt={baseName(path)} draggable={false} />
+}
+
+function SessionImage({ daemonId, sessionId, path, onOpen }: { daemonId: string; sessionId: string; path: string; onOpen: () => void }) {
+  const { url, failed } = useImageUrl(daemonId, sessionId, path)
+  if (!url)
+    return (
+      <span className={`${look.panel} ${ink.meta} flex h-24 w-32 flex-col items-center justify-center gap-1 px-2 text-center`}>
+        {failed ? <ImageOff className="size-4" aria-hidden /> : <Spinner />}
+        <span className="w-full truncate">{failed ? `${baseName(path)} not available` : baseName(path)}</span>
+      </span>
+    )
   return (
+    <Button variant="plain" title={path} className={`${look.panel} overflow-hidden`} onClick={onOpen}>
+      <img src={url} alt={baseName(path)} className="block max-h-48 max-w-full object-contain" />
+    </Button>
+  )
+}
+
+/** The images an item shows (`ConversationItem.images`), small; one opens large when tapped, in its
+ *  conversation's gallery (`ConversationGallery`), or on its own outside one. */
+export function ConversationImages({ daemonId, sessionId, paths }: { daemonId: string; sessionId: string; paths: string[] }) {
+  const gallery = useContext(Gallery)
+  if (!paths.length) return null
+  const thumbs = (open: (path: string) => void) => (
     <div className="flex flex-wrap gap-2">
       {paths.map((path) => (
-        <SessionImage key={path} daemonId={daemonId} sessionId={sessionId} path={path} />
+        <SessionImage key={path} daemonId={daemonId} sessionId={sessionId} path={path} onOpen={() => open(path)} />
       ))}
     </div>
+  )
+  if (gallery) return thumbs(gallery)
+  return (
+    <ConversationGallery daemonId={daemonId} sessionId={sessionId} paths={paths}>
+      <Gallery.Consumer>{(open) => thumbs(open!)}</Gallery.Consumer>
+    </ConversationGallery>
   )
 }

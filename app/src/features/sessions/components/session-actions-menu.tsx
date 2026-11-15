@@ -25,7 +25,6 @@ const MENU_LABEL: Record<SessionAction['id'], (session: Session) => string> = {
   hide: (s) => (s.hidden ? 'Show in the list' : 'Hide from the list'),
   archive: () => 'Archive',
   interrupt: () => 'Interrupt (Esc)',
-  stop: () => 'Stop session',
   delete: (s) => (s.interrupted_at ? 'Delete' : 'Delete from the archive'),
   resume: () => 'Start again',
 }
@@ -33,9 +32,10 @@ const MENU_LABEL: Record<SessionAction['id'], (session: Session) => string> = {
 /** What an action's item says under its label: the session's role, for Team (the label stays short). */
 const DETAIL: Partial<Record<SessionAction['id'], (session: Session) => string>> = {
   team: (s) => s.team_role || 'No role yet',
+  archive: () => 'Ends the agent, keeps the history',
 }
 
-const DANGER: ReadonlySet<SessionAction['id']> = new Set(['stop', 'delete'])
+const DANGER: ReadonlySet<SessionAction['id']> = new Set(['delete'])
 
 function Items({ session, actions }: { session: Session; actions: SessionAction[] }) {
   return actions.map((a) => (
@@ -53,7 +53,7 @@ function Items({ session, actions }: { session: Session; actions: SessionAction[
 }
 
 /** The session actions as menu items (a row's menu, the session page's menu), each with its key, under
- *  "Session"; those that end it (Stop, Delete) are apart, last (`SessionEndItems`). */
+ *  "Session"; Delete (an archived session's, or one a restart interrupted) apart, last (`SessionEndItems`). */
 export function SessionActionItems({ session, actions }: { session: Session; actions: SessionAction[] }) {
   const kept = actions.filter((a) => !DANGER.has(a.id))
   if (!kept.length) return null

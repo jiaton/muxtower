@@ -23,6 +23,9 @@ muxtower: approve and drive coding agents running in tmux on a remote machine (a
 - English only, in UI strings and docs.
 - An API change lands in the same commit as its regenerated `openapi.json` and the app and glasses code that uses it.
 - No secret in logs, error messages, URLs written to logs, or git history.
+- Archive = end + keep: archiving is the one way a session ends (its agent ends, its history is kept); nothing
+  ends without its history. Delete exists only for an archived session and removes muxtower's copy, never the
+  agent's own transcript.
 
 ## Private terms
 

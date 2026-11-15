@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from muxtower.approval.models import ApprovalResult, Approve
 from muxtower.auth.deps import CurrentDevice
 from muxtower.auth.routes import Audit
+from muxtower.errors import Conflict
 from muxtower.runtimes.models import RuntimeInfo
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.directory import SessionDirectory
@@ -168,12 +169,23 @@ async def detect_placement(session_id: str, _: CurrentDevice, placements: Placem
 
 
 @router.delete("/sessions/{session_id}", status_code=204)
-def terminate_session(
-    session_id: str, request: Request, device: CurrentDevice, directory: Directory, audit: Audit
-) -> None:
-    """Stops the session (`capabilities.terminate`); an archived one is deleted from the archive."""
-    directory.terminate(session_id)
-    audit.record(device.name, "terminate", session_id)
+async def terminate_session(
+    session_id: str, request: Request, device: CurrentDevice, directory: Directory, archiver: ArchiverDep,
+    audit: Audit,
+) -> None:  # fmt: skip
+    """An archived session: deleted from the archive (muxtower's copy; the agent's own transcript is not
+    touched). One a restart interrupted: forgotten. A live one muxtower started (`capabilities.terminate`)
+    is archived (ended, its history kept: nothing ends without it), as POST /archive does; any other is
+    never ended this way (409): POST /archive says what ending it means."""
+    session = directory.get(session_id)
+    if session.archived_at or session.interrupted_at:
+        directory.terminate(session_id)
+        audit.record(device.name, "delete", session_id)
+    elif not session.capabilities.terminate:
+        raise Conflict("this session was not started by muxtower: archive it (POST /archive) to end it")
+    else:
+        await asyncio.to_thread(archiver.archive, session_id)
+        audit.record(device.name, "archive", session_id)
     request.app.state.bus.publish("sessions", None)
 
 

@@ -10,7 +10,6 @@ import {
   Pencil,
   Pin,
   PinOff,
-  Power,
   SquarePlus,
   RotateCcw,
   Trash2,
@@ -27,11 +26,11 @@ import { useSendInput } from '@/features/terminal/api/use-terminal'
 import { useNewSessionRequest } from '../store'
 import { PlaceDialog } from './place-dialog'
 import { RenameDialog } from './rename-dialog'
-import { ArchiveDialog, DeleteDialog, HideInsteadDialog, StopDialog } from './session-dialogs'
+import { ArchiveDialog, DeleteDialog, HideInsteadDialog } from './session-dialogs'
 import { TeamDialog } from './team-dialog'
 
 export interface SessionAction {
-  id: 'read' | 'pin' | 'new' | 'rename' | 'place' | 'team' | 'hide' | 'archive' | 'interrupt' | 'stop' | 'delete' | 'resume'
+  id: 'read' | 'pin' | 'new' | 'rename' | 'place' | 'team' | 'hide' | 'archive' | 'interrupt' | 'delete' | 'resume'
   label: string
   icon: LucideIcon
   tone?: 'accent' | 'neutral' | 'danger'
@@ -41,7 +40,7 @@ export interface SessionAction {
 }
 
 /** The key that does an action while a menu of them is open (`DropdownMenuItem shortcut`): mnemonic, one
- *  each. Stopping a session (it ends) has none: it is never one key away. */
+ *  each. */
 export const ACTION_KEYS: Partial<Record<SessionAction['id'], string>> = {
   read: 'u', // unread / read
   pin: 'p',
@@ -56,10 +55,11 @@ export const ACTION_KEYS: Partial<Record<SessionAction['id'], string>> = {
 }
 
 /** What the owner can do to a session from anywhere it is shown (a list row's swipe tray or menu, the
- *  session's own menu): mark read or unread, pin or unpin, rename, move (say where it runs), hide or show, archive, stop;
- *  rename, move, archive and stop only where its capabilities allow. An archived session can only be deleted from the archive;
+ *  session's own menu): mark read or unread, pin or unpin, rename, move (say where it runs), hide or show, interrupt,
+ *  archive (the one way to end it: the agent ends, its history is kept); rename, move and archive only where
+ *  its capabilities allow. An archived session can only be deleted from the archive;
  *  one a restart interrupted can be started again or deleted. Renders
- *  `children(actions)` plus the dialogs they open (archive, stop and delete ask first). `open`: the session
+ *  `children(actions)` plus the dialogs they open (archive and delete ask first). `open`: the session
  *  is the page being shown, so marking it unread, hiding or deleting it goes back to the list first (an
  *  open session is read, and a hidden one has no place beside the list); an archived one stays, read-only. */
 export function SessionActions({
@@ -81,7 +81,7 @@ export function SessionActions({
   const input = useSendInput(daemonId, session.id)
   const startHere = useNewSessionRequest((s) => s.start)
   const here = presetForSession(daemonId, session, useNodeNames(daemonId)) // null: not where one can start
-  const [dialog, setDialog] = useState<'rename' | 'place' | 'team' | 'archive' | 'stop' | 'delete' | null>(null)
+  const [dialog, setDialog] = useState<'rename' | 'place' | 'team' | 'archive' | 'delete' | null>(null)
   const ids = { daemonId, sessionId: session.id }
   const leaving = (then: () => void) => (open ? () => void navigate({ to: '/', search: true }).then(then) : then)
 
@@ -126,7 +126,6 @@ export function SessionActions({
     // What it is doing now, stopped (Escape, as in its terminal); the session goes on.
     if (session.state === 'busy' && session.capabilities.screen)
       live.push({ id: 'interrupt', label: 'Interrupt', icon: OctagonX, tone: 'neutral', menuOnly: true, run: () => input.mutate({ key: 'Escape' }) })
-    if (session.capabilities.terminate) live.push({ id: 'stop', label: 'Stop', icon: Power, tone: 'danger', run: () => setDialog('stop') })
     return live
   }
 
@@ -140,9 +139,6 @@ export function SessionActions({
         <HideInsteadDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} onDone={leaving(() => {})} />
       ) : dialog === 'archive' ? (
         <ArchiveDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} />
-      ) : null}
-      {dialog === 'stop' ? (
-        <StopDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} onDone={leaving(() => {})} />
       ) : null}
       {dialog === 'delete' ? (
         <DeleteDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} onDone={leaving(() => {})} />

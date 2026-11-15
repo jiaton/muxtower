@@ -1,12 +1,12 @@
 import { ArrowDown, CircleX, RotateCw, X } from 'lucide-react'
-import { memo, useLayoutEffect, useRef, useState } from 'react'
+import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Markdown } from '@/components/ui/markdown'
 import type { ConversationItem } from '@/lib/api/types'
 import { cn } from '@/lib/cn'
 import type { ShownOutgoing } from '@/lib/outbox'
 import { conversationRows, toolName, toolRunSummary } from '../model/rows'
-import { ConversationImages } from './conversation-images'
+import { ConversationGallery, ConversationImages } from './conversation-images'
 import { NextStepCard } from './next-step-card'
 import { Chevron, Spinner } from '@/components/ui/indicators'
 import { bubble, ink, look } from '@/components/ui/intents'
@@ -176,7 +176,9 @@ export function ConversationView({
     else setBehind(true)
   }, [items, pending.length])
 
-  return (
+  // Every image the conversation shows, in its order: one gallery (a tap on any opens it there).
+  const allImages = useMemo(() => [...new Set(items.flatMap((item) => item.images ?? []))], [items])
+  const view = (
     <div className={`${look.surface} relative flex min-h-0 flex-1 flex-col overflow-hidden`}>
       <div
         ref={scroller}
@@ -223,5 +225,12 @@ export function ConversationView({
         </Button>
       ) : null}
     </div>
+  )
+  return source ? (
+    <ConversationGallery daemonId={source.daemonId} sessionId={source.sessionId} paths={allImages}>
+      {view}
+    </ConversationGallery>
+  ) : (
+    view
   )
 }

@@ -57,9 +57,9 @@ def test_launch_type_capture_terminate(tmp_path: Path) -> None:
         assert width() == "50"
         client.post(f"/v1/sessions/{sid}/resize/release", headers=auth)
         assert width() == "50"  # no terminal attached to fit: the last size stays (see below)
-        assert client.delete(f"/v1/sessions/{sid}", headers=auth).status_code == 204
+        assert client.delete(f"/v1/sessions/{sid}", headers=auth).status_code == 204  # archived: ended, kept
         app.state.monitor.tick()
-        assert client.get("/v1/sessions", headers=auth).json() == []
+        assert [s["id"] for s in client.get("/v1/sessions", headers=auth).json() if not s["archived_at"]] == []
     finally:
         subprocess.run(["tmux", "-L", socket, "kill-server"], capture_output=True)  # noqa: S603, S607
         # kill-server can leave the socket file behind; remove it so test runs don't pile them up.

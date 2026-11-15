@@ -468,7 +468,10 @@ export interface paths {
         post?: never;
         /**
          * Terminate Session
-         * @description Stops the session (`capabilities.terminate`); an archived one is deleted from the archive.
+         * @description An archived session: deleted from the archive (muxtower's copy; the agent's own transcript is not
+         *     touched). One a restart interrupted: forgotten. A live one muxtower started (`capabilities.terminate`)
+         *     is archived (ended, its history kept: nothing ends without it), as POST /archive does; any other is
+         *     never ended this way (409): POST /archive says what ending it means.
          */
         delete: operations["terminate_session_v1_sessions__session_id__delete"];
         options?: never;

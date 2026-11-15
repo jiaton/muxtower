@@ -16,8 +16,14 @@ def test_create_list_rename_terminate(client: TestClient, auth: dict[str, str], 
 
     renamed = client.patch(f"/v1/sessions/{session_id}", json={"name": "backend"}, headers=auth)
     assert renamed.json()["name"] == "backend"
+    # Ending a live session archives it: ended, its history kept (nothing ends without it).
     assert client.delete(f"/v1/sessions/{session_id}", headers=auth).status_code == 204
-    assert client.get("/v1/sessions", headers=auth).json() == [] and tmux.panes == {}
+    listed = client.get("/v1/sessions", headers=auth).json()
+    assert [s["id"] for s in listed if not s["archived_at"]] == [] and tmux.panes == {}
+    assert [s["id"] for s in listed if s["archived_at"]] == [session_id]
+    # Deleting it then removes muxtower's copy.
+    assert client.delete(f"/v1/sessions/{session_id}", headers=auth).status_code == 204
+    assert client.get("/v1/sessions", headers=auth).json() == []
 
 
 def test_create_rejects_unknown_runtime_and_bad_cwd(client: TestClient, auth: dict[str, str], tmp_path: Path) -> None:

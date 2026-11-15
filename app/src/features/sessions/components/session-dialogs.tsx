@@ -1,4 +1,4 @@
-import { Archive, EyeOff, Power, Trash2 } from 'lucide-react'
+import { Archive, EyeOff, Trash2 } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -65,22 +65,6 @@ export interface DialogProps {
   onDone?: () => void
 }
 
-export function StopDialog({ daemonId, session, ...rest }: DialogProps) {
-  return (
-    <ConfirmDialog
-      title={`Stop ${session.name}?`}
-      description="This ends the agent and kills its tmux session."
-      confirm={
-        <>
-          <Power /> Stop
-        </>
-      }
-      mutation={useTerminateSession(daemonId, session.id)}
-      {...rest}
-    />
-  )
-}
-
 /** What archiving does here: where the session runs decides what ends. */
 function archiveEffect(session: Session): string {
   const kept = 'Its conversation stays readable under Archived.'
@@ -142,7 +126,7 @@ export function DeleteDialog({ daemonId, session, ...rest }: DialogProps) {
       description={
         session.interrupted_at
           ? 'It is not started again, and muxtower forgets it. Its conversation stays with its agent.'
-          : 'It leaves the archive, and its conversation is no longer shown here.'
+          : "It deletes muxtower's copy: it leaves the archive, and its conversation is no longer shown here. Claude Code's own transcript on disk is not touched."
       }
       confirm={
         <>

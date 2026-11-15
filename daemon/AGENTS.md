@@ -19,7 +19,7 @@ Python package `muxtower`: one command, `muxtower`: `muxtower serve` runs the da
 
 ```
 src/muxtower/
-  sessions/   registry, create/rename/terminate; directory.py: every session across sources, dispatch by capabilities;
+  sessions/   registry, create/rename/archive (archive = end + keep: the one way a session ends; DELETE on a live one archives it); directory.py: every session across sources, dispatch by capabilities;
               claude_processes.py: links a pane's Claude Code to its Remote Control session (one entry per agent)
               and to its transcript; transcripts.py: a tmux session's conversation, read from that transcript;
               marks.py: the owner's marks (unread, hidden, notify level); decorate.py: what the directory fills in; archive.py / archiving.py: archived sessions (ended, kept
