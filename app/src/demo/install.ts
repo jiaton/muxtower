@@ -25,11 +25,15 @@ export function installDemo() {
   const origin = new URL(DEMO_DAEMON.url).origin
   const at = (url: string, place: string) => new URL(url).origin.replace(/^ws/, 'http') === place
   const hubDown = new URLSearchParams(location.search).get('hub') === 'down'
+  // `?latency=<ms>`: every answer that long in coming, as over a real connection (measuring, e2e).
+  const latency = Number(new URLSearchParams(location.search).get('latency') ?? 0)
+  const later = <T,>(answer: () => Promise<T>) =>
+    latency > 0 ? new Promise<T>((r) => setTimeout(() => r(answer()), latency)) : answer()
 
   const fetchOut = globalThis.fetch.bind(globalThis)
   globalThis.fetch = (input, init) => {
     const request = new Request(input, init)
-    if (at(request.url, origin)) return hubDown ? Promise.reject(new TypeError('Failed to fetch')) : respond(world, request)
+    if (at(request.url, origin)) return hubDown ? Promise.reject(new TypeError('Failed to fetch')) : later(() => respond(world, request))
     if (at(request.url, DIRECT_URL)) return respondAsNode(world, request)
     return fetchOut(input, init)
   }
@@ -38,7 +42,7 @@ export function installDemo() {
   function DemoWebSocket(url: string | URL, protocols?: string | string[]) {
     const to = String(url)
     if ((at(to, origin) && hubDown) || at(to, DIRECT_URL)) return new SocketOut('wss://nowhere.invalid') // polled instead
-    return at(to, origin) ? new DemoSocket(world) : new SocketOut(url, protocols)
+    return at(to, origin) ? new DemoSocket(world, latency) : new SocketOut(url, protocols)
   }
   Object.assign(DemoWebSocket, { CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 })
   globalThis.WebSocket = DemoWebSocket as unknown as typeof WebSocket

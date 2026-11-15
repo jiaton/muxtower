@@ -1,14 +1,17 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Session } from '@/lib/api/types'
+import { useDaemonsStore } from '@/lib/daemons/store'
 import { useDaemonClient } from '@/lib/daemons/use-daemon-client'
 import { daemonKey } from '@/lib/query'
 import { HISTORY_STEPS, usePaneSize, useScreen } from '../api/use-terminal'
 import { HOLD_MS, heldScreen } from '../fit-guard'
+import { loadScreen, saveScreen } from '../screen-store'
 import { useTerminalPrefs } from '../store'
 
 export const MAX_ROWS = 300 // the daemon's limit
 const SIZED_WAIT_MS = 1500 // a view that cannot be measured (hidden) reads the screen anyway
+const SAVE_AFTER_MS = 1000 // a screen kept in the browser once it has been still this long
 
 /** Screen, history depth and pane sizing for the session page. */
 export function useSessionTerminal(daemonId: string, session: Session, enabled: boolean) {
@@ -89,11 +92,39 @@ export function useSessionTerminal(daemonId: string, session: Session, enabled: 
     }
   }, [fit, client, session.id])
 
-  const shown = heldScreen(ready ? screen.data : undefined, held.current, Date.now())
-  if (shown !== undefined && shown === screen.data) held.current = null // the new one is in: nothing held
-  lastShown.current = shown
+  // Opening a session shows at once what it last looked like (this visit's cache, else the browser's copy,
+  // `screen-store.ts`), marked stale, until a screen read since it was opened (fitted, when fitting)
+  // replaces it in one step: never a black view while the live one comes.
+  const [opened, setOpened] = useState(() => ({ id: session.id, at: Date.now() }))
+  if (opened.id !== session.id) setOpened({ id: session.id, at: Date.now() }) // another session, same page
+  const [stored, setStored] = useState<{ id: string; ansi: string | undefined } | null>(null)
+  useEffect(() => {
+    let current = true
+    void loadScreen(daemonId, session.id).then((ansi) => current && setStored({ id: session.id, ansi }))
+    return () => {
+      current = false
+    }
+  }, [daemonId, session.id])
+  const fresh = opened.id === session.id && ready && screen.data !== undefined && screen.dataUpdatedAt >= opened.at
+  const live = heldScreen(fresh ? screen.data : undefined, held.current, Date.now())
+  if (live !== undefined && live === screen.data) held.current = null // the new one is in: nothing held
+  const kept = screen.data ?? (stored?.id === session.id ? stored.ansi : undefined)
+  const shown = live ?? kept
+  lastShown.current = live
+
+  // Kept in the browser for the next time: a paired daemon's only (the demo keeps nothing, screen-store).
+  const paired = useDaemonsStore((s) => s.daemons.some((d) => d.id === daemonId && d.token !== null))
+  const freshScreen = fresh ? screen.data : undefined
+  useEffect(() => {
+    if (!paired || freshScreen === undefined) return
+    const timer = setTimeout(() => void saveScreen(daemonId, session.id, freshScreen), SAVE_AFTER_MS)
+    return () => clearTimeout(timer)
+  }, [paired, freshScreen, daemonId, session.id])
+
   return {
     ansi: shown, // not a screen kept from another size meanwhile, nor a blank one while the agent repaints
+    /** What shows is the screen as last seen, not yet the live one: marked as updating. */
+    stale: live === undefined && kept !== undefined,
     error: screen.error,
     fontSize,
     fit,

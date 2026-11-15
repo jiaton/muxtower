@@ -90,3 +90,12 @@ it('never resizes the pane for what comes and goes around the view; a window res
   expect(onFit.mock.calls[1]![0].rows).toBe(rows - 10)
   Object.defineProperty(window, 'innerHeight', { value: tall, configurable: true })
 })
+
+it('marks a screen as last seen as updating, until the live one comes, with no other change', () => {
+  const { rerender } = render(<TerminalView ansi={'$ ls\nREADME.md'} fontSize={13} stale />)
+  expect(screen.getByText('Updating…')).toBeTruthy()
+  expect(screen.getByText('README.md')).toBeTruthy() // the kept screen shows meanwhile
+  rerender(<TerminalView ansi={'$ ls\nREADME.md\nsrc'} fontSize={13} />)
+  expect(screen.queryByText('Updating…')).toBeNull()
+  expect(screen.getByText('src')).toBeTruthy()
+})

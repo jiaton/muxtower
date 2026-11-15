@@ -5,6 +5,9 @@ import type { ImageInput } from '@/lib/api/types'
 import { useDaemonClient } from '@/lib/daemons/use-daemon-client'
 import { daemonKey } from '@/lib/query'
 
+/** How long a session's screen (and conversation) stays in this visit's cache once nothing shows it. */
+export const KEEP_MS = 60 * 60_000
+
 /** History steps: the view asks for the next one when the reader nears the top. */
 export const HISTORY_STEPS = [300, 1500, 5000] as const
 
@@ -22,6 +25,7 @@ export function useScreen(daemonId: string, sessionId: string, history: number, 
     queryKey: daemonKey(daemonId, 'screen', sessionId),
     enabled: enabled && client !== null,
     staleTime: Infinity,
+    gcTime: KEEP_MS, // going back to a session shows its screen at once, as it last was (useSessionTerminal)
     refetchInterval: status === 'open' ? false : status === 'blocked' ? 60_000 : 2000,
     queryFn: async () => {
       const screen = unwrap(

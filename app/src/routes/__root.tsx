@@ -11,6 +11,7 @@ import { SessionsNav } from '@/features/sessions/components/sessions-nav'
 import { useListMemory } from '@/features/sessions/store'
 import { useKeepPushSubscriptions } from '@/features/push/hooks/use-keep-push-subscriptions'
 import { settledIn, useCloseSettledNotifications, useNotificationClicks } from '@/features/push/hooks/use-notifications'
+import { useForgetRemovedScreens } from '@/features/terminal/screen-store'
 import { useAllSessions } from '@/features/sessions/api/use-sessions'
 import { isSettled } from '@/features/sessions/model/facets'
 import { useDaemonStreams, useRecheckRejected } from '@/lib/api/streams'
@@ -86,6 +87,7 @@ function RootLayout() {
   useRecheckRejected()
   useKeepPushSubscriptions()
   useNotificationClicks()
+  useForgetRemovedScreens()
   const daemons = useAllSessions()
   useCloseSettledNotifications(
     (daemonId, sessionId, since) =>

@@ -15,6 +15,7 @@ export function useConversation(daemonId: string, sessionId: string, enabled: bo
     queryKey: daemonKey(daemonId, 'conversation', sessionId),
     enabled: enabled && client !== null,
     staleTime: Infinity,
+    gcTime: 60 * 60_000, // going back to a session shows its conversation at once, as it last was
     refetchInterval: status === 'open' ? false : status === 'blocked' ? 60_000 : 4000,
     queryFn: async () =>
       unwrap(

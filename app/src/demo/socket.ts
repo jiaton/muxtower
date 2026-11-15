@@ -22,8 +22,11 @@ export class DemoSocket {
   private readonly world: World
   private readonly stop: () => void
 
-  constructor(world: World) {
+  private readonly latency: number
+
+  constructor(world: World, latency = 0) {
     this.world = world
+    this.latency = latency
     this.stop = world.listen((frame) => {
       if (this.wants(frame)) this.deliver(frame)
     })
@@ -69,6 +72,6 @@ export class DemoSocket {
     // A real socket never answers inside send(): neither does this one.
     setTimeout(() => {
       if (this.readyState === DemoSocket.OPEN) this.onmessage?.(new MessageEvent('message', { data: JSON.stringify(frame) }))
-    }, 0)
+    }, this.latency)
   }
 }

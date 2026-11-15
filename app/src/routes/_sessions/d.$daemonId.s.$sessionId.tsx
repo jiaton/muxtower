@@ -261,6 +261,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
                 ) : null}
                 <TerminalView
                   ansi={terminal.ansi}
+                  stale={terminal.stale}
                   fontSize={terminal.fontSize}
                   onNeedMore={terminal.loadMore}
                   loadingMore={terminal.loadingMore}

@@ -1,6 +1,7 @@
 import { ArrowDown, MoveHorizontal } from 'lucide-react'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { countRender } from '@/lib/diagnostics'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { ansiToLines } from '@/lib/ansi'
 import { MAX_ROWS } from '../hooks/use-session-terminal'
@@ -22,6 +23,9 @@ interface Props {
   onFit?: (size: { cols: number; rows: number }) => void
   /** Offered when lines are wider than the view and it is not fitting: turn fitting on. */
   onFitRequest?: () => void
+  /** What shows is the screen as last seen, until the live one replaces it: marked as updating, and
+   *  nothing is offered or measured from it (its width may be another size's). */
+  stale?: boolean
 }
 
 const BOTTOM_SLACK = 24
@@ -36,7 +40,7 @@ const KEPT_ABOVE = 2000
  * the top or older lines added on top are removed/inserted, and the scroll position is corrected by
  * their height so the reader's place never jumps. At the bottom, the view follows new output.
  */
-export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, onFitRequest }: Props) {
+export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, onFitRequest, stale = false }: Props) {
   const scroller = useRef<HTMLDivElement>(null)
   const body = useRef<HTMLDivElement>(null)
   const probe = useRef<HTMLDivElement>(null)
@@ -200,7 +204,12 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
         </div>
         <div ref={body} />
       </div>
-      {tooWide && onFitRequest && !onFit ? (
+      {stale ? (
+        <Badge className="pointer-events-none absolute top-2 right-3" aria-live="polite">
+          Updating…
+        </Badge>
+      ) : null}
+      {tooWide && onFitRequest && !onFit && !stale ? (
         <Button size="sm" variant="secondary" floating className="absolute top-2 right-3" onClick={onFitRequest}>
           <MoveHorizontal /> Fit width
         </Button>
