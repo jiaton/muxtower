@@ -1,3 +1,4 @@
+import { useMatch } from '@tanstack/react-router'
 import { MoreHorizontal } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
@@ -8,6 +9,8 @@ import { SessionActions, type SessionAction } from './session-actions'
 import { SessionActionItems } from './session-actions-menu'
 import { NotifyItems } from './notify-items'
 import { SessionRow, type RowContext } from './session-row'
+
+const AT_NAME = { x: 40, y: 28 } // a menu opened from the keyboard: under the row's name
 
 /** A row of the session list with its actions: swipe right on a touch screen (renaming and moving are
  *  in the session's own menu), or the "⋯" that shows on hover with a mouse (which also sets its
@@ -25,6 +28,10 @@ export function SessionListRow({
   children?: ReactNode
 }) {
   const { daemon, session } = entry
+  // The session shown on the page (not merely marked, as a phone's list marks the one just left): marking
+  // it unread, hiding or deleting it from its row leaves it first, or being on screen would read it again.
+  const page = useMatch({ from: '/_sessions/d/$daemonId/s/$sessionId', shouldThrow: false })
+  const open = page?.params.daemonId === daemon.id && page?.params.sessionId === session.id
   const [pressed, setPressed] = useState<{ x: number; y: number } | null>(null)
   const items = (actions: SessionAction[]) => (
     <>
@@ -33,7 +40,7 @@ export function SessionListRow({
     </>
   )
   return (
-    <SessionActions daemonId={daemon.id} session={session}>
+    <SessionActions daemonId={daemon.id} session={session} open={open}>
       {(actions) => (
         <SwipeActions
           actions={actions
@@ -47,7 +54,17 @@ export function SessionListRow({
             onContextMenu={(e) => {
               e.preventDefault() // the browser's own menu (open in a new tab…) is not this row's
               const box = e.currentTarget.getBoundingClientRect()
-              setPressed({ x: e.clientX - box.left, y: e.clientY - box.top })
+              // From the keyboard (the menu key) it has no place: under the row's name.
+              const keyed = e.clientX === 0 && e.clientY === 0
+              setPressed(keyed ? AT_NAME : { x: e.clientX - box.left, y: e.clientY - box.top })
+            }}
+            onKeyDown={(e) => {
+              // "." or Shift+F10 on the focused row: its menu, where its keys act (`ACTION_KEYS`).
+              if (e.ctrlKey || e.metaKey || e.altKey) return
+              if (e.key === '.' || (e.key === 'F10' && e.shiftKey)) {
+                e.preventDefault()
+                setPressed(AT_NAME)
+              }
             }}
           >
             <SessionRow entry={entry} selected={selected} context={context}>

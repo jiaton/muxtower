@@ -12,7 +12,11 @@ const drawn = vi.hoisted(() => ({ rows: [] as string[] }))
 vi.mock('./session-list-row', () => ({
   SessionListRow: ({ entry }: { entry: SessionEntry }) => {
     drawn.rows.push(entry.session.name)
-    return <div>{entry.session.name}</div>
+    return (
+      <a href={`#${entry.key}`} data-row-link>
+        {entry.session.name}
+      </a>
+    )
   },
 }))
 
@@ -146,4 +150,19 @@ it('brings the open session’s row into view once each time it changes, the nea
   } finally {
     Element.prototype.scrollIntoView = was
   }
+})
+
+it('moves between rows with the up and down keys, from a focused row only', () => {
+  const groups = [device({ '~/acme': [entry('one'), entry('two'), entry('three')] })]
+  render(<SessionList groups={groups} />, { wrapper: wrapper() })
+  const links = screen.getAllByRole('link')
+  for (const link of links) Object.defineProperty(link, 'offsetParent', { get: () => document.body }) // drawn
+  links[0]!.focus()
+  fireEvent.keyDown(links[0]!, { key: 'ArrowDown' })
+  expect(document.activeElement).toBe(links[1])
+  fireEvent.keyDown(links[1]!, { key: 'ArrowDown' })
+  fireEvent.keyDown(links[2]!, { key: 'ArrowDown' }) // the last stays
+  expect(document.activeElement).toBe(links[2])
+  fireEvent.keyDown(links[2]!, { key: 'ArrowUp' })
+  expect(document.activeElement).toBe(links[1])
 })

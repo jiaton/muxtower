@@ -1,5 +1,5 @@
 import { Monitor, Plus } from 'lucide-react'
-import { memo, useCallback, useEffect, useRef, type MouseEvent, type ReactNode } from 'react'
+import { memo, useCallback, useEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Fold } from '@/components/ui/fold'
 import { cn } from '@/lib/cn'
@@ -251,8 +251,18 @@ export function SessionList({
   const tree = buildList(groups, held, { scope: foldScope, collapsed, foldedFirst, unfolded })
   useRowMoves(root, new Map(tree.flatMap((g) => placed(g, g.id))))
 
+  // Up and down from a focused row: the row above or below (rows folded away are skipped: not drawn).
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if ((e.key !== 'ArrowDown' && e.key !== 'ArrowUp') || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return
+    const rows = [...(root.current?.querySelectorAll<HTMLElement>('[data-row-link]') ?? [])].filter((r) => r.offsetParent)
+    const at = rows.indexOf(e.target as HTMLElement)
+    if (at < 0) return // not on a row: an input, a button
+    e.preventDefault()
+    rows[Math.max(0, Math.min(rows.length - 1, at + (e.key === 'ArrowDown' ? 1 : -1)))]?.focus()
+  }
+
   return (
-    <div ref={root} className="flex flex-col">
+    <div ref={root} className="flex flex-col" onKeyDown={onKeyDown}>
       {tree.map((group) => {
         const drawn: Drawn = {
           selectedKey,

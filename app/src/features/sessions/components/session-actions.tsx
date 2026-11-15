@@ -6,6 +6,7 @@ import {
   FolderInput,
   Mail,
   MailOpen,
+  OctagonX,
   Pencil,
   Pin,
   PinOff,
@@ -22,6 +23,7 @@ import { useHideSession, useMarkRead, usePinSession } from '../api/use-session-m
 import { useRecoverSessions } from '../api/use-recovery'
 import { presetForSession } from '../model/new-here'
 import { useNodeNames } from '@/lib/daemons/use-nodes'
+import { useSendInput } from '@/features/terminal/api/use-terminal'
 import { useNewSessionRequest } from '../store'
 import { PlaceDialog } from './place-dialog'
 import { RenameDialog } from './rename-dialog'
@@ -29,13 +31,28 @@ import { ArchiveDialog, DeleteDialog, HideInsteadDialog, StopDialog } from './se
 import { TeamDialog } from './team-dialog'
 
 export interface SessionAction {
-  id: 'read' | 'pin' | 'new' | 'rename' | 'place' | 'team' | 'hide' | 'archive' | 'stop' | 'delete' | 'resume'
+  id: 'read' | 'pin' | 'new' | 'rename' | 'place' | 'team' | 'hide' | 'archive' | 'interrupt' | 'stop' | 'delete' | 'resume'
   label: string
   icon: LucideIcon
   tone?: 'accent' | 'neutral' | 'danger'
   run: () => void
   /** Only in menus: a list row's swipe tray has room for the rest. */
   menuOnly?: boolean
+}
+
+/** The key that does an action while a menu of them is open (`DropdownMenuItem shortcut`): mnemonic, one
+ *  each. Stopping a session (it ends) has none: it is never one key away. */
+export const ACTION_KEYS: Partial<Record<SessionAction['id'], string>> = {
+  read: 'u', // unread / read
+  pin: 'p',
+  new: 'n',
+  rename: 'r',
+  place: 'm', // move
+  team: 't',
+  hide: 'h',
+  archive: 'a',
+  interrupt: 's', // stop what it is doing
+  delete: 'x', // and Delete
 }
 
 /** What the owner can do to a session from anywhere it is shown (a list row's swipe tray or menu, the
@@ -61,6 +78,7 @@ export function SessionActions({
   const hide = useHideSession()
   const pin = usePinSession()
   const recover = useRecoverSessions(daemonId)
+  const input = useSendInput(daemonId, session.id)
   const startHere = useNewSessionRequest((s) => s.start)
   const here = presetForSession(daemonId, session, useNodeNames(daemonId)) // null: not where one can start
   const [dialog, setDialog] = useState<'rename' | 'place' | 'team' | 'archive' | 'stop' | 'delete' | null>(null)
@@ -105,6 +123,9 @@ export function SessionActions({
     )
     if (session.capabilities.archive)
       live.push({ id: 'archive', label: 'Archive', icon: Archive, tone: 'neutral', run: () => setDialog('archive') })
+    // What it is doing now, stopped (Escape, as in its terminal); the session goes on.
+    if (session.state === 'busy' && session.capabilities.screen)
+      live.push({ id: 'interrupt', label: 'Interrupt', icon: OctagonX, tone: 'neutral', menuOnly: true, run: () => input.mutate({ key: 'Escape' }) })
     if (session.capabilities.terminate) live.push({ id: 'stop', label: 'Stop', icon: Power, tone: 'danger', run: () => setDialog('stop') })
     return live
   }

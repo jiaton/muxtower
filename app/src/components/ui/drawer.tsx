@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { cn } from '@/lib/cn'
+import { escapeForPopup } from './dialog'
 import { afterFrame, axisOf, holdScroll, LAND_EASE, landCurve, landing, sideways, Speed, type Pull } from './gesture'
 
 /**
@@ -74,7 +75,13 @@ export function Drawer({
 
   useEffect(() => {
     if (!shown) return
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onOpenChange(false)
+    // Esc closes the drawer, unless it is for something over it or inside it: a menu or a dialog opened
+    // from it (each closes itself on that Esc), or a field's open list.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || escapeForPopup(e.target)) return
+      if (document.querySelector('[role="menu"], [role="dialog"][data-state="open"]')) return
+      onOpenChange(false)
+    }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [shown, onOpenChange])

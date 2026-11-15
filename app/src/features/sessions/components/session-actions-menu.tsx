@@ -12,7 +12,7 @@ import {
 import type { Session } from '@/lib/api/types'
 import { useUpdateSession } from '../api/use-session-mutations'
 import { NotifyItems } from './notify-items'
-import { SessionActions, type SessionAction } from './session-actions'
+import { ACTION_KEYS, SessionActions, type SessionAction } from './session-actions'
 
 const MENU_LABEL: Record<SessionAction['id'], (session: Session) => string> = {
   read: (s) => (s.unread ? 'Mark as read' : 'Mark as unread'),
@@ -23,15 +23,16 @@ const MENU_LABEL: Record<SessionAction['id'], (session: Session) => string> = {
   team: (s) => (s.team_role ? `Team: ${s.team_role}…` : 'Set its role…'),
   hide: (s) => (s.hidden ? 'Show in the list' : 'Hide from the list'),
   archive: () => 'Archive',
+  interrupt: () => 'Interrupt (Esc)',
   stop: () => 'Stop session',
   delete: (s) => (s.interrupted_at ? 'Delete' : 'Delete from the archive'),
   resume: () => 'Start again',
 }
 
-/** The session actions as menu items (a row's hover menu, the session page's menu). */
+/** The session actions as menu items (a row's hover menu, the session page's menu), each with its key. */
 export function SessionActionItems({ session, actions }: { session: Session; actions: SessionAction[] }) {
   return actions.map((a) => (
-    <DropdownMenuItem key={a.id} tone={a.tone === 'danger' ? 'danger' : undefined} onSelect={a.run}>
+    <DropdownMenuItem key={a.id} tone={a.tone === 'danger' ? 'danger' : undefined} shortcut={ACTION_KEYS[a.id]} onSelect={a.run}>
       <a.icon /> {MENU_LABEL[a.id](session)}
     </DropdownMenuItem>
   ))

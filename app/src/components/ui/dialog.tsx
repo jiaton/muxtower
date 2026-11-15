@@ -1,20 +1,51 @@
 import * as DialogPrimitive from '@radix-ui/react-dialog'
 import { X } from 'lucide-react'
-import type { ComponentProps, ReactNode } from 'react'
+import { useState, type ComponentProps, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 
 export const Dialog = DialogPrimitive.Root
 export const DialogTrigger = DialogPrimitive.Trigger
 export const DialogClose = DialogPrimitive.Close
 
-/** Bottom sheet on phones, centered dialog from `sm` up. */
+/** Whether Esc is for a popup inside the dialog rather than the dialog: it comes from a field whose list is
+ *  open (a suggestion list, the mention menu: `aria-expanded`). That field closes its list; the next Esc
+ *  closes the dialog. (The dialog hears Esc first, before the field: it listens on the page, capturing.) */
+export const escapeForPopup = (target: EventTarget | null) =>
+  target instanceof Element && target.matches('input, textarea, [role="combobox"]') && target.getAttribute('aria-expanded') === 'true'
+
+// The last control focused outside menus and dialogs: where focus goes back to when a dialog opened from a
+// menu closes (the menu item that opened it is gone, and the page itself would get focus otherwise).
+let lastOutside: HTMLElement | null = null
+if (typeof document !== 'undefined')
+  document.addEventListener(
+    'focusin',
+    (e) => {
+      const t = e.target
+      if (t instanceof HTMLElement && t.tabIndex >= 0 && !t.closest('[role="menu"], [role="dialog"]')) lastOutside = t
+    },
+    true,
+  )
+
+/** Where focus goes back to when a dialog opening now closes: what had it, else (opened from a menu) the
+ *  control the menu was opened from. */
+function returnTarget(): HTMLElement | null {
+  const now = document.activeElement
+  const usable = now instanceof HTMLElement && now !== document.body && !now.closest('[role="menu"]') && now.tabIndex >= 0
+  return usable ? null : lastOutside // null: Radix's own (what had focus) is right
+}
+
+/** Bottom sheet on phones, centered dialog from `sm` up. Esc closes it, its edits dropped (a dialog keeps
+ *  nothing it was not told to save), except while a list inside it is open: then only the list. */
 export function DialogContent({
   className,
   title,
   description,
   children,
+  onEscapeKeyDown,
+  onCloseAutoFocus,
   ...props
 }: ComponentProps<typeof DialogPrimitive.Content> & { title: string; description?: ReactNode }) {
+  const [returnTo] = useState(returnTarget)
   return (
     <DialogPrimitive.Portal>
       <DialogPrimitive.Overlay className="fixed inset-0 z-[80] bg-overlay" />
@@ -24,6 +55,16 @@ export function DialogContent({
           'sm:inset-auto sm:top-1/2 sm:left-1/2 sm:w-full sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg',
           className,
         )}
+        onEscapeKeyDown={(e) => {
+          onEscapeKeyDown?.(e)
+          if (escapeForPopup(e.target)) e.preventDefault()
+        }}
+        onCloseAutoFocus={(e) => {
+          onCloseAutoFocus?.(e)
+          if (e.defaultPrevented || !returnTo?.isConnected) return
+          e.preventDefault()
+          returnTo.focus()
+        }}
         {...props}
       >
         <div className="flex items-start gap-3">

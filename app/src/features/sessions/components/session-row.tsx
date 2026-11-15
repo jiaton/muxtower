@@ -77,6 +77,7 @@ export function SessionRow({
         params={{ daemonId: daemon.id, sessionId: session.id }}
         search={true}
         aria-current={selected ? 'page' : undefined}
+        data-row-link
         className={listRow()}
       >
         <StatusIcon state={session.state} assistant={isAssistant(session)} unread={session.unread} className="mt-0.5" />

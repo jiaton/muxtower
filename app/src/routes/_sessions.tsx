@@ -136,15 +136,14 @@ function SessionsLayout() {
                   agents={facets.agents.length > 0}
                   accounts={facets.accounts.length > 0}
                 />
-                <div className="lg:hidden">
-                  <NewSessionDialog
-                    trigger={
-                      <Button variant="ghost" size="icon-sm" aria-label="New session" title="New session">
-                        <Plus />
-                      </Button>
-                    }
-                  />
-                </div>
+                {/* The one place to start a session, on every layout (the sidebar is often hidden). */}
+                <NewSessionDialog
+                  trigger={
+                    <Button variant="ghost" size="icon-sm" aria-label="New session" title="New session">
+                      <Plus />
+                    </Button>
+                  }
+                />
               </>
             }
           >

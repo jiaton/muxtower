@@ -1,11 +1,10 @@
 import { Link, Outlet, createRootRoute, useMatch } from '@tanstack/react-router'
-import { Layers, PanelLeftClose, PanelLeftOpen, Plus, Server } from 'lucide-react'
+import { Layers, PanelLeftClose, PanelLeftOpen, Server } from 'lucide-react'
 import { useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { navItemClass, tabItemClass } from '@/components/ui/nav'
 import { AppUpdateBanner } from '@/features/daemons/components/app-update-banner'
 import { WebUsageMark } from '@/features/daemons/components/web-usage-mark'
-import { NewSessionDialog } from '@/features/sessions/components/new-session-dialog'
 import { NewSessionHost } from '@/features/sessions/components/new-session-host'
 import { SessionsNav } from '@/features/sessions/components/sessions-nav'
 import { useListMemory } from '@/features/sessions/store'
@@ -43,13 +42,6 @@ function Sidebar({ inDrawer = false, onLeave }: { inDrawer?: boolean; onLeave?: 
         </Link>
         <WebUsageMark />
         <div className="ml-auto flex items-center" onClick={onLeave}>
-          <NewSessionDialog
-            trigger={
-              <Button variant="ghost" size="icon-sm" aria-label="New session" title="New session">
-                <Plus />
-              </Button>
-            }
-          />
           {wide ? (
             <Button
               variant="ghost"
