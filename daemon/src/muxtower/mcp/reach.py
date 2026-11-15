@@ -2,15 +2,17 @@
 its hub lists (the hub's own, or another node's): the node asks the hub, which reaches every session, as it
 does for the team tools (`nodes/asked.py`). The caller stays the node's session (`<node>~<id>` there)."""
 
+import time
 from collections.abc import Callable
 from typing import Any
 
 from pydantic import BaseModel
 
-from muxtower.errors import Invalid, NotFound, Unavailable
+from muxtower.errors import Invalid, NotFound, NotSent, Unavailable
 from muxtower.mcp.caller import CALLER
 
 Forward = Callable[[str, dict[str, Any], str | None], str | None]
+RETRY_SECONDS = 2.0  # before asking the hub again for a start whose answer was lost
 
 
 def reaching(name: str, run: Callable[[Any], str], forward: Forward | None) -> Callable[[Any], str]:
@@ -73,7 +75,9 @@ def listing_everywhere(name: str, run: Callable[[Any], str], forward: Forward | 
 
 
 def starting_anywhere(run: Callable[[Any], str], forward: Forward | None, here: str) -> Callable[[Any], str]:
-    """start_session on a node: here when it names no machine or this one; on another, through the hub."""
+    """start_session on a node: here when it names no machine or this one; on another, through the hub.
+    An answer lost on the way back (the link dropped, the hub slow) is asked for again once: the hub knows
+    the same start (the same caller and arguments, or key) and returns the session it made, not a second."""
 
     def wrapped(args: BaseModel) -> str:
         machine = (getattr(args, "machine", None) or "").strip().removeprefix("@").lower()
@@ -81,8 +85,17 @@ def starting_anywhere(run: Callable[[Any], str], forward: Forward | None, here: 
             return run(args)
         try:
             answered = _asked("start_session", args, forward)
-        except Unavailable as exc:
+        except NotSent as exc:
             raise Unavailable(f"{machine} is not this machine, and {exc}; nothing was started") from exc
+        except Unavailable as first:
+            time.sleep(RETRY_SECONDS)
+            try:
+                answered = _asked("start_session", args, forward)
+            except Unavailable as exc:
+                raise Unavailable(
+                    f"{machine} is not this machine, and its hub did not answer ({first}; then {exc}). It may have "
+                    "started it all the same: check list_sessions before trying again"
+                ) from exc
         return run(args) if answered is None else answered
 
     return wrapped

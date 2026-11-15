@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 from fastapi import FastAPI
 
-from muxtower.errors import Invalid, Unavailable
+from muxtower.errors import Invalid, NotSent, Unavailable
 from muxtower.mcp.session_tools import StartArgs
 from muxtower.mcp.team_tools import INSTRUCTIONS
 from muxtower.nodes import client as hub_client
@@ -55,7 +55,7 @@ def test_just_started_it_waits_a_moment_for_its_link(
 
 
 def _down(name: str, arguments: dict[str, Any], session_id: str | None) -> str | None:
-    raise Unavailable("this machine is a node of the hub https://hub.example, and its link to the hub is down")
+    raise NotSent("this machine is a node of the hub https://hub.example, and its link to the hub is down")
 
 
 def test_list_sessions_and_my_team_say_why_only_this_machine_shows(

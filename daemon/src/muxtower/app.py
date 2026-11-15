@@ -252,6 +252,7 @@ def create_app(
         forward=hub.team_tool, watches=watches,
     )  # fmt: skip
     mcp.session_tools.may_escalate = lambda: settings.launch.agents_may_escalate
+    mcp.session_tools.audit = audit
     if (team_tools := getattr(mcp, "team_tools", None)) is not None:
         team_tools.machines = lambda: [
             (daemon_name, settings.sessions.folder()),

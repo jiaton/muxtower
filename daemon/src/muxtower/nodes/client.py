@@ -21,7 +21,7 @@ from websockets.asyncio.client import ClientConnection, connect
 from websockets.exceptions import ConnectionClosed, InvalidStatus, WebSocketException
 from websockets.typing import Subprotocol
 
-from muxtower.errors import Conflict, Invalid, Unavailable
+from muxtower.errors import Conflict, Invalid, NotSent, Unavailable
 from muxtower.infra.bus import EventBus
 from muxtower.nodes import protocol
 from muxtower.nodes.api import NodeApi
@@ -35,6 +35,7 @@ logger = logging.getLogger("muxtower.hub")
 
 MAX_BACKOFF_SECONDS = 30.0
 ASK_SECONDS = 20.0
+START_ASK_SECONDS = 60.0  # start_session: the hub may start it on another node, which may take 45 s there
 # Just started, a node waits this long for its link before answering a team tool without the hub, which would
 # say this machine is all there is. Only for the first STARTING_SECONDS: later a link down is told at once.
 LINK_WAIT_SECONDS = 5.0
@@ -211,7 +212,7 @@ class HubClient:
             "other machines and their sessions are not listed. They are still there: try again in a few seconds"
         )
 
-    def ask(self, method: str, params: dict[str, Any]) -> Any:
+    def ask(self, method: str, params: dict[str, Any], timeout: float = ASK_SECONDS) -> Any:
         """Something only the hub answers (`protocol.HUB_METHODS`), asked by this node; None when this
         daemon is no node. Unavailable while it has no link, or its hub is too old to answer."""
         if self.store.load() is None:
@@ -223,16 +224,16 @@ class HubClient:
                 time.sleep(0.2)
             session, loop = self._session, self._loop
         if session is None or loop is None or not self.connected:
-            raise Unavailable(self.link_down())
+            raise NotSent(self.link_down())
         if (self.hub_protocol or 1) < 2:
             joined = self.store.load()
-            raise Unavailable(
+            raise NotSent(
                 f"this machine is a node of the hub {joined.url if joined else ''}, which runs an older muxtower "
                 "that answers no team tools: update the hub; other machines are not listed here"
             )
-        asked = asyncio.run_coroutine_threadsafe(session.asks.call(method, params, ASK_SECONDS), loop)
+        asked = asyncio.run_coroutine_threadsafe(session.asks.call(method, params, timeout), loop)
         try:
-            return asked.result(ASK_SECONDS + 5)
+            return asked.result(timeout + 5)
         except Invalid as exc:
             if "unknown method" in str(exc):
                 raise Unavailable(f"the hub runs an older muxtower that does not answer {method}: update it") from exc
@@ -241,7 +242,8 @@ class HubClient:
     def team_tool(self, tool: str, arguments: dict[str, Any], session_id: str | None) -> str | None:
         """A team tool one of this node's sessions called, answered by the hub (which sees every session);
         None when this daemon is no node. Unavailable when the hub cannot answer it now."""
-        result = self.ask("team_tool", {"tool": tool, "arguments": arguments, "session_id": session_id})
+        wait = START_ASK_SECONDS if tool == "start_session" else ASK_SECONDS
+        result = self.ask("team_tool", {"tool": tool, "arguments": arguments, "session_id": session_id}, wait)
         if result is None and self.store.load() is None:
             return None
         return str((result or {}).get("text", ""))
