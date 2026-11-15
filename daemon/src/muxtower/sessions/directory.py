@@ -40,8 +40,12 @@ IMAGE_ITEMS = 2000  # how far back in a conversation its images can be read
 
 
 def _as_listed(session: Session, listed_as: dict[str, str]) -> Session:
-    """A fork names its parent's Remote Control id; a parent in tmux here is listed under its own."""
+    """A fork names its parent's Remote Control id; a parent in tmux here is listed under its own. One
+    whose "parent" is a Remote Control session its own agent ran before (the same conversation, resumed
+    after a restart with a new bridge) is no fork."""
     parent = listed_as.get(session.fork_of or "")
+    if parent == session.id:
+        return session.model_copy(update={"fork_of": None, "side_chat": False})
     return session.model_copy(update={"fork_of": parent}) if parent else session
 
 
@@ -130,21 +134,25 @@ class SessionDirectory(OwnerMarks):
         ended = self.archive_store.ended() if self.archive_store else set()
         locals_ = [s for s in self._locals() if s.id not in ended]
         remotes = [(source, v) for source, v in listed if v.id not in ended]
+        # Remote Control sessions a live session's agent ran before (`note_remote_ids`) are folded into it.
+        formers = {r: sid for r, sid in self.local.repo.remote_ids().items() if sid in {s.id for s in locals_}}
         merged_into = {s.remote_id for s in locals_ if s.remote_id} | {v.remote_id for _, v in remotes if v.remote_id}
+        merged_into |= set(formers)
         kept = [v for source, v in remotes if v.id not in merged_into and self.source_of(v.id) is source]
         if self.name_store:
             for v in kept:
                 if v.node is None and v.source in SOURCE_NAMES:
                     self.name_store.note(v.id, v.name, SOURCE_NAMES[v.source])
         archived = self.archive_store.views() if self.archive_store else []
-        listed_as = {s.remote_id: s.id for s in locals_ if s.remote_id}
+        listed_as = formers | {s.remote_id: s.id for s in locals_ if s.remote_id}
         live = self.anchors.apply(self._decorate(_as_listed(s, listed_as)) for s in locals_ + kept)
         return live + [_as_listed(s, listed_as) for s in archived]
 
     def get(self, session_id: str) -> Session:
         found = self._get(session_id)
         if found.fork_of:
-            found = _as_listed(found, {s.remote_id: s.id for s in self.local.list() if s.remote_id})
+            formers = self.local.repo.remote_ids()
+            found = _as_listed(found, formers | {s.remote_id: s.id for s in self.local.list() if s.remote_id})
         return found
 
     def _get(self, session_id: str) -> Session:
@@ -154,7 +162,8 @@ class SessionDirectory(OwnerMarks):
         if source is None:
             return self._decorate(self._linked(self.local.get(session_id)))
         # A remote id whose agent also runs in tmux here answers with the one merged entry.
-        merged = next((s for s in self._locals() if s.remote_id == session_id), None)
+        owner = self.local.repo.remote_ids().get(session_id)  # one its agent ran before: that session now
+        merged = next((s for s in self._locals() if s.remote_id == session_id or s.id == owner), None)
         return self._decorate(merged or source.get(session_id))
 
     def find(self, session_id: str) -> Session | None:

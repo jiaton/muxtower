@@ -298,3 +298,125 @@ def test_a_moved_tmux_agent_merges_with_its_remote_session_and_says_so(tmp_path:
     listed = client.get("/v1/sessions", headers={"Authorization": f"Bearer {token}"}).json()
     (merged,) = listed
     assert merged["remote_id"] == "cse_1" and merged["in_background"] is True
+
+
+def _stat(proc: Path, pid: int, ticks: int, parent: int = 1) -> None:
+    (proc / str(pid) / "task" / str(pid)).mkdir(parents=True, exist_ok=True)
+    fields = ["S", str(parent), *["0"] * 17, str(ticks)]
+    (proc / str(pid) / "stat").write_text(f"{pid} (claude) " + " ".join(fields))
+
+
+def test_a_process_file_from_before_a_restart_is_not_the_process_now_at_its_pid(tmp_path: Path) -> None:
+    """After a reboot, a file left from before names a pid another process has now (made-up ids)."""
+    proc = tmp_path / "proc"
+    (proc).mkdir()
+    (proc / "stat").write_text("cpu 1 2 3\nbtime 1000000\n")
+    pid = os.getpid()  # alive
+    _stat(proc, pid, ticks=1400)
+    sessions = tmp_path / "claude" / "sessions"
+    sessions.mkdir(parents=True)
+    stale = {"pid": pid, "sessionId": "old-conv", "cwd": "/w", "bridgeSessionId": "session_01OLD",
+             "name": "before the reboot", "procStart": "10358319", "startedAt": 999_000_000}  # fmt: skip
+    (sessions / f"{pid}.json").write_text(json.dumps(stale))
+    processes = ClaudeProcesses(tmp_path / "claude", proc=proc)
+    assert processes.remote_id(pid) is None and processes.name(pid) is None and processes.transcript(pid) is None
+    assert processes.running() == {}
+    # The same file, written by the process now there: its own.
+    (sessions / f"{pid}.json").write_text(json.dumps({**stale, "procStart": "1400"}))
+    fresh = ClaudeProcesses(tmp_path / "claude", proc=proc)
+    assert fresh.remote_id(pid) == "cse_01OLD" and fresh.name(pid) == "before the reboot"
+    assert list(fresh.running()) == ["cse_01OLD"]
+
+
+def test_without_proc_start_the_files_start_time_must_match_the_process(tmp_path: Path) -> None:
+    """macOS writes no `procStart` there (made up here): `startedAt` against when the process started."""
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    (proc / "stat").write_text("cpu 1 2 3\nbtime 1000000\n")
+    pid = os.getpid()
+    _stat(proc, pid, ticks=50_000)  # started at 1000000 + 500 s
+    sessions = tmp_path / "claude" / "sessions"
+    sessions.mkdir(parents=True)
+    file = sessions / f"{pid}.json"
+    file.write_text(json.dumps({"pid": pid, "bridgeSessionId": "session_01MAC", "startedAt": 1_000_501_500}))
+    assert ClaudeProcesses(tmp_path / "claude", proc=proc).remote_id(pid) == "cse_01MAC"  # 1.5 s after: its own
+    file.write_text(json.dumps({"pid": pid, "bridgeSessionId": "session_01MAC", "startedAt": 900_000_000}))
+    assert ClaudeProcesses(tmp_path / "claude", proc=proc).remote_id(pid) is None  # days before: another's
+
+
+class RestartedProcesses(FakeProcesses):
+    """After a reboot: the pane's Claude Code resumed its conversation with a new bridge; the old bridge
+    is what a process file left from before ran (`ClaudeProcesses.former_remote_ids`)."""
+
+    def __init__(self, links: dict[int, str], formers: dict[int, list[str]]) -> None:
+        super().__init__(links)
+        self.formers = formers
+
+    def former_remote_ids(self, pane_pid: int) -> list[str]:
+        return self.formers.get(pane_pid, [])
+
+
+def test_after_a_reboot_the_old_bridge_is_folded_into_the_resumed_session_not_its_fork_parent(tmp_path: Path) -> None:
+    tmux = FakeTmux()
+    pane = tmux.add_pane("default", "work", "claude")
+    pane.info = dataclasses.replace(pane.info, pid=4242)
+    port = FakeRemoteControl()
+    # Remote Control still lists the old bridge; the new one's history was uploaded at once, so it reads
+    # as a copy (a fork) of the old one.
+    port.sessions = [
+        session("cse_OLD", title="api-error rule", created_at="2026-11-13T09:00:00Z"),
+        session("cse_NEW", title="planner", created_at="2026-11-14T22:35:00Z",
+                tags=["remote-control-fork-parent:session_OLD"]),
+        session("cse_SIBLING", title="a real fork", created_at="2026-11-14T10:00:00Z",
+                tags=["remote-control-fork-parent:session_OLD"]),
+    ]  # fmt: skip
+    source = RemoteControlSource(port, {})
+    source.tick()
+    settings = load_settings(
+        config_file=tmp_path / "none.toml", env={},
+        overrides={"state_dir": tmp_path / "s", "config_dir": tmp_path / "c", "serve_ui": False},
+    )  # fmt: skip
+    app = create_app(settings, tmux=tmux, run_loops=False, remote_control=source)
+    Monitor(app.state.sessions, RestartedProcesses({4242: "cse_NEW"}, {4242: ["cse_OLD"]})).tick()
+    client = TestClient(app)
+    _, token = app.state.tokens.create("phone")
+    auth = {"Authorization": f"Bearer {token}"}
+
+    listed = client.get("/v1/sessions", headers=auth).json()
+    ours = next(s for s in listed if s["remote_id"] == "cse_NEW")
+    assert "cse_OLD" not in {s["id"] for s in listed}  # folded in: not a row of its own
+    assert ours["fork_of"] is None  # the same conversation, not a fork of its earlier bridge
+    sibling = next(s for s in listed if s["id"] == "cse_SIBLING")
+    assert sibling["fork_of"] == ours["id"]  # a real fork of the old bridge is placed under the session
+    assert client.get("/v1/sessions/cse_OLD", headers=auth).json()["id"] == ours["id"]
+    assert client.get(f"/v1/sessions/{ours['id']}", headers=auth).json()["fork_of"] is None
+    # Kept over a restart of the daemon: the process file may be gone by then.
+    assert app.state.sessions.repo.remote_ids() == {"cse_NEW": ours["id"], "cse_OLD": ours["id"]}
+
+
+def test_former_bridges_are_found_from_process_files_left_for_the_same_conversation(tmp_path: Path) -> None:
+    proc = tmp_path / "proc"
+    proc.mkdir()
+    (proc / "stat").write_text("cpu 1 2 3\nbtime 1000000\n")
+    pid = os.getpid()
+    _stat(proc, pid, ticks=1400)
+    sessions = tmp_path / "claude" / "sessions"
+    sessions.mkdir(parents=True)
+    now = {"pid": pid, "sessionId": "c2-conv", "cwd": "/w", "bridgeSessionId": "session_NEW", "procStart": "1400"}
+    (sessions / f"{pid}.json").write_text(json.dumps(now))
+    gone = {"pid": 999_999_99, "sessionId": "c2-conv", "cwd": "/w", "bridgeSessionId": "session_OLD"}
+    (sessions / "99999999.json").write_text(json.dumps(gone))
+    other = {"pid": 999_999_98, "sessionId": "another", "cwd": "/w", "bridgeSessionId": "session_ELSE"}
+    (sessions / "99999998.json").write_text(json.dumps(other))
+    processes = ClaudeProcesses(tmp_path / "claude", proc=proc)
+    assert processes.former_remote_ids(pid) == ["cse_OLD"]
+    # An earlier conversation that went on in this one (continued-in): its bridge was this session's too.
+    current = "c2795c42-0000-4000-8000-000000000000"
+    (sessions / f"{pid}.json").write_text(json.dumps({**now, "sessionId": current}))
+    (sessions / "99999999.json").write_text(json.dumps({**gone, "sessionId": "e3efbc32-0000-4000-8000-000000000000"}))
+    folder = tmp_path / "claude" / "projects" / "-w"
+    folder.mkdir(parents=True)
+    (folder / "e3efbc32-0000-4000-8000-000000000000.jsonl").write_text(
+        json.dumps({"type": "continued-in", "continuedInSessionId": current}) + "\n"
+    )
+    assert ClaudeProcesses(tmp_path / "claude", proc=proc).former_remote_ids(pid) == ["cse_OLD"]

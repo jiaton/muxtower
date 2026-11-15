@@ -160,6 +160,9 @@ class Monitor(Reconciler):
             in_background = bool(moved and pid and moved(pid, text))
             if transcript:
                 svc.know_agent(record, transcript)
+            if remote_id and remote_id != live.remote_id:  # a new bridge (a restart, a resume): the old ones stay its
+                formers = getattr(self.processes, "former_remote_ids", None)
+                svc.repo.note_remote_ids(record.id, [remote_id, *(formers(pid) if formers else [])])
             seen = (remote_id, transcript, title, alt_screen, attached, in_background)
             if seen != (
                 live.remote_id,

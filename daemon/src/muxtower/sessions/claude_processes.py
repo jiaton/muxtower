@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from muxtower.infra.procfs import Children, alive, family
+from muxtower.infra.procfs import Children, alive, family, started_at
 from muxtower.sessions.models import GitPlace
 from muxtower.sessions.naming import AgentName
 
@@ -37,6 +37,7 @@ REMOTE_PREFIX = "cse_"
 RUNNING_TTL_SECONDS = 5.0
 TAIL_BYTES = 16_384  # the end of a transcript, where a `continued-in` line is
 MAX_HOPS = 8
+SAME_START_SECONDS = 10.0  # a process file's startedAt comes 1–3 s after its process started
 # What Claude Code's agents view says in the pane while the conversation is in the background.
 AGENTS_VIEW = "conversation moved to the background"
 
@@ -103,6 +104,31 @@ class ClaudeProcess:
         return f"claude_code_{self.entrypoint.replace('-', '_')}" if self.entrypoint else None
 
 
+def _ticks(pid: int, proc: Path) -> str | None:
+    """When a process started, in clock ticks after boot (/proc/<pid>/stat's field 22), as Claude Code
+    writes it in a process file (`procStart`)."""
+    try:
+        return (proc / str(pid) / "stat").read_text().rsplit(")", 1)[1].split()[19]
+    except (OSError, IndexError):
+        return None
+
+
+def runs(pid: int, info: dict[str, object], proc: Path = Path("/proc")) -> bool:
+    """Whether the process a file names still runs, and is the one that wrote it: after a restart, its pid
+    may be another process's (a file left from before is no live Claude Code). Linux: the start Claude Code
+    wrote (`procStart`) is the process's own; else (macOS) the file's `startedAt` is within a few seconds of
+    the process's start. A file that says neither is taken as it is, if its pid is alive."""
+    if not alive(pid):
+        return False
+    written = info.get("procStart")
+    if isinstance(written, str | int) and str(written).isdigit() and (ticks := _ticks(pid, proc)) is not None:
+        return str(written) == ticks
+    at = info.get("startedAt")
+    if isinstance(at, int | float) and (start := started_at(pid, proc)) is not None:
+        return abs(at / 1000 - start) <= SAME_START_SECONDS
+    return True
+
+
 def _remote_id(info: object) -> str | None:
     bridge = info.get("bridgeSessionId") if isinstance(info, dict) else None
     if isinstance(bridge, str) and bridge.startswith(BRIDGE_PREFIX):
@@ -125,7 +151,10 @@ class ClaudeProcesses:
                 info = json.loads((self.sessions_dir / f"{pid}.json").read_text())
             except (OSError, ValueError):
                 continue
-            return info if isinstance(info, dict) else None
+            if not isinstance(info, dict):
+                return None
+            if runs(pid, info, self.proc):
+                return info  # else a file left from before a restart, its pid now this one's: not its own
         return None
 
     def _path(self, info: dict[str, object]) -> Path | None:
@@ -150,7 +179,7 @@ class ClaudeProcesses:
             except (OSError, ValueError, AttributeError):
                 continue
             at = ids.index(other["sessionId"]) if other.get("sessionId") in ids else -1
-            if at >= 0 and (best is None or at > best[0]) and alive(pid):
+            if at >= 0 and (best is None or at > best[0]) and runs(pid, other, self.proc):
                 best = (at, other)
         return best[1] if best else None
 
@@ -169,6 +198,33 @@ class ClaudeProcesses:
             return False
         info = self._info(pane_pid)
         return bool(info and self._moved_to(info))
+
+    def former_remote_ids(self, pane_pid: int) -> list[str]:
+        """Remote Control sessions this pane's conversation ran before its own process's: those of process
+        files whose process is gone (or that are left from before a restart) for the same conversation, or for one whose
+        transcript went on into it (a resume, a move to the background). Never a fork: a fork goes on in
+        a conversation of its own."""
+        info = self._info(pane_pid)
+        current = info.get("sessionId") if info else None
+        if not info or not isinstance(current, str):
+            return []
+        own = self.remote_id(pane_pid)
+        found = []
+        for file in self.sessions_dir.glob("*.json"):
+            try:
+                other = json.loads(file.read_text())
+                pid = int(other.get("pid") or file.stem)
+            except (OSError, ValueError, AttributeError):
+                continue
+            remote_id = _remote_id(other)
+            if not remote_id or remote_id == own or runs(pid, other, self.proc):
+                continue  # a process still running is a session of its own (the same conversation resumed twice)
+            if other.get("sessionId") == current or (
+                (path := self._path(other)) is not None and path.is_file()
+                and current in continuations(path, self.projects_dir)
+            ):  # fmt: skip
+                found.append(remote_id)
+        return sorted(set(found))
 
     def name(self, pane_pid: int, screen: str = "") -> str | None:
         """The session's name in Claude Code (what `/rename` set, or the one it gave itself)."""
@@ -206,7 +262,7 @@ class ClaudeProcesses:
             except (OSError, ValueError, AttributeError):
                 continue
             remote_id = _remote_id(info)
-            if remote_id and alive(pid):
+            if remote_id and runs(pid, info, self.proc):
                 entrypoint = info.get("entrypoint")
                 found[remote_id] = ClaudeProcess(
                     pid=pid, cwd=str(info.get("cwd") or ""), entrypoint=str(entrypoint) if entrypoint else None

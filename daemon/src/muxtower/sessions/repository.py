@@ -1,6 +1,7 @@
 import json
 import sqlite3
-from datetime import datetime
+from collections.abc import Iterable
+from datetime import UTC, datetime
 
 from muxtower.infra.db import Database
 from muxtower.sessions.ports import SessionRecord, SessionSource
@@ -82,3 +83,19 @@ class SqliteSessionRepository:
     def delete(self, session_id: str) -> None:
         with self.db.connect() as conn:
             conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+            conn.execute("DELETE FROM session_remote_ids WHERE session_id = ?", (session_id,))
+
+    def note_remote_ids(self, session_id: str, remote_ids: Iterable[str]) -> None:
+        """Remote Control sessions this session's agent ran (or runs): each is this session's from now on."""
+        at = datetime.now(UTC).isoformat()
+        with self.db.connect() as conn:
+            conn.executemany(
+                """INSERT INTO session_remote_ids (remote_id, session_id, seen_at) VALUES (?, ?, ?)
+                   ON CONFLICT(remote_id) DO UPDATE SET session_id = excluded.session_id, seen_at = excluded.seen_at""",
+                [(r, session_id, at) for r in remote_ids],
+            )
+
+    def remote_ids(self) -> dict[str, str]:
+        """Every Remote Control session a session's agent has run, to that session."""
+        with self.db.connect() as conn:
+            return {row["remote_id"]: row["session_id"] for row in conn.execute("SELECT * FROM session_remote_ids")}
