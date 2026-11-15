@@ -13,6 +13,7 @@ import asyncio
 import logging
 import threading
 from collections import defaultdict
+from collections.abc import Callable
 from concurrent.futures import Future
 from concurrent.futures import TimeoutError as FutureTimeout
 from datetime import UTC, datetime
@@ -58,6 +59,7 @@ class TaskService:
         self._wake: asyncio.Event | None = None
         self._answers: dict[int, Future[str]] = {}  # what became of a task its sender waits on
         self._lock = threading.Lock()
+        self.changed: Callable[[], None] = lambda: None  # a task added, or what became of one: set by the app
 
     def receiver(self, to: str, sender: Member | None) -> Member:
         """Blocking. A session id; else `role@project` (split at the last @, both without regard to case); else
@@ -107,6 +109,7 @@ class TaskService:
         with self._lock:
             self.repo.add(task)
             self._answers[task.id] = answer
+        self.changed()
         try:
             if not self.wake():
                 return task, receiver, "queued"  # no loop runs (yet): it sends once one does
@@ -143,6 +146,7 @@ class TaskService:
         if session is None or session.archived_at:
             task.status = "undeliverable"
             self.repo.update(task)
+            self.changed()
             return "undeliverable"
         if session.needs_attention and not _by_remote_control(session):
             return "waiting"  # typing now would answer its prompt
@@ -154,6 +158,7 @@ class TaskService:
             return "failed"
         task.status, task.delivered_at = "delivered", datetime.now(UTC)
         self.repo.update(task)
+        self.changed()
         return "delivered"
 
     def _answer(self, task_id: int, outcome: str) -> None:

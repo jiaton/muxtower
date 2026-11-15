@@ -1,6 +1,6 @@
 import type { components } from '@/lib/api/schema'
 import { APP_VERSION } from '@/lib/app-update'
-import type { MachineUsage, NodeInfo, RuntimeInfo, Session } from '@/lib/api/types'
+import type { MachineUsage, NodeInfo, RuntimeInfo, Session, TeamTask } from '@/lib/api/types'
 import { DEMO_DAEMON, HOME, NODE } from './scenes/session'
 import { startedScene } from './scenes/started'
 import { plain } from './scenes/terminal'
@@ -224,10 +224,24 @@ const USAGE = (): MachineUsage[] =>
   })) // prettier-ignore
 
 /** Answers a request to the demo daemon the way a daemon would, from `world`. */
+/** A project's team at work, as the daemon answers it: its sessions' tasks, sent or received. */
+function projectActivity(world: World, project: string) {
+  const members = world
+    .sessions()
+    .filter((s) => s.project === project && !s.archived_at)
+    .map((s) => s.id)
+  const seen = new Map<number, TeamTask>()
+  for (const id of world.sessions().map((s) => s.id))
+    for (const t of world.tasks(id)) if (members.includes(t.to_id) || members.includes(t.from_id ?? '')) seen.set(t.id, t)
+  return { project, members, tasks: [...seen.values()].sort((a, b) => a.at.localeCompare(b.at)), messages: [] }
+}
+
 export async function respond(world: World, request: Request): Promise<Response> {
   const url = new URL(request.url)
   const { pathname } = url
   const method = request.method.toUpperCase()
+  const activity = method === 'GET' ? /^\/v1\/projects\/(.+)\/activity$/.exec(pathname) : null
+  if (activity) return json(projectActivity(world, decodeURIComponent(activity[1]!)))
   const fixed = ROUTES[`${method} ${pathname}`]
   const match = /^\/v1\/sessions\/([^/]+)(?:\/(.+))?$/.exec(pathname)
   const handler = match && SESSION_ROUTES[`${method} ${match[2] ?? ''}`]

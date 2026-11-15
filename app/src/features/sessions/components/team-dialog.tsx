@@ -9,6 +9,7 @@ import type { Session, TeamTask } from '@/lib/api/types'
 import { ago } from '@/lib/time'
 import { useSessionTasks, useUpdateTeam } from '../api/use-team'
 import { useSessionEntries } from '../hooks/use-session-entries'
+import { TeamDiagram } from './team-diagram'
 
 import { Label } from '@/components/ui/label'
 import { ink, look } from '@/components/ui/intents'
@@ -63,7 +64,9 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
       <DialogContent
         title={`${session.name} in its team`}
         description="Sessions of a project find each other by role and hand each other work."
+        className="sm:max-w-2xl"
       >
+        <TeamDiagram daemonId={daemonId} project={session.project} />
         <form
           className="flex flex-col gap-3"
           onSubmit={(e) => {
@@ -110,7 +113,7 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
           </div>
         </form>
         <section aria-label="Tasks" className={`${look.rule.top} mt-2 pt-3`}>
-          <h3 className={ink.eyebrow}>Tasks</h3>
+          <h3 className={ink.eyebrow}>This session’s tasks</h3>
           {tasks.data?.length ? (
             <ul className={`${look.rows} flex flex-col`}>
               {tasks.data.map((task) => (

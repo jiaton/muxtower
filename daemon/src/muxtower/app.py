@@ -255,6 +255,7 @@ def create_app(
     joined = hub_store.load()
     allowed_origins = app_origins(settings.cors.allowed_origins, joined.url if joined else None)
     teams.changed = lambda: bus.publish("sessions", None)
+    team_tasks.changed = lambda: bus.publish("sessions", None)  # the team diagram follows (activity)
     mcp = McpTools(
         directory, launcher, concierge, daemon_name, lambda: list(nodes.all()), teams, team_tasks, archiver,
         forward=hub.team_tool, watches=watches,

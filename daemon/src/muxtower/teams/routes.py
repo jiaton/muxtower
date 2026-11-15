@@ -1,7 +1,8 @@
 """The owner's view of teams: a session's role and project set from the app, and the tasks it was sent or
 sent (`teams/tasks.py`). Agents use the MCP tools for the same (`mcp/team_tools.py`)."""
 
-from datetime import datetime
+import asyncio
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request
@@ -82,3 +83,39 @@ def latest_tasks(
     none is left out. For a team card: one request for every member."""
     latest = tasks.recent(to, 1)
     return {session_id: TeamTask(**vars(sent[0])) for session_id, sent in latest.items() if sent}
+
+
+class TeamMessage(BaseModel):
+    at: datetime
+    from_id: str | None = Field(description="the session that typed it; null: one not known by its id")
+    from_label: str
+    to_id: str
+
+
+class TeamActivity(BaseModel):
+    """A project's team at work: its members, and the tasks and messages sent from or to them."""
+
+    project: str
+    members: list[str] = Field(description="its sessions' ids")
+    tasks: list[TeamTask] = Field(description="oldest first")
+    messages: list[TeamMessage] = Field(description="typed into a session (send_message): no text kept")
+
+
+@router.get("/projects/{project:path}/activity")
+async def project_activity(
+    project: str, request: Request, _: CurrentDevice, teams: Teams, tasks: Tasks, audit: Audit,
+    hours: Annotated[int, Query(ge=1, le=168)] = 24,
+) -> TeamActivity:  # fmt: skip
+    """What a project's team sent each other (and others, and was sent) in the last `hours`: for its diagram.
+    Tasks or messages from or to another project's session are included, the other end named by its id."""
+    members = {m.session.id for m in await asyncio.to_thread(teams.members) if m.project == project}
+    since = datetime.now(UTC) - timedelta(hours=hours)
+    sent = [t for t in tasks.repo.since(since, 500) if t.to_id in members or (t.from_id or "") in members]
+    typed = []
+    for at, actor, to_id in audit.messages(since):
+        from_id = actor.removeprefix("session ") if actor.startswith("session ") else None
+        if to_id in members or (from_id or "") in members:
+            typed.append(TeamMessage(at=at, from_id=from_id, from_label=actor, to_id=to_id))
+    return TeamActivity(
+        project=project, members=sorted(members), tasks=[TeamTask(**vars(t)) for t in sent], messages=typed
+    )

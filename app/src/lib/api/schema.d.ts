@@ -341,6 +341,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{project}/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Project Activity
+         * @description What a project's team sent each other (and others, and was sent) in the last `hours`: for its diagram.
+         *     Tasks or messages from or to another project's session are included, the other end named by its id.
+         */
+        get: operations["project_activity_v1_projects__project__activity_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/push/key": {
         parameters: {
             query?: never;
@@ -2322,6 +2343,46 @@ export interface components {
         SummaryStatus: {
             state: components["schemas"]["SummaryState"];
         };
+        /**
+         * TeamActivity
+         * @description A project's team at work: its members, and the tasks and messages sent from or to them.
+         */
+        TeamActivity: {
+            /**
+             * Members
+             * @description its sessions' ids
+             */
+            members: string[];
+            /**
+             * Messages
+             * @description typed into a session (send_message): no text kept
+             */
+            messages: components["schemas"]["TeamMessage"][];
+            /** Project */
+            project: string;
+            /**
+             * Tasks
+             * @description oldest first
+             */
+            tasks: components["schemas"]["TeamTask"][];
+        };
+        /** TeamMessage */
+        TeamMessage: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * From Id
+             * @description the session that typed it; null: one not known by its id
+             */
+            from_id: string | null;
+            /** From Label */
+            from_label: string;
+            /** To Id */
+            to_id: string;
+        };
         /** TeamTask */
         TeamTask: {
             /**
@@ -3020,6 +3081,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PairCode"];
+                };
+            };
+        };
+    };
+    project_activity_v1_projects__project__activity_get: {
+        parameters: {
+            query?: {
+                hours?: number;
+            };
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TeamActivity"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

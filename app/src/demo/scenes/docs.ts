@@ -58,6 +58,22 @@ export function docs(): Scene {
       created_at: ago(25),
       updated_at: ago(0.1),
     }),
+    tasks: [
+      {
+        id: 2, at: ago(40), from_id: 'shop-api', from_label: 'shop-api (worker) · shop-api', to_id: 'docs',
+        text: 'Document the payment retries: when they happen, how long they back off, what the user sees.',
+        status: 'delivered', delivered_at: ago(40),
+      },
+      {
+        id: 3, at: ago(12), from_id: null, from_label: 'device phone', to_id: 'docs',
+        text: 'Add a getting-started page for the CLI, from install to a first run.', status: 'delivered',
+        delivered_at: ago(12),
+      },
+      {
+        id: 4, at: ago(3), from_id: 'release-notes', from_label: 'Release notes for 2.4 (research) · release-notes',
+        to_id: 'docs', text: 'Link the 2.4 release notes from the changelog page.', status: 'held', delivered_at: null,
+      },
+    ], // prettier-ignore
     history: [...codexWelcome('~/code/shop-api-docs'), ...EARLIER],
     footer: [...codexWorking(4), ...codexInput],
     items: [],

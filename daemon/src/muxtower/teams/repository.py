@@ -102,6 +102,14 @@ class SqliteTaskRepository:
             ).fetchall()
         return [_task(r) for r in rows]
 
+    def since(self, at: datetime, limit: int) -> list[Task]:
+        """Every task sent since `at`, oldest first, at most the `limit` newest."""
+        with self.db.connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM team_tasks WHERE at >= ? ORDER BY id DESC LIMIT ?", (at.isoformat(), limit)
+            ).fetchall()
+        return [_task(r) for r in reversed(rows)]
+
     def latest_to(self, session_ids: list[str], each: int) -> dict[str, list[Task]]:
         found: dict[str, list[Task]] = {}
         with self.db.connect() as conn:

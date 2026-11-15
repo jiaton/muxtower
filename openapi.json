@@ -2986,6 +2986,84 @@
         "title": "SummaryStatus",
         "type": "object"
       },
+      "TeamActivity": {
+        "description": "A project's team at work: its members, and the tasks and messages sent from or to them.",
+        "properties": {
+          "members": {
+            "description": "its sessions' ids",
+            "items": {
+              "type": "string"
+            },
+            "title": "Members",
+            "type": "array"
+          },
+          "messages": {
+            "description": "typed into a session (send_message): no text kept",
+            "items": {
+              "$ref": "#/components/schemas/TeamMessage"
+            },
+            "title": "Messages",
+            "type": "array"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          },
+          "tasks": {
+            "description": "oldest first",
+            "items": {
+              "$ref": "#/components/schemas/TeamTask"
+            },
+            "title": "Tasks",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project",
+          "members",
+          "tasks",
+          "messages"
+        ],
+        "title": "TeamActivity",
+        "type": "object"
+      },
+      "TeamMessage": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "from_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the session that typed it; null: one not known by its id",
+            "title": "From Id"
+          },
+          "from_label": {
+            "title": "From Label",
+            "type": "string"
+          },
+          "to_id": {
+            "title": "To Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "from_id",
+          "from_label",
+          "to_id"
+        ],
+        "title": "TeamMessage",
+        "type": "object"
+      },
       "TeamTask": {
         "properties": {
           "at": {
@@ -4108,6 +4186,61 @@
         "summary": "Create Pair Code",
         "tags": [
           "devices"
+        ]
+      }
+    },
+    "/v1/projects/{project}/activity": {
+      "get": {
+        "description": "What a project's team sent each other (and others, and was sent) in the last `hours`: for its diagram.\nTasks or messages from or to another project's session are included, the other end named by its id.",
+        "operationId": "project_activity_v1_projects__project__activity_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "hours",
+            "required": false,
+            "schema": {
+              "default": 24,
+              "maximum": 168,
+              "minimum": 1,
+              "title": "Hours",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TeamActivity"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Project Activity",
+        "tags": [
+          "teams"
         ]
       }
     },

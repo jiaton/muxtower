@@ -49,6 +49,8 @@ class Task:
 
 
 class TaskRepository(Protocol):
+    def since(self, at: datetime, limit: int) -> list[Task]: ...
+
     def add(self, task: Task) -> Task:
         """Stores it (its id given here) and drops the oldest past the latest few hundred."""
         ...

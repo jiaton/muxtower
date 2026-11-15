@@ -175,3 +175,26 @@ export const bubble = ({ state }: { state: 'prompt' | 'pending' | 'undelivered' 
       ? cn(box({ outline: 'default', dashed: true }), text({ tone: 'muted' }))
       : cn(box({ ground: 'accent', faded: state === 'pending' ? 'half' : undefined }), text({ tone: 'onAccent' })),
   )
+
+/** A team diagram's parts (features/sessions/components/team-diagram.tsx), drawn in SVG from the tokens:
+ *  a member and one outside the team (faded), one at work (its outline in the busy colour, pulsing
+ *  only where motion is welcome: `motion-safe`), the work sent (held work in the accent), counts, lanes, and the timeline's marks. */
+export const diagram = {
+  node: 'fill-surface stroke-border',
+  nodeOutside: 'fill-surface-muted stroke-border opacity-60',
+  nodeBusy: 'fill-surface stroke-state-busy motion-safe:animate-pulse',
+  name: 'fill-fg text-xs font-medium',
+  meta: 'fill-fg-muted text-xs',
+  edge: 'fill-none stroke-fg-muted',
+  edgeHeld: 'fill-none stroke-accent',
+  edgeChosen: 'fill-none stroke-fg',
+  head: 'fill-fg-muted',
+  headHeld: 'fill-accent',
+  badge: 'fill-surface stroke-border',
+  badgeHeld: 'fill-surface stroke-accent',
+  count: 'fill-fg text-xs',
+  lane: 'stroke-border',
+  message: 'fill-none stroke-fg-muted',
+  now: 'stroke-accent',
+  hit: 'cursor-pointer fill-none stroke-transparent',
+} as const
