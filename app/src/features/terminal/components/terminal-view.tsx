@@ -39,6 +39,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
   const body = useRef<HTMLDivElement>(null)
   const probe = useRef<HTMLDivElement>(null)
   const wideProbe = useRef<HTMLDivElement>(null)
+  const glyphProbe = useRef<HTMLSpanElement>(null)
   const shown = useRef<string[]>([])
   const above = useRef(0) // lines pushed off the top, still shown above `shown` while the reader is scrolled up
   const atBottom = useRef(true)
@@ -133,6 +134,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
       // At the bottom, it stays there through the change at once (not a moment later, its last lines hidden).
       if (atBottom.current) scrollBox.scrollTop = scrollBox.scrollHeight
       setWideScale(scrollBox, probe.current, wideProbe.current)
+      setBoxScale(scrollBox, probe.current, glyphProbe.current)
       clearTimeout(timer)
       timer = setTimeout(() => {
         const line = probe.current!.getBoundingClientRect()
@@ -182,7 +184,8 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
         tabIndex={0}
       >
         <div ref={probe} aria-hidden className="pointer-events-none invisible absolute w-max">
-          MMMMMMMMMM
+          {/* An inline run: its height is the glyphs' own (ascent to descent), the row's is the div's. */}
+          <span ref={glyphProbe}>MMMMMMMMMM</span>
         </div>
         {/* Ten CJK characters as the fallback font draws them unscaled: how much to scale them to two cells. */}
         <div ref={wideProbe} aria-hidden className="pointer-events-none invisible absolute w-max">
@@ -221,4 +224,12 @@ function setWideScale(box: HTMLElement, cells: HTMLElement | null, wide: HTMLEle
   const cell = (cells?.getBoundingClientRect().width ?? 0) / 10
   const glyph = (wide?.getBoundingClientRect().width ?? 0) / 10
   if (cell > 0 && glyph > 0) box.style.setProperty('--wide-scale', String((2 * cell) / glyph))
+}
+
+/** How much box drawing is stretched to fill a row (`term-box`, tokens.css): the row's height over the
+ *  glyphs' own (an inline run's height is its font's ascent to descent). */
+function setBoxScale(box: HTMLElement, row: HTMLElement | null, glyphs: HTMLElement | null) {
+  const rowHeight = row?.getBoundingClientRect().height ?? 0
+  const glyphHeight = glyphs?.getBoundingClientRect().height ?? 0
+  if (rowHeight > 0 && glyphHeight > 0) box.style.setProperty('--box-scale', String(rowHeight / glyphHeight))
 }

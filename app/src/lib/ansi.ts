@@ -76,7 +76,10 @@ const escapeHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '
 //   cells wide (`term-wide`, tokens.css: the scale is measured in this browser by the terminal view, 2ch
 //   over the glyph's own width), its line height kept to the row's: no box, no gap, nothing left over;
 // - another wide character (an emoji, a symbol) is boxed in its two cells, a glyph of its own font;
-// - a run of other non-ASCII (a rule of ─, an accent) is boxed in its cells.
+// - a run of box drawing and blocks (U+2500–259F: rules, frames, a table's borders) is boxed in its cells
+//   and stretched to the row's height (`term-box`, tokens.css; the stretch measured by the terminal view),
+//   so a │ meets the one in the row above and below;
+// - a run of other non-ASCII (an accent, a symbol) is boxed in its cells.
 // The boxes clip: a glyph drawn wider than its cells would otherwise widen the view past the pane and let
 // it scroll sideways. Aligned to the top, since a clipping inline box sits on its bottom edge instead of
 // the text's baseline.
@@ -101,26 +104,33 @@ const CJK: [number, number][] = [
 ]
 export const isCjk = (code: number) => CJK.some(([from, to]) => code >= from && code <= to)
 
-const box = (text: string, cells: number) =>
-  `<span class="inline-block overflow-hidden align-top" style="width:${cells}ch">${escapeHtml(text)}</span>`
+const box = (text: string, cells: number, extra = '') =>
+  `<span class="inline-block overflow-hidden align-top${extra}" style="width:${cells}ch">${escapeHtml(text)}</span>`
+const isBoxDrawing = (code: number) => code >= 0x2500 && code <= 0x259f
 
 function cellsHtml(run: string): string {
   let html = ''
   let narrow = ''
+  let lines = '' // box drawing, stretched to the row
   let cjk = ''
   const flush = () => {
     if (narrow) html += box(narrow, textCells(narrow))
+    if (lines) html += box(lines, textCells(lines), ' term-box')
     if (cjk) html += `<span class="term-wide">${escapeHtml(cjk)}</span>`
     narrow = ''
+    lines = ''
     cjk = ''
   }
   for (const char of run) {
     const code = char.codePointAt(0)!
-    if (cellWidth(code) !== 2) {
-      if (cjk) flush()
+    if (cellWidth(code) !== 2 && isBoxDrawing(code)) {
+      if (cjk || narrow) flush()
+      lines += char
+    } else if (cellWidth(code) !== 2) {
+      if (cjk || lines) flush()
       narrow += char
     } else if (isCjk(code)) {
-      if (narrow) flush()
+      if (narrow || lines) flush()
       cjk += char
     } else {
       flush()
@@ -154,7 +164,15 @@ function wrap(text: string, s: Style, html = gridHtml(text)): string {
   ]
     .filter(Boolean)
     .join(' ')
-  const css = [fg && `color:${fg}`, bg && `background-color:${bg}`].filter(Boolean).join(';')
+  // A background fills its row, top to bottom (an inline run's would stop at its text, a seam showing
+  // between the rows of a block of them): a box as tall as the row, at its top, as wide as its text, and a
+  // pixel into the next (a row's height in device pixels is rarely whole: no hairline where they meet).
+  const css = [
+    fg && `color:${fg}`,
+    bg && `background-color:${bg};display:inline-block;vertical-align:top;padding-bottom:1px;margin-bottom:-1px`,
+  ]
+    .filter(Boolean)
+    .join(';')
   if (!classes && !css) return html
   return `<span${classes ? ` class="${classes}"` : ''}${css ? ` style="${css}"` : ''}>${html}</span>`
 }

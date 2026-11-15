@@ -164,3 +164,10 @@
   font-size: calc(1em * var(--wide-scale, 1.2));
   line-height: 0;
 }
+
+/* Box drawing and blocks in the terminal (lib/ansi.ts): stretched to the row's height about their middle
+   (`--box-scale`, the row's height over the glyph's own, measured by the terminal view), so a frame's or a
+   table's │ meets the one above and below with no gap; their width is untouched. */
+.term-box {
+  transform: scaleY(var(--box-scale, 1));
+}

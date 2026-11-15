@@ -28,7 +28,8 @@ describe('ansiToLines', () => {
   it('gives non-ASCII exactly its cells: CJK scaled to two each, other wide characters and runs boxed', () => {
     expect(gridHtml('ab')).toBe('ab')
     expect(gridHtml('中文')).toBe('<span class="term-wide">中文</span>')
-    expect(gridHtml('x──y')).toBe('x<span class="inline-block overflow-hidden align-top" style="width:2ch">──</span>y')
+    expect(gridHtml('x──y')).toBe('x<span class="inline-block overflow-hidden align-top term-box" style="width:2ch">──</span>y') // stretched to the row
+    expect(gridHtml('é')).toBe('<span class="inline-block overflow-hidden align-top" style="width:1ch">é</span>')
     expect(gridHtml('🚀')).toBe('<span class="inline-block overflow-hidden align-top" style="width:2ch">🚀</span>') // its own font: boxed
     expect(gridHtml('好，ok')).toBe('<span class="term-wide">好，</span>ok') // full-width punctuation scales with it
   })
@@ -46,6 +47,11 @@ describe('ansiToLines', () => {
       const plain = line.replace(/\x1b\[[0-9;]*m/g, '')
       expect(cellsOf(ansiToLines(line)[0]!)).toBe(textCells(plain))
     }
+  })
+
+  it('a background fills its row: a box as tall as the row, as wide as its text', () => {
+    expect(ansiToLines('\x1b[48;5;237m> 你好  \x1b[0m')[0]).toContain('display:inline-block;vertical-align:top')
+    expect(cellsOf(ansiToLines('\x1b[48;5;237m> 你好  \x1b[0m')[0]!)).toBe(textCells('> 你好  '))
   })
 
   it('keeps Claude Code’s own lines in their cells: bullet, frames, prompt, status', () => {
