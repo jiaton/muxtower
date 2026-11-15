@@ -410,6 +410,9 @@ def test_former_bridges_are_found_from_process_files_left_for_the_same_conversat
     (sessions / "99999998.json").write_text(json.dumps(other))
     processes = ClaudeProcesses(tmp_path / "claude", proc=proc)
     assert processes.former_remote_ids(pid) == ["cse_OLD"]
+    from muxtower.agents.processes import AgentProcesses  # what the monitor asks: every agent plugin
+
+    assert AgentProcesses([processes]).former_remote_ids(pid) == ["cse_OLD"]
     # An earlier conversation that went on in this one (continued-in): its bridge was this session's too.
     current = "c2795c42-0000-4000-8000-000000000000"
     (sessions / f"{pid}.json").write_text(json.dumps({**now, "sessionId": current}))

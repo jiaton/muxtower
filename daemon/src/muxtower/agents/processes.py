@@ -29,5 +29,13 @@ class AgentProcesses:
         """Whether the pane's agent moved its conversation to a process of its own (Claude Code's background)."""
         return any((ask := getattr(p, "moved", None)) and ask(pane_pid, screen) for p in self.plugins)
 
+    def former_remote_ids(self, pane_pid: int) -> list[str]:
+        """Remote Control sessions the pane's conversation ran before (`ClaudeProcesses.former_remote_ids`)."""
+        found: list[str] = []
+        for p in self.plugins:
+            if ask := getattr(p, "former_remote_ids", None):
+                found += ask(pane_pid)
+        return found
+
     def running(self) -> dict[str, ClaudeProcess]:
         return {k: v for p in self.plugins for k, v in p.running().items()}
