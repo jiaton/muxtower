@@ -9,6 +9,8 @@ import { useTerminalPrefs } from '../store'
 import { Spinner } from '@/components/ui/indicators'
 import { look } from '@/components/ui/intents'
 import { FitGuard, StableHeight, frameOf } from '../fit-guard'
+import { rowPx } from '../geometry'
+import { useDevicePixelRatio } from '../hooks/use-device-pixel-ratio'
 
 interface Props {
   ansi: string | undefined
@@ -34,15 +36,11 @@ const KEPT_ABOVE = 2000
  * the top or older lines added on top are removed/inserted, and the scroll position is corrected by
  * their height so the reader's place never jumps. At the bottom, the view follows new output.
  */
-/** A terminal row's height, in ems: the one value every row, the fit (its probe), a background's box and
- *  box drawing's stretch follow. Above the usual 1.375 since a CJK glyph is drawn 1.17em tall (two cells,
- *  `term-wide`): Chinese lines keep their breathing room. */
-export const TERM_LINE = 1.5
-
 export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, onFitRequest }: Props) {
   const scroller = useRef<HTMLDivElement>(null)
   const body = useRef<HTMLDivElement>(null)
   const probe = useRef<HTMLDivElement>(null)
+  const dpr = useDevicePixelRatio() // rows in whole device pixels (`rowPx`)
   const wideProbe = useRef<HTMLDivElement>(null)
   const glyphProbe = useRef<HTMLSpanElement>(null)
   const emojiProbe = useRef<HTMLDivElement>(null)
@@ -185,7 +183,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
         ref={scroller}
         onScroll={onScroll}
         className="min-h-0 flex-1 overflow-auto overscroll-y-contain [scrollbar-gutter:stable] p-2 font-mono whitespace-pre text-terminal-fg [-webkit-text-size-adjust:none] [overflow-anchor:none] [text-size-adjust:none] [&>div>div]:min-h-[1lh]"
-        style={{ fontSize, lineHeight: TERM_LINE }}
+        style={{ fontSize, lineHeight: `${rowPx(fontSize, dpr)}px` }}
         role="log"
         aria-label="Session output"
         tabIndex={0}

@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "typecheck": "tsr generate && tsc -b --noEmit",
     "lint": "oxlint --react-plugin -D react/rules-of-hooks src && npm run check:tokens",
+    "e2e:glyphs": "playwright test",
     "check:tokens": "node scripts/check-tokens.mjs && node scripts/check-styles.mjs",
     "test": "vitest run",
     "gen:api": "openapi-typescript ../openapi.json -o src/lib/api/schema.d.ts",
@@ -43,6 +44,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@resvg/resvg-js": "^2.6.2",
     "@tailwindcss/vite": "^4.3.3",
     "@tanstack/router-cli": "^1.167.40",

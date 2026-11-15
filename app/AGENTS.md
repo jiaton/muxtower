@@ -24,6 +24,31 @@
 - Contract: `openapi-typescript` types from `../openapi.json` + `openapi-fetch`
 - Terminal: our own view (`features/terminal`): ANSI → HTML lines (`lib/ansi.ts`) in a natively scrolling box, diffed line by line (`features/terminal/lines.ts`); no xterm.js. Non-ASCII text gets exactly the cells tmux gives it (`lib/cell-width.ts`), so every line adds up to the pane's columns: a CJK character is its fallback font scaled to exactly two cells (`term-wide`, the scale measured in the browser by the terminal view), an emoji or other wide symbol a 2ch box, other runs a box their width in `ch`, so columns line up whatever fallback font draws it; ASCII is drawn in the JetBrains Mono the app ships (`src/assets/fonts/`, Regular and Bold, OFL), since a browser with no monospace font draws `monospace` proportionally · PWA/push: `vite-plugin-pwa` (injectManifest, own service worker). App and notification icons: SVG sources (`public/icon.svg`, `scripts/icons/`) rendered to the PNGs in `public/` by `npm run icons` (commit both); Android needs PNGs to install the app and to show its notifications under its own icon
 
+### Terminal glyphs: every class has one rule
+
+The terminal view draws each glyph by its class. **A new rendering issue becomes a fixture plus a class
+rule, never a one-off patch**: a fixture in `src/features/terminal/glyph-fixtures.ts` (made-up content, in
+tmux's cells) that shows it, checked by the pixel suite `e2e/glyphs.spec.ts` (`make glyphs`; CI runs it
+before every release: each fixture at 46 and 96 columns and at 1×, 2× and 2.6× pixels, no seam between
+solid cells, no gap along a vertical line, text within 0.5 px of its cells at a row's end), then a rule for
+its whole class below. A row is `rowPx` tall (`features/terminal/geometry.ts`: 1.5 × the font size, snapped
+to whole device pixels), every row the same.
+
+| Class | Characters | Drawn as | Fixture |
+| --- | --- | --- | --- |
+| ASCII | U+0020–007E | JetBrains Mono (shipped), 1 cell each | `mixed` |
+| Wide (CJK) | `textCells` 2, not emoji | the fallback font scaled to exactly 2 cells (`term-wide`) | `mixed`, `frames` |
+| Emoji | composed graphemes tmux 3.4 makes 2 cells | a 2-cell box, the glyph scaled to fit (`term-emoji`) | `mixed` |
+| Other narrow symbols | the rest, 1 cell | a box of their cells' width | `mixed` |
+| Backgrounds and inverse | a run's SGR 4x / 7 | today: inline-block runs, 1 px overlap below; step 2: painted cells | `backgrounds` |
+| Box drawing | U+2500–257F | today: the font, stretched to the row (`term-box`); step 2: painted lines through cell centres | `frames` |
+| Block elements and shades | U+2580–259F | today: the font; step 2: painted rectangles (shades as the colour at 25/50/75 %) | `blocks`, `shades`, `eighths`, `logo` |
+| Sextants and legacy blocks | U+1FB00–1FB3B, U+1FB70–1FB8B | step 3: painted | (step 3) |
+| Powerline | U+E0B0–E0B3 and kin | today: the font; step 3: painted triangles | `powerline` |
+
+The suite's known reds (`KNOWN_RED` in the spec) are classes still drawn by the font; a change that makes
+one pass must take it off that list (an expected failure that passes fails the run).
+
 ## Architecture (layered — do not collapse)
 
 1. `src/components/ui/` — primitives only. The only place a new visual style is defined.
@@ -130,7 +155,7 @@ A daemon can also be a hub: other computers' daemons join it as nodes (`docs/des
 
 - Vitest + React Testing Library; network mocked with MSW at the HTTP boundary (`src/test/handlers.ts`), generated from the same schema types.
 - Every `features/*/api` hook has a test; every `components/ui` primitive has a render test before a second feature uses it.
-- Playwright E2E in `e2e/` against a dev daemon with a fake runtime.
+- Playwright E2E in `e2e/`: the terminal glyph suite (`make glyphs`, above), against Vite's dev server.
 
 ## Forbidden
 

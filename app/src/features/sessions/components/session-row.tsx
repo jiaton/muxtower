@@ -98,7 +98,12 @@ export function SessionRow({
               />
             ) : null}
             <time
-              className={cn(session.unread ? ink.noteAccent : ink.meta, ink.count, 'shrink-0')}
+              // Where the row's ⋯ shows (pointed at, focused, its menu open), it takes the time's place.
+              className={cn(
+                session.unread ? ink.noteAccent : ink.meta,
+                ink.count,
+                'shrink-0 pointer-fine:group-focus-within:invisible pointer-fine:group-hover:invisible pointer-fine:group-has-[[data-state=open]]:invisible',
+              )}
               dateTime={session.updated_at}
               title={new Date(session.updated_at).toLocaleString()}
             >

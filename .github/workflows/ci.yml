@@ -35,3 +35,4 @@ jobs:
       - run: cd glasses && npm ci
       - run: cd site && npm ci
       - run: make check
+      - run: make glyphs  # the terminal glyph suite: seams and drift in real screenshots (app/e2e)

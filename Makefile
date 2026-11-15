@@ -1,4 +1,4 @@
-.PHONY: contract contract-check check wheel site public-app
+.PHONY: glyphs contract contract-check check wheel site public-app
 
 contract:
 	cd daemon && poetry run python -c "from muxtower.cli.serve import print_openapi; print_openapi()" > ../openapi.json
@@ -15,6 +15,11 @@ check:
 	cd glasses && npm run lint && npm run typecheck && npm test
 	cd site && npm run check
 	$(MAKE) contract-check
+
+# The terminal glyph suite (app/e2e/glyphs.spec.ts): every fixture drawn at phone and desktop widths and
+# three pixel densities, checked in screenshots. About half a minute: CI runs it before every release.
+glyphs:
+	cd app && npx playwright install $(if $(CI),--with-deps,) chromium && npm run e2e:glyphs
 
 wheel:
 	cd app && npm ci && npm run build
