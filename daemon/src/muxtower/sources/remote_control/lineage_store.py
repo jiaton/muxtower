@@ -50,3 +50,21 @@ class SqliteLineageStore:
             if session_id is None:
                 return conn.execute("DELETE FROM rc_lineage").rowcount
             return conn.execute("DELETE FROM rc_lineage WHERE session_id = ?", (session_id,)).rowcount
+
+
+class SqlitePlaceStore:
+    """Where each Remote Control session last ran (`RemoteControlSource.places`)."""
+
+    def __init__(self, db: Database) -> None:
+        self.db = db
+
+    def load(self) -> dict[str, tuple[str, str]]:
+        with self.db.connect() as conn:
+            return {r["session_id"]: (r["machine"], r["cwd"]) for r in conn.execute("SELECT * FROM rc_places")}
+
+    def save(self, session_id: str, machine: str, cwd: str) -> None:
+        with self.db.connect() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO rc_places (session_id, machine, cwd) VALUES (?, ?, ?)",
+                (session_id, machine, cwd),
+            )

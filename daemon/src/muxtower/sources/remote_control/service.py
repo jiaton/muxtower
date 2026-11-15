@@ -17,11 +17,12 @@ from typing import Any
 
 from muxtower.errors import LoginExpired, NotFound, Unavailable
 from muxtower.infra.bus import EventBus
+from muxtower.sessions.endable import CLOUD
 from muxtower.sessions.models import Conversation, ConversationItem, Session
 from muxtower.sources.remote_control import lineage
 from muxtower.sources.remote_control.actions import EVENTS_PER_PAGE, RcActions
 from muxtower.sources.remote_control.lineage import Lineage
-from muxtower.sources.remote_control.ports import LineageStore, RawEvent, RemoteControlPort
+from muxtower.sources.remote_control.ports import LineageStore, PlaceStore, RawEvent, RemoteControlPort
 from muxtower.sources.remote_control.view import RcSession, to_session
 
 logger = logging.getLogger("muxtower.remote_control")
@@ -54,6 +55,8 @@ class RemoteControlSource(RcActions):
         self._searching: threading.Thread | None = None  # where copies came from, looked for beside the polls
         self._found = False  # it placed one since the last poll
         self.lineages: LineageStore | None = None  # where sessions came from, kept: never worked out twice
+        self.places: PlaceStore | None = None  # where each last ran (`_placed`), kept
+        self._places: dict[str, tuple[str, str]] | None = None
         self._kept: dict[str, Lineage] | None = None  # what it held at start
 
     # --- reading ------------------------------------------------------------------------------
@@ -116,8 +119,27 @@ class RemoteControlSource(RcActions):
         for key in ("status", "worker_status"):  # the details are newer than the listing
             if key in detail:
                 rc.raw[key] = detail[key]
-        rc.view = to_session(rc, self.environments)
+        rc.view = self._placed(to_session(rc, self.environments))
         return items
+
+    def _placed(self, view: Session) -> Session:
+        """Under the lock. A session with an environment: where it runs, remembered. One without (a CLI
+        session whose process has ended): shown where it last ran, offline, rather than nowhere."""
+        if self.places is None:
+            return view
+        if self._places is None:
+            self._places = self.places.load()
+        known = self._places.get(view.id)
+        if view.machine is not None:
+            if view.machine != CLOUD and not view.machine.startswith("env "):
+                now = (view.machine, view.cwd or (known[1] if known else ""))
+                if known != now:
+                    self._places[view.id] = now
+                    self.places.save(view.id, *now)
+            return view
+        if known is None:
+            return view
+        return view.model_copy(update={"machine": known[0], "cwd": view.cwd or known[1], "offline": True})
 
     def _refresh(self, session_id: str) -> None:
         with self._lock:

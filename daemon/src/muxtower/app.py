@@ -60,6 +60,7 @@ from muxtower.sessions.archive import SessionArchive
 from muxtower.sessions.archive_repository import SqliteArchiveRepository
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.claude_processes import ClaudeProcesses
+from muxtower.sessions.ended_bridges import EndedBridges
 from muxtower.sessions.launcher import Launcher
 from muxtower.sessions.marks import SessionMarks, SqliteMarksRepository
 from muxtower.sessions.monitor import Monitor
@@ -75,7 +76,7 @@ from muxtower.sessions.watches import SessionWatches
 from muxtower.settings.service import SettingsService
 from muxtower.sources.codex.service import CodexSource
 from muxtower.sources.codex.shared import SharedCodexSource
-from muxtower.sources.remote_control.lineage_store import SqliteLineageStore
+from muxtower.sources.remote_control.lineage_store import SqliteLineageStore, SqlitePlaceStore
 from muxtower.sources.remote_control.service import RemoteControlSource
 from muxtower.teams import placing
 from muxtower.teams.repository import SqliteTaskRepository, SqliteTeamRepository
@@ -133,6 +134,7 @@ def create_app(
     if remote_control is not None:
         remote_control.archived = archive  # its archived forks, told apart once (`_place_archived`)
         remote_control.lineages = SqliteLineageStore(db)  # where its sessions came from: worked out once, kept
+        remote_control.places = SqlitePlaceStore(db)  # where each last ran
     audit = AuditLog(db)
     # Daemons joined to this one (nodes): their sessions are one more source.
     nodes = Nodes(SqliteNodeRepository(db), bus)
@@ -229,6 +231,10 @@ def create_app(
                 loops["concierge"] = concierge.run_loop(bus)
             if remote_control is not None:
                 loops["remote-control"] = remote_control.run_loop(bus, settings.remote_control.poll_seconds)
+                loops["ended-bridges"] = EndedBridges(
+                    directory, archiver, processes.ended_bridges, node_sessions.ended_bridges,
+                    lambda: {name for name, node in nodes.all().items() if node.online},
+                ).run_loop()  # fmt: skip
             if codex is not None:
                 loops["codex"] = codex.run_loop(bus)
             if codex_shared is not None:

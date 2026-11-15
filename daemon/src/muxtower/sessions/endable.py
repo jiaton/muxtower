@@ -3,7 +3,8 @@ tmux pane it reaches (here or on a node; one that also runs Remote Control too),
 (Codex), a Codex app-server thread, and a Remote Control session in Anthropic's cloud (archived there, it
 stops). It cannot end a session it sees only through Remote Control that runs elsewhere: in Claude's
 desktop app (which does not follow claude.ai's archive: the session stays there, and may go on working),
-or in a terminal no muxtower watches. Such a session is only hidden here."""
+or in a terminal no muxtower watches. Such a session is only hidden here. One whose process has ended (no
+environment left: a CLI session stopped) runs nowhere: archiving it ends nothing, and is what it says."""
 
 from muxtower.sessions.models import Session
 from muxtower.sessions.ports import SessionSource
@@ -14,7 +15,7 @@ CLOUD = "cloud"  # the machine of a Remote Control session in Anthropic's cloud 
 def ends_when_archived(session: Session) -> bool:
     if session.source != SessionSource.REMOTE_CONTROL:
         return True
-    return session.machine == CLOUD
+    return session.machine == CLOUD or session.machine is None or session.offline
 
 
 def where_it_runs(session: Session) -> str:

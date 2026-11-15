@@ -37,6 +37,7 @@ REMOTE_PREFIX = "cse_"
 RUNNING_TTL_SECONDS = 5.0
 TAIL_BYTES = 16_384  # the end of a transcript, where a `continued-in` line is
 MAX_HOPS = 8
+MXT_TMUX = re.compile(r"^mxt-([0-9a-f]{8})")  # muxtower's own tmux sessions: mxt-<its id's first 8>
 SAME_START_SECONDS = 10.0  # a process file's startedAt comes 1–3 s after its process started
 # What Claude Code's agents view says in the pane while the conversation is in the background.
 AGENTS_VIEW = "conversation moved to the background"
@@ -248,6 +249,25 @@ class ClaudeProcesses:
         info = self._info(pane_pid)
         path = self._path(info) if info else None
         return continued(path, self.projects_dir) if path and path.is_file() else None
+
+    def ended_bridges(self) -> dict[str, str]:
+        """Remote Control sessions of muxtower's own tmux sessions whose Claude Code has ended (its process
+        file is left, its process gone or another's): each to the first 8 of that muxtower session's id, as
+        its tmux session is named. A bridge some process still runs is none of them."""
+        found: dict[str, str] = {}
+        for path in self.sessions_dir.glob("*.json"):
+            try:
+                info = json.loads(path.read_text())
+                pid = int(info.get("pid") or path.stem)
+            except (OSError, ValueError, AttributeError):
+                continue
+            remote_id, tmux = _remote_id(info), info.get("tmux")
+            if not remote_id or not isinstance(tmux, str) or info.get("kind", "interactive") != "interactive":
+                continue  # a worker of `claude remote-control` inherits the tmux of wherever its server runs
+            if (named := MXT_TMUX.match(tmux)) and not runs(pid, info, self.proc):
+                found[remote_id] = named.group(1)
+        running = self.running()
+        return {remote_id: prefix for remote_id, prefix in found.items() if remote_id not in running}
 
     def running(self) -> dict[str, ClaudeProcess]:
         """Every Claude Code process alive on this machine that runs Remote Control, by remote session

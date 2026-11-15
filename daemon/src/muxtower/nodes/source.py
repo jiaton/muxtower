@@ -11,6 +11,7 @@ for. A node that is offline answers nothing; its sessions are listed from its la
 
 import asyncio
 import base64
+import logging
 from collections.abc import Callable
 from datetime import datetime
 from typing import Any
@@ -24,6 +25,8 @@ from muxtower.sessions.models import Capabilities, Conversation, CreateSession, 
 from muxtower.sessions.names import NameSeen
 from muxtower.sessions.ports import SessionSource
 from muxtower.terminal.models import ImageInput, Resize, Screen, SendInput
+
+logger = logging.getLogger("muxtower.nodes")
 
 SEPARATOR = "~"
 CALL_SECONDS = 20.0
@@ -125,6 +128,23 @@ class NodeSource:
         if running is loop:
             raise RuntimeError("a node call would block the event loop")
         return asyncio.run_coroutine_threadsafe(link.call(method, params, timeout), loop).result(timeout + 5)
+
+    def ended_bridges(self) -> dict[str, dict[str, str]]:
+        """Per node online: the Remote Control sessions of its muxtower sessions whose agent has ended, each
+        to the first 8 of its session's id there (`ClaudeProcesses.ended_bridges`). A node too old to tell,
+        or not answering, tells nothing."""
+        found: dict[str, dict[str, str]] = {}
+        for name, node in self.nodes.all().items():
+            if not node.online:
+                continue
+            try:
+                answer = self.call(name, "ended_bridges", {})
+            except Exception as exc:  # noqa: BLE001 - an older node, or one gone a moment
+                logger.info("%s did not say which bridges ended: %s", name, exc)
+                continue
+            if isinstance(answer, dict):
+                found[name] = {str(k): str(v) for k, v in answer.items()}
+        return found
 
     def names(self, session_id: str) -> list[NameSeen]:
         """A node's session's other names, as its node keeps them (an older node: none)."""

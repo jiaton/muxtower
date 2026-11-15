@@ -37,5 +37,13 @@ class AgentProcesses:
                 found += ask(pane_pid)
         return found
 
+    def ended_bridges(self) -> dict[str, str]:
+        """Bridges of muxtower's tmux sessions whose agent has ended (`ClaudeProcesses.ended_bridges`)."""
+        found: dict[str, str] = {}
+        for p in self.plugins:
+            if ask := getattr(p, "ended_bridges", None):
+                found |= ask()
+        return found
+
     def running(self) -> dict[str, ClaudeProcess]:
         return {k: v for p in self.plugins for k, v in p.running().items()}

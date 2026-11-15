@@ -83,7 +83,7 @@ class SqliteSessionRepository:
     def delete(self, session_id: str) -> None:
         with self.db.connect() as conn:
             conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
-            conn.execute("DELETE FROM session_remote_ids WHERE session_id = ?", (session_id,))
+            # Its Remote Control sessions stay its: once it has ended, they are archived (`ended_bridges.py`).
 
     def note_remote_ids(self, session_id: str, remote_ids: Iterable[str]) -> None:
         """Remote Control sessions this session's agent ran (or runs): each is this session's from now on."""

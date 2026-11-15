@@ -6,7 +6,7 @@ gets a 409 instead of keys sent to the wrong place.
 """
 
 import logging
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from typing import Literal
 
 from muxtower.approval.models import Answers, ApprovalResult
@@ -86,6 +86,7 @@ class SessionDirectory(OwnerMarks):
         self.transcripts = transcripts
         self.archive_store = archive
         self.anchors = ProjectAnchors()
+        self._bridges_noted: set[tuple[str, str]] = set()  # (session, bridge) already kept (`note_remote_ids`)
         self.name_store: SessionNames | None = None  # every name a session went by (`names.py`), set by the app
         self.accounts = accounts  # the account a session here runs as (`agents/accounts.py`)
         self.concierge_id: str | None = None  # set by the concierge service once its session runs
@@ -146,7 +147,16 @@ class SessionDirectory(OwnerMarks):
         archived = self.archive_store.views() if self.archive_store else []
         listed_as = formers | {s.remote_id: s.id for s in locals_ if s.remote_id}
         live = self.anchors.apply(self._decorate(_as_listed(s, listed_as)) for s in locals_ + kept)
+        self._note_bridges(live)
         return live + [_as_listed(s, listed_as) for s in archived]
+
+    def _note_bridges(self, live: Iterable[Session]) -> None:
+        """Every session's Remote Control session, kept as its for good (a node's too: the hub lists them),
+        so that once it has ended, its bridge goes with it (`ended_bridges.py`) instead of staying on its own."""
+        new = [(s.id, s.remote_id) for s in live if s.remote_id and (s.id, s.remote_id) not in self._bridges_noted]
+        for session_id, remote_id in new:
+            self.local.repo.note_remote_ids(session_id, [remote_id])
+            self._bridges_noted.add((session_id, remote_id))
 
     def get(self, session_id: str) -> Session:
         found = self._get(session_id)

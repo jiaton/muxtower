@@ -122,6 +122,9 @@ class NodeApi:
                 d.mark_read(sid, True)
             case "detect_folder":
                 return self.placements.detect(sid)
+            case "ended_bridges":  # the hub archives them (`sessions/ended_bridges.py`)
+                ask = getattr(self.processes, "ended_bridges", None)
+                return ask() if ask else {}
             case "create":
                 return _json(self.launcher.create(CreateSession.model_validate(params.get("request"))))
             case _:
