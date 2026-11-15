@@ -154,3 +154,13 @@
     animation: none;
   }
 }
+
+/* A CJK character in the terminal (lib/ansi.ts): drawn exactly its two cells by scaling its font, so a
+   line of Chinese ends where its cells do and a background or a frame runs through to the end. The
+   scale (2ch over the glyph's own width) is measured in this browser by the terminal view
+   (`--wide-scale`; 1.2 is JetBrains Mono's ratio to a common CJK font, until measured). Its line height
+   is none of its own, so the larger glyph never makes the row taller. */
+.term-wide {
+  font-size: calc(1em * var(--wide-scale, 1.2));
+  line-height: 0;
+}

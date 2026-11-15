@@ -38,6 +38,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
   const scroller = useRef<HTMLDivElement>(null)
   const body = useRef<HTMLDivElement>(null)
   const probe = useRef<HTMLDivElement>(null)
+  const wideProbe = useRef<HTMLDivElement>(null)
   const shown = useRef<string[]>([])
   const above = useRef(0) // lines pushed off the top, still shown above `shown` while the reader is scrolled up
   const atBottom = useRef(true)
@@ -131,6 +132,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
     const measure = () => {
       // At the bottom, it stays there through the change at once (not a moment later, its last lines hidden).
       if (atBottom.current) scrollBox.scrollTop = scrollBox.scrollHeight
+      setWideScale(scrollBox, probe.current, wideProbe.current)
       clearTimeout(timer)
       timer = setTimeout(() => {
         const line = probe.current!.getBoundingClientRect()
@@ -182,6 +184,10 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
         <div ref={probe} aria-hidden className="pointer-events-none invisible absolute w-max">
           MMMMMMMMMM
         </div>
+        {/* Ten CJK characters as the fallback font draws them unscaled: how much to scale them to two cells. */}
+        <div ref={wideProbe} aria-hidden className="pointer-events-none invisible absolute w-max">
+          中文汉字测试终端宽度
+        </div>
         <div ref={body} />
       </div>
       {tooWide && onFitRequest && !onFit ? (
@@ -207,4 +213,12 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
       ) : null}
     </div>
   )
+}
+
+/** How much a CJK glyph is scaled to be exactly two cells wide in this browser (`term-wide`, tokens.css):
+ *  two of the monospace font's cells over the fallback font's own width, measured on ten of each. */
+function setWideScale(box: HTMLElement, cells: HTMLElement | null, wide: HTMLElement | null) {
+  const cell = (cells?.getBoundingClientRect().width ?? 0) / 10
+  const glyph = (wide?.getBoundingClientRect().width ?? 0) / 10
+  if (cell > 0 && glyph > 0) box.style.setProperty('--wide-scale', String((2 * cell) / glyph))
 }

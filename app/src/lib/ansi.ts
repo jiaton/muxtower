@@ -70,36 +70,62 @@ function applySgr(style: Style, params: number[]): Style {
 const escapeHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
 // ASCII is drawn by the monospace font itself; anything else may come from a fallback font of another
-// width, so it gets exactly the cells tmux gives it (see cell-width.ts): each run of non-ASCII one box its
-// width. The boxes clip: a glyph drawn wider than its cells (a phone's fallback font, a rule of ─ across the
-// whole pane) would otherwise widen the view past the pane and let it scroll sideways. Aligned to the top,
-// since a clipping inline box sits on its bottom edge instead of the text's baseline.
-//
-// Wide characters (CJK) are drawn by a line's segments instead (`lineHtml`): two cells of the monospace font
-// are wider than a CJK glyph (1.2em against 1em), so a box per character spaced Chinese out, and a box per
-// run left a gap before whatever followed it. Columns matter only where a line has them: at its rules and
-// frames (box drawing) and at its gaps of two spaces or more (a table, a list in columns). Between those, a
-// segment with wide characters is drawn tight in one box exactly its cells wide: what it leaves over falls
-// just before the next rule or gap, or at the line's end, where it is not seen, and the columns stay.
+// width, so it gets exactly the cells tmux gives it (see cell-width.ts), and every line adds up to the
+// pane's columns:
+// - a CJK character (and full-width punctuation) is drawn in its own font scaled so that it is exactly two
+//   cells wide (`term-wide`, tokens.css: the scale is measured in this browser by the terminal view, 2ch
+//   over the glyph's own width), its line height kept to the row's: no box, no gap, nothing left over;
+// - another wide character (an emoji, a symbol) is boxed in its two cells, a glyph of its own font;
+// - a run of other non-ASCII (a rule of ─, an accent) is boxed in its cells.
+// The boxes clip: a glyph drawn wider than its cells would otherwise widen the view past the pane and let
+// it scroll sideways. Aligned to the top, since a clipping inline box sits on its bottom edge instead of
+// the text's baseline.
 const NON_ASCII = /[^\x00-\x7f]+/g
+
+/** CJK scripts and full-width forms: what one scale of the CJK fallback font draws two cells wide. */
+const CJK: [number, number][] = [
+  [0x1100, 0x115f],
+  [0x2e80, 0x303e],
+  [0x3041, 0x33ff],
+  [0x3400, 0x4dbf],
+  [0x4e00, 0x9fff],
+  [0xa000, 0xa4cf],
+  [0xa960, 0xa97f],
+  [0xac00, 0xd7a3],
+  [0xf900, 0xfaff],
+  [0xfe10, 0xfe19],
+  [0xfe30, 0xfe6f],
+  [0xff00, 0xff60],
+  [0xffe0, 0xffe6],
+  [0x20000, 0x3fffd],
+]
+export const isCjk = (code: number) => CJK.some(([from, to]) => code >= from && code <= to)
+
+const box = (text: string, cells: number) =>
+  `<span class="inline-block overflow-hidden align-top" style="width:${cells}ch">${escapeHtml(text)}</span>`
 
 function cellsHtml(run: string): string {
   let html = ''
   let narrow = ''
-  let wide = ''
+  let cjk = ''
   const flush = () => {
-    if (narrow)
-      html += `<span class="inline-block overflow-hidden align-top" style="width:${textCells(narrow)}ch">${escapeHtml(narrow)}</span>`
-    if (wide)
-      html += `<span class="inline-block overflow-hidden align-top" style="width:${[...wide].length * 2}ch">${escapeHtml(wide)}</span>`
+    if (narrow) html += box(narrow, textCells(narrow))
+    if (cjk) html += `<span class="term-wide">${escapeHtml(cjk)}</span>`
     narrow = ''
-    wide = ''
+    cjk = ''
   }
   for (const char of run) {
-    const isWide = cellWidth(char.codePointAt(0)!) === 2
-    if ((isWide && narrow) || (!isWide && wide)) flush()
-    if (isWide) wide += char
-    else narrow += char
+    const code = char.codePointAt(0)!
+    if (cellWidth(code) !== 2) {
+      if (cjk) flush()
+      narrow += char
+    } else if (isCjk(code)) {
+      if (narrow) flush()
+      cjk += char
+    } else {
+      flush()
+      html += box(char, 2) // an emoji or a wide symbol: its own font, in its two cells
+    }
   }
   flush()
   return html
@@ -141,46 +167,9 @@ interface Run {
   style: Style
 }
 
-// Where a line's columns are: box drawing and blocks (rules, frames, a table's borders), and gaps of two
-// spaces or more.
-const ANCHOR = /[\u2500-\u259f]+| {2,}/g
-const hasWide = (text: string) => [...text].some((c) => cellWidth(c.codePointAt(0)!) === 2)
-
-/** A segment's runs (it may change color midway), drawn as they come, in one box `cells` wide. */
-function tightHtml(runs: Run[], cells: number): string {
-  const inner = runs.map((r) => wrap(r.text, r.style, escapeHtml(r.text))).join('')
-  const last = runs.at(-1)?.style
-  const bg = last ? (last.inverse ? (last.fg ?? 'var(--color-terminal-fg)') : last.bg) : undefined
-  return `<span class="inline-block overflow-hidden align-top" style="width:${cells}ch${bg ? `;background-color:${bg}` : ''}">${inner}</span>`
-}
-
-/** A line's styled runs → HTML: each segment between its anchors with wide characters drawn tight in a box
- *  its cells wide; everything else as `gridHtml` draws it. */
+/** A line's styled runs → HTML: each run as `gridHtml` draws it, so the line takes exactly its cells. */
 export function lineHtml(runs: Run[]): string {
-  const text = runs.map((r) => r.text).join('')
-  if (!hasWide(text)) return runs.map((r) => wrap(r.text, r.style)).join('')
-  // The runs' pieces between cuts (anchors' starts and ends), each still with its style.
-  const cuts = new Set([0, text.length])
-  for (const m of text.matchAll(ANCHOR)) cuts.add(m.index).add(m.index + m[0].length)
-  const bounds = [...cuts].sort((a, b) => a - b)
-  const piecesOf = (from: number, to: number): Run[] => {
-    const out: Run[] = []
-    let at = 0
-    for (const run of runs) {
-      const start = Math.max(from, at)
-      const end = Math.min(to, at + run.text.length)
-      if (start < end) out.push({ text: run.text.slice(start - at, end - at), style: run.style })
-      at += run.text.length
-    }
-    return out
-  }
-  let html = ''
-  for (let k = 0; k + 1 < bounds.length; k++) {
-    const segment = text.slice(bounds[k], bounds[k + 1])
-    const pieces = piecesOf(bounds[k], bounds[k + 1])
-    html += hasWide(segment) ? tightHtml(pieces, textCells(segment)) : pieces.map((r) => wrap(r.text, r.style)).join('')
-  }
-  return html
+  return runs.map((r) => wrap(r.text, r.style)).join('')
 }
 
 export function ansiToLines(text: string): string[] {
