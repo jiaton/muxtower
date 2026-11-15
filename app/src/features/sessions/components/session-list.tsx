@@ -236,6 +236,18 @@ export function SessionList({
   useEffect(() => {
     instant.current = null // only for the change it was set for
   })
+  // The open session's row comes into view when it changes (a click, Back or Forward, a key, a notification),
+  // and only when it is off screen (`nearest`: no jump when it already shows); a sticky header's room is
+  // kept above it (the row's scroll margin).
+  // Once per selection, as soon as its row is drawn (the list may still be loading).
+  const shown = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (!selectedKey || shown.current === selectedKey) return
+    const row = root.current?.querySelector<HTMLElement>(`[data-row="${selectedKey.replace(/["\\]/g, '\\$&')}"]`)
+    if (!row) return
+    shown.current = selectedKey
+    row.scrollIntoView?.({ block: 'nearest' })
+  })
   const tree = buildList(groups, held, { scope: foldScope, collapsed, foldedFirst, unfolded })
   useRowMoves(root, new Map(tree.flatMap((g) => placed(g, g.id))))
 

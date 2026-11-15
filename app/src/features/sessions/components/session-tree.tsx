@@ -10,6 +10,7 @@ import { SideChats } from './side-chats'
 import type { RowContext } from './session-row'
 import { TREE_INDENT_REM, TreeLines } from '@/components/ui/tree-lines'
 import { RowToggle } from '@/components/ui/row-toggle'
+import { listItemPlace } from '@/components/ui/intents'
 
 /** A slot under a row (quick actions). What it shows must depend on the entry alone: a row is drawn again
  *  only when its entry changed, not when this function did. */
@@ -31,7 +32,11 @@ export const RowView = memo(function RowView({ node, selectedKey, context, extra
   const under = extra?.(entry)
   return (
     <>
-      <div data-row={entry.key} className="relative" style={depth ? { paddingLeft: `${depth * TREE_INDENT_REM}rem` } : undefined}>
+      <div
+        data-row={entry.key}
+        className={listItemPlace({ selected: entry.key === selectedKey })}
+        style={depth ? { paddingLeft: `${depth * TREE_INDENT_REM}rem` } : undefined}
+      >
         <SessionListRow entry={entry} selected={entry.key === selectedKey} context={depth ? { ...context, nested: true } : context}>
           {under || node.sideChats || node.forkCount ? (
             <>

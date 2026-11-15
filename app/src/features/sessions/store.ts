@@ -43,6 +43,8 @@ interface ListMemory {
   positions: Record<string, number>
   /** What the list last showed, so coming back from elsewhere (Daemons) shows it again. */
   lastSearch: ListSearch
+  /** The session open last (its list key): a phone's list, a page of its own, still marks it once back. */
+  lastOpen?: string
 }
 
 /** Remembered for this visit only (not persisted). */

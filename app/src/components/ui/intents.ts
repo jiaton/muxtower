@@ -140,9 +140,15 @@ export const stateInk = {
 export const quoteCard = ({ open }: { open: boolean }) =>
   cn(box({ radius: 'lg', ground: open ? 'muted' : undefined, hover: open ? undefined : 'muted' }), text({ size: 'sm' }))
 
-/** A list's row (a session): ruled below; grounded when it is the one shown; quieter when out of reach. */
+/** A list's row (a session): ruled below; on the accent's tint when it is the one shown (pointing at others
+ *  grounds them grey, so the two never look alike); quieter when out of reach. */
 export const listItem = ({ selected = false, dim = false }: { selected?: boolean; dim?: boolean }) =>
-  cn(box({ edge: 'bottom' }), selected && box({ ground: 'muted' }), dim && box({ faded: 'dim' }))
+  cn(box({ edge: 'bottom' }), selected && box({ ground: 'accentSoft' }), dim && box({ faded: 'dim' }))
+
+/** Where a list's row stands, its fork tree's indent and rails included: when it is the one shown, the
+ *  accent's tint across all of it, and a bar in the accent down its outer left edge, outside the rails. */
+export const listItemPlace = ({ selected = false }: { selected?: boolean }) =>
+  cn('relative isolate scroll-mt-10', selected && box({ ground: 'accentSoft', marked: true })) // isolate: under sticky headers
 
 /** A link in a tree under a row (a side chat): grounded when pointed at, and when it is the one shown. */
 export const treeLink = ({ selected = false }: { selected?: boolean }) =>

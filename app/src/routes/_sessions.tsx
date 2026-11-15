@@ -35,7 +35,7 @@ import { ProjectChips } from '@/features/sessions/components/project-chips'
 import { useListMemory, useListPrefs, useSessionDrawer } from '@/features/sessions/store'
 import { cn } from '@/lib/cn'
 import { useUnpairedDaemons } from '@/lib/daemons/store'
-import { useLayoutPrefs, useListBeside, useSidebarDocked } from '@/lib/layout-prefs'
+import { useCanSplit, useLayoutPrefs, useListBeside, useSidebarDocked } from '@/lib/layout-prefs'
 import { ink } from '@/components/ui/intents'
 
 export const Route = createFileRoute('/_sessions')({ validateSearch: parseListSearch, component: SessionsLayout })
@@ -78,6 +78,14 @@ function SessionsLayout() {
 
   const visible = filterEntries(entries, query)
   const selectedKey = open ? entryKey(open.params.daemonId, open.params.sessionId) : undefined
+  // On a phone the list is a page of its own: back on it, the session just left stays marked (and in view),
+  // so one sees where one was.
+  const canSplit = useCanSplit()
+  const lastOpen = useListMemory((s) => s.lastOpen)
+  useEffect(() => {
+    if (selectedKey) useListMemory.setState({ lastOpen: selectedKey })
+  }, [selectedKey])
+  const markedKey = selectedKey ?? (canSplit ? undefined : lastOpen)
   const opened = useOpenedHere(
     listKey,
     selectedKey,
@@ -154,7 +162,7 @@ function SessionsLayout() {
               <SessionList
                 groups={groups}
                 held={{ sideChats, forks }}
-                selectedKey={selectedKey}
+                selectedKey={markedKey}
                 foldScope={query.view === 'archived' ? `archived:${query.group}` : query.group}
                 foldedFirst={query.view === 'archived'}
                 unfolded={Boolean(query.q?.trim())}

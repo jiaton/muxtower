@@ -126,3 +126,24 @@ it('a folder header and a device header start a new session there', () => {
   fireEvent.click(screen.getByRole('button', { name: 'New session in hub' }))
   expect(useNewSessionRequest.getState().preset).toEqual({ daemonId: 'd1', node: null, cwd: '' })
 })
+
+it('brings the open session’s row into view once each time it changes, the nearest way, and marks it', () => {
+  const scrolled: string[] = []
+  const was = Element.prototype.scrollIntoView
+  Element.prototype.scrollIntoView = function (this: Element, how?: boolean | ScrollIntoViewOptions) {
+    expect(how).toEqual({ block: 'nearest' })
+    scrolled.push(this.getAttribute('data-row') ?? '')
+  }
+  try {
+    const groups = [device({ '~/acme': [entry('one'), entry('two')] })]
+    const { rerender, container } = render(<SessionList groups={groups} selectedKey="d1/one" />, { wrapper: wrapper() })
+    rerender(<SessionList groups={groups} selectedKey="d1/one" />) // drawn again: no second scroll
+    rerender(<SessionList groups={groups} selectedKey="d1/two" />)
+    expect(scrolled).toEqual(['d1/one', 'd1/two'])
+    const marked = container.querySelector('[data-row="d1/two"]')!
+    expect(marked.className).toContain('bg-accent-soft')
+    expect(container.querySelector('[data-row="d1/one"]')!.className).not.toContain('bg-accent-soft')
+  } finally {
+    Element.prototype.scrollIntoView = was
+  }
+})

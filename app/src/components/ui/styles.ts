@@ -87,6 +87,8 @@ export const box = cva('', {
       surface: 'bg-surface',
       muted: 'bg-surface-muted',
       accent: 'bg-accent',
+      /** The accent faintly: what is open. */
+      accentSoft: 'bg-accent-soft',
       inverse: 'bg-fg',
       terminal: 'bg-terminal-bg',
       warning: 'bg-state-permission',
@@ -120,6 +122,8 @@ export const box = cva('', {
     shadow: { card: 'shadow-card', sm: 'shadow-sm' },
     /** Rules between its children (a list of rows). */
     divided: { true: 'divide-y divide-border' },
+    /** A bar in the accent down its left edge, over what it holds (the open one of a list). */
+    marked: { true: "before:pointer-events-none before:absolute before:inset-y-0 before:left-0 before:z-20 before:w-[3px] before:bg-accent before:content-['']" },
     /** Quieter: on its way (`half`), or out of reach (`dim`). */
     faded: { half: 'opacity-50', dim: 'opacity-60' },
   },

@@ -50,6 +50,8 @@
   --color-accent: oklch(0.55 0.17 255);
   --color-accent-hover: oklch(0.5 0.17 255);
   --color-accent-fg: oklch(0.99 0 0);
+  /* The accent faintly over the page: the ground of what is open (the selected row). */
+  --color-accent-soft: color-mix(in oklab, var(--color-accent) 11%, var(--color-bg));
   --color-danger: oklch(0.58 0.2 27);
   --color-danger-hover: oklch(0.53 0.2 27);
   --color-danger-fg: oklch(0.99 0 0);
@@ -111,6 +113,7 @@
     --color-accent: oklch(0.68 0.15 255);
     --color-accent-hover: oklch(0.73 0.14 255);
     --color-accent-fg: oklch(0.16 0.01 260);
+    --color-accent-soft: color-mix(in oklab, var(--color-accent) 14%, var(--color-bg));
     --color-success: oklch(0.66 0.14 155);
     --color-success-hover: oklch(0.71 0.13 155);
     --color-success-fg: oklch(0.16 0.01 260);
