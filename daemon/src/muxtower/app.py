@@ -49,7 +49,7 @@ from muxtower.nodes.repository import SqliteNodeRepository
 from muxtower.nodes.source import NodeSource
 from muxtower.nodes.store import HubStore
 from muxtower.nodes.update import Updater
-from muxtower.notify.repository import SqliteSubscriptionRepository
+from muxtower.notify.repository import SqliteShownStore, SqliteSubscriptionRepository
 from muxtower.notify.service import PushService
 from muxtower.notify.webpush_sender import WebPushSender, subject
 from muxtower.origins import OriginPolicy
@@ -178,7 +178,9 @@ def create_app(
         events = SqliteConciergeEvents(db)
         concierge = ConciergeService(settings.concierge, sessions, directory, tokens, store, events, mcp_url)
     sender = WebPushSender(settings.state_dir, subject(settings.push_contact, settings.public_url))
-    push = PushService(SqliteSubscriptionRepository(db), sender, directory, daemon_name, tokens.exists)
+    push = PushService(
+        SqliteSubscriptionRepository(db), sender, directory, daemon_name, tokens.exists, SqliteShownStore(db)
+    )
 
     teams = TeamService(directory, SqliteTeamRepository(db), transcript_of=directory.local.transcript_of)
     writes = WriteTracker(lambda: settings.writes.window_minutes, teams.checkouts)

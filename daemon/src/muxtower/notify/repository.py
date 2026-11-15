@@ -47,3 +47,28 @@ class SqliteSubscriptionRepository:
     def delete(self, sub_id: str) -> bool:
         with self.db.connect() as conn:
             return conn.execute("DELETE FROM push_subscriptions WHERE id = ?", (sub_id,)).rowcount > 0
+
+
+class SqliteShownStore:
+    """What `PushService` remembers of the notifications out there (epoch seconds), kept over a restart."""
+
+    def __init__(self, db: Database) -> None:
+        self.db = db
+
+    def load(self) -> tuple[dict[str, float], dict[str, dict[str, float]]]:
+        with self.db.connect() as conn:
+            notified = {r["session_id"]: r["at"] for r in conn.execute("SELECT * FROM push_notified ORDER BY at")}
+            shown: dict[str, dict[str, float]] = {}
+            for r in conn.execute("SELECT * FROM push_shown"):
+                shown.setdefault(r["sub_id"], {})[r["session_id"]] = r["at"]
+        return notified, shown
+
+    def save(self, notified: dict[str, float], shown: dict[str, dict[str, float]]) -> None:
+        with self.db.connect() as conn:
+            conn.execute("DELETE FROM push_notified")
+            conn.execute("DELETE FROM push_shown")
+            conn.executemany("INSERT INTO push_notified (session_id, at) VALUES (?, ?)", list(notified.items()))
+            conn.executemany(
+                "INSERT INTO push_shown (sub_id, session_id, at) VALUES (?, ?, ?)",
+                [(sub, sid, at) for sub, sessions in shown.items() for sid, at in sessions.items()],
+            )

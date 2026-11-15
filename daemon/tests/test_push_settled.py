@@ -75,3 +75,38 @@ def test_a_gone_session_is_settled_and_apple_devices_get_no_clearing_push() -> N
     directory.now.pop("a")
     assert service.clear_settled() == 0  # iOS: never a push that shows nothing
     assert json.loads(sender.sent[-1][1])["kind"] == "attention"
+
+
+def test_notifications_shown_before_a_restart_are_still_taken_away_after_it(tmp_path, caplog) -> None:  # type: ignore[no-untyped-def]
+    """The case seen: six "Done" notifications; three of them read since (a node's session among them),
+    the daemon updated (restarted) in between, and none was taken away. Made-up ids, the real shapes."""
+    import logging
+
+    from muxtower.infra.db import Database
+    from muxtower.notify.repository import SqliteShownStore
+
+    db = Database(tmp_path / "m.db")
+    db.migrate()
+    node, merged, plain = "laptop~0123abcd4567", "5a6b7c8d9e0f", "aa11bb22cc33"
+    unread = ["u1", "u2", "laptop~u3"]
+    directory = Directory(*(session(id=sid, unread=True) for sid in [node, merged, plain, *unread]))
+    subs = Subscriptions(Subscribe(**SUB))
+    sender = FakeSender()
+    before = PushService(subs, sender, directory, "hub", lambda _: True, SqliteShownStore(db))  # type: ignore[arg-type]
+    for sid in [node, merged, plain, *unread]:
+        assert before.notify_done(sid) == 1
+
+    # The daemon restarts; then three are read (on another device, or here).
+    after = PushService(subs, sender, directory, "hub", lambda _: True, SqliteShownStore(Database(tmp_path / "m.db")))  # type: ignore[arg-type]
+    for sid in (node, merged, plain):
+        directory.now[sid] = session(id=sid, unread=False)
+    caplog.set_level(logging.INFO, "muxtower.push")
+    assert after.clear_settled() == 1
+    clear = json.loads(sender.sent[-1][1])
+    assert clear["kind"] == "clear" and sorted(clear["settled"]) == sorted([node, merged, plain])
+    assert "sent: 3 of 6 shown settled" in caplog.text
+    caplog.clear()
+    assert after.clear_settled() == 0  # said once, and so logged once
+    assert "3 shown, none settled" in caplog.text
+    after.clear_settled()
+    assert caplog.text.count("3 shown, none settled") == 1  # the same decision again: not logged again

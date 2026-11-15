@@ -8,7 +8,7 @@ from typing import Any, Literal
 
 from muxtower.infra.bus import EventBus
 from muxtower.notify.models import PushPayload, Subscribe, Subscription
-from muxtower.notify.ports import PushSender, StoredSubscription, SubscriptionRepository
+from muxtower.notify.ports import PushSender, ShownStore, StoredSubscription, SubscriptionRepository
 from muxtower.notify.text import attention_text, done_text, interrupted_text, login_expired_text
 from muxtower.runtimes.models import AgentState
 from muxtower.sessions.directory import SessionDirectory
@@ -24,6 +24,7 @@ APPLE_PUSH = "push.apple.com"  # iOS and iPadOS: a push that shows nothing loses
 CLEAR_SECONDS = 30.0  # how often settled notifications are taken away, all of a device's at once
 NOTIFIED_KEPT = 64  # sessions remembered as notified about, for telling devices when they are settled
 NOTIFIED_SECONDS = 86_400
+CLEAR_LOG_SECONDS = 600.0  # a device's clearing decision is logged when it changes, else this often
 
 
 def summarized(summary: TurnSummary | None) -> bool:
@@ -38,7 +39,7 @@ def asks_for_owner(summary: TurnSummary | None) -> bool:
 class PushService:
     def __init__(
         self, repo: SubscriptionRepository, sender: PushSender, sessions: SessionDirectory, daemon_name: str,
-        paired: Callable[[str], bool],
+        paired: Callable[[str], bool], store: ShownStore | None = None,
     ) -> None:  # fmt: skip
         self.repo = repo
         self.sender = sender
@@ -49,6 +50,12 @@ class PushService:
         # Per subscription: the sessions its device was last shown a notification of, not said settled since.
         self._shown: dict[str, dict[str, float]] = {}
         self._lock = threading.Lock()  # pushes go out from worker threads
+        # Kept over a restart (a daemon updated between a notification and its session being read would
+        # otherwise never take it away): epoch seconds.
+        self.store = store
+        if store is not None:
+            self._notified, self._shown = store.load()
+        self._clear_logged: dict[str, tuple[str, float]] = {}  # per subscription: what was last logged, when
 
     def subscribe(self, body: Subscribe, device: str) -> Subscription:
         sub_id = hashlib.sha256(body.endpoint.encode()).hexdigest()[:24]
@@ -123,7 +130,7 @@ class PushService:
         """Sessions notified about that the owner has seen (read) or answered since. A push cannot be sent
         just to take a notification away (iOS revokes a subscription whose pushes show nothing; Chrome
         shows one of its own), so the next push that is sent anyway says which ones can go."""
-        now = time.monotonic()
+        now = time.time()
         with self._lock:
             recent = [sid for sid, at in self._notified.items() if now - at <= NOTIFIED_SECONDS and sid != sending]
         return [session_id for session_id in recent if self._is_settled(session_id)]
@@ -148,7 +155,7 @@ class PushService:
                 self.repo.delete(sub.id)
         if sent:
             with self._lock:
-                now = time.monotonic()
+                now = time.time()
                 for sub in self._paired():
                     shown = self._shown.setdefault(sub.id, {})
                     for session_id in settled:
@@ -157,10 +164,31 @@ class PushService:
                         shown[view.id] = now
                 for session_id in [*settled, view.id]:
                     self._notified.pop(session_id, None)
-                self._notified[view.id] = time.monotonic()  # newest last: the oldest is the first to go
+                self._notified[view.id] = now  # newest last: the oldest is the first to go
                 while len(self._notified) > NOTIFIED_KEPT:
                     del self._notified[next(iter(self._notified))]
+                self._save()
         return sent
+
+    def _save(self) -> None:
+        """Under the lock: what is remembered, written down (a subscription gone is forgotten with it)."""
+        if self.store is None:
+            return
+        live = {sub.id for sub in self.repo.list()}
+        self._shown = {sub: shown for sub, shown in self._shown.items() if sub in live and shown}
+        try:
+            self.store.save(self._notified, self._shown)
+        except Exception:  # noqa: BLE001 - kept in memory all the same
+            logger.exception("could not keep the notifications shown")
+
+    def _log_clear(self, sub: StoredSubscription, decision: str) -> None:
+        """A device's clearing decision, at INFO: when it changes, else every CLEAR_LOG_SECONDS."""
+        now = time.monotonic()
+        last = self._clear_logged.get(sub.id)
+        if last is not None and last[0] == decision and now - last[1] < CLEAR_LOG_SECONDS:
+            return
+        self._clear_logged[sub.id] = (decision, now)
+        logger.info("clearing notifications on %s (%s): %s", sub.device or "?", sub.id[:8], decision)
 
     def clear_settled(self) -> int:
         """Blocking. Takes away, on each device, the notifications of sessions read, answered or gone since,
@@ -174,20 +202,31 @@ class PushService:
                 continue
             with self._lock:
                 shown = dict(self._shown.get(sub.id, {}))
+            if not shown:
+                self._log_clear(sub, "none shown")
+                continue
             settled = [sid for sid in shown if self._is_settled(sid)]
-            if not settled or len(settled) == len(shown):
+            names = ", ".join(settled)
+            if not settled:
+                self._log_clear(sub, f"{len(shown)} shown, none settled")
+                continue
+            if len(settled) == len(shown):
+                self._log_clear(sub, f"all {len(shown)} shown are settled ({names}): kept until a push or the app")
                 continue
             payload = PushPayload(
                 client_ref=sub.client_ref, daemon_name=self.daemon_name, kind="clear", title="", body="",
                 settled=settled,
             )  # fmt: skip
             if not self.sender.send(sub, payload.model_dump_json()):
+                self._log_clear(sub, f"the clear push for {names} was refused: subscription dropped")
                 self.repo.delete(sub.id)
                 continue
             told += 1
+            self._log_clear(sub, f"sent: {len(settled)} of {len(shown)} shown settled ({names})")
             with self._lock:
                 for session_id in settled:
                     self._shown.get(sub.id, {}).pop(session_id, None)
+                self._save()
         return told
 
     def _is_settled(self, session_id: str) -> bool:

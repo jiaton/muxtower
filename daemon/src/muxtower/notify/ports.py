@@ -20,3 +20,10 @@ class PushSender(Protocol):
     def send(self, sub: StoredSubscription, payload: str) -> bool:
         """False when the push service says the subscription is gone."""
         ...
+
+
+class ShownStore(Protocol):
+    """Where the notifications out there are kept over a restart (`PushService`)."""
+
+    def load(self) -> tuple[dict[str, float], dict[str, dict[str, float]]]: ...
+    def save(self, notified: dict[str, float], shown: dict[str, dict[str, float]]) -> None: ...
