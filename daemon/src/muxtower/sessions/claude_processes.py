@@ -113,12 +113,13 @@ def _ticks(pid: int, proc: Path) -> str | None:
         return None
 
 
-def runs(pid: int, info: dict[str, object], proc: Path = Path("/proc")) -> bool:
+def runs(pid: int, info: dict[str, object], proc: Path = Path("/proc"), listed: bool = False) -> bool:
     """Whether the process a file names still runs, and is the one that wrote it: after a restart, its pid
     may be another process's (a file left from before is no live Claude Code). Linux: the start Claude Code
     wrote (`procStart`) is the process's own; else (macOS) the file's `startedAt` is within a few seconds of
-    the process's start. A file that says neither is taken as it is, if its pid is alive."""
-    if not alive(pid):
+    the process's start. A file that says neither is taken as it is, if its pid is alive (`listed`: found
+    in a live process tree, so it is)."""
+    if not listed and not alive(pid):
         return False
     written = info.get("procStart")
     if isinstance(written, str | int) and str(written).isdigit() and (ticks := _ticks(pid, proc)) is not None:
@@ -153,7 +154,7 @@ class ClaudeProcesses:
                 continue
             if not isinstance(info, dict):
                 return None
-            if runs(pid, info, self.proc):
+            if runs(pid, info, self.proc, listed=True):
                 return info  # else a file left from before a restart, its pid now this one's: not its own
         return None
 
