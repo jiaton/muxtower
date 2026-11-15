@@ -102,9 +102,29 @@ export function cellWidth(code: number): 0 | 1 | 2 {
   return within(WIDE, code) ? 2 : 1
 }
 
+// An emoji made of several code points (an emoji presentation selector, a skin tone, joined people, a
+// flag's two letters) is one character on screen, and tmux (3.4) gives it two cells, however its parts
+// would count alone: ❤️ and ⚠️ are 2, not 1; 👨‍👩‍👧 is 2, not 6.
+const COMPOSED = /\uFE0F|\u200D|[\u{1F3FB}-\u{1F3FF}]|\p{Regional_Indicator}{2}/u
+const EMOJI = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u
+const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+
+/** Cells taken by one character as the reader sees it (a grapheme). */
+export function graphemeCells(grapheme: string): number {
+  if (EMOJI.test(grapheme) && COMPOSED.test(grapheme)) return 2
+  let cells = 0
+  for (const char of grapheme) cells += cellWidth(char.codePointAt(0)!)
+  return cells
+}
+
 /** Cells taken by a string. */
 export function textCells(text: string): number {
+  if (!COMPOSED.test(text)) {
+    let cells = 0
+    for (const char of text) cells += cellWidth(char.codePointAt(0)!)
+    return cells
+  }
   let cells = 0
-  for (const char of text) cells += cellWidth(char.codePointAt(0)!)
+  for (const { segment } of graphemes.segment(text)) cells += graphemeCells(segment)
   return cells
 }

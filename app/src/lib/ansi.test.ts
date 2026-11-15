@@ -30,7 +30,7 @@ describe('ansiToLines', () => {
     expect(gridHtml('中文')).toBe('<span class="term-wide">中文</span>')
     expect(gridHtml('x──y')).toBe('x<span class="inline-block overflow-hidden align-top term-box" style="width:2ch">──</span>y') // stretched to the row
     expect(gridHtml('é')).toBe('<span class="inline-block overflow-hidden align-top" style="width:1ch">é</span>')
-    expect(gridHtml('🚀')).toBe('<span class="inline-block overflow-hidden align-top" style="width:2ch">🚀</span>') // its own font: boxed
+    expect(gridHtml('🚀')).toBe('<span class="inline-block align-top" style="width:2ch"><span class="term-emoji">🚀</span></span>') // its cells, drawn whole
     expect(gridHtml('好，ok')).toBe('<span class="term-wide">好，</span>ok') // full-width punctuation scales with it
   })
 
@@ -47,6 +47,18 @@ describe('ansiToLines', () => {
       const plain = line.replace(/\x1b\[[0-9;]*m/g, '')
       expect(cellsOf(ansiToLines(line)[0]!)).toBe(textCells(plain))
     }
+  })
+
+  it('an emoji is one grapheme in the cells tmux counts, never split or clipped', () => {
+    const emoji = ['💗', '❤️', '✅', '⚠️', '👍🏽', '👨‍👩‍👧', '🇺🇸']
+    for (const e of emoji) {
+      const html = gridHtml(e)
+      expect(html.match(/term-emoji/g)).toHaveLength(1) // one glyph: a skin tone, a family, a flag kept whole
+      expect(html).not.toContain('overflow-hidden') // drawn in full
+      expect(cellsOf(html)).toBe(textCells(e))
+    }
+    const line = '状态 💗 ❤️ ✅ ⚠️ 👍🏽 👨‍👩‍👧 🇺🇸 ★ → ok 完成'
+    expect(cellsOf(ansiToLines(line)[0]!)).toBe(textCells(line)) // the columns after them stay where tmux has them
   })
 
   it('a background fills its row: a box as tall as the row, as wide as its text', () => {
@@ -86,5 +98,11 @@ describe('textCells', () => {
     expect(textCells('✻ ● ─')).toBe(5)
     expect(textCells('🚀')).toBe(2)
     expect(textCells('é')).toBe(1) // e + combining acute
+  })
+
+  it('counts a composed emoji as tmux 3.4 does: two cells, whatever its parts', () => {
+    for (const e of ['❤️', '⚠️', '👍🏽', '👨‍👩‍👧', '🇺🇸', '💗', '✅']) expect(textCells(e)).toBe(2)
+    expect(textCells('★→')).toBe(2) // one each
+    expect(textCells('a❤️b👨‍👩‍👧c')).toBe(7)
   })
 })

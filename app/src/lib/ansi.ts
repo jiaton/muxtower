@@ -75,7 +75,12 @@ const escapeHtml = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '
 // - a CJK character (and full-width punctuation) is drawn in its own font scaled so that it is exactly two
 //   cells wide (`term-wide`, tokens.css: the scale is measured in this browser by the terminal view, 2ch
 //   over the glyph's own width), its line height kept to the row's: no box, no gap, nothing left over;
-// - another wide character (an emoji, a symbol) is boxed in its two cells, a glyph of its own font;
+// - an emoji, as the reader sees it (one grapheme: 👍🏽 with its skin tone, 👨‍👩‍👧 joined, 🇺🇸, ❤️ with its
+//   emoji selector), is one box exactly the cells tmux counts for it, drawn in full: its glyph is not
+//   clipped (a colour emoji is taller than a row, and ❤️ counts one cell though it is drawn two wide, so
+//   it may reach into the next cell, the columns after it staying where tmux has them), and scaled down
+//   only when wider than two cells (`term-emoji`, `--emoji-scale` measured by the terminal view);
+// - another wide character (a symbol) is boxed in its two cells, a glyph of its own font;
 // - a run of box drawing and blocks (U+2500–259F: rules, frames, a table's borders) is boxed in its cells
 //   and stretched to the row's height (`term-box`, tokens.css; the stretch measured by the terminal view),
 //   so a │ meets the one in the row above and below;
@@ -108,7 +113,27 @@ const box = (text: string, cells: number, extra = '') =>
   `<span class="inline-block overflow-hidden align-top${extra}" style="width:${cells}ch">${escapeHtml(text)}</span>`
 const isBoxDrawing = (code: number) => code >= 0x2500 && code <= 0x259f
 
+const EMOJI = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u
+const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+
+/** A run of non-ASCII → HTML: its emoji (whole graphemes) drawn apart, the rest by `textHtml`. */
 function cellsHtml(run: string): string {
+  if (!EMOJI.test(run)) return textHtml(run)
+  let html = ''
+  let rest = ''
+  for (const { segment } of graphemes.segment(run)) {
+    if (!EMOJI.test(segment)) {
+      rest += segment
+      continue
+    }
+    if (rest) html += textHtml(rest)
+    rest = ''
+    html += `<span class="inline-block align-top" style="width:${textCells(segment)}ch"><span class="term-emoji">${escapeHtml(segment)}</span></span>`
+  }
+  return rest ? html + textHtml(rest) : html
+}
+
+function textHtml(run: string): string {
   let html = ''
   let narrow = ''
   let lines = '' // box drawing, stretched to the row

@@ -45,6 +45,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
   const probe = useRef<HTMLDivElement>(null)
   const wideProbe = useRef<HTMLDivElement>(null)
   const glyphProbe = useRef<HTMLSpanElement>(null)
+  const emojiProbe = useRef<HTMLDivElement>(null)
   const shown = useRef<string[]>([])
   const above = useRef(0) // lines pushed off the top, still shown above `shown` while the reader is scrolled up
   const atBottom = useRef(true)
@@ -140,6 +141,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
       if (atBottom.current) scrollBox.scrollTop = scrollBox.scrollHeight
       setWideScale(scrollBox, probe.current, wideProbe.current)
       setBoxScale(scrollBox, probe.current, glyphProbe.current)
+      setEmojiScale(scrollBox, probe.current, emojiProbe.current)
       clearTimeout(timer)
       timer = setTimeout(() => {
         const line = probe.current!.getBoundingClientRect()
@@ -196,6 +198,9 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
         <div ref={wideProbe} aria-hidden className="pointer-events-none invisible absolute w-max">
           中文汉字测试终端宽度
         </div>
+        <div ref={emojiProbe} aria-hidden className="pointer-events-none invisible absolute w-max">
+          💗💗💗💗💗💗💗💗💗💗
+        </div>
         <div ref={body} />
       </div>
       {tooWide && onFitRequest && !onFit ? (
@@ -237,4 +242,12 @@ function setBoxScale(box: HTMLElement, row: HTMLElement | null, glyphs: HTMLElem
   const rowHeight = row?.getBoundingClientRect().height ?? 0
   const glyphHeight = glyphs?.getBoundingClientRect().height ?? 0
   if (rowHeight > 0 && glyphHeight > 0) box.style.setProperty('--box-scale', String(rowHeight / glyphHeight))
+}
+
+/** How much an emoji is scaled to fit its two cells (`term-emoji`, tokens.css): two cells over the colour
+ *  emoji font's width, when that is wider; never larger than it is drawn. */
+function setEmojiScale(box: HTMLElement, cells: HTMLElement | null, emoji: HTMLElement | null) {
+  const cell = (cells?.getBoundingClientRect().width ?? 0) / 10
+  const glyph = (emoji?.getBoundingClientRect().width ?? 0) / 10
+  if (cell > 0 && glyph > 0) box.style.setProperty('--emoji-scale', String(Math.min(1, (2 * cell) / glyph)))
 }

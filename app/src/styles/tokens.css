@@ -171,3 +171,11 @@
 .term-box {
   transform: scaleY(var(--box-scale, 1));
 }
+
+/* An emoji in the terminal (lib/ansi.ts): its colour glyph drawn in full in the cells tmux counts for it,
+   scaled down only when it is wider than two cells (`--emoji-scale`, measured by the terminal view), and
+   no line height of its own, so a row keeps its height. */
+.term-emoji {
+  font-size: calc(1em * var(--emoji-scale, 1));
+  line-height: 0;
+}
