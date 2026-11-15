@@ -81,7 +81,7 @@ export function webApp(): Scene {
       name: 'web-app',
       agent_name: 'Usage chart on the billing page',
       cwd: `${HOME}/code/web-app`,
-      team_role: 'worker',
+      team_role: 'worker — the billing page: its usage chart, the chart library, and the tests that go with it',
       project: 'acme/web-app',
       project_auto: true,
       project_source: 'git remote',

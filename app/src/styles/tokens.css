@@ -193,3 +193,12 @@
   font-size: calc(1em * var(--emoji-scale, 1));
   line-height: 0;
 }
+
+/* A menu opened as a sheet (dropdown-menu.tsx, on a phone): its positioner pinned to the bottom, full width,
+   instead of beside its trigger. */
+[data-radix-popper-content-wrapper]:has(> [data-sheet]) {
+  position: fixed !important;
+  inset: auto 0 0 0 !important;
+  transform: none !important;
+  min-width: 0 !important;
+}

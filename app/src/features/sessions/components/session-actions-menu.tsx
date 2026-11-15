@@ -6,6 +6,7 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -20,7 +21,7 @@ const MENU_LABEL: Record<SessionAction['id'], (session: Session) => string> = {
   new: () => 'New session here…',
   rename: () => 'Rename',
   place: () => 'Move…',
-  team: (s) => (s.team_role ? `Team: ${s.team_role}…` : 'Set its role…'),
+  team: () => 'Team…',
   hide: (s) => (s.hidden ? 'Show in the list' : 'Hide from the list'),
   archive: () => 'Archive',
   interrupt: () => 'Interrupt (Esc)',
@@ -29,13 +30,51 @@ const MENU_LABEL: Record<SessionAction['id'], (session: Session) => string> = {
   resume: () => 'Start again',
 }
 
-/** The session actions as menu items (a row's hover menu, the session page's menu), each with its key. */
-export function SessionActionItems({ session, actions }: { session: Session; actions: SessionAction[] }) {
+/** What an action's item says under its label: the session's role, for Team (the label stays short). */
+const DETAIL: Partial<Record<SessionAction['id'], (session: Session) => string>> = {
+  team: (s) => s.team_role || 'No role yet',
+}
+
+const DANGER: ReadonlySet<SessionAction['id']> = new Set(['stop', 'delete'])
+
+function Items({ session, actions }: { session: Session; actions: SessionAction[] }) {
   return actions.map((a) => (
-    <DropdownMenuItem key={a.id} tone={a.tone === 'danger' ? 'danger' : undefined} shortcut={ACTION_KEYS[a.id]} onSelect={a.run}>
-      <a.icon /> {MENU_LABEL[a.id](session)}
+    <DropdownMenuItem
+      key={a.id}
+      icon={a.icon}
+      detail={DETAIL[a.id]?.(session)}
+      tone={a.tone === 'danger' ? 'danger' : undefined}
+      shortcut={ACTION_KEYS[a.id]}
+      onSelect={a.run}
+    >
+      {MENU_LABEL[a.id](session)}
     </DropdownMenuItem>
   ))
+}
+
+/** The session actions as menu items (a row's menu, the session page's menu), each with its key, under
+ *  "Session"; those that end it (Stop, Delete) are apart, last (`SessionEndItems`). */
+export function SessionActionItems({ session, actions }: { session: Session; actions: SessionAction[] }) {
+  const kept = actions.filter((a) => !DANGER.has(a.id))
+  if (!kept.length) return null
+  return (
+    <>
+      <DropdownMenuLabel>Session</DropdownMenuLabel>
+      <Items session={session} actions={kept} />
+    </>
+  )
+}
+
+/** The actions that end a session, last in its menu, set apart. */
+export function SessionEndItems({ session, actions }: { session: Session; actions: SessionAction[] }) {
+  const ending = actions.filter((a) => DANGER.has(a.id))
+  if (!ending.length) return null
+  return (
+    <>
+      <DropdownMenuSeparator />
+      <Items session={session} actions={ending} />
+    </>
+  )
 }
 
 /** The session page's "⋯" menu: other features' entries first (`items`, e.g. terminal settings), then
@@ -64,6 +103,7 @@ export function SessionActionsMenu({ daemonId, session, items }: { daemonId: str
               </DropdownMenuCheckboxItem>
             ) : null}
             <NotifyItems daemonId={daemonId} session={session} />
+            <SessionEndItems session={session} actions={actions} />
           </DropdownMenuContent>
         </DropdownMenu>
       )}

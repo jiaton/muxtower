@@ -6,7 +6,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/compon
 import { SwipeAction, SwipeActions } from '@/components/ui/swipe-actions'
 import type { SessionEntry } from '../model/facets'
 import { SessionActions, type SessionAction } from './session-actions'
-import { SessionActionItems } from './session-actions-menu'
+import { SessionActionItems, SessionEndItems } from './session-actions-menu'
 import { NotifyItems } from './notify-items'
 import { SessionRow, type RowContext } from './session-row'
 
@@ -37,6 +37,7 @@ export function SessionListRow({
     <>
       <SessionActionItems session={session} actions={actions} />
       <NotifyItems daemonId={daemon.id} session={session} />
+      <SessionEndItems session={session} actions={actions} />
     </>
   )
   return (

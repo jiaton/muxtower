@@ -6,8 +6,8 @@ import { toggleFullScreen } from '@/lib/layout-prefs'
  *  (`canFullScreen`). */
 export function FullScreenItem() {
   return (
-    <DropdownMenuItem onSelect={toggleFullScreen}>
-      <Fullscreen /> {document.fullscreenElement ? 'Exit full screen' : 'Full screen'}
+    <DropdownMenuItem icon={Fullscreen} onSelect={toggleFullScreen}>
+      {document.fullscreenElement ? 'Exit full screen' : 'Full screen'}
     </DropdownMenuItem>
   )
 }

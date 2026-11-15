@@ -2,13 +2,16 @@ import { useSyncExternalStore } from 'react'
 
 /** Whether a CSS media query matches, kept current (e.g. which panes the layout shows side by side). */
 export function useMediaQuery(query: string): boolean {
+  // Where nothing answers media queries (a test's DOM, an old embedded browser), none matches.
+  const can = typeof window !== 'undefined' && typeof window.matchMedia === 'function'
   return useSyncExternalStore(
     (onChange) => {
+      if (!can) return () => {}
       const list = window.matchMedia(query)
       list.addEventListener('change', onChange)
       return () => list.removeEventListener('change', onChange)
     },
-    () => window.matchMedia(query).matches,
+    () => can && window.matchMedia(query).matches,
     () => false,
   )
 }

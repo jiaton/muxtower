@@ -19,7 +19,6 @@ import { SessionActionsMenu } from '@/features/sessions/components/session-actio
 import { FocusToggle } from '@/features/sessions/components/focus-toggle'
 import { SessionSkeleton } from '@/features/sessions/components/session-skeleton'
 import { FullScreenItem } from '@/features/sessions/components/full-screen-item'
-import { DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { canFullScreen } from '@/lib/layout-prefs'
 import { SessionHeader } from '@/features/sessions/components/session-header'
 import { InterruptedState } from '@/features/sessions/components/interrupted'
@@ -202,7 +201,6 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
                 termItems || fullScreen ? (
                   <>
                     {termItems ? <TerminalMenuItems sessionId={session.id} fit={terminal.fit} /> : null}
-                    {termItems && fullScreen ? <DropdownMenuSeparator /> : null}
                     {fullScreen ? <FullScreenItem /> : null}
                   </>
                 ) : undefined

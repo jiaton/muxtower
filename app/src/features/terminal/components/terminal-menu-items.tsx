@@ -13,7 +13,7 @@ export function TerminalMenuItems({ sessionId, fit }: { sessionId: string; fit: 
     <>
       <DropdownMenuLabel>Terminal</DropdownMenuLabel>
       <DropdownMenuCheckboxItem checked={fit} onCheckedChange={(on) => setFit(sessionId, on === true)} onSelect={(e) => e.preventDefault()}>
-        Fit width to this screen
+        Fit width
       </DropdownMenuCheckboxItem>
       {fit ? (
         <Stepper
@@ -50,16 +50,21 @@ function Stepper({
 }) {
   const index = Math.max(0, values.indexOf(value))
   const step = (by: number) => onChange(values[Math.min(values.length - 1, Math.max(0, index + by))])
+  // "− value +", always whole: the label gives way (cut) before the control does.
   return (
-    <div className={`${ink.body} flex min-h-9 items-center gap-2 px-2`}>
-      <span className="flex-1">{label}</span>
-      <Button variant="ghost" size="icon-sm" aria-label={less} disabled={index === 0} onClick={() => step(-1)}>
-        <Minus />
-      </Button>
-      <span className={`${ink.count} ${ink.meta} w-6 text-center`}>{format(value)}</span>
-      <Button variant="ghost" size="icon-sm" aria-label={more} disabled={index === values.length - 1} onClick={() => step(1)}>
-        <Plus />
-      </Button>
+    <div className={`${ink.body} flex min-h-9 min-w-0 items-center gap-2 px-2`}>
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+      <span className="flex shrink-0 items-center">
+        <Button variant="ghost" size="icon-sm" aria-label={less} disabled={index === 0} onClick={() => step(-1)}>
+          <Minus />
+        </Button>
+        <span className={`${ink.count} ${ink.meta} w-8 text-center`} aria-live="polite">
+          {format(value)}
+        </span>
+        <Button variant="ghost" size="icon-sm" aria-label={more} disabled={index === values.length - 1} onClick={() => step(1)}>
+          <Plus />
+        </Button>
+      </span>
     </div>
   )
 }
