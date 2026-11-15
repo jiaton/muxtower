@@ -99,6 +99,9 @@ export const look = {
   listHeader: box({ edge: 'bottom', ground: 'page' }),
   /** A tool's output, quoted small. */
   output: `${box({ radius: 'sm', ground: 'muted' })} ${text({ mono: true, size: 'xs' })}`,
+  /** A mockup an agent drew for an option (a question's preview): kept as drawn, monospace, lines that
+   *  touch so box drawing joins, scrolled sideways rather than wrapped. */
+  mockup: `${box({ radius: 'sm', ground: 'muted' })} ${text({ mono: true, size: 'xs' })} overflow-x-auto whitespace-pre leading-[1.2]`,
   /** Something waiting for an answer, in a conversation. */
   alertCard: `${box({ outline: 'warning', radius: 'md' })} ${text({ size: 'sm' })}`,
   /** The terminal's ground; `viewfinder` a camera's, rounded. */

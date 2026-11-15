@@ -130,3 +130,36 @@ def test_answers_are_checked_against_the_questions() -> None:
         check_answers([FRUIT], [["Kiwi"]])
     with pytest.raises(Conflict):
         check_answers([], [["Apple"]])
+
+
+class PreviewDialog(ClaudeCodeDialog):
+    """A question whose options carry mockups: the focused one's preview in a frame beside the list, and a
+    Notes line under it (as Claude Code draws them)."""
+
+    def screen(self) -> str:
+        if self.submitted:
+            return super().screen()
+        q = self.questions[0]
+        left = [f"{'❯' if self.cursor == i else ' '} {i + 1}. {o.label}" for i, o in enumerate(q.options)]
+        n = len(q.options)
+        left.append(f"{'❯' if self.cursor == n else ' '} {n + 1}. Type something.")
+        preview = (q.options[self.cursor].preview or "") if self.cursor < n else ""
+        body = preview.splitlines()
+        width = max((len(b) for b in body), default=0) + 2
+        frame = ["┌" + "─" * width + "┐", *(f"│ {b.ljust(width - 1)}│" for b in body), "└" + "─" * width + "┘"]
+        rows = [f"{(left[i] if i < len(left) else '').ljust(36)}{frame[i] if i < len(frame) else ''}".rstrip()
+                for i in range(max(len(left), len(frame)))]  # fmt: skip
+        return "\n".join([RULE, q.question, "", *rows, "", "     Notes: press n to add notes", RULE,
+                          "Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel"])  # fmt: skip
+
+
+def test_a_question_with_previews_is_answered_by_its_label() -> None:
+    shot = "┌────────────┐\n│ ▍● planner │\n│ ○ 天气 19h  │\n└────────────┘"
+    options = [
+        QuestionOption(label="Accent bar + tint (Recommended)", preview=shot),
+        QuestionOption(label="Solid accent row", preview=shot),
+        QuestionOption(label="Outline card", preview=shot),
+    ]
+    dialog = PreviewDialog([PendingQuestion(question="How should it stand out?", header="Highlight", options=options)])
+    answer(dialog, [["Outline card"]])
+    assert dialog.submitted and dialog.picked == [["Outline card"]]

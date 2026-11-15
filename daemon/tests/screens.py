@@ -434,3 +434,23 @@ CODEX_IDLE_QUOTING_FIRST_START = """\
 
   gpt-5.5 default · ~/projects/web
 """
+
+# AskUserQuestion with previews: the focused option's mockup in a frame beside the list (made-up content).
+CLAUDE_QUESTION_PREVIEWS = """\
+────────────────────────────────────────────────────────────────────────────────
+ ☐ Highlight
+
+How should the open session stand out in the list?
+
+❯ 1. Accent bar + tint             ┌────────────────────────────────────────┐
+     (Recommended)                 │ ▍● planner        now  ← accent bar    │
+  2. Solid accent row              │   research · demo                      │
+  3. Outline card                  │ ○ 天气 widget      19h                 │
+  4. Type something.               │ ◌ lint fixes      2d                   │
+                                   └────────────────────────────────────────┘
+
+     Notes: press n to add notes
+
+────────────────────────────────────────────────────────────────────────────────
+ Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel
+"""

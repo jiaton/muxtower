@@ -109,3 +109,30 @@ def test_hook_state_survives_a_restart(make_app, tmux: FakeTmux, tmp_path: Path)
     restarted = TestClient(make_app())  # same state dir and tmux, fresh process state
     pending = restarted.get(f"/v1/sessions/{session_id}", headers=auth).json()["pending"]
     assert pending["tool_name"] == "Bash" and pending["detail"] == "make deploy"
+
+
+def test_question_with_previews_keeps_labels_descriptions_and_previews() -> None:
+    """One single-choice question whose options carry mockups (made-up content): the hook's input is the
+    card's only source for its option text, previews included as they are (box drawing, CJK)."""
+    preview = "┌──────────────────┐\n│ ▍● planner   now │\n│ ○ 天气 widget 19h │\n└──────────────────┘"
+    asked = {
+        "question": "How should the open session stand out in the list?",
+        "header": "Highlight",
+        "multiSelect": False,
+        "options": [
+            {"label": "Accent bar + tint (Recommended)", "description": "A bar and a tint", "preview": preview},
+            {"label": "Solid accent row", "description": "The whole row in the accent"},
+            {"label": "Outline card", "description": "A frame around the row", "preview": "╭────╮\n│ 圆角 │\n╰────╯"},
+        ],
+    }
+    q = apply_event(None, ev(hook_event_name="PreToolUse", tool_name="AskUserQuestion",
+                             tool_input={"questions": [asked]}), ClaudeCodeHooks.asking)  # fmt: skip
+    assert q and q.state == AgentState.NEEDS_ANSWER
+    (question,) = q.questions
+    assert question.header == "Highlight" and not question.multi_select
+    labels = ["Accent bar + tint (Recommended)", "Solid accent row", "Outline card"]
+    assert [o.label for o in question.options] == labels
+    assert question.options[0].description == "A bar and a tint"
+    assert question.options[0].preview == preview
+    assert question.options[1].preview is None
+    assert HookState.load(q.dump()).questions == q.questions

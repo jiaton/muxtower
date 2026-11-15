@@ -39,7 +39,10 @@ def questions_of(tool_input: Any) -> list[PendingQuestion]:
     found = []
     for q in raw if isinstance(raw, list) else []:
         options = [
-            QuestionOption(label=str(o["label"]), description=str(o["description"]) if o.get("description") else None)
+            QuestionOption(
+                label=str(o["label"]), description=str(o["description"]) if o.get("description") else None,
+                preview=str(o["preview"]) if o.get("preview") else None,
+            )
             for o in q.get("options") or [] if isinstance(o, dict) and o.get("label")
         ] if isinstance(q, dict) else []  # fmt: skip
         if options and q.get("question"):

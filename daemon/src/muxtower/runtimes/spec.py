@@ -178,6 +178,39 @@ class Classification:
 
 
 _NUMBERED = re.compile(r"^(\d+)\.\s+(.*)$")
+_BOX_TOP = re.compile(r"(?:^|\s{2,})[┌╭]─")
+_BOX_BOTTOM = re.compile(r"(?:^|\s{2,})[└╰]─")
+_BOX_EDGE = re.compile(r"(?:^|\s{2,})[┌╭│└╰├]")
+_NOTES = re.compile(r"^\s*Notes: press n to add notes\s*$")  # under a menu with previews: no choice
+
+
+def left_of_preview(lines: list[str]) -> list[str]:
+    """The lines without a preview box drawn to the right of a menu: Claude Code shows the focused option's
+    mockup (AskUserQuestion's `preview`) in a frame beside its list, from the list's first line to the
+    frame's bottom. Each line in that span keeps only what is left of the frame's edge; the "Notes" line
+    under such a menu goes too."""
+    out = list(lines)
+    i = 0
+    while i < len(out):
+        top = _BOX_TOP.search(out[i])
+        if top is None or len(out[i][: top.end()].rstrip("─")) < 8:  # a frame at the left edge: no side box
+            i += 1
+            continue
+        bottom = next((j for j in range(i + 1, len(out)) if _BOX_BOTTOM.search(out[j])), None)
+        if bottom is None:
+            break
+        span = range(i, bottom + 1)
+        if not any((e := _BOX_EDGE.search(out[j])) and out[j][: e.start()].strip() for j in span):
+            i = bottom + 1  # nothing beside it: a frame of its own, not a preview
+            continue
+        for j in span:
+            edge = _BOX_EDGE.search(out[j])
+            if edge is not None:
+                out[j] = out[j][: edge.start()].rstrip()
+        i = bottom + 1
+    return [line for line in out if not _NOTES.match(line)]
+
+
 CHOSEN = "✔"  # marks the choice in effect (Claude Code's theme), next to the cursor or on its own
 
 
@@ -276,7 +309,7 @@ class Runtime:
 
     def parse_menu(self, screen: str) -> Menu | None:
         """The lowest block of 2+ choices around a cursor line. A lone cursor line is the prompt input."""
-        lines = screen.splitlines()[-self.config.menu.search_last_lines :]
+        lines = left_of_preview(screen.splitlines()[-self.config.menu.search_last_lines :])
         for cursor in (self.config.menu.cursor, *self.config.menu.other_cursors):
             for at in range(len(lines) - 1, -1, -1):
                 if lines[at].lstrip().startswith(cursor):

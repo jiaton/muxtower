@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from muxtower.runtimes.models import AgentState
-from muxtower.runtimes.spec import load_runtimes
+from muxtower.runtimes.spec import left_of_preview, load_runtimes
 from tests import screens
 
 
@@ -212,3 +212,19 @@ def test_the_first_bypass_start_waits_for_the_owner_not_idle() -> None:
     assert [o.label for o in result.options] == ["No, exit", "Yes, I accept"]
     key = rt.choose_option(result.state, result.options)
     assert key == "2" and [s.key for s in rt.select_steps(result.menu, key)] == ["Down", "Enter"]  # approving accepts
+
+
+def test_menu_beside_a_preview_keeps_only_its_own_column() -> None:
+    menu = claude().parse_menu(screens.CLAUDE_QUESTION_PREVIEWS)
+    assert menu and [o.label for o in menu.options] == [
+        "Accent bar + tint (Recommended)",
+        "Solid accent row",
+        "Outline card",
+        "Type something.",
+    ]
+    assert menu.cursor == 0
+
+
+def test_a_frame_of_its_own_is_no_preview() -> None:
+    lines = ["  ┌──────┐", "  │ box  │", "  └──────┘"]
+    assert left_of_preview(lines) == lines

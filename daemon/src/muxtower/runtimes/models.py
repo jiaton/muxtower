@@ -36,6 +36,7 @@ class Option(BaseModel):
 class QuestionOption(BaseModel):
     label: str
     description: str | None = None
+    preview: str | None = Field(default=None, description="a mockup shown beside the option (monospace, as is)")
 
 
 class PendingQuestion(BaseModel):

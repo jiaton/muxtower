@@ -1728,6 +1728,18 @@
           "label": {
             "title": "Label",
             "type": "string"
+          },
+          "preview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a mockup shown beside the option (monospace, as is)",
+            "title": "Preview"
           }
         },
         "required": [

@@ -3,12 +3,13 @@ import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import type { PendingAction } from '@/lib/api/types'
 import { useAnswer, useApprove, useDeny } from '../api/use-approval'
-import { QuestionForm, needsForm } from './question-form'
+import { QuestionForm } from './question-form'
 
 import { ink, look } from '@/components/ui/intents'
 
-/** What the agent is waiting for, with one button per choice on screen (or, for several questions or
- *  one taking several answers, a form answering them all) and Deny (Esc). */
+/** What the agent is waiting for and Deny (Esc). A question the agent's hook told (AskUserQuestion) is
+ *  answered from what it asked: its options' text, descriptions and mockups are never read off the screen,
+ *  which draws them side by side with other things. Anything else is one button per choice on screen. */
 export function PendingActionCard({ daemonId, sessionId, pending }: { daemonId: string; sessionId: string; pending: PendingAction }) {
   const approve = useApprove(daemonId, sessionId)
   const answer = useAnswer(daemonId, sessionId)
@@ -27,7 +28,7 @@ export function PendingActionCard({ daemonId, sessionId, pending }: { daemonId: 
           ) : null}
         </div>
       ) : null}
-      {needsForm(pending.questions) ? (
+      {pending.questions?.length ? (
         <QuestionForm questions={pending.questions!} busy={busy} onSubmit={(answers) => answer.mutate(answers)} />
       ) : options.length ? (
         <div className="flex flex-col gap-2">

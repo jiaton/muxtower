@@ -1763,6 +1763,11 @@ export interface components {
             description?: string | null;
             /** Label */
             label: string;
+            /**
+             * Preview
+             * @description a mockup shown beside the option (monospace, as is)
+             */
+            preview?: string | null;
         };
         /** Recover */
         Recover: {
