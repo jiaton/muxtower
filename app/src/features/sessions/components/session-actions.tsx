@@ -58,7 +58,7 @@ export const ACTION_KEYS: Partial<Record<SessionAction['id'], string>> = {
  *  session's own menu): mark read or unread, pin or unpin, rename, move (say where it runs), hide or show, interrupt,
  *  archive (the one way to end it: the agent ends, its history is kept); rename, move and archive only where
  *  its capabilities allow. An archived session can only be deleted from the archive;
- *  one a restart interrupted can be started again or deleted. Renders
+ *  one a restart interrupted can be started again or archived. Renders
  *  `children(actions)` plus the dialogs they open (archive and delete ask first). `open`: the session
  *  is the page being shown, so marking it unread, hiding or deleting it goes back to the list first (an
  *  open session is read, and a hidden one has no place beside the list); an archived one stays, read-only. */
@@ -86,8 +86,10 @@ export function SessionActions({
   const leaving = (then: () => void) => (open ? () => void navigate({ to: '/', search: true }).then(then) : then)
 
   const remove: SessionAction = { id: 'delete', label: 'Delete', icon: Trash2, tone: 'danger', run: () => setDialog('delete') }
+  const archive: SessionAction = { id: 'archive', label: 'Archive', icon: Archive, tone: 'neutral', run: () => setDialog('archive') }
+  // One a restart interrupted (its recovery failed): started again, or archived with its history.
   const actions: SessionAction[] = session.interrupted_at
-    ? [{ id: 'resume', label: 'Start again', icon: RotateCcw, tone: 'accent', run: () => recover.mutate([session.id]) }, remove]
+    ? [{ id: 'resume', label: 'Start again', icon: RotateCcw, tone: 'accent', run: () => recover.mutate([session.id]) }, archive]
     : session.archived_at
       ? [remove]
       : liveActions()
@@ -121,8 +123,7 @@ export function SessionActions({
         ? { id: 'hide', label: 'Show', icon: Eye, tone: 'neutral', run: () => hide.mutate({ ...ids, hidden: false }) }
         : { id: 'hide', label: 'Hide', icon: EyeOff, tone: 'neutral', run: leaving(() => hide.mutate({ ...ids, hidden: true })) },
     )
-    if (session.capabilities.archive)
-      live.push({ id: 'archive', label: 'Archive', icon: Archive, tone: 'neutral', run: () => setDialog('archive') })
+    if (session.capabilities.archive) live.push(archive)
     // What it is doing now, stopped (Escape, as in its terminal); the session goes on.
     if (session.state === 'busy' && session.capabilities.screen)
       live.push({ id: 'interrupt', label: 'Interrupt', icon: OctagonX, tone: 'neutral', menuOnly: true, run: () => input.mutate({ key: 'Escape' }) })

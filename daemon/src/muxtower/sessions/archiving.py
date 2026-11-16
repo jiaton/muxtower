@@ -24,6 +24,11 @@ class Archiver:
             return False
         own = directory.source_of(session.id)
         transcript = directory.local.transcript_of(session.id) if own is None else None
+        if transcript is None and own is None and session.interrupted_at:
+            # Its agent is not running: its transcript found by the conversation's own id, if it is here.
+            record = directory.local.repo.get(session.id)
+            ask = getattr(directory.processes, "transcript_for", None)
+            transcript = ask(record.agent_id) if ask and record and record.agent_id else None
         items = None
         if transcript is None and session.capabilities.conversation:
             items = directory.conversation(session.id, 0, ARCHIVED_ITEMS).items

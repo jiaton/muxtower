@@ -68,6 +68,7 @@ export interface DialogProps {
 /** What archiving does here: where the session runs decides what ends. */
 function archiveEffect(session: Session): string {
   const kept = 'Its conversation stays readable under Archived.'
+  if (session.interrupted_at) return `Nothing of it runs since the restart: it moves to Archived. ${kept}`
   const codex = session.runtime === 'codex'
   // a Codex pane that is also a thread of Codex's shared app-server keeps its thread: only the pane closes
   if (session.tmux_pane && session.remote_id && !codex)
@@ -123,11 +124,7 @@ export function DeleteDialog({ daemonId, session, ...rest }: DialogProps) {
   return (
     <ConfirmDialog
       title={`Delete ${session.name}?`}
-      description={
-        session.interrupted_at
-          ? 'It is not started again, and muxtower forgets it. Its conversation stays with its agent.'
-          : "It deletes muxtower's copy: it leaves the archive, and its conversation is no longer shown here. Claude Code's own transcript on disk is not touched."
-      }
+      description="It deletes muxtower's copy: it leaves the archive, and its conversation is no longer shown here. Claude Code's own transcript on disk is not touched."
       confirm={
         <>
           <Trash2 /> Delete

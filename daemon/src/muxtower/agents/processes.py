@@ -37,6 +37,13 @@ class AgentProcesses:
                 found += ask(pane_pid)
         return found
 
+    def transcript_for(self, agent_id: str) -> str | None:
+        """A conversation's transcript by its agent's own id (`ClaudeProcesses.transcript_for`)."""
+        for p in self.plugins:
+            if (ask := getattr(p, "transcript_for", None)) and (found := ask(agent_id)):
+                return found  # type: ignore[no-any-return]
+        return None
+
     def ended_bridges(self) -> dict[str, str]:
         """Bridges of muxtower's tmux sessions whose agent has ended (`ClaudeProcesses.ended_bridges`)."""
         found: dict[str, str] = {}

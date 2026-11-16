@@ -250,6 +250,14 @@ class ClaudeProcesses:
         path = self._path(info) if info else None
         return continued(path, self.projects_dir) if path and path.is_file() else None
 
+    def transcript_for(self, agent_id: str) -> str | None:
+        """The transcript of a conversation by its own id (a session whose process is gone: interrupted), or
+        where it went on (`continued`); None when there is none here."""
+        if not re.fullmatch(r"[0-9a-f-]{36}", agent_id):
+            return None
+        found = next(self.projects_dir.glob(f"*/{agent_id}.jsonl"), None)
+        return continued(found, self.projects_dir) if found else None
+
     def ended_bridges(self) -> dict[str, str]:
         """Remote Control sessions of muxtower's own tmux sessions whose Claude Code has ended (its process
         file is left, its process gone or another's): each to the first 8 of that muxtower session's id, as

@@ -18,7 +18,11 @@ from muxtower.sessions.ports import SessionRecord
 UUID_AT_END = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
 
 # Nothing runs: it can only be resumed (`/v1/recovery`) or removed (terminate).
-STOPPED = Capabilities(screen=False, conversation=False, keys=[], resize=False, terminate=True, rename=False)
+# Nothing runs: it can be started again, or archived (its history kept: a recovery that failed is no reason
+# to lose it).
+STOPPED = Capabilities(
+    screen=False, conversation=False, keys=[], resize=False, terminate=True, rename=False, archive=True
+)
 
 
 def launch_options(args: list[str], config: RuntimeConfig) -> list[str]:

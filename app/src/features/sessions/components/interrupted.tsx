@@ -49,7 +49,7 @@ export function InterruptedBanner({ entries }: { entries: SessionEntry[] }) {
 
 /** Every interrupted session, by machine, all ticked: those left ticked are started again (each in its
  *  folder with the options it was started with, resuming its conversation; nothing is sent to it), the
- *  others wait under Interrupted, to start later or delete. */
+ *  others wait under Interrupted, to start later or archive. */
 export function RecoveryDialog({ entries, onClose }: { entries: SessionEntry[]; onClose: () => void }) {
   const [unticked, setUnticked] = useState<Set<string>>(new Set())
   const recover = useRecoverEntries()

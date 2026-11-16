@@ -174,14 +174,14 @@ async def terminate_session(
     audit: Audit,
 ) -> None:  # fmt: skip
     """An archived session: deleted from the archive (muxtower's copy; the agent's own transcript is not
-    touched). One a restart interrupted: forgotten. A live one muxtower started (`capabilities.terminate`)
-    is archived (ended, its history kept: nothing ends without it), as POST /archive does; any other is
-    never ended this way (409): POST /archive says what ending it means."""
+    touched). One a restart interrupted, or a live one muxtower started (`capabilities.terminate`): archived
+    (ended, its history kept: nothing ends without it), as POST /archive does; any other is never ended this
+    way (409): POST /archive says what ending it means."""
     session = directory.get(session_id)
-    if session.archived_at or session.interrupted_at:
+    if session.archived_at:
         directory.terminate(session_id)
         audit.record(device.name, "delete", session_id)
-    elif not session.capabilities.terminate:
+    elif not session.capabilities.terminate and not session.interrupted_at:
         raise Conflict("this session was not started by muxtower: archive it (POST /archive) to end it")
     else:
         await asyncio.to_thread(archiver.archive, session_id)

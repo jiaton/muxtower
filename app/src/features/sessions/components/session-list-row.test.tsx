@@ -114,3 +114,22 @@ describe('the row’s menu from the keyboard', () => {
     await vi.waitFor(() => expect(screen.queryByRole('menu')).toBeNull()) // done, and closed
   })
 })
+
+describe('a session a restart interrupted', () => {
+  it('offers Start again and Archive (its history kept), never Delete', async () => {
+    const { createRootRoute: root, createRouter: router } = await import('@tanstack/react-router')
+    const interrupted = { ...session, interrupted_at: '2026-11-15T08:00:00Z', capabilities: { archive: true } } as unknown as Session
+    const tree = root({ component: () => <SessionListRow entry={{ key: 'd1/s1', daemon, session: interrupted }} /> })
+    const Wrapper = wrapper()
+    render(
+      <Wrapper>
+        <RouterProvider router={router({ routeTree: tree, history: createMemoryHistory() })} />
+      </Wrapper>,
+    )
+    fireEvent.contextMenu(await screen.findByRole('link'), { clientX: 40, clientY: 12 })
+    await screen.findByRole('menu')
+    expect(screen.getByRole('menuitem', { name: /Start again/ })).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: /Archive/ })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: /Delete/ })).toBeNull()
+  })
+})
