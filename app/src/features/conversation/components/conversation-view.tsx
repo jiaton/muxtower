@@ -1,3 +1,4 @@
+import { Clamp } from '@/components/ui/clamp'
 import { ArrowDown, CircleX, RotateCw, X } from 'lucide-react'
 import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -81,7 +82,9 @@ const ItemView = memo(function ItemView({ item, source }: { item: ConversationIt
   if (item.kind === 'prompt')
     return (
       <div className="flex flex-col items-end gap-2">
-        <p className={bubble({ state: 'prompt' })}>{item.text}</p>
+        <div className={bubble({ state: 'prompt' })}>
+          <Clamp>{item.text}</Clamp>
+        </div>
         <Images source={source} items={[item]} />
       </div>
     )
@@ -126,7 +129,9 @@ function OutgoingView({
   const stuck = message.state === 'unconfirmed' || message.state === 'undelivered'
   return (
     <div className="flex flex-col items-end gap-1" data-outgoing={message.state}>
-      <p className={bubble({ state: message.state === 'undelivered' ? 'undelivered' : 'pending' })}>{message.text}</p>
+      <div className={bubble({ state: message.state === 'undelivered' ? 'undelivered' : 'pending' })}>
+        <Clamp>{message.text}</Clamp>
+      </div>
       <p className={cn('flex items-center gap-1', message.state === 'undelivered' ? ink.noteWarning : ink.meta)}>
         {message.state === 'sending' ? <Spinner className="size-3" /> : null}
         {OUTGOING_LABEL[message.state]}

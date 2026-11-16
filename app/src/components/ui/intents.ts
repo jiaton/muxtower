@@ -190,6 +190,10 @@ export const roleCard = ({ centre = false, busy = false, outside = false }: { ce
     outside && box({ faded: 'dim' }),
   )
 
+/** What is cut off at the bottom fades out (any ground: a mask, not a painted gradient): a clamped
+ *  message (`Clamp`). */
+export const fadeOut = '[mask-image:linear-gradient(to_bottom,black_calc(100%-2.5em),transparent)]'
+
 /** A cell of the team view's "who → whom" matrix (team-diagram.tsx): shaded in the accent by how much
  *  went that way (`level` 0–4), muted on the diagonal (a role to itself). */
 export const matrixCell = ({ level, self = false }: { level: number; self?: boolean }) =>
