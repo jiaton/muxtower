@@ -63,3 +63,47 @@ it('centres on what the owner works with most when opened from the project', () 
   render(<TeamDiagram daemonId="d1" project="acme/web" />)
   expect(screen.getByRole('list', { name: 'Who reviewer works with' })).toBeInTheDocument()
 })
+
+it('keeps the feed folded to a line until asked (remembered in this browser), five rows at first', () => {
+  localStorage.removeItem('muxtower.teamFeed')
+  state.activity = {
+    project: 'acme/web',
+    members: ['pm', 'w'],
+    tasks: [...Array(8)].map((_, i) => task(i + 1, i % 2 ? 'w' : 'pm', i % 2 ? 'pm' : 'w', i === 0 ? 'held' : 'delivered')),
+    messages: [],
+    owner: {},
+  }
+  const { unmount } = render(<TeamDiagram daemonId="d1" project="acme/web" from="pm" between={<p>the fields</p>} />)
+  expect(screen.getByText(/^8 tasks in 24 h · 1 held · last/)).toBeInTheDocument()
+  expect(screen.queryByText('task 8')).toBeNull() // folded
+  const fields = screen.getByText('the fields')
+  expect(
+    fields.compareDocumentPosition(screen.getByRole('region', { name: 'What was sent' })) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'Show tasks' }))
+  expect(screen.getAllByText(/^task \d$/)).toHaveLength(5)
+  expect(screen.getByRole('button', { name: 'Show more (3)' })).toBeInTheDocument()
+  unmount()
+  render(<TeamDiagram daemonId="d1" project="acme/web" from="pm" />)
+  expect(screen.getByRole('button', { name: 'Hide tasks' })).toBeInTheDocument() // left open: open again
+  localStorage.removeItem('muxtower.teamFeed')
+})
+
+it('shows who sent whom in a matrix with every role named in full; a cell opens the feed on that pair', () => {
+  localStorage.removeItem('muxtower.teamFeed')
+  state.activity = {
+    project: 'acme/web',
+    members: ['pm', 'w', 'r'],
+    tasks: [task(1, 'pm', 'w'), task(2, 'pm', 'w'), task(3, 'w', 'r'), task(4, 'r', 'pm')],
+    messages: [],
+    owner: {},
+  }
+  render(<TeamDiagram daemonId="d1" project="acme/web" from="pm" />)
+  fireEvent.click(screen.getByRole('radio', { name: 'Who → whom' }))
+  const matrix = screen.getByRole('table')
+  expect(matrix).toHaveTextContent('reviewer') // in full
+  fireEvent.click(screen.getByRole('button', { name: '2' })) // PM → worker
+  expect(screen.getByText('Only PM ⇄ worker')).toBeInTheDocument()
+  expect(screen.getByText('task 1')).toBeInTheDocument() // opened by the cell
+  expect(screen.queryByText('task 3')).toBeNull()
+})

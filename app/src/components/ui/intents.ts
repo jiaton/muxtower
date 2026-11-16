@@ -104,6 +104,8 @@ export const look = {
   mockup: `${box({ radius: 'sm', ground: 'muted' })} ${text({ mono: true, size: 'xs' })} overflow-x-auto whitespace-pre leading-[1.2]`,
   /** A small label beside a name, quieter than it (the device a session runs on, in a project's group). */
   tag: `${box({ ground: 'muted', radius: 'sm' })} ${text({ size: 'xs', tone: 'muted' })} px-1.5`,
+  /** A table of counts, its cells ruled against each other (the team view's matrix, `matrixCell`). */
+  matrix: 'w-full border-collapse text-center',
   /** A key on the keyboard, named where it does something (a menu item's shortcut). */
   keycap: `${box({ outline: 'default', radius: 'xs' })} ${text({ mono: true, size: 'xs', tone: 'muted' })} min-w-5 px-1 text-center`,
   /** Something waiting for an answer, in a conversation. */
@@ -186,6 +188,18 @@ export const roleCard = ({ centre = false, busy = false, outside = false }: { ce
     centre ? 'border-accent' : busy ? 'border-state-busy' : 'border-border',
     box({ ground: 'surface' }),
     outside && box({ faded: 'dim' }),
+  )
+
+/** A cell of the team view's "who → whom" matrix (team-diagram.tsx): shaded in the accent by how much
+ *  went that way (`level` 0–4), muted on the diagonal (a role to itself). */
+export const matrixCell = ({ level, self = false }: { level: number; self?: boolean }) =>
+  cn(
+    'border border-border',
+    self
+      ? box({ ground: 'muted' })
+      : ['', 'bg-accent/15 text-fg', 'bg-accent/30 text-fg', 'bg-accent/60 text-accent-fg', 'bg-accent text-accent-fg'][
+          Math.max(0, Math.min(4, level))
+        ],
   )
 
 /** The team view's rail: the line the centre's partners hang from, and the stub to each. */

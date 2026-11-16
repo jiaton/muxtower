@@ -59,6 +59,49 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
       { onSuccess: onClose },
     )
 
+  // The fields right under the team's picture, its history last: editing never scrolls past history.
+  const form = (
+    <form
+      className="flex flex-col gap-3"
+      onSubmit={(e) => {
+        e.preventDefault()
+        save()
+      }}
+    >
+      <Label>
+        Role
+        <SuggestInput
+          placeholder="worker"
+          value={role}
+          onValueChange={setRole}
+          maxLength={60}
+          suggestions={tally(sessions.map((s) => s.team_role))}
+        />
+      </Label>
+      <Label>
+        Note <span className={ink.aside}>optional</span>
+        <Input placeholder="Implements what research agreed on" value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} />
+      </Label>
+      <Label>
+        <span>
+          Project {session.project_auto && !moved ? <span className={ink.aside}>· auto, from {session.project_source}</span> : null}
+        </span>
+        <SuggestInput
+          placeholder="owner/repo"
+          value={project}
+          onValueChange={setProject}
+          maxLength={120}
+          suggestions={tally(sessions.map((s) => s.project))}
+        />
+      </Label>
+      {update.error ? <Banner tone="error">{update.error.message}</Banner> : null}
+      <div className="flex justify-end">
+        <Button type="submit" disabled={update.isPending}>
+          Save
+        </Button>
+      </div>
+    </form>
+  )
   return (
     <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent
@@ -66,52 +109,7 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
         description="Sessions of a project find each other by role and hand each other work."
         className="sm:max-w-2xl"
       >
-        <TeamDiagram daemonId={daemonId} project={session.project} from={session.id} />
-        <form
-          className="flex flex-col gap-3"
-          onSubmit={(e) => {
-            e.preventDefault()
-            save()
-          }}
-        >
-          <Label>
-            Role
-            <SuggestInput
-              placeholder="worker"
-              value={role}
-              onValueChange={setRole}
-              maxLength={60}
-              suggestions={tally(sessions.map((s) => s.team_role))}
-            />
-          </Label>
-          <Label>
-            Note <span className={ink.aside}>optional</span>
-            <Input
-              placeholder="Implements what research agreed on"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              maxLength={300}
-            />
-          </Label>
-          <Label>
-            <span>
-              Project {session.project_auto && !moved ? <span className={ink.aside}>· auto, from {session.project_source}</span> : null}
-            </span>
-            <SuggestInput
-              placeholder="owner/repo"
-              value={project}
-              onValueChange={setProject}
-              maxLength={120}
-              suggestions={tally(sessions.map((s) => s.project))}
-            />
-          </Label>
-          {update.error ? <Banner tone="error">{update.error.message}</Banner> : null}
-          <div className="flex justify-end">
-            <Button type="submit" disabled={update.isPending}>
-              Save
-            </Button>
-          </div>
-        </form>
+        <TeamDiagram daemonId={daemonId} project={session.project} from={session.id} between={form} />
         {/* With a project, its feed above holds this session's tasks too (a tap on its role narrows to it). */}
         {session.project ? null : (
           <section aria-label="Tasks" className={`${look.rule.top} mt-2 pt-3`}>

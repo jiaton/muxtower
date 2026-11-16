@@ -1,12 +1,13 @@
 import { X } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/segmented'
-import { ink, look, rail, roleCard } from '@/components/ui/intents'
+import { ink, look, matrixCell, rail, roleCard } from '@/components/ui/intents'
 import { Loading } from '@/components/ui/skeleton'
 import { Truncated } from '@/components/ui/truncated'
 import type { TeamActivity } from '@/lib/api/types'
 import { cn } from '@/lib/cn'
+import { ago } from '@/lib/time'
 import { useProjectActivity } from '../api/use-team'
 import { useSessionEntries } from '../hooks/use-session-entries'
 import {
@@ -34,15 +35,34 @@ const metaOf = (n: DiagramNode) => [n.state ? (STATE[n.state] ?? n.state) : null
 
 /** A project's team at work (`model/team-diagram.ts`), from its activity in the last 24 hours or 7 days.
  *  `from`: the session it was opened from (its role is the centre); else the role the owner works with most. */
-export function TeamDiagram({ daemonId, project, from }: { daemonId: string; project: string | null | undefined; from?: string }) {
+export function TeamDiagram({
+  daemonId,
+  project,
+  from,
+  between,
+}: {
+  daemonId: string
+  project: string | null | undefined
+  from?: string
+  /** Shown between the team's picture and its feed (the Team dialog's own fields). */
+  between?: ReactNode
+}) {
   const [hours, setHours] = useState<'24' | '168'>('24')
   const activity = useProjectActivity(daemonId, project, Number(hours))
   const { entries } = useSessionEntries()
   const sessions = useMemo(() => entries.filter((e) => e.daemon.id === daemonId).map((e) => e.session), [entries, daemonId])
   const d = useMemo(() => (activity.data ? buildDiagram(activity.data, sessions) : null), [activity.data, sessions])
-  if (!project) return null
-  if (!d || !activity.data) return <Loading />
-  return <TeamActivityView d={d} activity={activity.data} project={project} from={from} hours={hours} onHours={setHours} />
+  if (!project) return <>{between}</>
+  if (!d || !activity.data)
+    return (
+      <>
+        <Loading />
+        {between}
+      </>
+    )
+  return (
+    <TeamActivityView d={d} activity={activity.data} project={project} from={from} hours={hours} onHours={setHours} between={between} />
+  )
 }
 
 /**
@@ -59,6 +79,7 @@ export function TeamActivityView({
   from,
   hours,
   onHours,
+  between,
 }: {
   d: Diagram
   activity: TeamActivity
@@ -66,10 +87,18 @@ export function TeamActivityView({
   from?: string
   hours: '24' | '168'
   onHours: (h: '24' | '168') => void
+  between?: ReactNode
 }) {
   const pairs = useMemo(() => pairsOf(d), [d])
   const [chosen, setChosen] = useState<string | null>(null)
-  const [filter, setFilter] = useState<Filter>(null)
+  const [filter, setFilterOnly] = useState<Filter>(null)
+  const [view, setView] = useState<'role' | 'matrix'>('role')
+  const [open, setOpen] = useState(feedOpen)
+  // Narrowing the feed (a count, a cell, a card) opens it on what was narrowed to.
+  const setFilter = (f: Filter) => {
+    setFilterOnly(f)
+    if (f) setOpen(true)
+  }
   const header = (
     <div className="flex items-center gap-2">
       <h3 className={`${ink.eyebrow} min-w-0 flex-1 truncate`}>Team · {project}</h3>
@@ -89,6 +118,7 @@ export function TeamActivityView({
     return (
       <section aria-label="Team activity" className="flex flex-col gap-2">
         {header}
+        {between}
         <p className={ink.hint}>
           Nothing sent in this team yet. A team forms from the sessions of one project: start a teammate with{' '}
           <code className={ink.code}>start_session</code> and this project, or set the project here; then they send each other work with{' '}
@@ -106,98 +136,243 @@ export function TeamActivityView({
   const isPair = (p: Pair) => filter && 'pair' in filter && filter.pair[0] === p.a && filter.pair[1] === p.b
   const pickPair = (p: Pair) => setFilter(isPair(p) ? null : { pair: [p.a, p.b] })
 
+  const picture =
+    view === 'matrix' ? (
+      <Matrix pairs={pairs} name={name} onPick={(a, b) => setFilter({ pair: a < b ? [a, b] : [b, a] })} />
+    ) : (
+      <>
+        <Button
+          variant="plain"
+          aria-pressed={Boolean(filter && 'node' in filter && filter.node === centre)}
+          onClick={() => setFilter(filter && 'node' in filter && filter.node === centre ? null : { node: centre })}
+          className={cn(
+            roleCard({ centre: true, busy: node(centre).state === 'busy' }),
+            'flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left',
+          )}
+        >
+          <span className={`${ink.strong} min-w-0 flex-1 truncate`}>{node(centre).label}</span>
+          <span className={`${ink.meta} shrink-0`}>{metaOf(node(centre))}</span>
+        </Button>
+        <ul className={`${rail.line} ml-4 flex flex-col`} aria-label={`Who ${node(centre).label} works with`}>
+          {spokes.map((s) => {
+            const other = node(s.other)
+            return (
+              <li key={s.other} className="flex min-w-0 items-center gap-2 py-1">
+                <span className={`${rail.stub} w-3 shrink-0`} aria-hidden />
+                <Button
+                  variant="plain"
+                  title={directions(s.pair)}
+                  aria-pressed={Boolean(isPair(s.pair))}
+                  onClick={() => pickPair(s.pair)}
+                  className={cn(
+                    look.pill,
+                    s.pair.held ? ink.noteAccent : ink.meta,
+                    ink.count,
+                    'shrink-0 justify-end px-2 py-0.5 text-right',
+                  )}
+                  style={{ width: `${width}ch` }}
+                >
+                  {spokeWords(s)}
+                </Button>
+                <Button
+                  variant="plain"
+                  onClick={() => {
+                    setChosen(s.other)
+                    setFilter({ node: s.other })
+                  }}
+                  aria-label={`Put ${other.label} in the middle`}
+                  className={cn(
+                    roleCard({ busy: other.state === 'busy', outside: other.external }),
+                    'flex min-w-0 flex-1 flex-col items-start px-3 py-1 text-left',
+                  )}
+                >
+                  {/* Its name the card's whole width, what it is doing under it: a phone has room for both. */}
+                  <span className={`${ink.strong} w-full truncate`}>{other.label}</span>
+                  <span className={`${ink.meta} w-full truncate`}>{metaOf(other)}</span>
+                </Button>
+              </li>
+            )
+          })}
+        </ul>
+        {also.length ? (
+          <div className="flex flex-col gap-1">
+            <h4 className={ink.eyebrow}>Also</h4>
+            {also.map((p) => (
+              <Button
+                key={`${p.a} ${p.b}`}
+                variant="plain"
+                title={directions(p)}
+                aria-pressed={Boolean(isPair(p))}
+                onClick={() => pickPair(p)}
+                className={cn(ink.body, 'flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-left')}
+              >
+                {[p.ab ? [p.a, p.b, p.ab] : null, p.ba ? [p.b, p.a, p.ba] : null]
+                  .filter((x): x is [string, string, number] => x !== null)
+                  .map(([a, b, n], i) => (
+                    <span key={i} className="inline-flex min-w-0 items-center gap-1">
+                      {i ? <span className={ink.quiet}>·</span> : null}
+                      <span className={`${look.tag} min-w-0 truncate`}>{name(a)}</span>
+                      <span className={ink.quiet}>→</span>
+                      <span className={`${look.tag} min-w-0 truncate`}>{name(b)}</span>
+                      <span className={cn(p.held ? ink.noteAccent : ink.meta, ink.count)}>{n}</span>
+                    </span>
+                  ))}
+              </Button>
+            ))}
+          </div>
+        ) : null}
+      </>
+    )
   return (
     <section aria-label="Team activity" className="flex min-w-0 flex-col gap-3">
       {header}
-      <Button
-        variant="plain"
-        aria-pressed={Boolean(filter && 'node' in filter && filter.node === centre)}
-        onClick={() => setFilter(filter && 'node' in filter && filter.node === centre ? null : { node: centre })}
-        className={cn(
-          roleCard({ centre: true, busy: node(centre).state === 'busy' }),
-          'flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left',
-        )}
-      >
-        <span className={`${ink.strong} min-w-0 flex-1 truncate`}>{node(centre).label}</span>
-        <span className={`${ink.meta} shrink-0`}>{metaOf(node(centre))}</span>
-      </Button>
-      <ul className={`${rail.line} ml-4 flex flex-col`} aria-label={`Who ${node(centre).label} works with`}>
-        {spokes.map((s) => {
-          const other = node(s.other)
-          return (
-            <li key={s.other} className="flex min-w-0 items-center gap-2 py-1">
-              <span className={`${rail.stub} w-3 shrink-0`} aria-hidden />
-              <Button
-                variant="plain"
-                title={directions(s.pair)}
-                aria-pressed={Boolean(isPair(s.pair))}
-                onClick={() => pickPair(s.pair)}
-                className={cn(look.pill, s.pair.held ? ink.noteAccent : ink.meta, ink.count, 'shrink-0 justify-end px-2 py-0.5 text-right')}
-                style={{ width: `${width}ch` }}
-              >
-                {spokeWords(s)}
-              </Button>
-              <Button
-                variant="plain"
-                onClick={() => setChosen(s.other)}
-                aria-label={`Put ${other.label} in the middle`}
-                className={cn(
-                  roleCard({ busy: other.state === 'busy', outside: other.external }),
-                  'flex min-w-0 flex-1 flex-col items-start px-3 py-1 text-left',
-                )}
-              >
-                {/* Its name the card's whole width, what it is doing under it: a phone has room for both. */}
-                <span className={`${ink.strong} w-full truncate`}>{other.label}</span>
-                <span className={`${ink.meta} w-full truncate`}>{metaOf(other)}</span>
-              </Button>
-            </li>
-          )
-        })}
-      </ul>
-      {also.length ? (
-        <div className="flex flex-col gap-1">
-          <h4 className={ink.eyebrow}>Also</h4>
-          {also.map((p) => (
-            <Button
-              key={`${p.a} ${p.b}`}
-              variant="plain"
-              title={directions(p)}
-              aria-pressed={Boolean(isPair(p))}
-              onClick={() => pickPair(p)}
-              className={cn(ink.body, 'flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-left')}
-            >
-              {[p.ab ? [p.a, p.b, p.ab] : null, p.ba ? [p.b, p.a, p.ba] : null]
-                .filter((x): x is [string, string, number] => x !== null)
-                .map(([a, b, n], i) => (
-                  <span key={i} className="inline-flex min-w-0 items-center gap-1">
-                    {i ? <span className={ink.quiet}>·</span> : null}
-                    <span className={`${look.tag} min-w-0 truncate`}>{name(a)}</span>
-                    <span className={ink.quiet}>→</span>
-                    <span className={`${look.tag} min-w-0 truncate`}>{name(b)}</span>
-                    <span className={cn(p.held ? ink.noteAccent : ink.meta, ink.count)}>{n}</span>
-                  </span>
-                ))}
-            </Button>
-          ))}
-        </div>
-      ) : null}
+      <Segmented
+        aria-label="Show the team"
+        value={view}
+        options={[
+          { value: 'role', label: 'Around a role' },
+          { value: 'matrix', label: 'Who → whom' },
+        ]}
+        onChange={setView}
+      />
+      {picture}
       {idle.length ? (
         <p className={ink.meta}>
           No tasks in {hours === '24' ? '24 h' : '7 days'}: {idle.map((n) => (n.device ? `${n.label} (${n.device})` : n.label)).join(' · ')}
         </p>
       ) : null}
-      <Feed d={d} name={name} filter={filter} onClear={() => setFilter(null)} />
+      {between}
+      <Feed
+        d={d}
+        name={name}
+        filter={filter}
+        onClear={() => setFilterOnly(null)}
+        hours={hours}
+        open={open}
+        onOpen={(o) => {
+          setOpen(o)
+          rememberFeed(o)
+        }}
+      />
     </section>
   )
 }
 
-export function Feed({ d, name, filter, onClear }: { d: Diagram; name: (id: string) => string; filter: Filter; onClear: () => void }) {
-  const [all, setAll] = useState(false)
-  const days = feed(d, filter ? ('node' in filter ? { node: filter.node } : { pair: filter.pair }) : null)
-  const count = days.reduce((n, day) => n + day.events.length, 0)
-  let left = all ? Infinity : FEED_SHOWN
+const FEED_KEY = 'muxtower.teamFeed'
+/** Whether the feed was left open in this browser (closed at first: the Team dialog's fields come first). */
+function feedOpen(): boolean {
+  try {
+    return localStorage.getItem(FEED_KEY) === 'open'
+  } catch {
+    return false
+  }
+}
+function rememberFeed(open: boolean) {
+  try {
+    localStorage.setItem(FEED_KEY, open ? 'open' : 'closed')
+  } catch {
+    // private browsing, storage off: it just starts closed
+  }
+}
+
+/** Every pair at once: rows send, columns receive, each cell how much went that way, shaded by it; the
+ *  roles named in full (the columns' names turned on their side). A cell narrows the feed to its pair. */
+function Matrix({ pairs, name, onPick }: { pairs: Pair[]; name: (id: string) => string; onPick: (a: string, b: string) => void }) {
+  const roles = [...new Set(pairs.flatMap((p) => [p.a, p.b]))]
+  const count = (from: string, to: string) =>
+    pairs.reduce((k, p) => k + (p.a === from && p.b === to ? p.ab : p.b === from && p.a === to ? p.ba : 0), 0)
+  const max = Math.max(...pairs.flatMap((p) => [p.ab, p.ba]), 1)
+  const level = (k: number) => (k ? Math.max(1, Math.ceil((k / max) * 4)) : 0)
   return (
-    <section aria-label="What was sent" className="flex flex-col gap-2">
+    <div className="overflow-x-auto overscroll-x-contain">
+      <table className={look.matrix} aria-label="Who sent whom how many tasks: rows send, columns receive">
+        <thead>
+          <tr>
+            <th className={cn(ink.meta, 'align-bottom')}>
+              <span className="sr-only">from</span>
+            </th>
+            {roles.map((to) => (
+              <th key={to} scope="col" className={cn(ink.meta, 'px-0.5 pb-1 align-bottom')}>
+                <span className="mx-auto block max-h-32 overflow-hidden text-left whitespace-nowrap [writing-mode:vertical-rl] rotate-180">
+                  {name(to)}
+                </span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {roles.map((from) => (
+            <tr key={from}>
+              <th scope="row" className={cn(ink.meta, 'max-w-24 pr-1 text-left')}>
+                <span className="line-clamp-2 break-words">{name(from)}</span>
+              </th>
+              {roles.map((to) => {
+                const k = count(from, to)
+                return (
+                  <td key={to} className={cn(matrixCell({ level: level(k), self: from === to }), ink.count, 'h-9 min-w-9 p-0')}>
+                    {k ? (
+                      <Button
+                        variant="plain"
+                        className="h-9 w-full justify-center"
+                        title={`${name(from)} → ${name(to)} ${k}`}
+                        onClick={() => onPick(from, to)}
+                      >
+                        {k}
+                      </Button>
+                    ) : null}
+                  </td>
+                )
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className={cn(ink.meta, 'mt-1')}>Rows send, columns receive; a cell shows what went that way.</p>
+    </div>
+  )
+}
+
+const FIRST = 5 // shown on opening; then twenty more at a time
+
+/** What was sent, newest first, by day: folded to a line saying how much (and what waits) until opened. */
+export function Feed({
+  d,
+  name,
+  filter,
+  onClear,
+  hours,
+  open,
+  onOpen,
+}: {
+  d: Diagram
+  name: (id: string) => string
+  filter: Filter
+  onClear: () => void
+  hours: '24' | '168'
+  open: boolean
+  onOpen: (open: boolean) => void
+}) {
+  const [shown, setShown] = useState(FIRST)
+  const days = feed(d, filter ? ('node' in filter ? { node: filter.node } : { pair: filter.pair }) : null)
+  const events = days.flatMap((day) => day.events)
+  const tasks = events.filter((e) => e.kind === 'task')
+  const held = tasks.filter((e) => e.status !== 'delivered').length
+  const summary = [
+    `${tasks.length} task${tasks.length === 1 ? '' : 's'} in ${hours === '24' ? '24 h' : '7 days'}`,
+    held ? `${held} held` : null,
+    events[0] ? `last ${ago(events[0].at)} ago` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+  let left = shown
+  return (
+    <section aria-label="What was sent" className={`${look.rule.top} flex flex-col gap-2 pt-3`}>
+      <div className="flex items-center gap-2">
+        <p className={cn(ink.meta, 'min-w-0 flex-1')}>{summary}</p>
+        <Button variant="ghost" size="sm" aria-expanded={open} onClick={() => onOpen(!open)}>
+          {open ? 'Hide tasks' : 'Show tasks'}
+        </Button>
+      </div>
       {filter ? (
         <Button
           variant="plain"
@@ -208,24 +383,26 @@ export function Feed({ d, name, filter, onClear }: { d: Diagram; name: (id: stri
           <X className={`${ink.quiet} size-3.5`} aria-label="Show all" />
         </Button>
       ) : null}
-      {days.map((day) => {
-        if (left <= 0) return null
-        const events = day.events.slice(0, left)
-        left -= events.length
-        return (
-          <div key={day.day} className="flex flex-col">
-            <h4 className={ink.eyebrow}>{day.day === new Date().toDateString() ? 'Today' : day.day}</h4>
-            <ul className={`${look.rows} flex flex-col`}>
-              {events.map((e) => (
-                <FeedRow key={e.id} event={e} name={name} />
-              ))}
-            </ul>
-          </div>
-        )
-      })}
-      {count > FEED_SHOWN && !all ? (
-        <Button variant="ghost" size="sm" className="self-start" onClick={() => setAll(true)}>
-          Show {count - FEED_SHOWN} more
+      {open
+        ? days.map((day) => {
+            if (left <= 0) return null
+            const rows = day.events.slice(0, left)
+            left -= rows.length
+            return (
+              <div key={day.day} className="flex flex-col">
+                <h4 className={ink.eyebrow}>{day.day === new Date().toDateString() ? 'Today' : day.day}</h4>
+                <ul className={`${look.rows} flex flex-col`}>
+                  {rows.map((e) => (
+                    <FeedRow key={e.id} event={e} name={name} />
+                  ))}
+                </ul>
+              </div>
+            )
+          })
+        : null}
+      {open && events.length > shown ? (
+        <Button variant="ghost" size="sm" className="self-start" onClick={() => setShown(shown + FEED_SHOWN)}>
+          Show more ({events.length - shown})
         </Button>
       ) : null}
     </section>
