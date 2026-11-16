@@ -102,6 +102,8 @@ export const look = {
   /** A mockup an agent drew for an option (a question's preview): kept as drawn, monospace, lines that
    *  touch so box drawing joins, scrolled sideways rather than wrapped. */
   mockup: `${box({ radius: 'sm', ground: 'muted' })} ${text({ mono: true, size: 'xs' })} overflow-x-auto whitespace-pre leading-[1.2]`,
+  /** A small label beside a name, quieter than it (the device a session runs on, in a project's group). */
+  tag: `${box({ ground: 'muted', radius: 'sm' })} ${text({ size: 'xs', tone: 'muted' })} px-1.5`,
   /** A key on the keyboard, named where it does something (a menu item's shortcut). */
   keycap: `${box({ outline: 'default', radius: 'xs' })} ${text({ mono: true, size: 'xs', tone: 'muted' })} min-w-5 px-1 text-center`,
   /** Something waiting for an answer, in a conversation. */

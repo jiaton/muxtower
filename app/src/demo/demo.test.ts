@@ -144,6 +144,7 @@ describe('the demo daemon over HTTP', () => {
       'changelog-fork',
       'release-post-fork',
       'tidy-up',
+      'laptop~shop-api-ui',
       'laptop~migrations',
       'old-1',
       'old-2',

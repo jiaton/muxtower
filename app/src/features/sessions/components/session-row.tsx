@@ -9,7 +9,7 @@ import { AgentMark } from './agent-mark'
 import { NOTIFY_LEVELS } from './notify-items'
 import { StatusIcon } from '@/components/ui/status-icon'
 import { listRow, listRowBelow } from '@/components/ui/list-row'
-import { ink, listItem } from '@/components/ui/intents'
+import { ink, listItem, look } from '@/components/ui/intents'
 
 export interface RowContext {
   /** The list is already narrowed to one device / folder: do not repeat it on every row. */
@@ -24,6 +24,8 @@ export interface RowContext {
   showAgent?: boolean
   /** Listed under the session it was forked from: the tree already says it is a fork. */
   nested?: boolean
+  /** In a group of sessions on several devices (a project's): the device as a tag by the name. */
+  deviceTag?: boolean
 }
 
 /** One line of Markdown as plain text: no emphasis marks, code ticks or heading hashes. */
@@ -61,7 +63,7 @@ export function SessionRow({
     session.team_role,
     session.fork_of && !context.nested ? (session.side_chat ? 'Side chat' : 'Fork') : null,
     context.showDaemon ? daemon.name : null,
-    context.hideDevice ? null : (deviceOf(session) ?? NO_ENVIRONMENT),
+    context.hideDevice || context.deviceTag ? null : (deviceOf(session) ?? NO_ENVIRONMENT),
     context.hideFolder || !folder ? null : folderName(folder),
     context.hideSource ? null : sourceOf(session),
     context.showAccount && session.account ? session.account : null,
@@ -86,6 +88,7 @@ export function SessionRow({
             <span className={cn('min-w-0 flex-1 truncate', session.unread || session.needs_attention ? ink.emphasis : ink.strong)}>
               {session.name}
             </span>
+            {context.deviceTag ? <span className={`${look.tag} shrink-0 self-center`}>{deviceOf(session) ?? NO_ENVIRONMENT}</span> : null}
             {writing ? (
               <span title={writing} className="shrink-0 self-center">
                 <GitCompareArrows className={`${ink.warning} size-3.5`} role="img" aria-label={writing} />

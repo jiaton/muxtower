@@ -1,4 +1,4 @@
-import { Monitor, Plus } from 'lucide-react'
+import { FolderGit2, Monitor, Plus } from 'lucide-react'
 import { memo, useCallback, useEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Fold } from '@/components/ui/fold'
@@ -8,7 +8,7 @@ import { useRowMoves } from '../hooks/use-row-moves'
 import { buildList, type GroupNode, type Held, type RowNode, type SectionNode } from '../model/list'
 import type { Group } from '../model/query'
 import { useListPrefs, useNewSessionRequest } from '../store'
-import { presetForDevice, presetForFolder } from '../model/new-here'
+import { presetForDevice, presetForFolder, presetForProject } from '../model/new-here'
 import { useNodeNames } from '@/lib/daemons/use-nodes'
 import type { SessionEntry } from '../model/facets'
 import { AgentMark } from './agent-mark'
@@ -80,7 +80,9 @@ function StartHere({ node }: { node: GroupNode | SectionNode }) {
   const preset =
     node.kind === 'section'
       ? presetForFolder(entries, nodes, node.placeKind === 'worktree' ? (entries[0]?.session.git?.worktree ?? undefined) : undefined)
-      : presetForDevice(entries, nodes)
+      : node.implies.project
+        ? presetForProject(entries, nodes, node.label)
+        : presetForDevice(entries, nodes)
   if (!preset) return null
   return (
     <Button
@@ -109,18 +111,25 @@ const GroupHeader = memo(
           onToggle={node.foldable ? (header) => toggle(node.key, header) : undefined}
           className={`${ink.eyebrow} ${ink.quietAction} min-w-0 flex-1 gap-2 px-3 py-1.5 sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0`}
         >
-          {node.sectioned ? <Monitor aria-hidden /> : node.implies.agent ? <AgentMark decorative agent={node.label} /> : null}
+          {node.sectioned ? (
+            <Monitor aria-hidden />
+          ) : node.implies.project ? (
+            <FolderGit2 aria-hidden />
+          ) : node.implies.agent ? (
+            <AgentMark decorative agent={node.label} />
+          ) : null}
           <span className="truncate">{node.label}</span>
           <HeaderCount count={node.count} needs={node.needs} className="normal-case" />
         </FoldButton>
-        {node.implies.device ? <StartHere node={node} /> : null}
+        {node.implies.device || node.implies.project ? <StartHere node={node} /> : null}
       </h3>
     )
   },
   (a, b) =>
     a.toggle === b.toggle &&
     (['key', 'id', 'label', 'sectioned', 'folded', 'foldable', 'count', 'needs'] as const).every((k) => a.node[k] === b.node[k]) &&
-    a.node.implies.agent === b.node.implies.agent,
+    a.node.implies.agent === b.node.implies.agent &&
+    a.node.implies.project === b.node.implies.project,
 )
 
 /** A device's folder: a quieter, non-sticky second level under the device's sticky header, indented when it
@@ -275,6 +284,7 @@ export function SessionList({
             hideSource: context.hideSource || group.implies.source,
             showAccount: context.showAccount && !group.implies.account,
             showAgent: context.showAgent && !group.implies.agent,
+            deviceTag: group.implies.project,
           },
         }
         return (

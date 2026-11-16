@@ -228,3 +228,37 @@ export function tidyUp(): Scene {
     reply: talk('claude', 10),
   }
 }
+
+/** The same project on the other computer: a checkout of shop-api on the laptop, so grouping by project
+ *  shows one project across devices (each row saying where it runs). */
+export function shopApiLaptop(): Scene {
+  return {
+    session: demoSession({
+      id: `${NODE}~shop-api-ui`,
+      name: 'checkout page',
+      cwd: '/Users/dev/code/shop-api',
+      git: { repo: '/Users/dev/code/shop-api', worktree: '/Users/dev/code/shop-api', branch: 'checkout-ui', remote: 'acme/shop-api' },
+      team_role: 'frontend',
+      project: 'acme/shop-api',
+      project_auto: true,
+      project_source: 'git remote',
+      project_anchor: '/Users/dev/code/shop-api',
+      node: NODE,
+      machine: NODE,
+      on_host: false,
+      created_at: ago(90),
+      updated_at: ago(15),
+    }),
+    history: [
+      ...claudeWelcome('~/code/shop-api'),
+      ...said('Make the checkout button say what it charges.'),
+      ...answered('It now reads "Pay $42.00".'),
+    ],
+    footer: claudeInput,
+    items: [
+      prompt(1, { text: 'Make the checkout button say what it charges.', at: ago(16) }),
+      reply(2, { text: 'It now reads "Pay $42.00".', at: ago(15) }),
+    ],
+    reply: talk('claude', 10),
+  }
+}

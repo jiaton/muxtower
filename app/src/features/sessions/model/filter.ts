@@ -2,7 +2,7 @@
 import { inChip } from './chip-groups'
 import { folderOf, placeOf, statusOf, type SessionEntry } from './facets'
 import { worktreeOf } from './places'
-import { accountLabel, agentLabel, deviceLabel, folderLabel, placeIn, sourceLabel, type SessionQuery } from './query'
+import { accountLabel, agentLabel, deviceLabel, folderLabel, placeIn, projectLabel, sourceLabel, type SessionQuery } from './query'
 import { inWorkspace, isWorkspace, workspaceOfLoose, workspacesOf } from './workspaces'
 
 function matchesText(entry: SessionEntry, q: string): boolean {
@@ -10,6 +10,7 @@ function matchesText(entry: SessionEntry, q: string): boolean {
   const haystack = [
     session.name,
     folderLabel(entry),
+    projectLabel(entry),
     deviceLabel(entry),
     agentLabel(entry),
     sourceLabel(entry),
@@ -32,6 +33,7 @@ export function filterEntries(entries: SessionEntry[], query: SessionQuery): Ses
     if (query.agent && agentLabel(entry) !== query.agent) return false
     if (query.source && sourceLabel(entry) !== query.source) return false
     if (query.account && accountLabel(entry) !== query.account) return false
+    if (query.project && projectLabel(entry) !== query.project) return false
     if (query.chip && !inChip(entry, query.chip, workspaces)) return false
     return !q || matchesText(entry, q)
   })

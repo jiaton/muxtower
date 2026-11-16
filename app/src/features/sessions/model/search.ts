@@ -9,6 +9,7 @@ export interface ListSearch {
   agent?: string
   source?: string
   account?: string
+  project?: string
   q?: string
   /** The chosen chip of the second row: a group's id, or `p:<project>` (`chip-groups.ts`). */
   chip?: string
@@ -27,6 +28,7 @@ export function parseListSearch(raw: Record<string, unknown>): ListSearch {
     agent: text(raw.agent),
     source: text(raw.source),
     account: text(raw.account),
+    project: text(raw.project),
     q: text(raw.q),
     chip: text(raw.chip),
   }
@@ -40,6 +42,7 @@ export const toQuery = (search: ListSearch, defaultGroup: GroupBy): SessionQuery
   agent: search.agent,
   source: search.source,
   account: search.account,
+  project: search.project,
   q: search.q,
 })
 
@@ -50,6 +53,7 @@ export interface Scope {
   agent?: string
   source?: string
   account?: string
+  project?: string
   /** A chip of the second row (`''`: none), chosen within the view shown. */
   chip?: string
 }
@@ -60,7 +64,7 @@ export interface Scope {
  *  agent, source or account clears the group. */
 export function scopeSearch(current: ListSearch, scope: Scope): ListSearch {
   if (scope.chip !== undefined) return { group: current.group, q: current.q, view: current.view, chip: scope.chip || undefined }
-  const narrowed = Boolean(scope.device || scope.folder || scope.agent || scope.source || scope.account)
+  const narrowed = Boolean(scope.device || scope.folder || scope.agent || scope.source || scope.account || scope.project)
   return {
     group: current.group,
     q: current.q,
@@ -70,26 +74,36 @@ export function scopeSearch(current: ListSearch, scope: Scope): ListSearch {
     agent: scope.agent,
     source: scope.source,
     account: scope.account,
+    project: scope.project,
     chip: narrowed ? undefined : current.chip,
   }
 }
 
 /** The scope a query is narrowed to, if any. */
 export const scopeOf = (query: SessionQuery): Scope | null =>
-  query.device || query.folder || query.agent || query.source || query.account
-    ? { device: query.device, folder: query.folder, agent: query.agent, source: query.source, account: query.account }
+  query.device || query.folder || query.agent || query.source || query.account || query.project
+    ? {
+        device: query.device,
+        folder: query.folder,
+        agent: query.agent,
+        source: query.source,
+        account: query.account,
+        project: query.project,
+      }
     : null
 
 /** Whether the list shows exactly this scope (the sidebar's current entry). */
 export function isCurrentScope(search: ListSearch, scope: Scope): boolean {
   const view = search.view ?? 'all'
-  if (scope.view) return !search.device && !search.folder && !search.agent && !search.source && !search.account && view === scope.view
+  if (scope.view)
+    return !search.device && !search.folder && !search.agent && !search.source && !search.account && !search.project && view === scope.view
   return (
     search.device === scope.device &&
     search.folder === scope.folder &&
     search.agent === scope.agent &&
     search.source === scope.source &&
     search.account === scope.account &&
+    search.project === scope.project &&
     view === 'all'
   )
 }

@@ -1,5 +1,5 @@
 import { Link, useMatch, useNavigate, useSearch } from '@tanstack/react-router'
-import { Archive, CircleAlert, CircleCheck, EyeOff, Layers, LoaderCircle, Monitor, RotateCcw, UserRound } from 'lucide-react'
+import { Archive, CircleAlert, CircleCheck, EyeOff, FolderGit2, Layers, LoaderCircle, Monitor, RotateCcw, UserRound } from 'lucide-react'
 import { createContext, useContext, useState, type MouseEvent, type ReactNode } from 'react'
 import { NavCount, NavSection, navItemClass, navItemRoom, navSubItemClass } from '@/components/ui/nav'
 import { cn } from '@/lib/cn'
@@ -207,6 +207,17 @@ export function SessionsNav({ replace = false }: { replace?: boolean }) {
               )
             })}
           </NavSection>
+          {facets.projects.length > 1 ? (
+            <NavSection title="Projects">
+              {facets.projects.map((p) => (
+                <ScopeLink key={p.label} search={search} scope={{ project: p.label }} className={navItemClass}>
+                  <FolderGit2 aria-hidden />
+                  <span className="truncate">{p.label}</span>
+                  <NavCount count={p.needs || p.count} alert={p.needs > 0} />
+                </ScopeLink>
+              ))}
+            </NavSection>
+          ) : null}
           <NavSection title="Devices">
             {facets.devices.map((d) => (
               <DeviceTree key={d.label} device={d} search={search} usage={usage.get(d.label.toLowerCase())} entries={entries} />

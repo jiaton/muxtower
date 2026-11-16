@@ -10,6 +10,7 @@ import { nestFolders, withRepositories } from './folders'
 import { anchorOf, homeKind, homeOf, worktreeOf, type PlaceKind } from './places'
 import {
   NO_ENVIRONMENT,
+  NO_PROJECT,
   SOURCES,
   STATUSES,
   UNKNOWN_ACCOUNT,
@@ -19,6 +20,7 @@ import {
   compareAgents,
   deviceOf,
   isAssistant,
+  projectGroupOf,
   sourceOf,
   statusOf,
   type Place,
@@ -27,7 +29,7 @@ import {
 
 /** What the list shows; hidden and archived sessions are only in their own view, and counted nowhere else. */
 export const VIEWS = ['all', 'needs', 'unread', 'working', 'hidden', 'archived', 'interrupted'] as const
-export const GROUPINGS = ['status', 'device', 'agent', 'source', 'account', 'none'] as const
+export const GROUPINGS = ['status', 'project', 'device', 'agent', 'source', 'account', 'none'] as const
 export type View = (typeof VIEWS)[number]
 export type GroupBy = (typeof GROUPINGS)[number]
 
@@ -44,6 +46,8 @@ export interface SessionQuery {
   source?: string
   /** An account label (`accountOf`). */
   account?: string
+  /** A project (`projectGroupOf`), or NO_PROJECT. */
+  project?: string
   q?: string
   /** What the chosen chip of the second row holds (`chip-groups.ts`). */
   chip?: ChipMembers
@@ -66,6 +70,7 @@ export const ASIDE_VIEWS: readonly View[] = ['hidden', 'archived', 'interrupted'
 export const placeIn = (view: View): Place => (view === 'hidden' || view === 'archived' || view === 'interrupted' ? view : 'listed')
 export const GROUP_LABEL: Record<GroupBy, string> = {
   status: 'Status',
+  project: 'Project',
   device: 'Device and folder',
   agent: 'Agent',
   source: 'Source',
@@ -79,6 +84,7 @@ export const folderLabel = (entry: SessionEntry) => homeOf(entry.session) ?? UNK
 export const agentLabel = (entry: SessionEntry) => agentOf(entry.session)
 export const sourceLabel = (entry: SessionEntry) => sourceOf(entry.session)
 export const accountLabel = (entry: SessionEntry) => accountOf(entry.session)
+export const projectLabel = (entry: SessionEntry) => projectGroupOf(entry.session)
 
 export { filterEntries }
 
@@ -98,6 +104,8 @@ export interface Implied {
   agent?: boolean
   source?: boolean
   account?: boolean
+  /** A project's group: its sessions run on several devices, each row says which (a tag). */
+  project?: boolean
 }
 
 export interface Section {
@@ -209,6 +217,24 @@ export function groupEntries(entries: SessionEntry[], by: GroupBy): Group[] {
     ]
   }
 
+  if (by === 'project') {
+    // In a project: what needs you first, then what works, then the most recently active. Projects with
+    // something that needs you first, then the most recently active; "No project" last.
+    const tier = (e: SessionEntry) => (e.session.needs_attention ? 0 : e.session.state === 'busy' ? 1 : 2)
+    const inProject = [...rest].sort((a, b) => tier(a) - tier(b) || compareEntries(a, b))
+    const byProject = bucket(inProject, projectLabel)
+    const needs = (key: string) => byProject.get(key)!.some((e) => e.session.needs_attention)
+    const latest = (key: string) => Math.max(...byProject.get(key)!.map((e) => Date.parse(e.session.updated_at) || 0))
+    const keys = [...byProject.keys()].sort(
+      (a, b) =>
+        Number(a === NO_PROJECT) - Number(b === NO_PROJECT) ||
+        Number(needs(b)) - Number(needs(a)) ||
+        latest(b) - latest(a) ||
+        a.localeCompare(b),
+    )
+    return [...groups, ...keys.map((key) => ({ key, label: key, entries: byProject.get(key)!, implies: { project: key !== NO_PROJECT } }))]
+  }
+
   if (by === 'agent') {
     const byAgent = bucket(rest, agentLabel)
     const keys = [...byAgent.keys()].sort(compareAgents)
@@ -231,7 +257,7 @@ export function groupEntries(entries: SessionEntry[], by: GroupBy): Group[] {
 /** A title for what the list shows, and where that is when the title is a folder. */
 export function queryTitle(query: SessionQuery): { title: string; within?: string } {
   if (query.folder) return { title: query.folder, within: query.device }
-  return { title: query.device ?? query.agent ?? query.source ?? query.account ?? VIEW_LABEL[query.view] }
+  return { title: query.project ?? query.device ?? query.agent ?? query.source ?? query.account ?? VIEW_LABEL[query.view] }
 }
 
 /** Whether a "show all" toggle is worth having for a list of `count` showing `shown`: not for one more

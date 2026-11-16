@@ -104,8 +104,8 @@ export function ListMenu({
  *  not a device alone, which the title and the device's own chip say. */
 export function ScopeChip({ query, search }: { query: SessionQuery; search: ListSearch }) {
   const scope = scopeOf(query)
-  if (!scope || (scope.device && !scope.folder && !scope.agent && !scope.source && !scope.account)) return null
-  const label = [scope.device, scope.folder ? folderName(scope.folder) : null, scope.agent, scope.source, scope.account]
+  if (!scope || (scope.device && !scope.folder && !scope.agent && !scope.source && !scope.account && !scope.project)) return null
+  const label = [scope.project, scope.device, scope.folder ? folderName(scope.folder) : null, scope.agent, scope.source, scope.account]
     .filter(Boolean)
     .join(' › ')
   return (

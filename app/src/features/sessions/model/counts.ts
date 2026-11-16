@@ -2,6 +2,7 @@
  *  session is offered, over the same labels as the list's query. */
 import {
   NO_ENVIRONMENT,
+  NO_PROJECT,
   UNKNOWN_ACCOUNT,
   UNKNOWN_FOLDER,
   accountsDiffer,
@@ -17,7 +18,7 @@ import { OTHER_LABEL } from './chip-groups'
 import { withRepositories } from './folders'
 import { isWorkspace, looseIn, workspacesOf } from './workspaces'
 import { anchorOf, homeKind, worktreeOf, type PlaceKind } from './places'
-import { SOURCE_ORDER, accountLabel, agentLabel, deviceLabel, folderLabel, orderBy, sourceLabel, type View } from './query'
+import { SOURCE_ORDER, accountLabel, agentLabel, deviceLabel, folderLabel, orderBy, projectLabel, sourceLabel, type View } from './query'
 
 export interface Facet {
   label: string
@@ -48,6 +49,8 @@ export interface Facets {
   sources: Facet[]
   /** Empty when every session runs as the same account (or none says). */
   accounts: Facet[]
+  /** What they work on across devices (`projectGroupOf`), the most sessions first, "No project" last. */
+  projects: Facet[]
 }
 
 function facet(entries: SessionEntry[], labelOf: (e: SessionEntry) => string, last: string): Facet[] {
@@ -78,6 +81,7 @@ export function facetsOf(entries: SessionEntry[]): Facets {
       archived: entries.filter((e) => placeOf(e.session) === 'archived').length,
       interrupted: entries.filter((e) => placeOf(e.session) === 'interrupted').length,
     },
+    projects: facet(counted, projectLabel, NO_PROJECT),
     devices: facet(counted, deviceLabel, NO_ENVIRONMENT).map((device) => {
       const here = counted.filter((e) => deviceLabel(e) === device.label)
       const worktrees = facet(
