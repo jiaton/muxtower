@@ -56,10 +56,10 @@ export function presetForDevice(entries: SessionEntry[], nodes: readonly string[
   return found ? { daemonId: found.entry.daemon.id, node: found.node, cwd: '' } : null
 }
 
-/** A new session in a project of the list (grouped by project, across devices): on the computer most of
+/** A new session in a project (or a folder, `team` false) of the list (grouped by project, across devices): on the computer most of
  *  its sessions that can start one run on, in its repository's main folder there (else its anchor, else
  *  the folder those sessions share most), in that team when the project is one. */
-export function presetForProject(entries: SessionEntry[], nodes: readonly string[], project: string): NewSessionPreset | null {
+export function presetForProject(entries: SessionEntry[], nodes: readonly string[], project: string, team = true): NewSessionPreset | null {
   const able = entries.flatMap((entry) => {
     const node = computerOf(entry.session, nodes)
     return node === undefined ? [] : [{ entry, node, where: `${entry.daemon.id} ${node ?? ''}` }]
@@ -76,6 +76,6 @@ export function presetForProject(entries: SessionEntry[], nodes: readonly string
     folders.set(folder, (folders.get(folder) ?? 0) + 1)
   }
   const cwd = [...folders].sort((x, y) => y[1] - x[1])[0]?.[0] ?? ''
-  const team = entries.some((e) => e.session.project === project)
-  return { daemonId: there[0]!.entry.daemon.id, node: there[0]!.node, cwd, ...(team ? { project } : {}) }
+  const inTeam = team && entries.some((e) => e.session.project === project)
+  return { daemonId: there[0]!.entry.daemon.id, node: there[0]!.node, cwd, ...(inTeam ? { project } : {}) }
 }

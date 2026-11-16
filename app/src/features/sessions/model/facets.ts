@@ -89,17 +89,30 @@ export function shortFolderNames(folders: string[]): Map<string, string> {
 
 // --- project ------------------------------------------------------------------------------------
 
-export const NO_PROJECT = 'No project'
+/** The last group of the list by project: sessions in a home folder, a temp folder, `/`, or none. */
+export const OTHER_PLACE = 'Other'
 
 /** What a session works on, the same on every device: its team project (`session.project`, set by an
  *  agent or the owner, or worked out from git), else its git repository (its remote's owner/repo, else
- *  its main folder's name: a worktree is its repository's), else none (`NO_PROJECT`). A project worked out
- *  only from a folder's name says no more than the folder: none. */
-export function projectGroupOf(session: Session): string {
+ *  its main folder's name: a worktree is its repository's); null when it has neither (`placeGroupOf`). A
+ *  project worked out only from a folder's name says no more than the folder: none. */
+export function projectGroupOf(session: Session): string | null {
   if (session.project && session.project_source !== 'folder') return session.project
   const git = session.git
   if (git) return git.remote || folderName(git.repo)
-  return NO_PROJECT
+  return null
+}
+
+const TEMP = /^\/(?:private\/)?(?:tmp|var\/folders)(?:\/|$)/
+
+/** Where a session is grouped when listed by project: its project; else its folder (`folderOf`, kind
+ *  "folder"); else, in a home, temp or root folder or none, Other. */
+export function placeGroupOf(session: Session): { kind: 'project' | 'folder' | 'other'; name: string } {
+  const project = projectGroupOf(session)
+  if (project) return { kind: 'project', name: project }
+  const folder = folderOf(session)
+  if (!folder || folder === '~' || folder === '/' || TEMP.test(session.cwd ?? '')) return { kind: 'other', name: OTHER_PLACE }
+  return { kind: 'folder', name: folder }
 }
 
 // --- source -------------------------------------------------------------------------------------

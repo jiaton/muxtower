@@ -10,7 +10,9 @@ import { nestFolders, withRepositories } from './folders'
 import { anchorOf, homeKind, homeOf, worktreeOf, type PlaceKind } from './places'
 import {
   NO_ENVIRONMENT,
-  NO_PROJECT,
+  folderName,
+  placeGroupOf,
+  shortFolderNames,
   SOURCES,
   STATUSES,
   UNKNOWN_ACCOUNT,
@@ -46,7 +48,7 @@ export interface SessionQuery {
   source?: string
   /** An account label (`accountOf`). */
   account?: string
-  /** A project (`projectGroupOf`), or NO_PROJECT. */
+  /** A project (`projectGroupOf`). */
   project?: string
   q?: string
   /** What the chosen chip of the second row holds (`chip-groups.ts`). */
@@ -85,6 +87,49 @@ export const agentLabel = (entry: SessionEntry) => agentOf(entry.session)
 export const sourceLabel = (entry: SessionEntry) => sourceOf(entry.session)
 export const accountLabel = (entry: SessionEntry) => accountOf(entry.session)
 export const projectLabel = (entry: SessionEntry) => projectGroupOf(entry.session)
+
+/** The groups of the list by project: each entry's group key and label, and each folder group's paths.
+ *  A folder is grouped by its name, the same name on several machines one group; where one machine has two
+ *  folders of that name, each is named with as much of its path as tells them apart. */
+export function placeGroups(entries: SessionEntry[]): {
+  keyOf: Map<string, string>
+  label: Map<string, string>
+  kind: Map<string, 'project' | 'folder' | 'other'>
+  paths: Map<string, string[]>
+} {
+  const keyOf = new Map<string, string>()
+  const label = new Map<string, string>()
+  const kind = new Map<string, 'project' | 'folder' | 'other'>()
+  const paths = new Map<string, string[]>()
+  const folders = entries.flatMap((e) => {
+    const place = placeGroupOf(e.session)
+    return place.kind === 'folder' ? [{ e, path: place.name, machine: deviceLabel(e), name: folderName(place.name) }] : []
+  })
+  // A name two folders of one machine share: those folders get longer names.
+  const clash = new Set<string>()
+  const seen = new Map<string, string>() // machine + name → its path
+  for (const f of folders) {
+    const at = `${f.machine} ${f.name}`
+    if (seen.has(at) && seen.get(at) !== f.path) clash.add(f.name)
+    else seen.set(at, f.path)
+  }
+  const longer = shortFolderNames([...new Set(folders.filter((f) => clash.has(f.name)).map((f) => f.path))])
+  for (const e of entries) {
+    const place = placeGroupOf(e.session)
+    const name =
+      place.kind === 'folder'
+        ? clash.has(folderName(place.name))
+          ? (longer.get(place.name) ?? place.name)
+          : folderName(place.name)
+        : place.name
+    const key = `${place.kind}:${name}`
+    keyOf.set(e.key, key)
+    label.set(key, name)
+    kind.set(key, place.kind)
+    if (place.kind === 'folder') paths.set(key, [...new Set([...(paths.get(key) ?? []), place.name])])
+  }
+  return { keyOf, label, kind, paths }
+}
 
 export { filterEntries }
 
@@ -218,21 +263,35 @@ export function groupEntries(entries: SessionEntry[], by: GroupBy): Group[] {
   }
 
   if (by === 'project') {
-    // In a project: what needs you first, then what works, then the most recently active. Projects with
-    // something that needs you first, then the most recently active; "No project" last.
+    // In a group: what needs you first, then what works, then the most recently active. Projects first
+    // (those with something that needs you, then the most recently active), then folders (the most recently
+    // active first), then Other.
     const tier = (e: SessionEntry) => (e.session.needs_attention ? 0 : e.session.state === 'busy' ? 1 : 2)
-    const inProject = [...rest].sort((a, b) => tier(a) - tier(b) || compareEntries(a, b))
-    const byProject = bucket(inProject, projectLabel)
-    const needs = (key: string) => byProject.get(key)!.some((e) => e.session.needs_attention)
-    const latest = (key: string) => Math.max(...byProject.get(key)!.map((e) => Date.parse(e.session.updated_at) || 0))
-    const keys = [...byProject.keys()].sort(
+    const inGroup = [...rest].sort((a, b) => tier(a) - tier(b) || compareEntries(a, b))
+    const places = placeGroups(inGroup)
+    const byPlace = bucket(inGroup, (e) => places.keyOf.get(e.key)!)
+    const rank = { project: 0, folder: 1, other: 2 } as const
+    const needs = (key: string) => byPlace.get(key)!.some((e) => e.session.needs_attention)
+    const latest = (key: string) => Math.max(...byPlace.get(key)!.map((e) => Date.parse(e.session.updated_at) || 0))
+    const keys = [...byPlace.keys()].sort(
       (a, b) =>
-        Number(a === NO_PROJECT) - Number(b === NO_PROJECT) ||
-        Number(needs(b)) - Number(needs(a)) ||
+        rank[places.kind.get(a)!] - rank[places.kind.get(b)!] ||
+        (places.kind.get(a) === 'project' ? Number(needs(b)) - Number(needs(a)) : 0) ||
         latest(b) - latest(a) ||
         a.localeCompare(b),
     )
-    return [...groups, ...keys.map((key) => ({ key, label: key, entries: byProject.get(key)!, implies: { project: key !== NO_PROJECT } }))]
+    return [
+      ...groups,
+      ...keys.map((key) => ({
+        key,
+        label: places.label.get(key)!,
+        title: places.paths.get(key)?.join('\n'),
+        kind:
+          places.kind.get(key) === 'folder' ? ('folder' as const) : places.kind.get(key) === 'project' ? ('project' as const) : undefined,
+        entries: byPlace.get(key)!,
+        implies: { project: true },
+      })),
+    ]
   }
 
   if (by === 'agent') {

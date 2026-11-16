@@ -2,7 +2,6 @@
  *  session is offered, over the same labels as the list's query. */
 import {
   NO_ENVIRONMENT,
-  NO_PROJECT,
   UNKNOWN_ACCOUNT,
   UNKNOWN_FOLDER,
   accountsDiffer,
@@ -49,7 +48,7 @@ export interface Facets {
   sources: Facet[]
   /** Empty when every session runs as the same account (or none says). */
   accounts: Facet[]
-  /** What they work on across devices (`projectGroupOf`), the most sessions first, "No project" last. */
+  /** The projects they work on across devices (`projectGroupOf`; a folder is none), the most sessions first. */
   projects: Facet[]
 }
 
@@ -81,7 +80,11 @@ export function facetsOf(entries: SessionEntry[]): Facets {
       archived: entries.filter((e) => placeOf(e.session) === 'archived').length,
       interrupted: entries.filter((e) => placeOf(e.session) === 'interrupted').length,
     },
-    projects: facet(counted, projectLabel, NO_PROJECT),
+    projects: facet(
+      counted.filter((e) => projectLabel(e)),
+      (e) => projectLabel(e)!,
+      '',
+    ),
     devices: facet(counted, deviceLabel, NO_ENVIRONMENT).map((device) => {
       const here = counted.filter((e) => deviceLabel(e) === device.label)
       const worktrees = facet(

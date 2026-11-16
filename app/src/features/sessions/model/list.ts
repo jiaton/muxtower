@@ -77,6 +77,10 @@ export interface GroupNode extends Counted {
   id: string
   label: string
   implies: Implied
+  /** A group of the list by project: a project or a folder (none: Other, or another grouping). */
+  placeKind?: PlaceKind
+  /** Its folders' full paths, for a tooltip (a folder's group). */
+  title?: string
   /** A device's group: its folders are sections. */
   sectioned: boolean
   folded: boolean
@@ -135,6 +139,8 @@ export function buildList(groups: Group[], held: Held, folds: FoldState): GroupN
       id: group.key,
       label: group.label,
       implies: group.implies,
+      placeKind: group.kind,
+      title: group.title,
       sectioned: Boolean(group.sections),
       folded,
       foldable,

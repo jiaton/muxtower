@@ -1,4 +1,4 @@
-import { FolderGit2, Monitor, Plus } from 'lucide-react'
+import { Folder, FolderGit2, Monitor, Plus } from 'lucide-react'
 import { memo, useCallback, useEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Fold } from '@/components/ui/fold'
@@ -80,8 +80,8 @@ function StartHere({ node }: { node: GroupNode | SectionNode }) {
   const preset =
     node.kind === 'section'
       ? presetForFolder(entries, nodes, node.placeKind === 'worktree' ? (entries[0]?.session.git?.worktree ?? undefined) : undefined)
-      : node.implies.project
-        ? presetForProject(entries, nodes, node.label)
+      : node.placeKind
+        ? presetForProject(entries, nodes, node.label, node.placeKind === 'project')
         : presetForDevice(entries, nodes)
   if (!preset) return null
   return (
@@ -113,15 +113,19 @@ const GroupHeader = memo(
         >
           {node.sectioned ? (
             <Monitor aria-hidden />
-          ) : node.implies.project ? (
+          ) : node.placeKind === 'project' ? (
             <FolderGit2 aria-hidden />
+          ) : node.placeKind === 'folder' ? (
+            <Folder aria-hidden />
           ) : node.implies.agent ? (
             <AgentMark decorative agent={node.label} />
           ) : null}
-          <span className="truncate">{node.label}</span>
+          <span className="truncate" title={node.title}>
+            {node.label}
+          </span>
           <HeaderCount count={node.count} needs={node.needs} className="normal-case" />
         </FoldButton>
-        {node.implies.device || node.implies.project ? <StartHere node={node} /> : null}
+        {node.implies.device || node.placeKind ? <StartHere node={node} /> : null}
       </h3>
     )
   },
@@ -129,7 +133,9 @@ const GroupHeader = memo(
     a.toggle === b.toggle &&
     (['key', 'id', 'label', 'sectioned', 'folded', 'foldable', 'count', 'needs'] as const).every((k) => a.node[k] === b.node[k]) &&
     a.node.implies.agent === b.node.implies.agent &&
-    a.node.implies.project === b.node.implies.project,
+    a.node.implies.project === b.node.implies.project &&
+    a.node.placeKind === b.node.placeKind &&
+    a.node.title === b.node.title,
 )
 
 /** A device's folder: a quieter, non-sticky second level under the device's sticky header, indented when it
