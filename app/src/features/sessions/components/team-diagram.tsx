@@ -1,74 +1,94 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { X } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Button } from '@/components/ui/button'
 import { Segmented } from '@/components/ui/segmented'
-import { diagram as look, ink } from '@/components/ui/intents'
+import { ink, look, rail, roleCard } from '@/components/ui/intents'
 import { Loading } from '@/components/ui/skeleton'
-import { ago } from '@/lib/time'
-import { PHONE_QUERY, useMediaQuery } from '@/lib/use-media-query'
+import { Truncated } from '@/components/ui/truncated'
+import type { TeamActivity } from '@/lib/api/types'
 import { cn } from '@/lib/cn'
 import { useProjectActivity } from '../api/use-team'
 import { useSessionEntries } from '../hooks/use-session-entries'
 import {
-  NODE_H,
-  NODE_W,
   buildDiagram,
+  centreOf,
+  feed,
   hasActivity,
-  layout,
-  timeline,
-  type DiagramEdge,
+  idleNodes,
+  pairsOf,
+  spokeWords,
+  spokesOf,
+  type Diagram,
   type DiagramEvent,
-  type Placed,
+  type DiagramNode,
+  type Pair,
 } from '../model/team-diagram'
 
-const PAD = 8
-const ARC = 40 // room above the first row for the arcs over it
-const LANE_H = 28
-const EVENT_W = 22 // the least room a mark takes on the timeline: 50 of them scroll sideways on a phone
+const FEED_SHOWN = 20
 const STATE: Record<string, string> = { busy: 'working', idle: 'idle', needs_permission: 'asks', needs_answer: 'asks', plan_review: 'asks' }
 
-const short = (text: string, n: number) => (text.length > n ? `${text.slice(0, n - 1)}…` : text)
+export type Filter = { node: string } | { pair: [string, string] } | null
 
-/** Where the line between two boxes leaves the first: on its border, toward the other's centre. */
-function border(from: Placed, to: Placed, inset = 2) {
-  const dx = to.x - from.x
-  const dy = to.y - from.y
-  const t = Math.min(dx ? (NODE_W / 2 + inset) / Math.abs(dx) : Infinity, dy ? (NODE_H / 2 + inset) / Math.abs(dy) : Infinity)
-  return { x: from.x + dx * t, y: from.y + dy * t }
-}
+const time = (at: string) => new Date(at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+const metaOf = (n: DiagramNode) => [n.state ? (STATE[n.state] ?? n.state) : null, n.device].filter(Boolean).join(' · ')
 
-type Chosen = { edge: DiagramEdge } | { event: DiagramEvent } | null
-
-/** A project's team at work (`model/team-diagram.ts`): a graph of who sends work to whom on top, a
- *  timeline under it (a lane per node, each task an arrow at its time, each message a mark), the last
- *  24 hours or 7 days; a tap on an edge or a mark says what it was. */
-export function TeamDiagram({ daemonId, project }: { daemonId: string; project: string | null | undefined }) {
+/** A project's team at work (`model/team-diagram.ts`), from its activity in the last 24 hours or 7 days.
+ *  `from`: the session it was opened from (its role is the centre); else the role the owner works with most. */
+export function TeamDiagram({ daemonId, project, from }: { daemonId: string; project: string | null | undefined; from?: string }) {
   const [hours, setHours] = useState<'24' | '168'>('24')
   const activity = useProjectActivity(daemonId, project, Number(hours))
   const { entries } = useSessionEntries()
   const sessions = useMemo(() => entries.filter((e) => e.daemon.id === daemonId).map((e) => e.session), [entries, daemonId])
   const d = useMemo(() => (activity.data ? buildDiagram(activity.data, sessions) : null), [activity.data, sessions])
-  const phone = useMediaQuery(PHONE_QUERY)
-  const [chosen, setChosen] = useState<Chosen>(null)
-
   if (!project) return null
-  const range = (
-    <Segmented
-      aria-label="How far back"
-      value={hours}
-      options={[
-        { value: '24', label: '24 h' },
-        { value: '168', label: '7 days' },
-      ]}
-      onChange={setHours}
-    />
+  if (!d || !activity.data) return <Loading />
+  return <TeamActivityView d={d} activity={activity.data} project={project} from={from} hours={hours} onHours={setHours} />
+}
+
+/**
+ * The centre role on top, the roles it works with each a card on a rail under it, what went each way
+ * beside it ("sent 13 · got 18", from the centre's side) in a column of one width, so the cards line up;
+ * the pairs the centre is not in after it ("Also"); the roles that sent and got nothing in a line; then
+ * what was sent, newest first, grouped by day. A tap on a card makes it the centre; on a count, narrows
+ * the list to that pair; on the centre, to that role.
+ */
+export function TeamActivityView({
+  d,
+  activity,
+  project,
+  from,
+  hours,
+  onHours,
+}: {
+  d: Diagram
+  activity: TeamActivity
+  project: string
+  from?: string
+  hours: '24' | '168'
+  onHours: (h: '24' | '168') => void
+}) {
+  const pairs = useMemo(() => pairsOf(d), [d])
+  const [chosen, setChosen] = useState<string | null>(null)
+  const [filter, setFilter] = useState<Filter>(null)
+  const header = (
+    <div className="flex items-center gap-2">
+      <h3 className={`${ink.eyebrow} min-w-0 flex-1 truncate`}>Team · {project}</h3>
+      <Segmented
+        aria-label="How far back"
+        value={hours}
+        options={[
+          { value: '24', label: '24 h' },
+          { value: '168', label: '7 days' },
+        ]}
+        onChange={onHours}
+      />
+    </div>
   )
-  if (!d) return <Loading />
-  if (!hasActivity(d))
+  const centre = chosen && pairs.some((p) => p.a === chosen || p.b === chosen) ? chosen : centreOf(d, activity.owner ?? {}, from, pairs)
+  if (!hasActivity(d) || !centre)
     return (
       <section aria-label="Team activity" className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <h3 className={`${ink.eyebrow} flex-1`}>Team · {project}</h3>
-          {range}
-        </div>
+        {header}
         <p className={ink.hint}>
           Nothing sent in this team yet. A team forms from the sessions of one project: start a teammate with{' '}
           <code className={ink.code}>start_session</code> and this project, or set the project here; then they send each other work with{' '}
@@ -76,229 +96,158 @@ export function TeamDiagram({ daemonId, project }: { daemonId: string; project: 
         </p>
       </section>
     )
+  const node = (id: string) => d.nodes.find((n) => n.id === id)!
+  const name = (id: string) => d.nodes.find((n) => n.id === id)?.label ?? id
+  const { spokes, also } = spokesOf(pairs, centre)
+  const idle = idleNodes(d, pairs)
+  const width = Math.max(...spokes.map((s) => spokeWords(s).length), 6) + 2 // the widest count, in characters
+  const directions = (p: Pair) =>
+    [p.ab ? `${name(p.a)} → ${name(p.b)} ${p.ab}` : null, p.ba ? `${name(p.b)} → ${name(p.a)} ${p.ba}` : null].filter(Boolean).join(', ')
+  const isPair = (p: Pair) => filter && 'pair' in filter && filter.pair[0] === p.a && filter.pair[1] === p.b
+  const pickPair = (p: Pair) => setFilter(isPair(p) ? null : { pair: [p.a, p.b] })
 
   return (
     <section aria-label="Team activity" className="flex min-w-0 flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <h3 className={`${ink.eyebrow} min-w-0 flex-1 truncate`}>Team · {project}</h3>
-        {range}
-      </div>
-      <Graph d={d} columns={phone ? 2 : Math.min(3, d.nodes.length)} chosen={chosen} onChoose={setChosen} />
-      <Timeline d={d} hours={Number(hours)} chosen={chosen} onChoose={setChosen} />
-      <Detail d={d} chosen={chosen} />
+      {header}
+      <Button
+        variant="plain"
+        aria-pressed={Boolean(filter && 'node' in filter && filter.node === centre)}
+        onClick={() => setFilter(filter && 'node' in filter && filter.node === centre ? null : { node: centre })}
+        className={cn(
+          roleCard({ centre: true, busy: node(centre).state === 'busy' }),
+          'flex w-full min-w-0 items-center gap-2 px-3 py-2 text-left',
+        )}
+      >
+        <span className={`${ink.strong} min-w-0 flex-1 truncate`}>{node(centre).label}</span>
+        <span className={`${ink.meta} shrink-0`}>{metaOf(node(centre))}</span>
+      </Button>
+      <ul className={`${rail.line} ml-4 flex flex-col`} aria-label={`Who ${node(centre).label} works with`}>
+        {spokes.map((s) => {
+          const other = node(s.other)
+          return (
+            <li key={s.other} className="flex min-w-0 items-center gap-2 py-1">
+              <span className={`${rail.stub} w-3 shrink-0`} aria-hidden />
+              <Button
+                variant="plain"
+                title={directions(s.pair)}
+                aria-pressed={Boolean(isPair(s.pair))}
+                onClick={() => pickPair(s.pair)}
+                className={cn(look.pill, s.pair.held ? ink.noteAccent : ink.meta, ink.count, 'shrink-0 justify-end px-2 py-0.5 text-right')}
+                style={{ width: `${width}ch` }}
+              >
+                {spokeWords(s)}
+              </Button>
+              <Button
+                variant="plain"
+                onClick={() => setChosen(s.other)}
+                aria-label={`Put ${other.label} in the middle`}
+                className={cn(
+                  roleCard({ busy: other.state === 'busy', outside: other.external }),
+                  'flex min-w-0 flex-1 flex-col items-start px-3 py-1 text-left',
+                )}
+              >
+                {/* Its name the card's whole width, what it is doing under it: a phone has room for both. */}
+                <span className={`${ink.strong} w-full truncate`}>{other.label}</span>
+                <span className={`${ink.meta} w-full truncate`}>{metaOf(other)}</span>
+              </Button>
+            </li>
+          )
+        })}
+      </ul>
+      {also.length ? (
+        <div className="flex flex-col gap-1">
+          <h4 className={ink.eyebrow}>Also</h4>
+          {also.map((p) => (
+            <Button
+              key={`${p.a} ${p.b}`}
+              variant="plain"
+              title={directions(p)}
+              aria-pressed={Boolean(isPair(p))}
+              onClick={() => pickPair(p)}
+              className={cn(ink.body, 'flex w-full min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-left')}
+            >
+              {[p.ab ? [p.a, p.b, p.ab] : null, p.ba ? [p.b, p.a, p.ba] : null]
+                .filter((x): x is [string, string, number] => x !== null)
+                .map(([a, b, n], i) => (
+                  <span key={i} className="inline-flex min-w-0 items-center gap-1">
+                    {i ? <span className={ink.quiet}>·</span> : null}
+                    <span className={`${look.tag} min-w-0 truncate`}>{name(a)}</span>
+                    <span className={ink.quiet}>→</span>
+                    <span className={`${look.tag} min-w-0 truncate`}>{name(b)}</span>
+                    <span className={cn(p.held ? ink.noteAccent : ink.meta, ink.count)}>{n}</span>
+                  </span>
+                ))}
+            </Button>
+          ))}
+        </div>
+      ) : null}
+      {idle.length ? (
+        <p className={ink.meta}>
+          No tasks in {hours === '24' ? '24 h' : '7 days'}: {idle.map((n) => (n.device ? `${n.label} (${n.device})` : n.label)).join(' · ')}
+        </p>
+      ) : null}
+      <Feed d={d} name={name} filter={filter} onClear={() => setFilter(null)} />
     </section>
   )
 }
 
-function Graph({
-  d,
-  columns,
-  chosen,
-  onChoose,
-}: {
-  d: ReturnType<typeof buildDiagram>
-  columns: number
-  chosen: Chosen
-  onChoose: (c: Chosen) => void
-}) {
-  const { placed, width, height } = layout(d, Math.max(1, columns))
-  const at = new Map(placed.map((p) => [p.node.id, p]))
-  const pairs = new Set(d.edges.map((e) => `${e.from}→${e.to}`))
+export function Feed({ d, name, filter, onClear }: { d: Diagram; name: (id: string) => string; filter: Filter; onClear: () => void }) {
+  const [all, setAll] = useState(false)
+  const days = feed(d, filter ? ('node' in filter ? { node: filter.node } : { pair: filter.pair }) : null)
+  const count = days.reduce((n, day) => n + day.events.length, 0)
+  let left = all ? Infinity : FEED_SHOWN
   return (
-    <svg
-      role="img"
-      aria-label={`${d.nodes.length} in the team, ${d.edges.reduce((n, e) => n + e.count, 0)} tasks`}
-      viewBox={`${-PAD} ${-PAD - ARC} ${width + 2 * PAD} ${height + 2 * PAD + ARC}`}
-      className="w-full"
-    >
-      <defs>
-        {(['head', 'headHeld'] as const).map((kind) => (
-          <marker
-            key={kind}
-            id={`team-${kind}`}
-            viewBox="0 0 10 10"
-            refX="9"
-            refY="5"
-            markerWidth="7"
-            markerHeight="7"
-            orient="auto-start-reverse"
-          >
-            <path d="M0 0L10 5L0 10z" className={look[kind]} />
-          </marker>
-        ))}
-      </defs>
-      {d.edges.map((e) => {
-        const a = at.get(e.from)
-        const b = at.get(e.to)
-        if (!a || !b) return null
-        const sameRowFar = Math.abs(a.y - b.y) < 1 && Math.abs(a.x - b.x) > NODE_W * 1.5
-        // Over the row: from the top of one box to the top of the other.
-        const s = sameRowFar ? { x: a.x + (b.x > a.x ? 30 : -30), y: a.y - NODE_H / 2 - 2 } : border(a, b)
-        const t = sameRowFar ? { x: b.x + (a.x > b.x ? 30 : -30), y: b.y - NODE_H / 2 - 6 } : border(b, a, 6)
-        // Two ways between the same two: each bends to its own side. Along a row past a box between them:
-        // an arc over the row, clear of it.
-        const sameRow = Math.abs(a.y - b.y) < 1 && Math.abs(a.x - b.x) > NODE_W * 1.5
-        const bend = sameRow ? (a.x < b.x ? -1 : 1) * (NODE_H + 10) : pairs.has(`${e.to}→${e.from}`) ? 22 : 0
-        const mx = (s.x + t.x) / 2
-        const my = (s.y + t.y) / 2
-        const len = Math.hypot(t.x - s.x, t.y - s.y) || 1
-        const cx = mx + (-(t.y - s.y) / len) * bend
-        const cy = my + ((t.x - s.x) / len) * bend
-        const path = `M${s.x} ${s.y}Q${cx} ${cy} ${t.x} ${t.y}`
-        const isChosen = chosen && 'edge' in chosen && chosen.edge === e
-        const held = e.held > 0
-        const labelX = (s.x + 2 * cx + t.x) / 4
-        const labelY = (s.y + 2 * cy + t.y) / 4
+    <section aria-label="What was sent" className="flex flex-col gap-2">
+      {filter ? (
+        <Button
+          variant="plain"
+          onClick={onClear}
+          className={`${look.pill} ${ink.meta} inline-flex items-center gap-1 self-start py-1 pr-2 pl-3`}
+        >
+          <span>Only {'node' in filter ? name(filter.node) : `${name(filter.pair[0])} ⇄ ${name(filter.pair[1])}`}</span>
+          <X className={`${ink.quiet} size-3.5`} aria-label="Show all" />
+        </Button>
+      ) : null}
+      {days.map((day) => {
+        if (left <= 0) return null
+        const events = day.events.slice(0, left)
+        left -= events.length
         return (
-          <g key={`${e.from}→${e.to}`}>
-            <path
-              d={path}
-              className={isChosen ? look.edgeChosen : held ? look.edgeHeld : look.edge}
-              strokeWidth={Math.min(4, 1 + Math.log2(e.count))}
-              markerEnd={`url(#team-${held ? 'headHeld' : 'head'})`}
-            />
-            <path d={path} className={look.hit} strokeWidth={16} onClick={() => onChoose({ edge: e })}>
-              <title>{`${e.count} task${e.count === 1 ? '' : 's'}: ${e.latest.text}`}</title>
-            </path>
-            <g onClick={() => onChoose({ edge: e })} className="cursor-pointer">
-              <circle cx={labelX} cy={labelY} r={10} className={held ? look.badgeHeld : look.badge} />
-              <text x={labelX} y={labelY} dy="0.35em" textAnchor="middle" className={look.count}>
-                {e.count}
-              </text>
-            </g>
-          </g>
+          <div key={day.day} className="flex flex-col">
+            <h4 className={ink.eyebrow}>{day.day === new Date().toDateString() ? 'Today' : day.day}</h4>
+            <ul className={`${look.rows} flex flex-col`}>
+              {events.map((e) => (
+                <FeedRow key={e.id} event={e} name={name} />
+              ))}
+            </ul>
+          </div>
         )
       })}
-      {placed.map(({ node, x, y }) => (
-        <g key={node.id}>
-          <rect
-            x={x - NODE_W / 2}
-            y={y - NODE_H / 2}
-            width={NODE_W}
-            height={NODE_H}
-            rx={8}
-            strokeWidth={node.state === 'busy' ? 2 : 1}
-            className={node.external ? look.nodeOutside : node.state === 'busy' ? look.nodeBusy : look.node}
-          />
-          <text x={x} y={y - 4} textAnchor="middle" className={look.name}>
-            {short(node.label, 20)}
-            <title>{node.label}</title>
-          </text>
-          <text x={x} y={y + 13} textAnchor="middle" className={look.meta}>
-            {short([node.state ? (STATE[node.state] ?? node.state) : null, node.device].filter(Boolean).join(' · ') || ' ', 24)}
-          </text>
-        </g>
-      ))}
-    </svg>
+      {count > FEED_SHOWN && !all ? (
+        <Button variant="ghost" size="sm" className="self-start" onClick={() => setAll(true)}>
+          Show {count - FEED_SHOWN} more
+        </Button>
+      ) : null}
+    </section>
   )
 }
 
-function Timeline({
-  d,
-  hours,
-  chosen,
-  onChoose,
-}: {
-  d: ReturnType<typeof buildDiagram>
-  hours: number
-  chosen: Chosen
-  onChoose: (c: Chosen) => void
-}) {
-  const { placed } = layout(d, 1)
-  const lanes = placed.map((p) => p.node)
-  const lane = new Map(lanes.map((n, i) => [n.id, i]))
-  const { start, end } = timeline(d, hours)
-  const events = d.events.filter((e) => Date.parse(e.at) >= start)
-  const width = Math.max(320, events.length * EVENT_W + 40)
-  const x = (at: string) => 16 + ((Date.parse(at) - start) / Math.max(1, end - start)) * (width - 32)
-  const y = (id: string) => (lane.get(id) ?? 0) * LANE_H + LANE_H / 2
-  const height = lanes.length * LANE_H
-  const scroller = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (scroller.current) scroller.current.scrollLeft = scroller.current.scrollWidth // now, at the right
-  }, [width])
-
+function FeedRow({ event: e, name }: { event: DiagramEvent; name: (id: string) => string }) {
+  const held = e.kind === 'task' && e.status !== 'delivered'
   return (
-    <div className="flex min-w-0">
-      <ul className="flex shrink-0 flex-col pr-2" aria-hidden>
-        {lanes.map((n) => (
-          <li key={n.id} className={cn(ink.meta, 'flex max-w-24 items-center truncate')} style={{ height: LANE_H }}>
-            {n.label}
-          </li>
-        ))}
-      </ul>
-      <div ref={scroller} className="min-w-0 flex-1 overflow-x-auto overscroll-x-contain">
-        <svg role="img" aria-label={`${events.length} sent in this time`} width={width} height={height}>
-          {lanes.map((n, i) => (
-            <line key={n.id} x1={0} x2={width} y1={i * LANE_H + LANE_H / 2} y2={i * LANE_H + LANE_H / 2} className={look.lane} />
-          ))}
-          <line x1={width - 16} x2={width - 16} y1={0} y2={height} className={look.now} strokeDasharray="2 3" />
-          {events.map((e) => {
-            const ex = x(e.at)
-            const y1 = y(e.from)
-            const y2 = y(e.to)
-            const isChosen = chosen && 'event' in chosen && chosen.event === e
-            const held = e.kind === 'task' && e.status !== 'delivered'
-            const down = y2 >= y1
-            return (
-              <g key={e.id} className="cursor-pointer" onClick={() => onChoose({ event: e })}>
-                <rect x={ex - EVENT_W / 2} y={0} width={EVENT_W} height={height} className={look.hit} />
-                {e.kind === 'task' ? (
-                  <line
-                    x1={ex}
-                    x2={ex}
-                    y1={y1}
-                    y2={y2 + (down ? -6 : 6)}
-                    strokeWidth={isChosen ? 3 : 1.5}
-                    className={held ? look.edgeHeld : isChosen ? look.edgeChosen : look.edge}
-                    markerEnd={`url(#team-${held ? 'headHeld' : 'head'})`}
-                  />
-                ) : (
-                  <line x1={ex} x2={ex} y1={y1} y2={y2} strokeDasharray="1 3" strokeWidth={isChosen ? 3 : 1.5} className={look.message} />
-                )}
-                <circle cx={ex} cy={y1} r={3} className={held ? look.headHeld : look.head} />
-              </g>
-            )
-          })}
-        </svg>
+    <li className={cn(ink.body, 'flex flex-col gap-0.5 py-1.5')}>
+      <div className="flex min-w-0 items-center gap-1.5">
+        <span className={cn(ink.meta, ink.count, 'shrink-0')}>{time(e.at)}</span>
+        <span className={`${look.tag} min-w-0 truncate`}>{name(e.from)}</span>
+        <span className={ink.quiet}>→</span>
+        <span className={`${look.tag} min-w-0 truncate`}>{name(e.to)}</span>
+        {held ? <span className={cn(ink.noteAccent, 'ml-auto shrink-0')}>{e.status}</span> : null}
       </div>
-    </div>
-  )
-}
-
-function Detail({ d, chosen }: { d: ReturnType<typeof buildDiagram>; chosen: Chosen }) {
-  const name = (id: string) => d.nodes.find((n) => n.id === id)?.label ?? id
-  if (!chosen) return <p className={ink.meta}>Tap an arrow or a mark for what was sent.</p>
-  if ('edge' in chosen) {
-    const e = chosen.edge
-    return (
-      <div className={cn(ink.body, 'flex flex-col gap-1')} aria-live="polite">
-        <p className={ink.strong}>
-          {name(e.from)} → {name(e.to)} · {e.count} task{e.count === 1 ? '' : 's'}
-          {e.held ? ` · ${e.held} waiting` : ''}
-        </p>
-        <p className={ink.meta}>
-          Latest {ago(e.latest.at)} · {e.latest.status}
-        </p>
-        <p className="line-clamp-3 whitespace-pre-wrap">{e.latest.text}</p>
-      </div>
-    )
-  }
-  const e = chosen.event
-  return (
-    <div className={cn(ink.body, 'flex flex-col gap-1')} aria-live="polite">
-      <p className={ink.strong}>
-        {name(e.from)} → {name(e.to)} · {e.kind === 'task' ? 'task' : 'message'}
-      </p>
-      <p className={ink.meta}>
-        {ago(e.at)}
-        {e.status ? ` · ${e.status}` : ''}
-      </p>
-      {e.text ? (
-        <p className="max-h-40 overflow-y-auto whitespace-pre-wrap">{e.text}</p>
+      {e.kind === 'task' ? (
+        <Truncated>{(e.text ?? '').split('\n')[0]}</Truncated>
       ) : (
-        <p className={ink.meta}>Typed into the session (its text is not kept).</p>
+        <span className={ink.meta}>typed in (text not kept)</span>
       )}
-    </div>
+    </li>
   )
 }

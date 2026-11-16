@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import type { Session, TeamActivity } from '@/lib/api/types'
-import { buildDiagram, hasActivity, layout } from './team-diagram'
+import { buildDiagram, centreOf, hasActivity, idleNodes, pairsOf, spokeWords, spokesOf } from './team-diagram'
 
 const s = (id: string, over: Partial<Session> = {}) =>
   ({ id, name: id, state: 'idle', machine: 'build-box', project: 'acme/web', team_role: null, ...over }) as Session
@@ -35,13 +35,26 @@ it('one node per role, the device as "you", other projects as external nodes; ed
   expect(hasActivity(d)).toBe(true)
 })
 
-it('places senders above receivers, external nodes last, in rows of the columns given', () => {
+it('centres on the session it was opened from, else on what the owner works with most, else on the busiest', () => {
   const d = buildDiagram(activity, sessions)
-  const { placed, width } = layout(d, 2)
-  const at = (label: string) => placed.find((p) => p.node.label === label)!
-  expect(at('you').y).toBeLessThanOrEqual(at('worker').y) // sent, never received
-  expect(at('acme/api · db').y).toBeGreaterThan(Math.max(at('PM').y, at('worker').y, at('you').y))
-  expect(Math.max(...placed.map((p) => p.x))).toBeLessThan(width)
+  const role = (id: string | null) => d.nodes.find((n) => n.id === id)?.label
+  expect(role(centreOf(d, {}, 'w2'))).toBe('worker') // opened from a worker's session
+  expect(role(centreOf(d, { pm: 1 }))).toBe('PM') // the owner typed into PM (and a device sent PM a task)
+  expect(role(centreOf(d, { w1: 9 }))).toBe('worker')
+  // Nobody touched by the owner, no device sender: the most traffic.
+  const quiet = buildDiagram({ ...activity, tasks: activity.tasks.filter((t) => t.from_id) }, sessions)
+  expect(role(centreOf(quiet, {}))).toBe('worker')
+})
+
+it('reads the centre’s pairs from its side, the others apart; roles with nothing are idle', () => {
+  const d = buildDiagram(activity, sessions)
+  const pairs = pairsOf(d)
+  const worker = d.nodes.find((n) => n.label === 'worker')!.id
+  const { spokes, also } = spokesOf(pairs, worker)
+  const words = Object.fromEntries(spokes.map((sp) => [d.nodes.find((n) => n.id === sp.other)!.label, spokeWords(sp)]))
+  expect(words).toEqual({ PM: 'sent 1 · got 2', 'acme/api · db': 'sent 1' })
+  expect(also.map((p) => [p.a, p.b].map((id) => d.nodes.find((n) => n.id === id)!.label).sort())).toEqual([['PM', 'you']])
+  expect(idleNodes(d, pairs)).toEqual([])
 })
 
 it('has nothing to draw for a team of one, or with nothing sent', () => {

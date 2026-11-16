@@ -3005,6 +3005,14 @@
             "title": "Messages",
             "type": "array"
           },
+          "owner": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "per member: how often the owner typed into, approved or denied in it",
+            "title": "Owner",
+            "type": "object"
+          },
           "project": {
             "title": "Project",
             "type": "string"

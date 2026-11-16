@@ -47,3 +47,10 @@ def test_a_projects_activity_is_its_tasks_and_messages_from_or_to_its_members(
     assert sorted(seen["members"]) == sorted([pm.id, dev.id])
     assert [t["text"][:16] for t in seen["tasks"]] == ["Build the chart.", "Which endpoint h"]  # oldest first
     assert [(m["from_id"], m["to_id"]) for m in seen["messages"]] == [(pm.id, dev.id)]
+    assert seen["owner"] == {}
+    app.state.audit.record("phone", "input", dev.id, "text chars=4")
+    app.state.audit.record("phone", "approve", dev.id, "state=x")
+    app.state.audit.record(f"session {pm.id}", "input", dev.id)  # a session, not the owner
+    app.state.audit.record("auto-approve", "approve", pm.id)
+    seen = TestClient(app).get("/v1/projects/acme%2Fweb/activity", headers=auth).json()
+    assert seen["owner"] == {dev.id: 2}

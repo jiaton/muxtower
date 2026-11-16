@@ -30,3 +30,15 @@ class AuditLog:
                 (since.isoformat(), limit),
             ).fetchall()
         return [(datetime.fromisoformat(r["at"]), r["actor"], r["session_id"]) for r in reversed(rows)]
+
+    def owner_touches(self, since: datetime) -> dict[str, int]:
+        """How often the owner (a paired device, not a session, a node or muxtower itself) typed into,
+        approved or denied in each session since then."""
+        with self.db.connect() as conn:
+            rows = conn.execute(
+                "SELECT session_id, COUNT(*) AS n FROM audit_log WHERE action IN ('input', 'approve', 'deny')"
+                " AND at >= ? AND session_id IS NOT NULL AND actor NOT LIKE 'session %' AND actor NOT LIKE 'node %'"
+                " AND actor NOT IN ('hub', 'auto-approve') GROUP BY session_id",
+                (since.isoformat(),),
+            ).fetchall()
+        return {r["session_id"]: r["n"] for r in rows}

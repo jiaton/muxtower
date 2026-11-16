@@ -66,7 +66,7 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
         description="Sessions of a project find each other by role and hand each other work."
         className="sm:max-w-2xl"
       >
-        <TeamDiagram daemonId={daemonId} project={session.project} />
+        <TeamDiagram daemonId={daemonId} project={session.project} from={session.id} />
         <form
           className="flex flex-col gap-3"
           onSubmit={(e) => {
@@ -112,20 +112,35 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
             </Button>
           </div>
         </form>
-        <section aria-label="Tasks" className={`${look.rule.top} mt-2 pt-3`}>
-          <h3 className={ink.eyebrow}>This session’s tasks</h3>
-          {tasks.data?.length ? (
-            <ul className={`${look.rows} flex flex-col`}>
-              {tasks.data.map((task) => (
-                <TaskLine key={task.id} task={task} sessionId={session.id} />
-              ))}
-            </ul>
-          ) : tasks.isLoading ? (
-            <Loading label="Loading tasks…" />
-          ) : (
-            <p className={`${ink.hint} py-2`}>No tasks sent or received yet.</p>
-          )}
-        </section>
+        {/* With a project, its feed above holds this session's tasks too (a tap on its role narrows to it). */}
+        {session.project ? null : (
+          <section aria-label="Tasks" className={`${look.rule.top} mt-2 pt-3`}>
+            <h3 className={ink.eyebrow}>This session’s tasks</h3>
+            {tasks.data?.length ? (
+              <ul className={`${look.rows} flex flex-col`}>
+                {tasks.data.map((task) => (
+                  <TaskLine key={task.id} task={task} sessionId={session.id} />
+                ))}
+              </ul>
+            ) : tasks.isLoading ? (
+              <Loading label="Loading tasks…" />
+            ) : (
+              <p className={`${ink.hint} py-2`}>No tasks sent or received yet.</p>
+            )}
+          </section>
+        )}
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+/** A project's team, opened from the list (a project's group): centred on the role the owner works with
+ *  most. */
+export function ProjectTeamDialog({ daemonId, project, onClose }: { daemonId: string; project: string; onClose: () => void }) {
+  return (
+    <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
+      <DialogContent title={project} description="Its team: who sends whom work, and what was sent." className="sm:max-w-2xl">
+        <TeamDiagram daemonId={daemonId} project={project} />
       </DialogContent>
     </Dialog>
   )

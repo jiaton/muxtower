@@ -99,6 +99,9 @@ class TeamActivity(BaseModel):
     members: list[str] = Field(description="its sessions' ids")
     tasks: list[TeamTask] = Field(description="oldest first")
     messages: list[TeamMessage] = Field(description="typed into a session (send_message): no text kept")
+    owner: dict[str, int] = Field(
+        default_factory=dict, description="per member: how often the owner typed into, approved or denied in it"
+    )
 
 
 @router.get("/projects/{project:path}/activity")
@@ -116,6 +119,7 @@ async def project_activity(
         from_id = actor.removeprefix("session ") if actor.startswith("session ") else None
         if to_id in members or (from_id or "") in members:
             typed.append(TeamMessage(at=at, from_id=from_id, from_label=actor, to_id=to_id))
+    owner = {sid: n for sid, n in audit.owner_touches(since).items() if sid in members}
     return TeamActivity(
-        project=project, members=sorted(members), tasks=[TeamTask(**vars(t)) for t in sent], messages=typed
+        project=project, members=sorted(members), tasks=[TeamTask(**vars(t)) for t in sent], messages=typed, owner=owner
     )

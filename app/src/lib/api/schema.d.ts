@@ -2358,6 +2358,13 @@ export interface components {
              * @description typed into a session (send_message): no text kept
              */
             messages: components["schemas"]["TeamMessage"][];
+            /**
+             * Owner
+             * @description per member: how often the owner typed into, approved or denied in it
+             */
+            owner?: {
+                [key: string]: number;
+            };
             /** Project */
             project: string;
             /**

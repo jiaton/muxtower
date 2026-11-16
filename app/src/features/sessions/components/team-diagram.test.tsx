@@ -6,38 +6,60 @@ import { TeamDiagram } from './team-diagram'
 const state = vi.hoisted(() => ({ activity: undefined as TeamActivity | undefined }))
 vi.mock('../api/use-team', () => ({ useProjectActivity: () => ({ data: state.activity }) }))
 const sessions = [
-  { id: 'pm', name: 'pm', team_role: 'PM', state: 'idle', machine: 'build-box', project: 'acme/web' },
-  { id: 'w', name: 'w', team_role: 'worker', state: 'busy', machine: 'build-box', project: 'acme/web' },
+  { id: 'pm', name: 'pm', team_role: 'PM', state: 'idle', machine: 'nas', project: 'acme/web' },
+  { id: 'w', name: 'w', team_role: 'worker', state: 'busy', machine: 'nas', project: 'acme/web' },
+  { id: 'r', name: 'r', team_role: 'reviewer', state: 'idle', machine: 'mac', project: 'acme/web' },
+  { id: 'x', name: 'x', team_role: 'explainer', state: 'idle', machine: 'mac', project: 'acme/web' },
 ] as Session[]
 vi.mock('../hooks/use-session-entries', () => ({
   useSessionEntries: () => ({ entries: sessions.map((session) => ({ daemon: { id: 'd1' }, session })) }),
 }))
+const at = new Date(Date.now() - 3_600_000).toISOString()
+const task = (id: number, from: string, to: string, status = 'delivered') => ({
+  id, at, from_id: from, from_label: from, to_id: to, text: `task ${id}`, status, delivered_at: null,
+}) // prettier-ignore
 
 beforeEach(() => {
   state.activity = undefined
 })
 
 it('says how a team forms when nothing was sent yet', () => {
-  state.activity = { project: 'acme/web', members: ['pm', 'w'], tasks: [], messages: [] }
+  state.activity = { project: 'acme/web', members: ['pm', 'w'], tasks: [], messages: [], owner: {} }
   render(<TeamDiagram daemonId="d1" project="acme/web" />)
   expect(screen.getByText(/Nothing sent in this team yet/)).toBeInTheDocument()
-  expect(screen.getByText('send_task')).toBeInTheDocument()
 })
 
-it('draws who sent whom what; a tap on an edge or a mark says what it was', () => {
-  const at = new Date(Date.now() - 3_600_000).toISOString()
+it('puts the session it was opened from in the middle, its partners under it, what went each way from its side', () => {
   state.activity = {
     project: 'acme/web',
-    members: ['pm', 'w'],
-    tasks: [{ id: 1, at, from_id: 'pm', from_label: 'pm (PM)', to_id: 'w', text: 'Build the chart.', status: 'held', delivered_at: null }],
+    members: ['pm', 'w', 'r', 'x'],
+    tasks: [task(1, 'pm', 'w', 'held'), task(2, 'pm', 'w'), task(3, 'w', 'pm'), task(4, 'w', 'r'), task(5, 'r', 'pm')],
     messages: [{ at, from_id: 'w', from_label: 'session w', to_id: 'pm' }],
+    owner: {},
   }
-  const { container } = render(<TeamDiagram daemonId="d1" project="acme/web" />)
-  expect(screen.getByRole('img', { name: '2 in the team, 1 tasks' })).toBeInTheDocument()
-  fireEvent.click(container.querySelector('svg circle')!) // the edge's count
-  expect(screen.getByText('PM → worker · 1 task · 1 waiting')).toBeInTheDocument()
-  expect(screen.getByText('Build the chart.')).toBeInTheDocument()
-  const marks = container.querySelectorAll('section svg[aria-label$="sent in this time"] g')
-  fireEvent.click(marks[marks.length - 1]!) // the message
-  expect(screen.getByText('Typed into the session (its text is not kept).')).toBeInTheDocument()
+  render(<TeamDiagram daemonId="d1" project="acme/web" from="w" />)
+  const toPm = screen.getByRole('button', { name: 'sent 1 · got 2' })
+  expect(toPm).toHaveAttribute('title', 'PM → worker 2, worker → PM 1')
+  const toReviewer = screen.getByRole('button', { name: 'sent 1' })
+  expect(toReviewer.style.width).toBe(toPm.style.width) // one column: the cards line up
+  expect(screen.getByText(/No tasks in 24 h: explainer \(mac\)/)).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: 'Also' })).toBeInTheDocument() // reviewer → PM
+  // A count narrows the feed to that pair; a card puts its role in the middle.
+  fireEvent.click(toPm)
+  expect(screen.getByText('Only PM ⇄ worker')).toBeInTheDocument()
+  expect(screen.queryByText('task 4')).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Put PM in the middle' }))
+  expect(screen.getByRole('list', { name: 'Who PM works with' })).toBeInTheDocument()
+})
+
+it('centres on what the owner works with most when opened from the project', () => {
+  state.activity = {
+    project: 'acme/web',
+    members: ['pm', 'w', 'r'],
+    tasks: [task(1, 'pm', 'w'), task(2, 'w', 'pm'), task(3, 'w', 'r')],
+    messages: [],
+    owner: { r: 5 },
+  }
+  render(<TeamDiagram daemonId="d1" project="acme/web" />)
+  expect(screen.getByRole('list', { name: 'Who reviewer works with' })).toBeInTheDocument()
 })

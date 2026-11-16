@@ -1,5 +1,6 @@
-import { Folder, FolderGit2, Monitor, Plus } from 'lucide-react'
-import { memo, useCallback, useEffect, useRef, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
+import { Folder, FolderGit2, Monitor, Plus, Users } from 'lucide-react'
+import { ProjectTeamDialog } from './team-dialog'
+import { memo, useCallback, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Fold } from '@/components/ui/fold'
 import { cn } from '@/lib/cn'
@@ -98,6 +99,28 @@ function StartHere({ node }: { node: GroupNode | SectionNode }) {
   )
 }
 
+/** A project's team, from its group's header (grouped by project). */
+function TeamHere({ node }: { node: GroupNode }) {
+  const [open, setOpen] = useState(false)
+  const daemonId = entriesOf(node)[0]?.daemon.id
+  if (!daemonId) return null
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        className="shrink-0"
+        aria-label={`Team of ${node.label}`}
+        title={`Team of ${node.label}`}
+        onClick={() => setOpen(true)}
+      >
+        <Users />
+      </Button>
+      {open ? <ProjectTeamDialog daemonId={daemonId} project={node.label} onClose={() => setOpen(false)} /> : null}
+    </>
+  )
+}
+
 /** Folds or unfolds what the header (the button clicked) holds, keeping that header where it is on screen. */
 type Toggle = (key: string, header: HTMLButtonElement) => void
 
@@ -125,6 +148,7 @@ const GroupHeader = memo(
           </span>
           <HeaderCount count={node.count} needs={node.needs} className="normal-case" />
         </FoldButton>
+        {node.placeKind === 'project' ? <TeamHere node={node} /> : null}
         {node.implies.device || node.placeKind ? <StartHere node={node} /> : null}
       </h3>
     )

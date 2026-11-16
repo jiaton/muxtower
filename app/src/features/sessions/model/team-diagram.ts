@@ -104,43 +104,92 @@ export function buildDiagram(activity: TeamActivity, sessions: Session[]): Diagr
 /** Whether there is anything to draw: two nodes or more, and something sent. */
 export const hasActivity = (d: Diagram) => d.nodes.length > 1 && d.events.length > 0
 
-export interface Placed {
-  node: DiagramNode
-  x: number // its centre
-  y: number
+/** Two nodes that sent each other work: one line between them, its counts each way. */
+export interface Pair {
+  a: string
+  b: string
+  ab: number // tasks a → b
+  ba: number
+  held: number // of either way, not delivered
+  total: number
 }
 
-export const NODE_W = 150
-export const NODE_H = 46
-const GAP_X = 40
-const GAP_Y = 56
-
-/** Where each node goes: senders above receivers (most sent less received first), in rows of `columns`;
- *  external nodes last, in their own row(s). Returns the boxes' centres and the drawing's size. */
-export function layout(d: Diagram, columns: number): { placed: Placed[]; width: number; height: number } {
-  const out = new Map<string, number>()
-  const inn = new Map<string, number>()
+/** Each pair of nodes that sent each other tasks, the busiest first. */
+export function pairsOf(d: Diagram): Pair[] {
+  const pairs = new Map<string, Pair>()
   for (const e of d.edges) {
-    out.set(e.from, (out.get(e.from) ?? 0) + e.count)
-    inn.set(e.to, (inn.get(e.to) ?? 0) + e.count)
+    const [a, b] = e.from < e.to ? [e.from, e.to] : [e.to, e.from]
+    const pair = pairs.get(`${a} ${b}`) ?? { a, b, ab: 0, ba: 0, held: 0, total: 0 }
+    if (e.from === a) pair.ab += e.count
+    else pair.ba += e.count
+    pair.held += e.held
+    pair.total += e.count
+    pairs.set(`${a} ${b}`, pair)
   }
-  const rank = (n: DiagramNode) => (out.get(n.id) ?? 0) - (inn.get(n.id) ?? 0)
-  const order = (list: DiagramNode[]) => [...list].sort((a, b) => rank(b) - rank(a) || a.label.localeCompare(b.label))
-  const rows: DiagramNode[][] = []
-  for (const group of [order(d.nodes.filter((n) => !n.external)), order(d.nodes.filter((n) => n.external))])
-    for (let i = 0; i < group.length; i += columns) rows.push(group.slice(i, i + columns))
-  const width = columns * NODE_W + (columns - 1) * GAP_X
-  const placed = rows.flatMap((row, r) => {
-    const rowWidth = row.length * NODE_W + (row.length - 1) * GAP_X
-    const left = (width - rowWidth) / 2
-    return row.map((node, c) => ({ node, x: left + c * (NODE_W + GAP_X) + NODE_W / 2, y: r * (NODE_H + GAP_Y) + NODE_H / 2 }))
-  })
-  return { placed, width, height: rows.length * NODE_H + Math.max(0, rows.length - 1) * GAP_Y }
+  return [...pairs.values()].sort((x, y) => y.total - x.total)
 }
 
-/** The timeline's span: the last `hours`, or from the first event when that is later. */
-export function timeline(d: Diagram, hours: number, now = Date.now()): { start: number; end: number } {
-  const start = now - hours * 3_600_000
-  const first = d.events.length ? Date.parse(d.events[0]!.at) : now
-  return { start: Math.max(start, first - 60_000), end: now }
+/** Members that sent or were sent no task in the range: said in a line, not drawn. */
+export const idleNodes = (d: Diagram, pairs = pairsOf(d)) =>
+  d.nodes.filter((n) => !n.external && !pairs.some((p) => p.a === n.id || p.b === n.id))
+
+/**
+ * The role in the middle of the view: the one it was opened from (a session's: `from`); else the one the
+ * owner works with most (typing into it, answering it, sending it tasks from a device, `owner`); else the
+ * one with the most traffic. Only a role that sent or got something in the range.
+ */
+export function centreOf(d: Diagram, owner: Record<string, number>, from?: string, pairs = pairsOf(d)): string | null {
+  const busy = new Set(pairs.flatMap((p) => [p.a, p.b]))
+  const candidates = d.nodes.filter((n) => busy.has(n.id) && !n.external && !n.id.startsWith('device:'))
+  if (!candidates.length) return null
+  if (from) {
+    const own = candidates.find((n) => n.sessions.includes(from))
+    if (own) return own.id
+  }
+  const touched = (id: string) =>
+    (d.nodes.find((n) => n.id === id)?.sessions ?? []).reduce((k, sid) => k + (owner[sid] ?? 0), 0) +
+    d.edges.filter((e) => e.to === id && e.from.startsWith('device:')).reduce((k, e) => k + e.count, 0)
+  const traffic = (id: string) => pairs.filter((p) => p.a === id || p.b === id).reduce((k, p) => k + p.total, 0)
+  return [...candidates].sort(
+    (x, y) => touched(y.id) - touched(x.id) || traffic(y.id) - traffic(x.id) || x.label.localeCompare(y.label),
+  )[0]!.id
+}
+
+/** A pair seen from one of its ends: what that end sent the other and got from it. */
+export interface Spoke {
+  pair: Pair
+  other: string
+  sent: number
+  got: number
+}
+
+/** The centre's pairs, as spokes (the busiest first), and the pairs it is not in ("Also"). */
+export function spokesOf(pairs: Pair[], centre: string): { spokes: Spoke[]; also: Pair[] } {
+  const spokes = pairs
+    .filter((p) => p.a === centre || p.b === centre)
+    .map((p) => (p.a === centre ? { pair: p, other: p.b, sent: p.ab, got: p.ba } : { pair: p, other: p.a, sent: p.ba, got: p.ab }))
+  return { spokes, also: pairs.filter((p) => p.a !== centre && p.b !== centre) }
+}
+
+/** "sent 13 · got 18", from the centre's side; a side with nothing left out. */
+export const spokeWords = (s: Spoke) => [s.sent ? `sent ${s.sent}` : null, s.got ? `got ${s.got}` : null].filter(Boolean).join(' · ')
+
+/** The feed: what was sent, newest first, grouped by day; narrowed to a node or a pair. */
+export function feed(d: Diagram, filter: { node?: string; pair?: [string, string] } | null): { day: string; events: DiagramEvent[] }[] {
+  const shown = d.events
+    .filter((e) => {
+      if (!filter) return true
+      if (filter.node) return e.from === filter.node || e.to === filter.node
+      const [a, b] = filter.pair!
+      return (e.from === a && e.to === b) || (e.from === b && e.to === a)
+    })
+    .reverse()
+  const days: { day: string; events: DiagramEvent[] }[] = []
+  for (const e of shown) {
+    const day = new Date(e.at).toDateString()
+    const last = days.at(-1)
+    if (last?.day === day) last.events.push(e)
+    else days.push({ day, events: [e] })
+  }
+  return days
 }
