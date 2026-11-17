@@ -36,6 +36,7 @@ from muxtower.infra.audit import AuditLog
 from muxtower.infra.bus import EventBus
 from muxtower.infra.db import Database
 from muxtower.infra.tmux import TmuxCli
+from muxtower.listen.service import ListenService
 from muxtower.mcp.service import McpTools
 from muxtower.net import ClientAddress
 from muxtower.nodes import protocol as node_protocol
@@ -236,6 +237,7 @@ def create_app(
                 "usage": usage.run_loop(),
                 "recovery": recovery.run_loop(bus),
                 "search-index": _indexing(indexer),
+                "listen": listen.run_loop(bus),
             }
             if summaries.available:
 
@@ -280,6 +282,9 @@ def create_app(
     mcp.session_tools.may_escalate = lambda: settings.launch.agents_may_escalate
     mcp.session_tools.audit = audit
     mcp.session_tools.resume_archived = recovery.resume
+    listen = ListenService(
+        directory, lambda: summaries.summarizer, lambda: settings.listen.rounds, lambda: settings.listen.max_per_day
+    )
     search_index = SearchIndex(settings.state_dir / "search.db")  # its own file: never locks muxtower.db
 
     def full_text() -> bool:  # auto: on, except on a node (turned on there from its settings)
@@ -305,7 +310,7 @@ def create_app(
         concierge=concierge, teams=teams, team_tasks=team_tasks, usage=usage, recovery=recovery, writes=writes,
         watches=watches,
         direct=DirectAccess(nodes, node_sessions.call), feature_settings=feature_settings,
-        chip_groups=ChipGroupStore(db), playbook=playbook, search=search, indexer=indexer,
+        chip_groups=ChipGroupStore(db), playbook=playbook, search=search, indexer=indexer, listen=listen,
         node_sessions=node_sessions, mcp=mcp, asr=asr, asr_dictionary=dictionary_store,
         diagnostics=DiagnosticsService(settings.state_dir / "diagnostics"),
         terminal=terminal, approvals=approvals, audit=audit, push=push,

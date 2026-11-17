@@ -3184,6 +3184,59 @@
         "title": "SnippetPart",
         "type": "object"
       },
+      "SpokenFrame": {
+        "description": "A stream frame: what to say of a session's last turn (`text`), its full reply for \"read all\", or why\nnothing can be said (`error`).",
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "reply": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reply"
+          },
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "type": {
+            "const": "spoken",
+            "default": "spoken",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "session_id"
+        ],
+        "title": "SpokenFrame",
+        "type": "object"
+      },
       "StateSource": {
         "enum": [
           "hook",
@@ -3249,7 +3302,8 @@
                 "pong": "#/components/schemas/PongFrame",
                 "screen": "#/components/schemas/ScreenFrame",
                 "screen_patch": "#/components/schemas/ScreenPatchFrame",
-                "sessions": "#/components/schemas/SessionsFrame"
+                "sessions": "#/components/schemas/SessionsFrame",
+                "spoken": "#/components/schemas/SpokenFrame"
               },
               "propertyName": "type"
             },
@@ -3271,9 +3325,22 @@
               },
               {
                 "$ref": "#/components/schemas/PongFrame"
+              },
+              {
+                "$ref": "#/components/schemas/SpokenFrame"
               }
             ],
             "title": "Server"
+          },
+          "spoken": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SpokenFrame"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "required": [
@@ -3317,7 +3384,8 @@
             "enum": [
               "sessions",
               "screen",
-              "conversation"
+              "conversation",
+              "spoken"
             ],
             "title": "Topic",
             "type": "string"

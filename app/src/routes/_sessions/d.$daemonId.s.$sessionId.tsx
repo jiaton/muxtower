@@ -36,6 +36,8 @@ import { DictionaryQuickAdd } from '@/features/voice/components/dictionary'
 import { useLive } from '@/features/voice/live/engine'
 import { setLiveOps, setLiveTarget } from '@/features/voice/live/engine'
 import { useJump } from '@/features/conversation/jump'
+import { useStreamSubscription } from '@/lib/api/streams'
+import { useSpeech } from '@/features/voice/live/speech'
 import { draftBox } from '@/features/terminal/draft-box'
 import { VoiceBar } from '@/features/voice/components/voice-bar'
 import { useDictation } from '@/features/voice/hooks/use-dictation'
@@ -104,6 +106,9 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
   const mention = useMentionSource(daemonId, session, useDaemonSessions(daemonId).data)
   // While Live is on, a word selected on screen can be added to the voice dictionary (`DictionaryQuickAdd`).
   const liveOn = useLive((s) => s.phase !== 'off' && s.phase !== 'error')
+  // Read aloud: this session's turns, said when they end (the daemon summarizes only what is listened to).
+  const readAloud = useSpeech((s) => s.readAloud)
+  useStreamSubscription(daemonId, liveOn && readAloud ? { type: 'subscribe', topic: 'spoken', session_id: session.id, history: 0 } : null)
   const [dictionaryWord, setDictionaryWord] = useState<string | null>(null)
   const key = entryKey(daemonId, session.id)
   const chosen = useSessionViews((s) => s.views[key] ?? s.last)

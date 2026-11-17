@@ -66,3 +66,22 @@ it("what was heard takes the hint's place in the same row, then the hint comes b
   expect(screen.getByRole('status').textContent).toContain('say send or Ctrl+↵ to send')
   vi.useRealTimers()
 })
+
+it('Read aloud: a toggle beside pause; on, the controls grow and say again, read all and stop show', async () => {
+  const { useSpeech } = await import('../live/speech')
+  useSpeech.setState({ readAloud: false, speaking: false, last: null })
+  useLive.setState({ phase: 'listening', commands: { state: 'ready' } })
+  render(<LiveBar />)
+  expect(screen.queryByRole('group', { name: 'Read aloud' })).toBeNull()
+  const toggle = screen.getByRole('button', { name: /Read aloud: say each turn/ })
+  expect(toggle.className).toMatch(/size-8/)
+  act(() => toggle.click())
+  expect(useSpeech.getState().readAloud).toBe(true)
+  expect(screen.getByRole('button', { name: /Read aloud: on/ }).className).toMatch(/size-10/) // bigger
+  expect(screen.getByRole('button', { name: /Stop writing/ }).className).toMatch(/size-10/)
+  expect(screen.getByRole('button', { name: /Say again/ })).toBeDisabled() // nothing said yet
+  act(() => useSpeech.setState({ last: { key: 'd/s', text: '好了', reply: 'Done' }, speaking: true }))
+  expect(screen.getByRole('button', { name: /Say again/ })).toBeEnabled()
+  expect(screen.getByRole('button', { name: /Stop$/ })).toBeEnabled()
+  act(() => useSpeech.setState({ readAloud: false, last: null, speaking: false }))
+})

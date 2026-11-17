@@ -1,4 +1,4 @@
-import { commandIn, trailingSend, type Command } from './commands'
+import { commandIn, SPEECH_COMMANDS, trailingSend, type Command, type SpeechCommand } from './commands'
 
 /** How a command came: heard on the device, read off a transcript, or keyed (⌘↵). */
 export type How = 'on device' | 'transcribed' | 'key'
@@ -25,7 +25,7 @@ export type Cue = 'sent' | 'paused' | 'resumed' | 'cleared' | 'undone' | 'empty'
 export type Heard =
   | { kind: 'command'; command: Command; done: boolean; how: How }
   | { kind: 'text'; text: string; short: boolean }
-  | { kind: 'ignored'; why: 'too short' | 'too quiet' | 'no session' | 'paused' | 'nothing said' | 'failed' }
+  | { kind: 'ignored'; why: 'too short' | 'too quiet' | 'no session' | 'paused' | 'nothing said' | 'failed' | 'speaking' }
 
 export const SHORT_MS = 1500 // a segment this short may be a command on its own
 
@@ -56,6 +56,10 @@ interface Deps {
   /** What became of the last thing heard (`feedbackOf` says it in a few words). */
   heard?: (event: Heard) => void
   count?: (what: 'segment' | 'uploaded' | 'dropped' | 'command' | 'spotted') => void
+  /** Read aloud is speaking: nothing is written meanwhile (no feedback loop), only its commands heard. */
+  speaking?: () => boolean
+  /** Read aloud's commands: stop, say again, read all. Whether there was anything to do. */
+  speech?: (command: SpeechCommand) => boolean
 }
 
 /**
@@ -102,6 +106,20 @@ export class LivePipeline {
     const { target } = segment
     const short = segment.ms <= SHORT_MS
     const spot = short && segment.pcm && this.deps.spot ? () => this.deps.spot!(segment.pcm!) : null
+    if (this.deps.speaking?.()) {
+      // Speaking: nothing is uploaded (it would write what is being said). The spotter hears the
+      // commands to stop, repeat or read all; "pause" stops it too.
+      this.deps.count?.('dropped')
+      if (!spot) {
+        this.deps.heard?.({ kind: 'ignored', why: 'speaking' })
+        return this.applied
+      }
+      return spot().then((command) => {
+        if (command && (SPEECH_COMMANDS.includes(command) || command === 'pause')) {
+          this.act(command === 'pause' ? 'stop' : command, target ?? { daemonId: '', sessionId: '' }, 'on device')
+        } else this.deps.heard?.({ kind: 'ignored', why: 'speaking' })
+      })
+    }
     if (this.state === 'paused') {
       // Paused: nothing is uploaded. Only the spotter listens, and only for "resume".
       this.deps.count?.('dropped')
@@ -161,6 +179,11 @@ export class LivePipeline {
   spotted(command: Command, target: Target | null): Promise<void> {
     this.deps.count?.('segment')
     this.deps.count?.('spotted')
+    if (SPEECH_COMMANDS.includes(command) || (command === 'pause' && this.deps.speaking?.())) {
+      // Read aloud's: at once, cutting in on what is being said (nothing it waits for).
+      this.act(command === 'pause' ? 'stop' : command, target ?? { daemonId: '', sessionId: '' }, 'on device')
+      return this.applied
+    }
     if (this.state === 'paused' && command !== 'resume') {
       this.deps.heard?.({ kind: 'ignored', why: 'paused' })
       return this.applied
@@ -253,6 +276,10 @@ export class LivePipeline {
         done(undone)
         return this.deps.cue(undone ? 'undone' : 'empty')
       }
+      case 'stop':
+      case 'repeat':
+      case 'read':
+        return done(this.deps.speech?.(command) ?? false)
     }
   }
 }

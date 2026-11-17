@@ -7,7 +7,16 @@ import type { Heard } from './pipeline'
  * short transcripts that were no command, and every reason something was ignored.
  */
 
-const DONE = { send: 'sent', pause: 'paused', resume: 'resumed', clear: 'cleared', undo: 'undone' } as const
+const DONE = {
+  send: 'sent',
+  pause: 'paused',
+  resume: 'resumed',
+  clear: 'cleared',
+  undo: 'undone',
+  stop: 'stopped',
+  repeat: 'said again',
+  read: 'reading all',
+} as const
 const NOTHING = { send: 'nothing to send', undo: 'nothing to undo' } as const
 
 export function feedbackOf(heard: Heard, details: boolean): string | null {
@@ -30,6 +39,7 @@ const IGNORED = {
   'no session': 'ignored: no session page open',
   paused: 'ignored: commands only',
   'nothing said': 'transcribed: nothing',
+  speaking: 'ignored: reading aloud',
 } as const
 
 const clip = (text: string) => (text.length > 28 ? `${text.slice(0, 27)}…` : text)

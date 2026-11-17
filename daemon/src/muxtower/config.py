@@ -142,6 +142,13 @@ class SearchSettings(BaseModel):
     full_text: Literal["auto", "on", "off"] = "auto"
 
 
+class ListenSettings(BaseModel):
+    """`[listen]`: spoken summaries of a listened session's turns (Live's Read aloud, `listen/`)."""
+
+    rounds: int = Field(default=3, ge=0, le=10)  # earlier prompts (with what was said of them) given as context
+    max_per_day: int = Field(default=500, ge=0)  # summaries a day, at most
+
+
 class LaunchSettings(BaseModel):
     """`[launch]`: how new sessions start, per runtime (`sessions/launch.py`). A mode is one of the runtime's
     `permission_modes` ids, or "agent": nothing added, the agent's own settings decide."""
@@ -216,6 +223,7 @@ class Settings(BaseModel):
     recovery: RecoverySettings = Field(default_factory=RecoverySettings)
     archive: ArchiveSettings = Field(default_factory=ArchiveSettings)
     search: SearchSettings = Field(default_factory=SearchSettings)
+    listen: ListenSettings = Field(default_factory=ListenSettings)
     writes: WritesSettings = Field(default_factory=WritesSettings)
     launch: LaunchSettings = Field(default_factory=LaunchSettings)
     sessions: SessionSettings = Field(default_factory=SessionSettings)

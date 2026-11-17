@@ -297,3 +297,39 @@ describe('a command spotted as soon as its speaker paused', () => {
     expect(live.state).toBe('listening')
   })
 })
+
+describe('while Read aloud speaks', () => {
+  function speakingSetup() {
+    const t = setup()
+    const asked: string[] = []
+    let speaking = true
+    const live = new LivePipeline({
+      transcribe: t.transcribe,
+      ops: () => ({ append: () => {}, clear: () => {}, undo: () => false, send: () => 'empty' }),
+      cue: () => {},
+      spot: t.spot,
+      speaking: () => speaking,
+      speech: (command) => (asked.push(command), true),
+    })
+    return { live, asked, t, stop: () => (speaking = false) }
+  }
+
+  it('writes nothing: what is said is never uploaded, only its commands are heard', async () => {
+    const { live, asked, t } = speakingSetup()
+    await live.segment({ target: A, audio: new Blob(['4000']), ms: 4000 })
+    expect(t.transcribe).not.toHaveBeenCalled()
+    const pcm = new Float32Array(1)
+    t.spot.mockResolvedValueOnce('repeat' as never)
+    await live.segment({ target: A, audio: new Blob(['600']), ms: 600, pcm })
+    t.spot.mockResolvedValueOnce('pause' as never) // "pause" stops the speaking too
+    await live.segment({ target: A, audio: new Blob(['600']), ms: 600, pcm })
+    expect(asked).toEqual(['repeat', 'stop'])
+    expect(t.transcribe).not.toHaveBeenCalled()
+  })
+
+  it('a spotted stop cuts in at once', async () => {
+    const { live, asked } = speakingSetup()
+    void live.spotted('stop', A)
+    expect(asked).toEqual(['stop'])
+  })
+})

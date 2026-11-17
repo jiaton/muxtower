@@ -15,6 +15,7 @@ from muxtower.auth.deps import WS_BEARER_PREFIX, WS_SUBPROTOCOL, CurrentDevice
 from muxtower.auth.stream_cookie import COOKIE_NAME, COOKIE_PATH, MAX_AGE_SECONDS
 from muxtower.errors import Conflict, NotFound, Unavailable
 from muxtower.infra.tmux import TmuxError
+from muxtower.listen.service import SpokenFrame
 from muxtower.sessions.models import ConversationItem, Session
 from muxtower.terminal.patches import ScreenUpdate
 
@@ -26,7 +27,7 @@ router = APIRouter(prefix="/v1", tags=["stream"])
 
 class StreamSubscribe(BaseModel):
     type: Literal["subscribe", "unsubscribe"]
-    topic: Literal["sessions", "screen", "conversation"]
+    topic: Literal["sessions", "screen", "conversation", "spoken"]
     session_id: str | None = None
     history: int = Field(default=200, ge=0, le=5000)
     encoding: Literal["full", "lines"] = Field(
@@ -89,7 +90,7 @@ class PongFrame(BaseModel):
 
 
 ServerFrame = Annotated[
-    SessionsFrame | ScreenFrame | ScreenPatchFrame | ConversationFrame | ErrorFrame | PongFrame,
+    SessionsFrame | ScreenFrame | ScreenPatchFrame | ConversationFrame | ErrorFrame | PongFrame | SpokenFrame,
     Field(discriminator="type"),
 ]
 
@@ -100,6 +101,7 @@ class StreamSchema(BaseModel):
     client: ClientMessage
     server: ServerFrame
     conversation: ConversationFrame | None = None
+    spoken: SpokenFrame | None = None
 
 
 @router.get("/stream/schema")
@@ -146,6 +148,7 @@ class _Connection:
         self.screens: dict[str, int] = {}  # session id -> history
         self.patched: dict[str, int | None] = {}  # session id -> the screen it last got, when it takes patches
         self.patches_since_full: dict[str, int] = {}
+        self.listening: set[str] = set()  # sessions whose spoken summaries it takes (Live's Read aloud)
 
     async def send(self, frame: BaseModel) -> None:
         await self.ws.send_text(frame.model_dump_json())
@@ -164,6 +167,9 @@ class _Connection:
                 bus.unsubscribe("sessions", self.queue)
             return
         session_id = message.session_id or ""
+        if message.topic == "spoken":
+            self.handle_spoken(message.type, session_id)
+            return
         if message.topic == "conversation":
             await self.handle_conversation(message.type, session_id)
             return
@@ -193,6 +199,20 @@ class _Connection:
         directory.watch_screen(session_id, message.history, True)
         bus.subscribe(f"screen:{session_id}", self.queue)
         await self.send(ScreenFrame(session_id=session_id, ansi=screen.ansi or screen.text))
+
+    def handle_spoken(self, kind: str, session_id: str) -> None:
+        """Listening to a session (or no longer): its spoken summaries come here; it is summarized meanwhile."""
+        listen, bus = getattr(self.app.state, "listen", None), self.app.state.bus
+        if listen is None or not session_id:
+            return
+        if kind == "subscribe" and session_id not in self.listening:
+            self.listening.add(session_id)
+            listen.listen(session_id)
+            bus.subscribe(f"spoken:{session_id}", self.queue)
+        elif kind == "unsubscribe" and session_id in self.listening:
+            self.listening.discard(session_id)
+            listen.unlisten(session_id)
+            bus.unsubscribe(f"spoken:{session_id}", self.queue)
 
     async def handle_conversation(self, kind: str, session_id: str) -> None:
         bus = self.app.state.bus
@@ -232,6 +252,8 @@ class _Connection:
                 await self.send(self.screen_frame(topic.split(":", 1)[1], payload))
             elif topic.startswith("conversation:"):
                 await self.send(ConversationFrame(session_id=topic.split(":", 1)[1], items=payload))
+            elif topic.startswith("spoken:"):
+                await self.send(payload)
 
     def screen_frame(self, session_id: str, update: ScreenUpdate) -> BaseModel:
         """A patch where this connection takes them and has the screen it builds on; else the whole screen."""
@@ -253,6 +275,10 @@ class _Connection:
 
     def close(self) -> None:
         self.app.state.bus.unsubscribe_all(self.queue)
+        listen = getattr(self.app.state, "listen", None)
+        if listen is not None:
+            for session_id in self.listening:
+                listen.unlisten(session_id)  # the phone went away: so does its target
         for session_id, history in self.screens.items():
             self.app.state.directory.watch_screen(session_id, history, False)
 

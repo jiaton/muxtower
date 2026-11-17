@@ -6,7 +6,10 @@ import { enabledPacks, type CommandPack } from './packs'
  * (`trailingSend`). A command inside a sentence is text.
  */
 
-export type Command = 'send' | 'pause' | 'resume' | 'clear' | 'undo'
+/** Read aloud's (`speech.ts`): stop speaking, say the last summary again, read the whole reply. */
+export type SpeechCommand = 'stop' | 'repeat' | 'read'
+export type Command = 'send' | 'pause' | 'resume' | 'clear' | 'undo' | SpeechCommand
+export const SPEECH_COMMANDS: readonly Command[] = ['stop', 'repeat', 'read']
 
 const PUNCTUATION = /[\p{P}\p{S}]/gu
 const escape = (word: string) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')

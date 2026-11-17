@@ -1,0 +1,122 @@
+"""Live listening: a listened session's turn, when it ends, said in a few spoken words by one stateless
+summarizer call with bounded, rolling context; nothing for sessions nobody listens to, nothing said twice,
+at most so many a day; the target goes with the phone's connection."""
+
+from collections.abc import Callable
+from datetime import UTC, datetime
+from types import SimpleNamespace
+from typing import Any
+
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from muxtower.listen.service import INSTRUCTIONS, ListenService
+from muxtower.runtimes.models import AgentState
+from muxtower.sessions.models import ConversationItem, ConversationItemKind, StateSource
+
+
+class Summarizer:
+    def __init__(self) -> None:
+        self.asked: list[tuple[str, str]] = []
+
+    def summarize(self, instructions: str, text: str) -> str:
+        self.asked.append((instructions, text))
+        return f"说法 {len(self.asked)}"
+
+
+class Directory:
+    def __init__(self) -> None:
+        self.session = SimpleNamespace(
+            id="s1", name="web-app", team_role="worker", project="acme/web", state=AgentState.BUSY,
+            state_source=StateSource.HOOK, last_message="old reply", needs_attention=False, pending=None,
+        )  # fmt: skip
+        self.items: list[ConversationItem] = []
+
+    def find(self, sid: str) -> Any:
+        return self.session if sid == "s1" else None
+
+    def conversation(self, sid: str, after: int, limit: int) -> Any:
+        return SimpleNamespace(items=self.items)
+
+    def turn(self, prompt: str, reply: str) -> None:
+        at = datetime.now(UTC)
+        n = len(self.items) + 1
+        self.items += [
+            ConversationItem(seq=n * 10, at=at, kind=ConversationItemKind.PROMPT, text=prompt),
+            ConversationItem(seq=n * 10 + 1, at=at, kind=ConversationItemKind.REPLY, text=reply),
+        ]
+        self.session.last_message = reply
+        self.session.state = AgentState.IDLE
+
+
+def _service(d: Directory, s: Summarizer | None, rounds: int = 3, cap: int = 100) -> ListenService:
+    return ListenService(d, lambda: s, lambda: rounds, lambda: cap)
+
+
+def test_a_listened_turn_is_said_once_from_its_context_and_what_came_before_is_not_read_again() -> None:
+    d, s = Directory(), Summarizer()
+    listen = _service(d, s, rounds=2)
+    assert listen.due(0) == []  # nobody listens
+    listen.listen("s1")
+    d.session.state = AgentState.IDLE
+    assert listen.due(10) == []  # the reply there when listening began is not news
+    for i in range(4):
+        d.session.state = AgentState.BUSY
+        listen.due(20 + i * 10)
+        d.turn(f"prompt {i}", f"reply {i}")
+        assert listen.due(21 + i * 10) == []  # just idle: settling
+        assert listen.due(22 + i * 10) == ["s1"]  # a hook said so: half a second will do
+        frame = listen.speak("s1")
+        assert frame is not None and frame.text == f"说法 {i + 1}" and frame.reply == f"reply {i}"
+        assert listen.due(23 + i * 10) == []  # said once
+    instructions, text = s.asked[-1]
+    assert instructions == INSTRUCTIONS
+    assert "会话: web-app · 角色 worker · 项目 acme/web" in text
+    assert "主人: prompt 3" in text and "助手回复: reply 3" in text
+    assert "主人: prompt 2" in text and "汇报: 说法 3" in text and "主人: prompt 1" in text
+    assert "prompt 0" not in text  # two earlier rounds, as set
+    assert "reply 2" not in text  # earlier replies stand in by what was said of them
+
+
+def test_a_reply_read_off_a_screen_settles_longer_and_one_waiting_on_the_owner_at_once() -> None:
+    d = Directory()
+    listen = _service(d, Summarizer())
+    listen.listen("s1")
+    d.session.state_source = StateSource.SCREEN
+    d.turn("go", "done")
+    assert listen.due(0) == [] and listen.due(2) == [] and listen.due(4.5) == ["s1"]
+    d.turn("again", "which one?")
+    d.session.needs_attention = True
+    d.session.pending = SimpleNamespace(tool_name="Bash", detail="rm -rf build", options=[SimpleNamespace(label="Yes")])
+    assert listen.due(10) == ["s1"]
+    assert "等待: Bash rm -rf build 选项: Yes" in (listen.context("s1") or ("",))[0]
+
+
+def test_a_daily_cap_and_no_summarizer_are_said_once() -> None:
+    d, s = Directory(), Summarizer()
+    listen = _service(d, s, cap=1)
+    listen.listen("s1")
+    d.turn("a", "b")
+    assert (listen.speak("s1") or SimpleNamespace(text=None)).text == "说法 1"
+    capped = listen.speak("s1")
+    assert capped is not None and capped.error == "今天的语音总结已到上限" and capped.reply == "b"
+    assert listen.speak("s1") is None  # said once a day
+    assert len(s.asked) == 1
+    none = _service(d, None).speak("s1")
+    assert none is not None and none.error and "summaries.provider" in none.error
+
+
+def test_the_phone_listens_by_subscribing_and_stops_when_it_goes(make_app: Callable[..., FastAPI]) -> None:
+    app = make_app()
+    _, token = app.state.tokens.create("phone")
+    client = TestClient(app)
+    with client.websocket_connect("/v1/stream", subprotocols=["muxtower", f"bearer.{token}"]) as ws:
+        ws.send_json({"type": "subscribe", "topic": "spoken", "session_id": "abc"})
+        ws.send_json({"type": "ping"})
+        ws.receive_json()
+        assert app.state.listen.listening() == ["abc"]
+        ws.send_json({"type": "subscribe", "topic": "spoken", "session_id": "abc"})  # twice: one listener
+        ws.send_json({"type": "ping"})
+        ws.receive_json()
+        assert app.state.listen._listened["abc"].phones == 1
+    assert app.state.listen.listening() == []  # its connection gone: no one listens

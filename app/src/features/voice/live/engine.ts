@@ -4,6 +4,9 @@ import { useDaemonsStore } from '@/lib/daemons/store'
 import type { Command } from './commands'
 import { chosenLanguages, startSpotter, type Spotter } from './kws'
 import { enabledPacks } from './packs'
+import { heardSummary, readAll, sayAgain, stopSpeaking, useSpeech } from './speech'
+import { spokenListeners } from '@/lib/api/streams'
+import { entryKey } from '@/features/sessions/model/facets'
 import { LivePipeline, SHORT_MS, type Ask, type BoxOps, type Cue, type Heard, type Target } from './pipeline'
 
 /**
@@ -69,6 +72,17 @@ export function setLiveTarget(next: Target | null) {
   target = next
 }
 
+/** The session page in front, for Read aloud: whose summaries are said. */
+export const liveTarget = () => target
+
+// A listened session's spoken summary: said when it is the one in front (`speech.ts`).
+spokenListeners.add((daemonId, frame) =>
+  heardSummary(
+    { key: entryKey(daemonId, frame.session_id), text: frame.text ?? null, reply: frame.reply ?? null, error: frame.error },
+    target ? entryKey(target.daemonId, target.sessionId) : null,
+  ),
+)
+
 export function setLiveOps(next: BoxOps) {
   ops = next
 }
@@ -79,6 +93,8 @@ const pipeline = new LivePipeline({
   cue: (cue) => playCue(cue),
   spot: (pcm) => (spotter ? spotter.spot(pcm) : Promise.resolve(undefined)), // undefined: not loaded
   heard,
+  speaking: () => useSpeech.getState().speaking,
+  speech: (command) => (command === 'stop' ? (stopSpeaking(), true) : command === 'repeat' ? sayAgain() : readAll()),
   changed: () =>
     useLive.setState((s) => ({
       pending: pipeline.pending,
@@ -196,6 +212,7 @@ export async function toggleLive() {
 
 export async function stopLive() {
   runs += 1
+  stopSpeaking() // Read aloud goes with Live
   const was = vad
   vad = null
   await was?.destroy().catch(() => undefined) // the microphone is let go

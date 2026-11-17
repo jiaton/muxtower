@@ -30,6 +30,9 @@ FIELDS: tuple[Field, ...] = (
     Field("search.full_text", "Search", "Search inside conversations (Cmd+K)", "choice", "now",
           "prompts and replies are indexed on this machine, in its own file; auto: on, except on a node "
           "(a computer joined to a hub); off: the index is deleted", ("auto", "on", "off")),
+    Field("listen.rounds", "Summaries", "Read aloud: earlier prompts given as context", "number", "now",
+          "with what was said of each; 0: this turn only"),
+    Field("listen.max_per_day", "Summaries", "Read aloud: summaries a day, at most", "number", "now"),
     Field("writes.window_minutes", "Teams", "Two sessions writing in one worktree: count writes of the last (minutes)",
           "number", "now", "file-editing tools only, not Bash"),
     Field("sessions.default_cwd", "New sessions", "Default folder", "text", "now",

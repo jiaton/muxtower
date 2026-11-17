@@ -1,4 +1,4 @@
-import { AudioLines, Ear, Pause, Play, X } from 'lucide-react'
+import { AudioLines, BookOpenText, Ear, Pause, Play, Repeat2, Square, Volume2, VolumeX, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -6,6 +6,7 @@ import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/lib/use-media-query'
 import { pauseLive, resumeLive, sendFromKey, stopLive, toggleLive, useLive } from '../live/engine'
 import { feedbackOf, liveDetails } from '../live/feedback'
+import { readAll, sayAgain, stopSpeaking, useSpeech } from '../live/speech'
 import type { Command } from '../live/commands'
 import { enabledPacks } from '../live/packs'
 import { composerColumns } from '@/components/ui/bar'
@@ -90,6 +91,12 @@ export function LiveButton() {
  *  transcribing take the hint's place. On a phone, once: it needs the page in front and the screen on. */
 export function LiveBar() {
   const { phase, speaking, pending, then, error, commands, heard } = useLive()
+  const readAloud = useSpeech((s) => s.readAloud)
+  const setReadAloud = useSpeech((s) => s.setReadAloud)
+  const talking = useSpeech((s) => s.speaking)
+  const lastSaid = useSpeech((s) => s.last?.text)
+  const lastReply = useSpeech((s) => s.last?.reply)
+  const big = readAloud && phase !== 'starting'
   const [, tick] = useState(0)
   useEffect(() => {
     if (!heard) return
@@ -201,21 +208,50 @@ export function LiveBar() {
             </Button>
           ) : null}
         </span>
-        {/* Its pause in the send button's column, like a banner's close. */}
-        {!paused && phase === 'listening' ? (
-          <span className={composerColumns.trail}>
+        {/* Its pause in the send button's column, like a banner's close; Read aloud beside it. */}
+        {phase === 'listening' || paused ? (
+          <span className={cn(composerColumns.trail, 'flex items-center gap-1')}>
             <Button
               variant="ghost"
-              size="icon-sm"
-              aria-label="Stop writing (commands only)"
-              title="Stop writing: only commands are heard until you resume"
-              onClick={pauseLive}
+              size={big ? 'icon' : 'icon-sm'}
+              aria-pressed={readAloud}
+              tone={readAloud ? 'accent' : undefined}
+              aria-label={readAloud ? 'Read aloud: on. Turn it off' : 'Read aloud: say each turn of this session when it ends'}
+              title={
+                readAloud ? 'Read aloud: on (停 / stop, 再说一遍 / say again, 读全文 / read all)' : 'Read aloud each turn when it ends'
+              }
+              onClick={() => setReadAloud(!readAloud)}
             >
-              <Pause />
+              {readAloud ? <Volume2 /> : <VolumeX />}
             </Button>
+            {!paused ? (
+              <Button
+                variant="ghost"
+                size={big ? 'icon' : 'icon-sm'}
+                aria-label="Stop writing (commands only)"
+                title="Stop writing: only commands are heard until you resume"
+                onClick={pauseLive}
+              >
+                <Pause />
+              </Button>
+            ) : null}
           </span>
         ) : null}
       </div>
+      {big ? (
+        // Read aloud: what it can do, big enough to hit without looking long.
+        <div className="flex gap-2 px-2 pb-1" role="group" aria-label="Read aloud">
+          <Button variant="secondary" size="lg" className="flex-1" disabled={!lastSaid} onClick={sayAgain} onPointerDown={keepFocus}>
+            <Repeat2 /> Say again
+          </Button>
+          <Button variant="secondary" size="lg" className="flex-1" disabled={!lastReply} onClick={readAll} onPointerDown={keepFocus}>
+            <BookOpenText /> Read all
+          </Button>
+          <Button variant="secondary" size="lg" className="flex-1" disabled={!talking} onClick={stopSpeaking} onPointerDown={keepFocus}>
+            <Square /> Stop
+          </Button>
+        </div>
+      ) : null}
     </>
   )
 }

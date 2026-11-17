@@ -2597,6 +2597,26 @@ export interface components {
             text: string;
         };
         /**
+         * SpokenFrame
+         * @description A stream frame: what to say of a session's last turn (`text`), its full reply for "read all", or why
+         *     nothing can be said (`error`).
+         */
+        SpokenFrame: {
+            /** Error */
+            error?: string | null;
+            /** Reply */
+            reply?: string | null;
+            /** Session Id */
+            session_id: string;
+            /** Text */
+            text?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "spoken";
+        };
+        /**
          * StateSource
          * @enum {string}
          */
@@ -2622,7 +2642,8 @@ export interface components {
             client: components["schemas"]["StreamSubscribe"] | components["schemas"]["StreamPing"];
             conversation?: components["schemas"]["ConversationFrame"] | null;
             /** Server */
-            server: components["schemas"]["SessionsFrame"] | components["schemas"]["ScreenFrame"] | components["schemas"]["ScreenPatchFrame"] | components["schemas"]["ConversationFrame"] | components["schemas"]["ErrorFrame"] | components["schemas"]["PongFrame"];
+            server: components["schemas"]["SessionsFrame"] | components["schemas"]["ScreenFrame"] | components["schemas"]["ScreenPatchFrame"] | components["schemas"]["ConversationFrame"] | components["schemas"]["ErrorFrame"] | components["schemas"]["PongFrame"] | components["schemas"]["SpokenFrame"];
+            spoken?: components["schemas"]["SpokenFrame"] | null;
         };
         /** StreamSubscribe */
         StreamSubscribe: {
@@ -2644,7 +2665,7 @@ export interface components {
              * Topic
              * @enum {string}
              */
-            topic: "sessions" | "screen" | "conversation";
+            topic: "sessions" | "screen" | "conversation" | "spoken";
             /**
              * @description discriminator enum property added by openapi-typescript
              * @enum {string}

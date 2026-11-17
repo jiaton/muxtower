@@ -5,7 +5,7 @@ import { ScreenBases } from './screen-patch'
 import { DaemonStream } from './stream'
 import { setStreamStatus } from './stream-status'
 import { mergeItems } from './conversation'
-import type { ConversationItem, StreamSubscribe } from './types'
+import type { ServerFrame, ConversationItem, StreamSubscribe } from './types'
 import { onResume } from '../resume'
 
 const streams = new Map<string, { stream: DaemonStream; signature: string }>()
@@ -46,6 +46,7 @@ export function useDaemonStreams() {
             queryClient.setQueryData<ConversationItem[]>(daemonKey(daemon.id, 'conversation', frame.session_id), (shown) =>
               mergeItems(shown, frame.items),
             )
+          else if (frame.type === 'spoken') for (const heard of spokenListeners) heard(daemon.id, frame)
         },
       })
       stream.subscribe({ type: 'subscribe', topic: 'sessions', history: 0 })
@@ -59,6 +60,9 @@ export function useDaemonStreams() {
 onResume(() => void queryClient.refetchQueries({ type: 'active' }))
 
 /** Subscribes to a topic on a daemon's stream for as long as the calling component is mounted. */
+/** Who takes the daemons' spoken summaries (`spoken` frames: Live's Read aloud). */
+export const spokenListeners = new Set<(daemonId: string, frame: Extract<ServerFrame, { type: 'spoken' }>) => void>()
+
 export function useStreamSubscription(daemonId: string, message: StreamSubscribe | null) {
   const key = message ? JSON.stringify(message) : null
   useEffect(() => {
