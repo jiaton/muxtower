@@ -102,11 +102,17 @@ def get_session(session_id: str, _: CurrentDevice, directory: Directory) -> Sess
 
 @router.get("/sessions/{session_id}/conversation")
 def get_conversation(
-    session_id: str, _: CurrentDevice, directory: Directory, after: int = 0, limit: int = 100
+    session_id: str,
+    _: CurrentDevice,
+    directory: Directory,
+    after: int = 0,
+    limit: int = 100,
+    around: int | None = None,
 ) -> Conversation:
-    """Structured conversation items after `after` (0 = the latest `limit`). Only for sessions whose
+    """Structured conversation items after `after` (0 = the latest `limit`); `around`: from that item on,
+    read where it is however far back (a search's hit, `/v1/search`). Only for sessions whose
     capabilities include `conversation`; others have a screen instead."""
-    return directory.conversation(session_id, after, max(1, min(limit, 400)))
+    return directory.conversation(session_id, after, max(1, min(limit, 400)), around)
 
 
 @router.patch("/sessions/{session_id}")

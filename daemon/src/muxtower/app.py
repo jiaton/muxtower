@@ -56,6 +56,9 @@ from muxtower.origins import OriginPolicy
 from muxtower.playbook.service import PlaybookStore
 from muxtower.recovery.service import RecoveryService
 from muxtower.runtimes.spec import load_runtimes
+from muxtower.search.index import SearchIndex
+from muxtower.search.indexer import Indexer
+from muxtower.search.service import SearchService
 from muxtower.serving import serve
 from muxtower.sessions.archive import SessionArchive
 from muxtower.sessions.archive_repository import SqliteArchiveRepository
@@ -90,6 +93,15 @@ from muxtower.usage.sampler import UsageSampler
 from muxtower.writes.tracker import WriteTracker, Writing
 
 logger = logging.getLogger("muxtower")
+
+
+async def _indexing(indexer: Indexer) -> None:
+    """The search index's own thread (low priority), for as long as the daemon runs."""
+    indexer.start()
+    try:
+        await asyncio.Event().wait()
+    finally:
+        indexer.stop()
 
 
 def _log_crash(task: asyncio.Task[None]) -> None:
@@ -223,6 +235,7 @@ def create_app(
                 "titles": titles.run_loop(bus),
                 "usage": usage.run_loop(),
                 "recovery": recovery.run_loop(bus),
+                "search-index": _indexing(indexer),
             }
             if summaries.available:
 
@@ -267,6 +280,17 @@ def create_app(
     mcp.session_tools.may_escalate = lambda: settings.launch.agents_may_escalate
     mcp.session_tools.audit = audit
     mcp.session_tools.resume_archived = recovery.resume
+    search_index = SearchIndex(settings.state_dir / "search.db")  # its own file: never locks muxtower.db
+
+    def full_text() -> bool:  # auto: on, except on a node (turned on there from its settings)
+        chosen = settings.search.full_text
+        return chosen == "on" or (chosen == "auto" and hub_store.load() is None)
+
+    indexer = Indexer(search_index, directory, archive, full_text)
+    search = SearchService(search_index, directory, full_text, node_sessions)
+    search.indexer = indexer
+    node_api.search = search.local
+    node_api.search_status = lambda: search.status().model_dump(mode="json")
     playbook = PlaybookStore(db)  # the owner's team playbook: kept here when this daemon is the hub
     if (team_tools := getattr(mcp, "team_tools", None)) is not None:
         team_tools.playbook = playbook
@@ -281,7 +305,7 @@ def create_app(
         concierge=concierge, teams=teams, team_tasks=team_tasks, usage=usage, recovery=recovery, writes=writes,
         watches=watches,
         direct=DirectAccess(nodes, node_sessions.call), feature_settings=feature_settings,
-        chip_groups=ChipGroupStore(db), playbook=playbook,
+        chip_groups=ChipGroupStore(db), playbook=playbook, search=search, indexer=indexer,
         node_sessions=node_sessions, mcp=mcp, asr=asr, asr_dictionary=dictionary_store,
         diagnostics=DiagnosticsService(settings.state_dir / "diagnostics"),
         terminal=terminal, approvals=approvals, audit=audit, push=push,

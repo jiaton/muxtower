@@ -154,8 +154,11 @@ class NodeSource:
             return []
         return [NameSeen(r["name"], r["source"], datetime.fromisoformat(r["last_seen"])) for r in result or []]
 
-    def conversation(self, session_id: str, after: int, limit: int) -> Conversation:
-        result = self._call(session_id, "conversation", {"after": after, "limit": limit})
+    def conversation(self, session_id: str, after: int, limit: int, around: int | None = None) -> Conversation:
+        params: dict[str, Any] = {"after": after, "limit": limit}
+        if around is not None:  # an older node reads it as `after`: from about there on
+            params.update(around=around, after=around - 1)
+        result = self._call(session_id, "conversation", params)
         return Conversation.model_validate(result).model_copy(update={"session_id": session_id})
 
     def image(self, session_id: str, path: str) -> ImageFile:

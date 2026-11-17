@@ -198,6 +198,36 @@ const ROUTES: Record<string, (world: World, body: Record<string, unknown>, url: 
     return json({ groups: chipGroups(world) })
   },
   'GET /v1/health': () => json({ status: 'ok', version: 'demo' }),
+  'GET /v1/search/status': () =>
+    json({ here: { state: 'caught_up', size_bytes: 3_200_000 }, nodes: [{ node: 'laptop', status: { state: 'off', size_bytes: 0 } }] }),
+  // Full-text search, faked over the demo's own made-up conversations.
+  'GET /v1/search': (world, _, url) => {
+    const q = (url.searchParams.get('q') ?? '').toLowerCase().trim()
+    const hits = world.sessions().flatMap((s) =>
+      world
+        .items(s.id)
+        .filter((i) => (i.kind === 'prompt' || i.kind === 'reply') && q && (i.text ?? '').toLowerCase().includes(q))
+        .map((i) => {
+          const text = i.text ?? ''
+          const at = text.toLowerCase().indexOf(q)
+          const from = Math.max(0, at - 40)
+          return {
+            session_id: s.id,
+            seq: i.seq,
+            at: i.at,
+            role: i.kind === 'prompt' ? 'user' : 'agent',
+            archived: Boolean(s.archived_at),
+            node: null,
+            snippet: [
+              { text: (from ? '…' : '') + text.slice(from, at), match: false },
+              { text: text.slice(at, at + q.length), match: true },
+              { text: text.slice(at + q.length, at + q.length + 60) + '…', match: false },
+            ],
+          }
+        }),
+    )
+    return json({ hits: hits.slice(0, 12), late: [], off: false, took_ms: 1 })
+  },
   'GET /v1/sessions': (world) => json(world.sessions()),
   'POST /v1/sessions': start,
   'GET /v1/runtimes': () => json(RUNTIMES),

@@ -1011,6 +1011,29 @@
         "title": "ImageInput",
         "type": "object"
       },
+      "IndexStatus": {
+        "properties": {
+          "size_bytes": {
+            "default": 0,
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "state": {
+            "enum": [
+              "off",
+              "indexing",
+              "caught_up"
+            ],
+            "title": "State",
+            "type": "string"
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "title": "IndexStatus",
+        "type": "object"
+      },
       "ItemStatus": {
         "enum": [
           "running",
@@ -1367,6 +1390,30 @@
           "hub_name"
         ],
         "title": "NodeClaimResult",
+        "type": "object"
+      },
+      "NodeIndexStatus": {
+        "properties": {
+          "node": {
+            "title": "Node",
+            "type": "string"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IndexStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None: offline, or too old to say"
+          }
+        },
+        "required": [
+          "node"
+        ],
+        "title": "NodeIndexStatus",
         "type": "object"
       },
       "NodeInfo": {
@@ -2255,6 +2302,125 @@
         "title": "ScreenPatchFrame",
         "type": "object"
       },
+      "SearchHit": {
+        "properties": {
+          "archived": {
+            "default": false,
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "node": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Node"
+          },
+          "role": {
+            "enum": [
+              "user",
+              "agent"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "seq": {
+            "description": "the conversation item it is in (GET /conversation)",
+            "title": "Seq",
+            "type": "integer"
+          },
+          "session_id": {
+            "description": "as the session list has it (a node's: <node>~<id>)",
+            "title": "Session Id",
+            "type": "string"
+          },
+          "snippet": {
+            "items": {
+              "$ref": "#/components/schemas/SnippetPart"
+            },
+            "title": "Snippet",
+            "type": "array"
+          }
+        },
+        "required": [
+          "session_id",
+          "seq",
+          "role",
+          "snippet"
+        ],
+        "title": "SearchHit",
+        "type": "object"
+      },
+      "SearchResult": {
+        "properties": {
+          "hits": {
+            "items": {
+              "$ref": "#/components/schemas/SearchHit"
+            },
+            "title": "Hits",
+            "type": "array"
+          },
+          "late": {
+            "description": "nodes that did not answer in time: ask each with node=",
+            "items": {
+              "type": "string"
+            },
+            "title": "Late",
+            "type": "array"
+          },
+          "off": {
+            "default": false,
+            "description": "full-text search is turned off here (`search.full_text`)",
+            "title": "Off",
+            "type": "boolean"
+          },
+          "took_ms": {
+            "default": 0,
+            "title": "Took Ms",
+            "type": "number"
+          }
+        },
+        "required": [
+          "hits"
+        ],
+        "title": "SearchResult",
+        "type": "object"
+      },
+      "SearchStatus": {
+        "properties": {
+          "here": {
+            "$ref": "#/components/schemas/IndexStatus"
+          },
+          "nodes": {
+            "items": {
+              "$ref": "#/components/schemas/NodeIndexStatus"
+            },
+            "title": "Nodes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "here"
+        ],
+        "title": "SearchStatus",
+        "type": "object"
+      },
       "SendInput": {
         "description": "Either literal `text` (optionally followed by Enter) or one tmux `key` name. A message (`text`) may\ncarry `images` where the session takes them (`capabilities.images`).",
         "properties": {
@@ -2997,6 +3163,25 @@
           "ms"
         ],
         "title": "SlowRule",
+        "type": "object"
+      },
+      "SnippetPart": {
+        "properties": {
+          "match": {
+            "default": false,
+            "description": "this part is what was searched for",
+            "title": "Match",
+            "type": "boolean"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "SnippetPart",
         "type": "object"
       },
       "StateSource": {
@@ -4936,6 +5121,101 @@
         ]
       }
     },
+    "/v1/search": {
+      "get": {
+        "description": "What was said in the conversations, best matches first: prompts and replies of every session here\nand (a hub) on its nodes, archived ones too. A node too slow to answer is named in `late`; ask it alone\nwith `node`.",
+        "operationId": "search_v1_search_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Q",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "node",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Node"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResult"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Search",
+        "tags": [
+          "search"
+        ]
+      }
+    },
+    "/v1/search/status": {
+      "get": {
+        "description": "Full-text search here (off, indexing, caught up, its size) and on each node.",
+        "operationId": "search_status_v1_search_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Search Status",
+        "tags": [
+          "search"
+        ]
+      }
+    },
     "/v1/sessions": {
       "get": {
         "operationId": "list_sessions_v1_sessions_get",
@@ -5216,7 +5496,7 @@
     },
     "/v1/sessions/{session_id}/conversation": {
       "get": {
-        "description": "Structured conversation items after `after` (0 = the latest `limit`). Only for sessions whose\ncapabilities include `conversation`; others have a screen instead.",
+        "description": "Structured conversation items after `after` (0 = the latest `limit`); `around`: from that item on,\nread where it is however far back (a search's hit, `/v1/search`). Only for sessions whose\ncapabilities include `conversation`; others have a screen instead.",
         "operationId": "get_conversation_v1_sessions__session_id__conversation_get",
         "parameters": [
           {
@@ -5246,6 +5526,22 @@
               "default": 100,
               "title": "Limit",
               "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "around",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Around"
             }
           }
         ],

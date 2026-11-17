@@ -47,11 +47,11 @@ class HubDirectory(SessionDirectory):
             return self.nodes.names(session_id)
         return super().names(session_id)
 
-    def conversation(self, session_id: str, after: int, limit: int) -> Conversation:
+    def conversation(self, session_id: str, after: int, limit: int, around: int | None = None) -> Conversation:
         if self._on_node(session_id):  # its node reads it from where it is whole (its transcript)
             self.require(session_id, "conversation")
-            return self.nodes.conversation(session_id, after, limit)
-        return super().conversation(session_id, after, limit)
+            return self.nodes.conversation(session_id, after, limit, around)
+        return super().conversation(session_id, after, limit, around)
 
     def image(self, session_id: str, path: str) -> ImageFile:
         if self._on_node(session_id):  # read where it runs

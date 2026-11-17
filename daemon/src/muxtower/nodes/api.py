@@ -44,6 +44,8 @@ class NodeApi:
         self.usage_now: Callable[[], MachineUsage] | None = None  # set once the usage sampler runs
         self.recover: Callable[[list[str]], list[Session]] | None = None  # set by the recovery service
         self.resume_archived: Callable[[str, str | None], Session] | None = None  # likewise
+        self.search: Callable[[str, int], list[dict[str, Any]]] | None = None  # full-text, set by the app
+        self.search_status: Callable[[], dict[str, Any]] | None = None
         self.settings: SettingsService | None = None  # its feature settings, which the hub may change
         self.tokens: TokenService | None = None  # its device tokens: the hub's devices get one here (`direct.py`)
         self.directory = directory
@@ -70,7 +72,9 @@ class NodeApi:
             self.audit.record("hub", method, sid or None)  # what was typed is never logged
         match method:
             case "conversation":
-                return _json(d.conversation(sid, int(params.get("after", 0)), int(params.get("limit", 100))))
+                around = params.get("around")
+                after, limit = int(params.get("after", 0)), int(params.get("limit", 100))
+                return _json(d.conversation(sid, after, limit, int(around) if around is not None else None))
             case "image":
                 image = d.image(sid, str(params.get("path", "")))
                 return {"media_type": image.media_type, "data": base64.b64encode(image.data).decode()}
@@ -97,6 +101,12 @@ class NodeApi:
                     raise Invalid("this node cannot start sessions again")
                 started = self.recover([sid])
                 return _json(started[0]) if started else None
+            case "search_status":
+                return self.search_status() if self.search_status else None
+            case "search":
+                if self.search is None:
+                    return []
+                return self.search(str(params.get("q") or ""), int(params.get("limit") or 20))
             case "resume_archived":
                 if self.resume_archived is None:
                     raise Invalid("this node cannot start archived sessions again")

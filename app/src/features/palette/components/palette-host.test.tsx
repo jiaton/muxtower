@@ -62,3 +62,37 @@ it('runs a command picked by name, and shows its key', async () => {
   expect(useLayoutPrefs.getState().sidebar).toBe(!before)
   expect(screen.queryByRole('combobox')).toBeNull()
 })
+
+it('searches inside conversations once typing pauses, says a late node is still searching, and goes to a hit', async () => {
+  const { http, HttpResponse } = await import('msw')
+  const { server, DAEMON_URL } = await import('@/test/server')
+  const { useJump } = await import('@/features/conversation/jump')
+  const asked: string[] = []
+  const hit = (sid: string, node: string | null) => ({
+    session_id: sid, seq: 4096, at: null, role: 'agent', archived: false, node,
+    snippet: [{ text: 'use the ', match: false }, { text: 'chart', match: true }, { text: ' library', match: false }],
+  }) // prettier-ignore
+  server.use(
+    http.get(`${DAEMON_URL}/v1/search`, ({ request }) => {
+      const url = new URL(request.url)
+      asked.push(`${url.searchParams.get('q')}${url.searchParams.get('node') ? `@${url.searchParams.get('node')}` : ''}`)
+      if (url.searchParams.get('node') === 'mac') return HttpResponse.json({ hits: [hit('mac~m1', 'mac')], late: [], off: false })
+      return HttpResponse.json({ hits: [hit('s1', null)], late: ['mac'], off: false })
+    }),
+  )
+  show()
+  await screen.findByRole('textbox', { name: 'Elsewhere' })
+  fireEvent.keyDown(window, { code: 'KeyK', key: 'k', ctrlKey: true })
+  const box = screen.getByRole('combobox')
+  fireEvent.change(box, { target: { value: 'c' } })
+  fireEvent.change(box, { target: { value: 'chart' } }) // typed on: one question, for all of it
+  await new Promise((r) => setTimeout(r, 400)) // the debounce, and the answer
+  const found = await screen.findAllByRole('option', { name: /chart library/ })
+  expect(found.length).toBeGreaterThan(0)
+  expect(asked[0]).toBe('chart')
+  expect(asked.filter((q) => q === 'chart')).toHaveLength(1)
+  await screen.findByRole('option', { name: /mac~m1/ }) // the late node, asked on its own
+  expect(asked).toContain('chart@mac')
+  fireEvent.click(found[0]!)
+  expect(useJump.getState().to?.seq).toBe(4096)
+})

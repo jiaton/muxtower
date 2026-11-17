@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any, Protocol
 
 from muxtower.agents.codex.rollout import RolloutBuilder
-from muxtower.claude_conversation import ConversationBuilder, RawEvent
+from muxtower.claude_conversation import SLOTS, ConversationBuilder, RawEvent
 from muxtower.infra.bus import EventBus
 from muxtower.sessions.models import Conversation, ConversationItem
 
@@ -35,6 +35,9 @@ TAILS = (4_000_000, 16_000_000, 64_000_000)
 FIRST_ITEMS = 150
 POLL_SECONDS = 1.5
 KINDS = {"user", "assistant"}
+
+
+WINDOW_BEFORE = 40  # lines read before a searched-for item: the tool calls it answers, if any
 
 
 class TranscriptFormat(Protocol):
@@ -164,6 +167,29 @@ class Transcripts:
             items = followed.builder.after(after, limit)
             latest = max(followed.builder.items, default=0)
         return Conversation(session_id=session_id, items=items, latest_seq=latest)
+
+    def window(self, session_id: str, path: str, seq: int, limit: int) -> Conversation:
+        """The items from `seq` on, read from the transcript where they are (a search led there, further
+        back than the latest kept): Claude Code's seq says its line, so only a few lines before it and
+        `limit` after are read; another kind of transcript is read on from its start."""
+        if os.path.basename(path).startswith("rollout-"):
+            builder = builder_for(path)
+            with open(path, "rb") as f:
+                builder.feed_lines(f.read().splitlines())
+            return Conversation(session_id=session_id, items=builder.after(seq - 1, limit), latest_seq=0)
+        line = max(1, seq // SLOTS)
+        start = max(1, line - WINDOW_BEFORE)
+        lines: list[bytes] = []
+        with open(path, "rb") as f:
+            for n, raw in enumerate(f, 1):
+                if n >= start:
+                    lines.append(raw)
+                if n >= line + limit * 2:
+                    break
+        builder = ClaudeTranscript()
+        builder._seq = start - 1
+        builder.feed_lines(lines)
+        return Conversation(session_id=session_id, items=builder.after(seq - 1, limit), latest_seq=0)
 
     def poll(self, paths: dict[str, str]) -> dict[str, list[ConversationItem]]:
         """Blocking. New items of the transcripts being followed (`paths`: session id → its transcript now);

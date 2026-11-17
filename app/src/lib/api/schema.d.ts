@@ -540,6 +540,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search
+         * @description What was said in the conversations, best matches first: prompts and replies of every session here
+         *     and (a hub) on its nodes, archived ones too. A node too slow to answer is named in `late`; ask it alone
+         *     with `node`.
+         */
+        get: operations["search_v1_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/search/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Status
+         * @description Full-text search here (off, indexing, caught up, its size) and on each node.
+         */
+        get: operations["search_status_v1_search_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions": {
         parameters: {
             query?: never;
@@ -630,7 +672,8 @@ export interface paths {
         };
         /**
          * Get Conversation
-         * @description Structured conversation items after `after` (0 = the latest `limit`). Only for sessions whose
+         * @description Structured conversation items after `after` (0 = the latest `limit`); `around`: from that item on,
+         *     read where it is however far back (a search's hit, `/v1/search`). Only for sessions whose
          *     capabilities include `conversation`; others have a screen instead.
          */
         get: operations["get_conversation_v1_sessions__session_id__conversation_get"];
@@ -1567,6 +1610,19 @@ export interface components {
              */
             media_type: "image/png" | "image/jpeg" | "image/gif" | "image/webp";
         };
+        /** IndexStatus */
+        IndexStatus: {
+            /**
+             * Size Bytes
+             * @default 0
+             */
+            size_bytes: number;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "off" | "indexing" | "caught_up";
+        };
         /**
          * ItemStatus
          * @enum {string}
@@ -1726,6 +1782,13 @@ export interface components {
              * @description the node's own token, for the link only
              */
             token: string;
+        };
+        /** NodeIndexStatus */
+        NodeIndexStatus: {
+            /** Node */
+            node: string;
+            /** @description None: offline, or too old to say */
+            status?: components["schemas"]["IndexStatus"] | null;
         };
         /**
          * NodeInfo
@@ -2130,6 +2193,62 @@ export interface components {
              */
             type: "screen_patch";
         };
+        /** SearchHit */
+        SearchHit: {
+            /**
+             * Archived
+             * @default false
+             */
+            archived: boolean;
+            /** At */
+            at?: string | null;
+            /** Node */
+            node?: string | null;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "agent";
+            /**
+             * Seq
+             * @description the conversation item it is in (GET /conversation)
+             */
+            seq: number;
+            /**
+             * Session Id
+             * @description as the session list has it (a node's: <node>~<id>)
+             */
+            session_id: string;
+            /** Snippet */
+            snippet: components["schemas"]["SnippetPart"][];
+        };
+        /** SearchResult */
+        SearchResult: {
+            /** Hits */
+            hits: components["schemas"]["SearchHit"][];
+            /**
+             * Late
+             * @description nodes that did not answer in time: ask each with node=
+             */
+            late?: string[];
+            /**
+             * Off
+             * @description full-text search is turned off here (`search.full_text`)
+             * @default false
+             */
+            off: boolean;
+            /**
+             * Took Ms
+             * @default 0
+             */
+            took_ms: number;
+        };
+        /** SearchStatus */
+        SearchStatus: {
+            here: components["schemas"]["IndexStatus"];
+            /** Nodes */
+            nodes?: components["schemas"]["NodeIndexStatus"][];
+        };
         /**
          * SendInput
          * @description Either literal `text` (optionally followed by Enter) or one tmux `key` name. A message (`text`) may
@@ -2465,6 +2584,17 @@ export interface components {
             session_id: string;
             /** Session Name */
             session_name?: string | null;
+        };
+        /** SnippetPart */
+        SnippetPart: {
+            /**
+             * Match
+             * @description this part is what was searched for
+             * @default false
+             */
+            match: boolean;
+            /** Text */
+            text: string;
         };
         /**
          * StateSource
@@ -3646,6 +3776,59 @@ export interface operations {
             };
         };
     };
+    search_v1_search_get: {
+        parameters: {
+            query: {
+                q: string;
+                limit?: number;
+                node?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_status_v1_search_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchStatus"];
+                };
+            };
+        };
+    };
     list_sessions_v1_sessions_get: {
         parameters: {
             query?: never;
@@ -3863,6 +4046,7 @@ export interface operations {
             query?: {
                 after?: number;
                 limit?: number;
+                around?: number | null;
             };
             header?: never;
             path: {

@@ -196,15 +196,23 @@ class SessionDirectory(OwnerMarks):
         self.name_store.backfill(session.id, self.local.transcript_of(session.id))
         return self.name_store.offered(session.id, session.name)
 
-    def conversation(self, session_id: str, after: int, limit: int) -> Conversation:
+    def conversation(self, session_id: str, after: int, limit: int, around: int | None = None) -> Conversation:
         """From the transcript of the Claude Code in the session's pane (the whole history, also for one that
-        runs Remote Control), else from the session's source."""
+        runs Remote Control), else from the session's source. `around`: the items from that seq on, read
+        where they are (a search led there): a transcript's, else as `after`."""
         session = self.require(session_id, "conversation")
         if session.archived_at and self.archive_store:
-            return self.archive_store.conversation(session_id, after, limit)
+            record = self.archive_store.record(session_id)
+            if around is not None and record and record.transcript and self.transcripts:
+                return self.transcripts.window(session_id, record.transcript, around, limit)
+            return self.archive_store.conversation(session_id, around - 1 if around else after, limit)
         path = self.local.transcript_of(session_id) if self.source_of(session_id) is None else None
         if path and self.transcripts:
+            if around is not None:
+                return self.transcripts.window(session_id, path, around, limit)
             return self.transcripts.conversation(session_id, path, after, limit)
+        if around is not None:
+            after = around - 1
         remote_id = session.remote_id or session_id
         if source := self.source_of(remote_id):
             return source.conversation(remote_id, after, limit).model_copy(update={"session_id": session_id})

@@ -1,6 +1,6 @@
 import { Clamp } from '@/components/ui/clamp'
 import { ArrowDown, CircleX, RotateCw, X } from 'lucide-react'
-import { memo, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Markdown } from '@/components/ui/markdown'
 import type { ConversationItem } from '@/lib/api/types'
@@ -10,9 +10,11 @@ import { conversationRows, toolName, toolRunSummary } from '../model/rows'
 import { ConversationGallery, ConversationImages } from './conversation-images'
 import { NextStepCard } from './next-step-card'
 import { Chevron, Spinner } from '@/components/ui/indicators'
-import { bubble, ink, look } from '@/components/ui/intents'
+import { bubble, found, ink, look } from '@/components/ui/intents'
+import { Banner } from '@/components/ui/banner'
 
 const BOTTOM_SLACK = 24
+const FOUND_MS = 2500 // how long the item a search led to stays outlined
 
 /** Where the conversation is read from, for the images its items show. */
 export interface ConversationSource {
@@ -24,8 +26,8 @@ export interface ConversationSource {
 // a new item at the end of a long conversation does not parse every reply's Markdown again.
 const sameSource = (a?: ConversationSource, b?: ConversationSource) =>
   a === b || (!!a && !!b && a.daemonId === b.daemonId && a.sessionId === b.sessionId)
-const sameItem = (a: { item: ConversationItem; source?: ConversationSource }, b: typeof a) =>
-  a.item === b.item && sameSource(a.source, b.source)
+const sameItem = (a: { item: ConversationItem; source?: ConversationSource; focused?: boolean }, b: typeof a) =>
+  a.item === b.item && a.focused === b.focused && sameSource(a.source, b.source)
 const sameRun = (a: { tools: ConversationItem[]; source?: ConversationSource }, b: typeof a) =>
   a.tools.length === b.tools.length && a.tools.every((t, i) => t === b.tools[i]) && sameSource(a.source, b.source)
 
@@ -78,19 +80,29 @@ const ToolRun = memo(function ToolRun({ tools, source }: { tools: ConversationIt
   )
 }, sameRun)
 
-const ItemView = memo(function ItemView({ item, source }: { item: ConversationItem; source?: ConversationSource }) {
+const ItemView = memo(function ItemView({
+  item,
+  source,
+  focused = false,
+}: {
+  item: ConversationItem
+  source?: ConversationSource
+  focused?: boolean
+}) {
   if (item.kind === 'prompt')
     return (
       <div className="flex flex-col items-end gap-2">
-        <div className={bubble({ state: 'prompt' })}>
-          <Clamp>{item.text}</Clamp>
+        <div className={bubble({ state: 'prompt', focused })}>
+          <Clamp key={String(focused)} open={focused}>
+            {item.text}
+          </Clamp>
         </div>
         <Images source={source} items={[item]} />
       </div>
     )
   if (item.kind === 'reply')
     return (
-      <div className="flex flex-col gap-2">
+      <div className={cn('flex flex-col gap-2', found(focused))}>
         <Markdown>{item.text ?? ''}</Markdown>
         <Images source={source} items={[item]} />
       </div>
@@ -161,6 +173,8 @@ export function ConversationView({
   onResend,
   onReply,
   source,
+  focus,
+  earlier,
 }: {
   items: ConversationItem[]
   pending?: ShownOutgoing[]
@@ -168,18 +182,34 @@ export function ConversationView({
   onResend?: (message: ShownOutgoing) => void
   onReply?: (text: string) => void
   source?: ConversationSource
+  /** The item a search led to: scrolled to and outlined for a moment, shown whole. */
+  focus?: number
+  /** Showing an earlier part (from `focus` on), not the latest: what takes it back to the latest. */
+  earlier?: () => void
 }) {
   const scroller = useRef<HTMLDivElement>(null)
+  const [focused, setFocused] = useState<number | undefined>(undefined)
   const atBottom = useRef(true)
   const [behind, setBehind] = useState(false)
   const shown = conversationRows(items)
 
   useLayoutEffect(() => {
     const el = scroller.current
-    if (!el) return
+    if (!el || focus !== undefined) return
     if (atBottom.current) el.scrollTop = el.scrollHeight
     else setBehind(true)
-  }, [items, pending.length])
+  }, [items, pending.length, focus])
+
+  // Led here by a search: to its item, outlined for a moment, once it is shown.
+  const hasFocus = focus !== undefined && items.some((i) => i.seq === focus)
+  useEffect(() => {
+    if (!hasFocus) return
+    setFocused(focus)
+    atBottom.current = false
+    scroller.current?.querySelector(`[data-seq="${focus}"]`)?.scrollIntoView?.({ block: 'center' })
+    const done = setTimeout(() => setFocused(undefined), FOUND_MS)
+    return () => clearTimeout(done)
+  }, [focus, hasFocus])
 
   // Every image the conversation shows, in its order: one gallery (a tap on any opens it there).
   const allImages = useMemo(() => [...new Set(items.flatMap((item) => item.images ?? []))], [items])
@@ -197,6 +227,18 @@ export function ConversationView({
           if (atBottom.current) setBehind(false)
         }}
       >
+        {earlier ? (
+          <Banner
+            tone="info"
+            action={
+              <Button size="sm" variant="ghost" onClick={earlier}>
+                Back to the latest
+              </Button>
+            }
+          >
+            An earlier part of the conversation, from what was found.
+          </Banner>
+        ) : null}
         {shown.length === 0 && pending.length === 0 ? <p className={ink.quiet}>No messages yet.</p> : null}
         {shown.map((row) =>
           row.kind === 'tools' ? (
@@ -206,7 +248,9 @@ export function ConversationView({
               <NextStepCard key={`n${row.item.seq}`} item={row.item} onReply={onReply} />
             )
           ) : (
-            <ItemView key={row.item.seq} item={row.item} source={source} />
+            <div key={row.item.seq} data-seq={row.item.seq}>
+              <ItemView item={row.item} source={source} focused={row.item.seq === focused} />
+            </div>
           ),
         )}
         {pending.map((message) => (

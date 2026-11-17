@@ -27,6 +27,9 @@ FIELDS: tuple[Field, ...] = (
           "ask: listed to start again; auto: started again at once; off: let go", ("ask", "auto", "off")),
     Field("archive.hide_after_days", "Archive", "List archived sessions for (days)", "number", "now",
           "older ones are kept, just not listed; 0: always listed"),
+    Field("search.full_text", "Search", "Search inside conversations (Cmd+K)", "choice", "now",
+          "prompts and replies are indexed on this machine, in its own file; auto: on, except on a node "
+          "(a computer joined to a hub); off: the index is deleted", ("auto", "on", "off")),
     Field("writes.window_minutes", "Teams", "Two sessions writing in one worktree: count writes of the last (minutes)",
           "number", "now", "file-editing tools only, not Bash"),
     Field("sessions.default_cwd", "New sessions", "Default folder", "text", "now",

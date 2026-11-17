@@ -134,6 +134,7 @@ export function CommandPalette({
                         data-index={i}
                         role="option"
                         aria-selected={i === at}
+                        aria-label={item.label}
                         title={item.label}
                         onPointerMove={() => i !== at && setActive(i)}
                         onClick={() => pick(item)}

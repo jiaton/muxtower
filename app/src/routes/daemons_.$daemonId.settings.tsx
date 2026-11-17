@@ -5,6 +5,7 @@ import { Pane, PaneBody, PaneHeader } from '@/components/ui/pane'
 import { SettingsForm } from '@/features/daemons/components/settings-form'
 import { DictionarySettings } from '@/features/voice/components/dictionary'
 import { PlaybookSettings } from '@/features/playbook/components/playbook-settings'
+import { SearchStatus } from '@/features/palette/components/search-status'
 import { useDaemon } from '@/lib/daemons/store'
 import { ink } from '@/components/ui/intents'
 
@@ -43,7 +44,11 @@ function SettingsPage() {
               <SettingsForm
                 daemonId={daemonId}
                 node={node}
-                extras={node ? undefined : { 'Voice input': <DictionarySettings daemonId={daemonId} /> }}
+                extras={
+                  node
+                    ? undefined
+                    : { 'Voice input': <DictionarySettings daemonId={daemonId} />, Search: <SearchStatus daemonId={daemonId} /> }
+                }
               />
               {node || playbook ? null : <PlaybookSettings daemonId={daemonId} />}
             </>

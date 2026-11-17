@@ -8,12 +8,12 @@ import { cn } from '@/lib/cn'
  * look), faded at the cut, with Show more / Show less. Clamped from the first paint, so nothing jumps:
  * whether it is cut is read after, from its height. Everything stays in the page: copying it, selecting
  * into the cut-off part or the browser's find landing there opens it. Open or not lives here, per message
- * and view (not kept).
+ * and view (not kept); `open`: shown whole from the start (a search led to it).
  */
-export function Clamp({ lines = 8, children }: { lines?: number; children: ReactNode }) {
+export function Clamp({ lines = 8, open: start = false, children }: { lines?: number; open?: boolean; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
   const [cut, setCut] = useState(false)
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(start)
 
   useLayoutEffect(() => {
     const el = ref.current

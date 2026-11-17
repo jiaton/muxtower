@@ -15,6 +15,8 @@ import { useNodeNames } from '@/lib/daemons/use-nodes'
 import { ago } from '@/lib/time'
 import type { Session } from '@/lib/api/types'
 import { matchCommands, paletteSessions, type Command } from '../model/palette'
+import { useTextSearch, type SearchHit } from '../api/use-text-search'
+import { useJump } from '@/features/conversation/jump'
 import { usePalette, useRecentSessions } from '../store'
 
 const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)
@@ -76,6 +78,9 @@ function Palette({ entries, current, actions = [] }: { entries: SessionEntry[]; 
   const hub = usePairedDaemons()[0]
   const nodes = useNodeNames(current?.daemon.id ?? '')
   const sessions = useMemo(() => (open ? paletteSessions(entries, query, recent) : []), [open, entries, query, recent])
+  const text = useTextSearch(query, open)
+  const jump = useJump((s) => s.go)
+  const byKey = useMemo(() => new Map(entries.map((e) => [e.key, e])), [entries])
 
   const commands: Command[] = []
   commands.push({ id: 'new', label: 'New session…', run: () => startNew({ daemonId: '', node: null, cwd: '' }) })
@@ -122,6 +127,36 @@ function Palette({ entries, current, actions = [] }: { entries: SessionEntry[]; 
       })),
     },
     {
+      id: 'text',
+      label: 'In conversations',
+      note: text.searching.length
+        ? `searching${text.searching
+            .filter((n) => n !== '…')
+            .map((n) => ` ${n}`)
+            .join(',')}…`
+        : text.pending
+          ? 'searching…'
+          : undefined,
+      items: text.hits.map((hit): PaletteItem => {
+        const key = entryKey(text.hubId ?? '', hit.session_id)
+        const entry = byKey.get(key)
+        const said = hit.snippet.map((p) => p.text).join('')
+        return {
+          id: `hit:${hit.session_id}:${hit.seq}`,
+          label: `${entry?.session.name ?? hit.session_id}: ${said}`,
+          children: <HitItem hit={hit} name={entry?.session.name ?? hit.session_id} />,
+          onSelect: () => {
+            jump(key, hit.seq)
+            void navigate({
+              to: '/d/$daemonId/s/$sessionId',
+              params: { daemonId: text.hubId ?? '', sessionId: hit.session_id },
+              search: true,
+            })
+          },
+        }
+      }),
+    },
+    {
       id: 'commands',
       label: 'Commands',
       items: matchCommands(commands, query).map((c) => ({ id: `cmd:${c.id}`, label: c.label, keys: c.keys, onSelect: c.run })),
@@ -138,6 +173,32 @@ function Palette({ entries, current, actions = [] }: { entries: SessionEntry[]; 
       placeholder="Sessions, role:pm, project:…, or a command"
       empty="Nothing matches."
     />
+  )
+}
+
+/** A place in a conversation that matched: who said it, in which session, when, and the words around the
+ *  match, the match marked. */
+function HitItem({ hit, name }: { hit: SearchHit; name: string }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-0.5">
+      <div className="flex items-baseline gap-2">
+        <span className={`${look.tag} shrink-0`}>{hit.role === 'user' ? 'You' : 'Agent'}</span>
+        <span className={`${ink.strong} min-w-0 flex-1 truncate`}>{name}</span>
+        {hit.archived ? <span className={`${look.tag} shrink-0`}>Archived</span> : null}
+        {hit.at ? <span className={`${ink.meta} ${ink.count} shrink-0`}>{ago(hit.at)}</span> : null}
+      </div>
+      <div className={`${ink.meta} line-clamp-2`}>
+        {hit.snippet.map((part, i) =>
+          part.match ? (
+            <mark key={i} className={ink.highlight}>
+              {part.text}
+            </mark>
+          ) : (
+            <span key={i}>{part.text}</span>
+          ),
+        )}
+      </div>
+    </div>
   )
 }
 

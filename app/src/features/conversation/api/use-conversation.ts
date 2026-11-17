@@ -25,3 +25,20 @@ export function useConversation(daemonId: string, sessionId: string, enabled: bo
       ).items,
   })
 }
+
+/** An earlier part of a conversation, from the item `seq` on (a search led there and the latest items do
+ *  not reach it). */
+export function useConversationFrom(daemonId: string, sessionId: string, seq: number | null) {
+  const client = useDaemonClient(daemonId)
+  return useQuery<ConversationItem[]>({
+    queryKey: daemonKey(daemonId, 'conversation-from', sessionId, seq),
+    enabled: seq !== null && client !== null,
+    staleTime: 60_000,
+    queryFn: async () =>
+      unwrap(
+        await client!.GET('/v1/sessions/{session_id}/conversation', {
+          params: { path: { session_id: sessionId }, query: { around: seq ?? 0, limit: 60 } },
+        }),
+      ).items,
+  })
+}

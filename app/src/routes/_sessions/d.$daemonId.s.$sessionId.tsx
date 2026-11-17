@@ -10,7 +10,7 @@ import { Segmented } from '@/components/ui/segmented'
 import { CodeActionContext, type CodeAction } from '@/components/ui/code-block'
 import { SelectionAction } from '@/components/ui/selection-action'
 import { PendingActionCard } from '@/features/approval/components/pending-action-card'
-import { useConversation } from '@/features/conversation/api/use-conversation'
+import { useConversation, useConversationFrom } from '@/features/conversation/api/use-conversation'
 import { useDaemonMe } from '@/features/daemons/api/use-daemon-me'
 import { ConversationView } from '@/features/conversation/components/conversation-view'
 import { useDaemonSessions, useSession } from '@/features/sessions/api/use-sessions'
@@ -35,6 +35,7 @@ import { LiveBar, LiveButton } from '@/features/voice/components/live'
 import { DictionaryQuickAdd } from '@/features/voice/components/dictionary'
 import { useLive } from '@/features/voice/live/engine'
 import { setLiveOps, setLiveTarget } from '@/features/voice/live/engine'
+import { useJump } from '@/features/conversation/jump'
 import { draftBox } from '@/features/terminal/draft-box'
 import { VoiceBar } from '@/features/voice/components/voice-bar'
 import { useDictation } from '@/features/voice/hooks/use-dictation'
@@ -114,6 +115,15 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
   // pane keeps its fit, instead of being given back and fitted again).
   const terminal = useSessionTerminal(daemonId, session, screen)
   const conversation = useConversation(daemonId, session.id, hasConversation)
+  // A search led here: its item, from the latest items if they reach it, else read where it is.
+  const jump = useJump((s) => (s.to?.key === key ? s.to.seq : null))
+  const clearJump = useJump((s) => s.clear)
+  const inLatest = jump !== null && (conversation.data ?? []).some((i) => i.seq === jump)
+  const earlier = useConversationFrom(daemonId, session.id, jump !== null && conversation.data && !inLatest ? jump : null)
+  useEffect(() => {
+    if (jump !== null && hasConversation && view !== 'conversation') setView('conversation')
+  }, [jump]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => void (useJump.getState().to?.key === key && useJump.getState().clear()), [key])
   // What was sent and is not in the conversation yet, shown at its end.
   // Working (or stopped on a prompt mid-turn): what is sent waits in the agent's queue.
   const active = session.state !== 'idle' && session.state !== 'error' && session.state !== 'unknown'
@@ -272,7 +282,9 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
               <>
                 {conversation.error ? <Banner tone="error">{conversation.error.message}</Banner> : null}
                 <ConversationView
-                  items={conversation.data ?? []}
+                  items={earlier.data && jump !== null && !inLatest ? earlier.data : (conversation.data ?? [])}
+                  focus={jump ?? undefined}
+                  earlier={earlier.data && jump !== null && !inLatest ? clearJump : undefined}
                   pending={outgoing.pending}
                   onDismiss={outgoing.dismiss}
                   onResend={resend}

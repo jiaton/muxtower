@@ -172,9 +172,10 @@ export const liveRow = ({ paused }: { paused: boolean }) =>
   )
 
 /** A message in the conversation: one the owner sent, one on its way, one that did not go in. */
-export const bubble = ({ state }: { state: 'prompt' | 'pending' | 'undelivered' }) =>
+export const bubble = ({ state, focused = false }: { state: 'prompt' | 'pending' | 'undelivered'; focused?: boolean }) =>
   cn(
     'rounded-lg px-3 py-2 whitespace-pre-wrap',
+    found(focused),
     state === 'undelivered'
       ? cn(box({ outline: 'default', dashed: true }), text({ tone: 'muted' }))
       : cn(box({ ground: 'accent', faded: state === 'pending' ? 'half' : undefined }), text({ tone: 'onAccent' })),
@@ -193,6 +194,10 @@ export const roleCard = ({ centre = false, busy = false, outside = false }: { ce
 /** What is cut off at the bottom fades out (any ground: a mask, not a painted gradient): a clamped
  *  message (`Clamp`). */
 export const fadeOut = '[mask-image:linear-gradient(to_bottom,black_calc(100%-2.5em),transparent)]'
+
+/** A conversation item a search led to: outlined in the accent for a moment (`ConversationView focus`). */
+export const found = (on: boolean) =>
+  cn('rounded-lg transition-shadow duration-700', on && 'ring-2 ring-accent ring-offset-2 ring-offset-surface')
 
 /** A cell of the team view's "who → whom" matrix (team-diagram.tsx): shaded in the accent by how much
  *  went that way (`level` 0–4), muted on the diagonal (a role to itself). */
