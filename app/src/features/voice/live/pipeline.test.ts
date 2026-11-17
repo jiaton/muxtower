@@ -66,6 +66,20 @@ describe('commands (English, the default)', () => {
 })
 
 describe('LivePipeline', () => {
+  it('send from the keyboard waits for what is still being written, then sends it all', async () => {
+    const t = setup()
+    void t.say(4000)
+    await t.flush()
+    void t.live.keyed('send', A) // ⌘↵ while the words are still on their way
+    await t.flush()
+    expect(t.sent).toEqual([])
+    expect(t.live.then).toBe('send') // "writing… then sending"
+    t.uploads[0]!.resolve('fix the login test')
+    await t.flush()
+    expect(t.sent).toEqual(['a: fix the login test'])
+    expect(t.live.then).toBeNull()
+  })
+
   it('appends text, executes a short command, and sends what landed', async () => {
     const t = setup()
     void t.say(4000)

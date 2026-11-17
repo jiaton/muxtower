@@ -14,7 +14,7 @@ it('writing: its title follows the moment; the commands to say after it', () => 
       <LiveButton />
     </>,
   )
-  const hint = '· say send to send, pause to stop writing · commands on device'
+  const hint = '· say send or Ctrl+↵ to send, pause to stop writing · commands on device'
   expect(screen.getByRole('status').textContent).toBe(`Live · speak to write${hint}`)
   act(() => useLive.setState({ speaking: true }))
   rerender(
@@ -63,6 +63,6 @@ it("what was heard takes the hint's place in the same row, then the hint comes b
   expect(screen.getByRole('status').textContent).toBe('Live · speak to write✓ sent')
   expect(screen.queryByLabelText('Last heard')).toBeNull() // no row of its own
   act(() => void vi.advanceTimersByTime(2100))
-  expect(screen.getByRole('status').textContent).toContain('say send to send')
+  expect(screen.getByRole('status').textContent).toContain('say send or Ctrl+↵ to send')
   vi.useRealTimers()
 })

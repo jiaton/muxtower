@@ -4,7 +4,7 @@ import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/lib/use-media-query'
-import { pauseLive, resumeLive, stopLive, toggleLive, useLive } from '../live/engine'
+import { pauseLive, resumeLive, sendFromKey, stopLive, toggleLive, useLive } from '../live/engine'
 import { feedbackOf, liveDetails } from '../live/feedback'
 import type { Command } from '../live/commands'
 import { enabledPacks } from '../live/packs'
@@ -16,6 +16,22 @@ import { keepFocus } from '@/components/ui/gesture'
 const NOTE_KEY = 'muxtower.live.phone-note'
 const FEEDBACK_MS = 2000 // how long what became of the last thing heard stays in place of the hint
 const SHORTCUT = 'Alt+L'
+const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)
+/** Sends while Live is on, from anywhere on the page (`sendKey`). */
+export const SEND_KEYS = MAC ? '⌘↵' : 'Ctrl+↵'
+
+/** ⌘↵ (Ctrl+Enter off a Mac), never with Shift or Alt, sends while Live is on, wherever focus is on the
+ *  session page: in the message box, or nowhere in particular. Not in another field (a dialog's, a rename,
+ *  a new session's first message, where it is that form's own), nor while a dialog is open. */
+export function sendKey(e: KeyboardEvent): boolean {
+  const command = MAC ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey
+  if (!command || e.shiftKey || e.altKey || (e.code !== 'Enter' && e.code !== 'NumpadEnter')) return false
+  if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return false
+  const at = document.activeElement as HTMLElement | null
+  const editable = at && (at.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(at.tagName))
+  if (editable && at.getAttribute('aria-label') !== 'Message the agent') return false
+  return sendFromKey()
+}
 
 /** Turns Live on or off: hands-free speech into the message box. Alt+L does the same (and resumes it
  *  when paused). */
@@ -30,8 +46,18 @@ export function LiveButton() {
       if (useLive.getState().phase === 'paused') resumeLive()
       else void toggleLive()
     }
+    // Before the message box's own keys (capture): with Live on, ⌘↵ there waits for speech still landing.
+    const onSend = (e: KeyboardEvent) => {
+      if (!sendKey(e)) return
+      e.preventDefault()
+      e.stopPropagation()
+    }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
+    window.addEventListener('keydown', onSend, true)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keydown', onSend, true)
+    }
   }, [])
   return (
     <Button
@@ -47,7 +73,7 @@ export function LiveButton() {
           ? `Live: speak hands-free into the message box (${SHORTCUT})`
           : commandsOnly
             ? `Live, commands only: nothing is written (${SHORTCUT} writes again)`
-            : `Live, writing what you say (${SHORTCUT} turns it off)`
+            : `Live, writing what you say: ${SEND_KEYS} sends (${SHORTCUT} turns it off)`
       }
       onPointerDown={keepFocus} // keep the phone keyboard as it is
       onClick={() => void toggleLive()}
@@ -115,7 +141,7 @@ export function LiveBar() {
       ? `say ${say('resume')} to write again`
       : 'tap to resume'
     : [
-        phase === 'listening' ? `say ${say('send')} to send, ${say('pause')} to stop writing` : null,
+        phase === 'listening' ? `say ${say('send')}${phone ? '' : ` or ${SEND_KEYS}`} to send, ${say('pause')} to stop writing` : null,
         status ?? (commands.state === 'ready' && phase === 'listening' ? 'commands on device' : null),
       ]
         .filter(Boolean)

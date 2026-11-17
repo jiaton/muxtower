@@ -1,5 +1,8 @@
 import { commandIn, trailingSend, type Command } from './commands'
 
+/** How a command came: heard on the device, read off a transcript, or keyed (⌘↵). */
+export type How = 'on device' | 'transcribed' | 'key'
+
 /** The session page a segment's speech started on: its words land there, wherever the owner is by then. */
 export interface Target {
   daemonId: string
@@ -20,7 +23,7 @@ export type Cue = 'sent' | 'paused' | 'resumed' | 'cleared' | 'undone' | 'empty'
 
 /** What became of something heard: a command done (or with nothing to do), words written, or why nothing was. */
 export type Heard =
-  | { kind: 'command'; command: Command; done: boolean; how: 'on device' | 'transcribed' }
+  | { kind: 'command'; command: Command; done: boolean; how: How }
   | { kind: 'text'; text: string; short: boolean }
   | { kind: 'ignored'; why: 'too short' | 'too quiet' | 'no session' | 'paused' | 'nothing said' | 'failed' }
 
@@ -181,6 +184,23 @@ export class LivePipeline {
     return landed
   }
 
+  /** "send" from the keyboard (⌘↵): the spoken one's path, done once what was said before has landed.
+   *  Paused (commands only) too: what is in the box is the owner's to send. */
+  keyed(command: Command, target: Target): Promise<void> {
+    if (this.pending > 0) {
+      this.then = command
+      this.deps.changed?.()
+    }
+    const landed = this.applied.then(() => {
+      if (this.then === command) this.then = null
+      this.act(command, target, 'key')
+      this.deps.changed?.()
+    })
+    this.applied = landed
+    this.gate = landed
+    return landed
+  }
+
   private async long(target: Target, audio: Blob): Promise<string> {
     return (await this.deps.transcribe(target, audio, {})).text
   }
@@ -208,7 +228,7 @@ export class LivePipeline {
     this.deps.heard?.({ kind: 'text', text: text.trim(), short: ms <= SHORT_MS })
   }
 
-  private act(command: Command, target: Target, how: 'on device' | 'transcribed') {
+  private act(command: Command, target: Target, how: How) {
     this.deps.count?.('command')
     const ops = this.deps.ops()
     const done = (ok: boolean) => this.deps.heard?.({ kind: 'command', command, done: ok, how })

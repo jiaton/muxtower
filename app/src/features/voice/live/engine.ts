@@ -328,6 +328,15 @@ async function loadCommands() {
   }
 }
 
+/** ⌘↵ (Ctrl+Enter elsewhere) while Live is on: sends the box of the session page in front, as the spoken
+ *  "send" does (after what is still being written lands). False: Live is off, or no page is in front. */
+export function sendFromKey(): boolean {
+  const { phase } = useLive.getState()
+  if (phase === 'off' || phase === 'error' || !target) return false
+  void pipeline.keyed('send', target)
+  return true
+}
+
 export function resumeLive() {
   pipeline.resume()
 }
