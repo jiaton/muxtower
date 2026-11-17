@@ -298,38 +298,53 @@ describe('a command spotted as soon as its speaker paused', () => {
   })
 })
 
-describe('while Read aloud speaks', () => {
+describe('while Read aloud speaks, and just after', () => {
+  // Speaking from t=1000 to t=5000, so quiet until 5600 (its tail).
   function speakingSetup() {
     const t = setup()
     const asked: string[] = []
-    let speaking = true
+    let clock = 3000
+    const windows = [{ from: 1000, to: 5600 }]
     const live = new LivePipeline({
       transcribe: t.transcribe,
       ops: () => ({ append: () => {}, clear: () => {}, undo: () => false, send: () => 'empty' }),
       cue: () => {},
       spot: t.spot,
-      speaking: () => speaking,
+      speaking: () => windows.some((w) => clock >= w.from && clock < w.to),
+      overlapsSpeech: (from, to) => windows.some((w) => from < w.to && to > w.from),
       speech: (command) => (asked.push(command), true),
     })
-    return { live, asked, t, stop: () => (speaking = false) }
+    return { live, asked, t, at: (ms: number) => (clock = ms) }
   }
 
-  it('writes nothing: what is said is never uploaded, only its commands are heard', async () => {
-    const { live, asked, t } = speakingSetup()
-    await live.segment({ target: A, audio: new Blob(['4000']), ms: 4000 })
+  it('hears nothing while it speaks: not uploaded, not a command', async () => {
+    const { live, asked, t, at } = speakingSetup()
+    at(3000)
+    await live.segment({ target: A, audio: new Blob(['4000']), ms: 1500, heardFrom: 1500, heardTo: 3000 })
+    t.spot.mockResolvedValueOnce('stop' as never)
+    await live.segment({ target: A, audio: new Blob(['600']), ms: 600, pcm: new Float32Array(1), heardFrom: 2400, heardTo: 3000 })
+    void live.spotted('stop', A)
     expect(t.transcribe).not.toHaveBeenCalled()
-    const pcm = new Float32Array(1)
-    t.spot.mockResolvedValueOnce('repeat' as never)
-    await live.segment({ target: A, audio: new Blob(['600']), ms: 600, pcm })
-    t.spot.mockResolvedValueOnce('pause' as never) // "pause" stops the speaking too
-    await live.segment({ target: A, audio: new Blob(['600']), ms: 600, pcm })
-    expect(asked).toEqual(['repeat', 'stop'])
+    expect(asked).toEqual([]) // no barge-in by voice: Stop is the button
+  })
+
+  it('drops a segment that began while it spoke and ended after it (its own voice, echoed)', async () => {
+    const { live, t, at } = speakingSetup()
+    at(6500) // speech and its tail are over by the time the VAD hands it over
+    await live.segment({ target: A, audio: new Blob(['4000']), ms: 2000, heardFrom: 4000, heardTo: 6500 })
     expect(t.transcribe).not.toHaveBeenCalled()
   })
 
-  it('a spotted stop cuts in at once', async () => {
-    const { live, asked } = speakingSetup()
-    void live.spotted('stop', A)
-    expect(asked).toEqual(['stop'])
+  it('drops what was heard within the tail, then hears normally again', async () => {
+    const { live, t, at, asked } = speakingSetup()
+    at(5800)
+    await live.segment({ target: A, audio: new Blob(['900']), ms: 400, heardFrom: 5300, heardTo: 5800 })
+    expect(t.transcribe).not.toHaveBeenCalled()
+    at(8000)
+    void live.segment({ target: A, audio: new Blob(['4000']), ms: 1500, heardFrom: 6400, heardTo: 8000 })
+    await t.flush()
+    expect(t.transcribe).toHaveBeenCalledTimes(1) // after it: listening as ever
+    void live.spotted('repeat', A) // and the spoken commands work again
+    expect(asked).toEqual(['repeat'])
   })
 })

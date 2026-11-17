@@ -6,10 +6,39 @@ import { mergeWithDefaults } from '@/lib/persist-merge'
  * Live's Read aloud: a listened session's turns said in a few words when they end (the daemon's spoken
  * summaries, `listen/`), its full reply on asking, by the browser's own speech (a Chinese voice when it has
  * one). Long text goes in pieces (a browser stops a long utterance). While it speaks, Live writes nothing:
- * only "stop", "say again" and "read all" are heard (`pipeline.ts`).
+ * it hears nothing at all, nor for a moment after (`TAIL_MS`), and drops anything it heard that overlapped
+ * that time (`pipeline.ts`, `engine.ts`): "stop" is the button then; the spoken commands work once it is done.
  */
 
 const PIECE = 180 // characters an utterance holds at most
+/** After speaking, how long Live still hears nothing: the last of it echoing in the room or the car. */
+export const TAIL_MS = 600
+
+// When it spoke (ms since the epoch): each window from its start to its end plus the tail; the one still
+// speaking ends at Infinity. Live hears nothing in them, and drops what it heard overlapping them.
+const windows: { from: number; to: number }[] = []
+const now = () => Date.now()
+
+/** Whether Live must hear nothing now: speaking, or just done (the tail). */
+export function quiet(at = now()): boolean {
+  return windows.some((w) => at >= w.from && at < w.to)
+}
+
+/** Whether what was heard from `from` to `to` overlapped speaking (or its tail), even partly. */
+export function overlapsSpeech(from: number, to: number): boolean {
+  return windows.some((w) => from < w.to && to > w.from)
+}
+
+function began() {
+  const last = windows.at(-1)
+  if (!last || last.to !== Infinity) windows.push({ from: now(), to: Infinity })
+  if (windows.length > 20) windows.shift()
+}
+
+function ended() {
+  const last = windows.at(-1)
+  if (last && last.to === Infinity) last.to = now() + TAIL_MS
+}
 const CODE = /```[\s\S]*?```/g
 
 export interface Said {
@@ -88,17 +117,18 @@ export function speak(text: string) {
   s.cancel()
   const mine = ++run
   const queue = pieces(text)
+  began()
   useSpeech.setState({ speaking: true })
   const next = () => {
     if (mine !== run) return
     const piece = queue.shift()
-    if (!piece) return useSpeech.setState({ speaking: false })
+    if (!piece) return (ended(), useSpeech.setState({ speaking: false }))
     const u = new SpeechSynthesisUtterance(piece)
     const zh = chineseVoice()
     if (zh) u.voice = zh
     u.lang = zh?.lang ?? 'zh-CN'
     u.onend = next
-    u.onerror = () => mine === run && useSpeech.setState({ speaking: false })
+    u.onerror = () => mine === run && (ended(), useSpeech.setState({ speaking: false }))
     s.speak(u)
   }
   next()
@@ -107,6 +137,7 @@ export function speak(text: string) {
 export function stopSpeaking() {
   run += 1
   synth()?.cancel()
+  ended()
   useSpeech.setState({ speaking: false })
 }
 

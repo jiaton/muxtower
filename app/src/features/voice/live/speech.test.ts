@@ -52,3 +52,26 @@ it('a summary that could not be made says why, then the start of the reply', () 
   stopSpeaking()
   expect(useSpeech.getState().speaking).toBe(false)
 })
+
+it('is quiet while it speaks and for a tail after, and knows what overlapped that time', async () => {
+  const { quiet, overlapsSpeech, speak, TAIL_MS } = await import('./speech')
+  vi.useFakeTimers()
+  vi.setSystemTime(10_000)
+  let finish: (() => void) | undefined
+  vi.stubGlobal('speechSynthesis', {
+    getVoices: () => [],
+    cancel: vi.fn(),
+    speak: (u: { onend?: () => void }) => (finish = u.onend),
+  })
+  speak('一句话')
+  expect(quiet()).toBe(true)
+  vi.setSystemTime(12_000)
+  finish?.() // done speaking at 12000
+  expect(useSpeech.getState().speaking).toBe(false)
+  expect(quiet()).toBe(true) // the tail
+  expect(overlapsSpeech(11_500, 13_000)).toBe(true) // began while it spoke, ended after
+  vi.setSystemTime(12_000 + TAIL_MS + 1)
+  expect(quiet()).toBe(false)
+  expect(overlapsSpeech(12_000 + TAIL_MS + 1, 14_000)).toBe(false)
+  vi.useRealTimers()
+})

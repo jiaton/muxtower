@@ -35,6 +35,9 @@ export interface Segment {
   ms: number
   /** The same audio as samples (16 kHz mono), for the keyword spotter: a short segment only. */
   pcm?: Float32Array
+  /** When it was heard, from and to (ms since the epoch): a segment overlapping Read aloud's speaking is dropped. */
+  heardFrom?: number
+  heardTo?: number
 }
 
 /** How to transcribe: a short segment as a possible command (`hint: 'command'`), in a given language. */
@@ -56,8 +59,10 @@ interface Deps {
   /** What became of the last thing heard (`feedbackOf` says it in a few words). */
   heard?: (event: Heard) => void
   count?: (what: 'segment' | 'uploaded' | 'dropped' | 'command' | 'spotted') => void
-  /** Read aloud is speaking: nothing is written meanwhile (no feedback loop), only its commands heard. */
+  /** Read aloud is speaking, or just was (its tail): nothing is heard at all meanwhile. */
   speaking?: () => boolean
+  /** Whether what was heard between these times overlapped its speaking (or tail): then it is dropped. */
+  overlapsSpeech?: (from: number, to: number) => boolean
   /** Read aloud's commands: stop, say again, read all. Whether there was anything to do. */
   speech?: (command: SpeechCommand) => boolean
 }
@@ -106,19 +111,14 @@ export class LivePipeline {
     const { target } = segment
     const short = segment.ms <= SHORT_MS
     const spot = short && segment.pcm && this.deps.spot ? () => this.deps.spot!(segment.pcm!) : null
-    if (this.deps.speaking?.()) {
-      // Speaking: nothing is uploaded (it would write what is being said). The spotter hears the
-      // commands to stop, repeat or read all; "pause" stops it too.
+    // Read aloud speaking, or just done, or this was heard (even partly) while it spoke: its own voice,
+    // echoed. Dropped whole: never uploaded, never a command.
+    const to = segment.heardTo ?? Date.now()
+    const from = segment.heardFrom ?? to - segment.ms
+    if (this.deps.speaking?.() || this.deps.overlapsSpeech?.(from, to)) {
       this.deps.count?.('dropped')
-      if (!spot) {
-        this.deps.heard?.({ kind: 'ignored', why: 'speaking' })
-        return this.applied
-      }
-      return spot().then((command) => {
-        if (command && (SPEECH_COMMANDS.includes(command) || command === 'pause')) {
-          this.act(command === 'pause' ? 'stop' : command, target ?? { daemonId: '', sessionId: '' }, 'on device')
-        } else this.deps.heard?.({ kind: 'ignored', why: 'speaking' })
-      })
+      this.deps.heard?.({ kind: 'ignored', why: 'speaking' })
+      return this.applied
     }
     if (this.state === 'paused') {
       // Paused: nothing is uploaded. Only the spotter listens, and only for "resume".
@@ -179,9 +179,13 @@ export class LivePipeline {
   spotted(command: Command, target: Target | null): Promise<void> {
     this.deps.count?.('segment')
     this.deps.count?.('spotted')
-    if (SPEECH_COMMANDS.includes(command) || (command === 'pause' && this.deps.speaking?.())) {
-      // Read aloud's: at once, cutting in on what is being said (nothing it waits for).
-      this.act(command === 'pause' ? 'stop' : command, target ?? { daemonId: '', sessionId: '' }, 'on device')
+    if (this.deps.speaking?.()) {
+      this.deps.heard?.({ kind: 'ignored', why: 'speaking' }) // nothing is heard while it speaks
+      return this.applied
+    }
+    if (SPEECH_COMMANDS.includes(command)) {
+      // Read aloud's (it is not speaking now): at once, nothing to wait for.
+      this.act(command, target ?? { daemonId: '', sessionId: '' }, 'on device')
       return this.applied
     }
     if (this.state === 'paused' && command !== 'resume') {

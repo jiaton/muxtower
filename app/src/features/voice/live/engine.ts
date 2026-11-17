@@ -4,7 +4,7 @@ import { useDaemonsStore } from '@/lib/daemons/store'
 import type { Command } from './commands'
 import { chosenLanguages, startSpotter, type Spotter } from './kws'
 import { enabledPacks } from './packs'
-import { heardSummary, readAll, sayAgain, stopSpeaking, useSpeech } from './speech'
+import { heardSummary, overlapsSpeech, quiet, readAll, sayAgain, stopSpeaking, TAIL_MS, useSpeech } from './speech'
 import { spokenListeners } from '@/lib/api/streams'
 import { entryKey } from '@/features/sessions/model/facets'
 import { LivePipeline, SHORT_MS, type Ask, type BoxOps, type Cue, type Heard, type Target } from './pipeline'
@@ -75,6 +75,21 @@ export function setLiveTarget(next: Target | null) {
 /** The session page in front, for Read aloud: whose summaries are said. */
 export const liveTarget = () => target
 
+// Read aloud speaking: the microphone's VAD paused (what it held let go, nothing handed over later), and
+// started again once the tail has passed (with nothing of before kept: the pipeline drops what overlapped).
+let resumeAfterSpeech: ReturnType<typeof setTimeout> | undefined
+useSpeech.subscribe((now, was) => {
+  if (now.speaking === was.speaking) return
+  clearTimeout(resumeAfterSpeech)
+  if (now.speaking) {
+    void vad?.pause()
+    return
+  }
+  resumeAfterSpeech = setTimeout(() => {
+    if (!useSpeech.getState().speaking && vad && useLive.getState().phase !== 'off') void vad.start()
+  }, TAIL_MS)
+})
+
 // A listened session's spoken summary: said when it is the one in front (`speech.ts`).
 spokenListeners.add((daemonId, frame) =>
   heardSummary(
@@ -93,7 +108,8 @@ const pipeline = new LivePipeline({
   cue: (cue) => playCue(cue),
   spot: (pcm) => (spotter ? spotter.spot(pcm) : Promise.resolve(undefined)), // undefined: not loaded
   heard,
-  speaking: () => useSpeech.getState().speaking,
+  speaking: () => useSpeech.getState().speaking || quiet(),
+  overlapsSpeech,
   speech: (command) => (command === 'stop' ? (stopSpeaking(), true) : command === 'repeat' ? sayAgain() : readAll()),
   changed: () =>
     useLive.setState((s) => ({
@@ -138,6 +154,7 @@ export async function toggleLive() {
   try {
     const { MicVAD } = await import('@ricky0123/vad-web')
     let started: Target | null = null
+    let heardFrom = 0 // when the segment being heard began (its lead-in included)
     const utterance = new Utterance()
     const made = await MicVAD.new({
       model: 'v5',
@@ -155,7 +172,7 @@ export async function toggleLive() {
       negativeSpeechThreshold: 0.35,
       onFrameProcessed: (p: { isSpeech: number }, frame: Float32Array) => {
         const pcm = utterance.frame(p.isSpeech, frame)
-        if (!pcm || !spotter) return
+        if (!pcm || !spotter || quiet()) return // Read aloud speaking: no command is heard either
         // Short, then a pause: a command said on its own is done now, not after the segment's end.
         const where = started
         void spotter.spot(pcm).then((command) => {
@@ -164,6 +181,7 @@ export async function toggleLive() {
         })
       },
       onSpeechStart: () => {
+        heardFrom = Date.now() - LEAD_MS
         utterance.start()
         started = target // where this segment belongs, wherever the owner goes before it ends
         useLive.setState({ speaking: true })
@@ -180,6 +198,12 @@ export async function toggleLive() {
         // A command already taken from its start (`claim`): only what was said after it is left, if anything.
         const taken = utterance.end()
         if (taken === null) return
+        const heardTo = Date.now()
+        if (overlapsSpeech(heardFrom, heardTo)) {
+          // Begun or ended while Read aloud spoke, or in its tail: its own voice. Dropped, never uploaded.
+          heard({ kind: 'ignored', why: 'speaking' })
+          return count('dropped')
+        }
         const whole = audio.subarray(0, Math.max(0, audio.length - ((PAUSE_MS - TAIL_KEPT_MS) * RATE) / 1000))
         const said = taken ? whole.subarray(Math.min(whole.length, (LEAD_MS * RATE) / 1000 + taken)) : whole
         if (taken && said.length < (MIN_SPEECH_MS * RATE) / 1000) return
@@ -191,7 +215,7 @@ export async function toggleLive() {
         if (seen(said)) return // the same speech handed over again: it is written once
         for (const part of parts(said)) {
           const ms = speechMs(part.length)
-          void pipeline.segment({ target: started, audio: wav(part), ms, pcm: ms <= SHORT_MS ? part : undefined })
+          void pipeline.segment({ target: started, audio: wav(part), ms, pcm: ms <= SHORT_MS ? part : undefined, heardFrom, heardTo })
         }
       },
     })
