@@ -4,19 +4,23 @@ import { Button } from '@/components/ui/button'
 import { Pane, PaneBody, PaneHeader } from '@/components/ui/pane'
 import { SettingsForm } from '@/features/daemons/components/settings-form'
 import { DictionarySettings } from '@/features/voice/components/dictionary'
+import { PlaybookSettings } from '@/features/playbook/components/playbook-settings'
 import { useDaemon } from '@/lib/daemons/store'
 import { ink } from '@/components/ui/intents'
 
 export const Route = createFileRoute('/daemons_/$daemonId/settings')({
-  validateSearch: (search: Record<string, unknown>): { node?: string } =>
-    typeof search.node === 'string' && search.node ? { node: search.node } : {},
+  validateSearch: (search: Record<string, unknown>): { node?: string; playbook?: string } => ({
+    ...(typeof search.node === 'string' && search.node ? { node: search.node } : {}),
+    // A project's playbook opened from its Team dialog ("edit").
+    ...(typeof search.playbook === 'string' && search.playbook ? { playbook: search.playbook } : {}),
+  }),
   component: SettingsPage,
 })
 
 /** One machine's feature settings: a daemon's, or (`?node=`) a computer joined to it. */
 function SettingsPage() {
   const { daemonId } = Route.useParams()
-  const { node } = Route.useSearch()
+  const { node, playbook } = Route.useSearch()
   const daemon = useDaemon(daemonId)
   return (
     <Pane className="flex-1" aria-label="Settings">
@@ -32,13 +36,17 @@ function SettingsPage() {
         subtitle={node ? `${node} · through ${daemon?.name ?? 'its hub'}` : daemon?.name}
       />
       <PaneBody>
-        <div className="mx-auto w-full max-w-2xl p-4">
+        <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
           {daemon ? (
-            <SettingsForm
-              daemonId={daemonId}
-              node={node}
-              extras={node ? undefined : { 'Voice input': <DictionarySettings daemonId={daemonId} /> }}
-            />
+            <>
+              {playbook ? <PlaybookSettings daemonId={daemonId} project={playbook} /> : null}
+              <SettingsForm
+                daemonId={daemonId}
+                node={node}
+                extras={node ? undefined : { 'Voice input': <DictionarySettings daemonId={daemonId} /> }}
+              />
+              {node || playbook ? null : <PlaybookSettings daemonId={daemonId} />}
+            </>
           ) : (
             <p className={ink.hint}>Unknown daemon.</p>
           )}

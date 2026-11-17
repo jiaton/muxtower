@@ -12,6 +12,7 @@ from muxtower.errors import Invalid, Unavailable
 from muxtower.mcp.caller import CALLER
 from muxtower.mcp.describe import device
 from muxtower.mcp.tool import Tool
+from muxtower.playbook.service import INLINE, PlaybookStore, render
 from muxtower.teams.ports import Task
 from muxtower.teams.service import Member, TeamService
 from muxtower.teams.tasks import TaskService
@@ -26,6 +27,8 @@ INSTRUCTIONS = """\
 muxtower runs the owner's coding agent sessions, on this machine and others, and lets them work as a team.
 - First call my_team: it says who you are (your session, role and project) and who else works on your
   project, with each one's role, device, state, folder and branch.
+- The owner's team playbook, when they wrote one, is at the top of my_team: follow it (read_playbook for all
+  of it).
 - No role yet? Ask the owner what you are for, or set the one they just gave you (set_role). A teammate
   without one can be given one the same way (set_role with its session_id).
 - A role is free text and means what the owner and the agents make of it; muxtower only keeps it. Decide
@@ -49,6 +52,10 @@ muxtower runs the owner's coding agent sessions, on this machine and others, and
 
 class TeamArgs(BaseModel):
     pass
+
+
+class PlaybookArgs(BaseModel):
+    project: str | None = Field(default=None, description="whose playbook; default: your project's")
 
 
 class RoleArgs(BaseModel):
@@ -119,7 +126,7 @@ def _tasks(tasks: list[Task]) -> str:
 Forward = Callable[[str, dict[str, Any], str | None], str | None]
 
 
-READS = frozenset({"my_team"})  # what this machine may answer itself while its hub is away
+READS = frozenset({"my_team", "read_playbook"})  # what this machine may answer itself while its hub is away
 
 
 class TeamTools:
@@ -127,6 +134,7 @@ class TeamTools:
         self.teams = teams
         self.tasks = tasks
         self.forward = forward
+        self.playbook: PlaybookStore | None = None  # the owner's team playbook (the hub's), set by the app
         # Each machine with the folder a session starts in there when given none (start_session without cwd).
         self.machines: Callable[[], list[tuple[str, str | None]]] = list
 
@@ -153,6 +161,9 @@ class TeamTools:
             Tool("my_team", "Who you are (your session, role and project) and who works with you: each session "
                  "of your project with its role, device, state, folder, branch and the tasks it was sent last. "
                  "Call it first.", TeamArgs, self.my_team),
+            Tool("read_playbook", "The owner's team playbook as it applies to your project (or `project`): the "
+                 "shared one and the project's additions, or the project's own when it replaces it, all of it. "
+                 "my_team shows its start.", PlaybookArgs, self.read_playbook),
             Tool("set_role", "Set what a session is for (free text, a few words, plus an optional note): yours, "
                  "or a teammate's by session_id. An empty role clears it.", RoleArgs, self.set_role),
             Tool("set_project", "Move a session (yours by default) to a project, a new name making a new one; "
@@ -189,7 +200,9 @@ class TeamTools:
             return "\n".join(out)
         others = [m for m in members if m.project == mine.project and m.session.id != me]
         recent = self.tasks.recent([m.session.id for m in [mine, *others]]) if self.tasks else {}
-        out = [f"You: {_who(mine)} · project {_project(mine)}", *_writing(mine)]
+        playbook = render(self.playbook.effective(mine.project), INLINE) if self.playbook else ""
+        out = [playbook, ""] if playbook else []
+        out += [f"You: {_who(mine)} · project {_project(mine)}", *_writing(mine)]
         if mine.session.id in recent:
             out.append(_tasks(recent[mine.session.id]))
         if not mine.role:
@@ -206,6 +219,13 @@ class TeamTools:
             folders = " · ".join(f"@{name} {folder or '(not known yet)'}" for name, folder in machines)
             out.append(f"Machines, with the folder start_session uses when given no cwd: {folders}")
         return "\n".join(out)
+
+    def read_playbook(self, args: PlaybookArgs) -> str:
+        project = args.project
+        if project is None and (me := CALLER.get().session_id):
+            project = next((m.project for m in self.teams.members() if m.session.id == me), None)
+        text = render(self.playbook.effective(project)) if self.playbook else ""
+        return text or "The owner has written no team playbook" + (f" for {project}" if project else "") + " (yet)."
 
     def send_task(self, args: TaskArgs) -> str:
         assert self.tasks is not None

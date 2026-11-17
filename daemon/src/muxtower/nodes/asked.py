@@ -14,6 +14,8 @@ from muxtower.mcp.caller import CALLER, Caller
 from muxtower.mcp.service import McpTools
 from muxtower.nodes import protocol
 from muxtower.nodes.source import SEPARATOR
+from muxtower.playbook import routes as playbook_routes
+from muxtower.playbook.service import PlaybookStore
 
 logger = logging.getLogger("muxtower.nodes")
 
@@ -40,12 +42,23 @@ def _chip_groups(store: ChipGroupStore | None, params: dict[str, Any]) -> dict[s
     return groups.model_dump()
 
 
-async def answer(tools: McpTools, node: str, frame: dict[str, Any], chips: ChipGroupStore | None = None) -> str:
+def _playbook(store: PlaybookStore | None, node: str, params: dict[str, Any]) -> Any:
+    if store is None:
+        raise Invalid("unknown method playbook")
+    return playbook_routes.answer(store, params, f"a device through {node}")
+
+
+async def answer(
+    tools: McpTools, node: str, frame: dict[str, Any], chips: ChipGroupStore | None = None,
+    playbook: PlaybookStore | None = None,
+) -> str:  # fmt: skip
     """The reply frame to a node's request."""
     method, params = frame.get("method"), frame.get("params") or {}
     try:
         if method not in protocol.HUB_METHODS:
             raise Invalid(f"unknown method {method}")
+        if method == "playbook":
+            return protocol.answer(frame["id"], await asyncio.to_thread(_playbook, playbook, node, params))
         if method == "chip_groups":
             return protocol.answer(frame["id"], await asyncio.to_thread(_chip_groups, chips, params))
         text = await asyncio.to_thread(_team_tool, tools, node, params)

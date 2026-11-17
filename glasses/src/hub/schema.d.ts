@@ -341,6 +341,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/playbook": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Playbook
+         * @description The shared playbook, the projects that add to it or replace it, and (`effective_for` a project; empty:
+         *     a session of none) what a session of it reads.
+         */
+        get: operations["get_playbook_v1_playbook_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/playbook/{scope}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Playbook
+         * @description Saves a new version of one playbook (`shared` or `projects/<project>`); 409 when another was saved
+         *     since `base_version`.
+         */
+        put: operations["put_playbook_v1_playbook__scope__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/playbook/{scope}/revert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revert Playbook
+         * @description Saves an earlier version again, as the newest.
+         */
+        post: operations["revert_playbook_v1_playbook__scope__revert_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/playbook/{scope}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Playbook Versions
+         * @description Every version of one playbook (`shared` or `projects/<project>`), newest first.
+         */
+        get: operations["playbook_versions_v1_playbook__scope__versions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{project}/activity": {
         parameters: {
             query?: never;
@@ -1792,6 +1874,72 @@ export interface components {
              */
             machine?: string | null;
         };
+        /** Playbook */
+        Playbook: {
+            /**
+             * Effective
+             * @description what a session of `effective_for` reads, in order (`?effective_for=`)
+             */
+            effective?: components["schemas"]["PlaybookPart"][] | null;
+            /**
+             * Projects
+             * @description projects with additions or a replacement
+             */
+            projects: components["schemas"]["PlaybookPart"][];
+            shared: components["schemas"]["PlaybookPart"];
+        };
+        /** PlaybookPart */
+        PlaybookPart: {
+            /** At */
+            at?: string | null;
+            /** Author */
+            author?: string | null;
+            /**
+             * Mode
+             * @description a project's: added to the shared playbook, or replacing it
+             * @enum {string}
+             */
+            mode: "add" | "replace";
+            /**
+             * Scope
+             * @description "shared", or "projects/<project>"
+             */
+            scope: string;
+            /** Text */
+            text: string;
+            /**
+             * Version
+             * @description 0: never saved
+             */
+            version: number;
+        };
+        /** PlaybookVersion */
+        PlaybookVersion: {
+            /** At */
+            at?: string | null;
+            /** Author */
+            author?: string | null;
+            /**
+             * Mode
+             * @description a project's: added to the shared playbook, or replacing it
+             * @enum {string}
+             */
+            mode: "add" | "replace";
+            /** Note */
+            note?: string | null;
+            /**
+             * Scope
+             * @description "shared", or "projects/<project>"
+             */
+            scope: string;
+            /** Text */
+            text: string;
+            /**
+             * Version
+             * @description 0: never saved
+             */
+            version: number;
+        };
         /** PongFrame */
         PongFrame: {
             /**
@@ -1813,6 +1961,27 @@ export interface components {
             pid: number;
             /** Rss Mb */
             rss_mb?: number | null;
+        };
+        /** PutPlaybook */
+        PutPlaybook: {
+            /**
+             * Base Version
+             * @description the version this edit started from: 409 when another came since
+             */
+            base_version: number;
+            /**
+             * Mode
+             * @default add
+             * @enum {string}
+             */
+            mode: "add" | "replace";
+            /** Note */
+            note?: string | null;
+            /**
+             * Text
+             * @description Markdown or plain text; empty: none
+             */
+            text: string;
         };
         /** QuestionOption */
         QuestionOption: {
@@ -1875,6 +2044,11 @@ export interface components {
              * @description said to the owner as it is
              */
             reason: string;
+        };
+        /** Revert */
+        Revert: {
+            /** Version */
+            version: number;
         };
         /** RuntimeInfo */
         RuntimeInfo: {
@@ -3148,6 +3322,138 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PairCode"];
+                };
+            };
+        };
+    };
+    get_playbook_v1_playbook_get: {
+        parameters: {
+            query?: {
+                effective_for?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Playbook"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_playbook_v1_playbook__scope__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scope: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PutPlaybook"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybookPart"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revert_playbook_v1_playbook__scope__revert_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scope: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Revert"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybookPart"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    playbook_versions_v1_playbook__scope__versions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                scope: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaybookVersion"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

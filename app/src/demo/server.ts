@@ -1,3 +1,4 @@
+import { playbook, save, versions } from './playbook'
 import type { components } from '@/lib/api/schema'
 import { APP_VERSION } from '@/lib/app-update'
 import type { MachineUsage, NodeInfo, RuntimeInfo, Session, TeamTask } from '@/lib/api/types'
@@ -246,6 +247,24 @@ export async function respond(world: World, request: Request): Promise<Response>
   const method = request.method.toUpperCase()
   const activity = method === 'GET' ? /^\/v1\/projects\/(.+)\/activity$/.exec(pathname) : null
   if (activity) return json(projectActivity(world, decodeURIComponent(activity[1]!)))
+  const book = /^\/v1\/playbook\/(.+?)(\/versions|\/revert)?$/.exec(pathname)
+  if (method === 'GET' && pathname === '/v1/playbook')
+    return json(playbook(world, url.searchParams.has('effective_for') ? (url.searchParams.get('effective_for') ?? '') : null))
+  if (book) {
+    const scope = decodeURIComponent(book[1]!)
+    if (method === 'GET' && book[2] === '/versions') return json(versions(world, scope))
+    const body = JSON.parse((await request.text()) || '{}') as Record<string, unknown>
+    if (method === 'POST' && book[2] === '/revert') {
+      const old = versions(world, scope).find((v) => v.version === body.version)
+      const now = versions(world, scope)[0]
+      const saved = old && now && save(world, scope, old.text, old.mode, now.version, `reverted to v${old.version}`)
+      return saved ? json(saved) : refuse(404, 'no such version')
+    }
+    if (method === 'PUT') {
+      const saved = save(world, scope, String(body.text ?? ''), body.mode === 'replace' ? 'replace' : 'add', Number(body.base_version))
+      return saved ? json(saved) : refuse(409, 'the playbook was changed since: reload it and edit again')
+    }
+  }
   const fixed = ROUTES[`${method} ${pathname}`]
   const match = /^\/v1\/sessions\/([^/]+)(?:\/(.+))?$/.exec(pathname)
   const handler = match && SESSION_ROUTES[`${method} ${match[2] ?? ''}`]

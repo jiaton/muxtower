@@ -1674,6 +1674,169 @@
         "title": "Placement",
         "type": "object"
       },
+      "Playbook": {
+        "properties": {
+          "effective": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/PlaybookPart"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what a session of `effective_for` reads, in order (`?effective_for=`)",
+            "title": "Effective"
+          },
+          "projects": {
+            "description": "projects with additions or a replacement",
+            "items": {
+              "$ref": "#/components/schemas/PlaybookPart"
+            },
+            "title": "Projects",
+            "type": "array"
+          },
+          "shared": {
+            "$ref": "#/components/schemas/PlaybookPart"
+          }
+        },
+        "required": [
+          "shared",
+          "projects"
+        ],
+        "title": "Playbook",
+        "type": "object"
+      },
+      "PlaybookPart": {
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "mode": {
+            "description": "a project's: added to the shared playbook, or replacing it",
+            "enum": [
+              "add",
+              "replace"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "scope": {
+            "description": "\"shared\", or \"projects/<project>\"",
+            "title": "Scope",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "version": {
+            "description": "0: never saved",
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scope",
+          "mode",
+          "version",
+          "text"
+        ],
+        "title": "PlaybookPart",
+        "type": "object"
+      },
+      "PlaybookVersion": {
+        "properties": {
+          "at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "At"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "mode": {
+            "description": "a project's: added to the shared playbook, or replacing it",
+            "enum": [
+              "add",
+              "replace"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "scope": {
+            "description": "\"shared\", or \"projects/<project>\"",
+            "title": "Scope",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "version": {
+            "description": "0: never saved",
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "scope",
+          "mode",
+          "version",
+          "text"
+        ],
+        "title": "PlaybookVersion",
+        "type": "object"
+      },
       "PongFrame": {
         "properties": {
           "type": {
@@ -1725,6 +1888,49 @@
           "name"
         ],
         "title": "ProcessUsage",
+        "type": "object"
+      },
+      "PutPlaybook": {
+        "properties": {
+          "base_version": {
+            "description": "the version this edit started from: 409 when another came since",
+            "minimum": 0.0,
+            "title": "Base Version",
+            "type": "integer"
+          },
+          "mode": {
+            "default": "add",
+            "enum": [
+              "add",
+              "replace"
+            ],
+            "title": "Mode",
+            "type": "string"
+          },
+          "note": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Note"
+          },
+          "text": {
+            "description": "Markdown or plain text; empty: none",
+            "maxLength": 20000,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text",
+          "base_version"
+        ],
+        "title": "PutPlaybook",
         "type": "object"
       },
       "QuestionOption": {
@@ -1870,6 +2076,20 @@
           "reason"
         ],
         "title": "ResumeBlock",
+        "type": "object"
+      },
+      "Revert": {
+        "properties": {
+          "version": {
+            "minimum": 1.0,
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version"
+        ],
+        "title": "Revert",
         "type": "object"
       },
       "RuntimeInfo": {
@@ -4266,6 +4486,209 @@
         "summary": "Create Pair Code",
         "tags": [
           "devices"
+        ]
+      }
+    },
+    "/v1/playbook": {
+      "get": {
+        "description": "The shared playbook, the projects that add to it or replace it, and (`effective_for` a project; empty:\na session of none) what a session of it reads.",
+        "operationId": "get_playbook_v1_playbook_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "effective_for",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Effective For"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Playbook"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Playbook",
+        "tags": [
+          "playbook"
+        ]
+      }
+    },
+    "/v1/playbook/{scope}": {
+      "put": {
+        "description": "Saves a new version of one playbook (`shared` or `projects/<project>`); 409 when another was saved\nsince `base_version`.",
+        "operationId": "put_playbook_v1_playbook__scope__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "title": "Scope",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PutPlaybook"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaybookPart"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Playbook",
+        "tags": [
+          "playbook"
+        ]
+      }
+    },
+    "/v1/playbook/{scope}/revert": {
+      "post": {
+        "description": "Saves an earlier version again, as the newest.",
+        "operationId": "revert_playbook_v1_playbook__scope__revert_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "title": "Scope",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Revert"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaybookPart"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Revert Playbook",
+        "tags": [
+          "playbook"
+        ]
+      }
+    },
+    "/v1/playbook/{scope}/versions": {
+      "get": {
+        "description": "Every version of one playbook (`shared` or `projects/<project>`), newest first.",
+        "operationId": "playbook_versions_v1_playbook__scope__versions_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "scope",
+            "required": true,
+            "schema": {
+              "title": "Scope",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/PlaybookVersion"
+                  },
+                  "title": "Response Playbook Versions V1 Playbook  Scope  Versions Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Playbook Versions",
+        "tags": [
+          "playbook"
         ]
       }
     },

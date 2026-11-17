@@ -28,14 +28,21 @@ export function Input({
   )
 }
 
-/** A text area. `bare`: no box of its own, inside another that has it (the message box, a quote's reply). */
-export function Textarea({ className, bare = false, ...props }: ComponentProps<'textarea'> & { bare?: boolean }) {
+/** A text area. `bare`: no box of its own, inside another that has it (the message box, a quote's reply).
+ *  `code`: text kept as typed (monospace, its height the owner's to drag), e.g. Markdown. */
+export function Textarea({
+  className,
+  bare = false,
+  code = false,
+  ...props
+}: ComponentProps<'textarea'> & { bare?: boolean; code?: boolean }) {
   return (
     <textarea
       className={cn(
         field,
         'min-h-10 resize-none py-2',
         bare && 'rounded-none border-0 bg-transparent focus-visible:outline-none',
+        code && 'resize-y font-mono text-sm leading-relaxed',
         className,
       )}
       {...props}

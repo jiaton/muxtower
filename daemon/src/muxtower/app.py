@@ -53,6 +53,7 @@ from muxtower.notify.repository import SqliteShownStore, SqliteSubscriptionRepos
 from muxtower.notify.service import PushService
 from muxtower.notify.webpush_sender import WebPushSender, subject
 from muxtower.origins import OriginPolicy
+from muxtower.playbook.service import PlaybookStore
 from muxtower.recovery.service import RecoveryService
 from muxtower.runtimes.spec import load_runtimes
 from muxtower.serving import serve
@@ -266,7 +267,9 @@ def create_app(
     mcp.session_tools.may_escalate = lambda: settings.launch.agents_may_escalate
     mcp.session_tools.audit = audit
     mcp.session_tools.resume_archived = recovery.resume
+    playbook = PlaybookStore(db)  # the owner's team playbook: kept here when this daemon is the hub
     if (team_tools := getattr(mcp, "team_tools", None)) is not None:
+        team_tools.playbook = playbook
         team_tools.machines = lambda: [
             (daemon_name, settings.sessions.folder()),
             *((n.name, n.default_folder) for n in nodes.infos()),
@@ -278,7 +281,7 @@ def create_app(
         concierge=concierge, teams=teams, team_tasks=team_tasks, usage=usage, recovery=recovery, writes=writes,
         watches=watches,
         direct=DirectAccess(nodes, node_sessions.call), feature_settings=feature_settings,
-        chip_groups=ChipGroupStore(db),
+        chip_groups=ChipGroupStore(db), playbook=playbook,
         node_sessions=node_sessions, mcp=mcp, asr=asr, asr_dictionary=dictionary_store,
         diagnostics=DiagnosticsService(settings.state_dir / "diagnostics"),
         terminal=terminal, approvals=approvals, audit=audit, push=push,

@@ -10,6 +10,7 @@ import { ago } from '@/lib/time'
 import { useSessionTasks, useUpdateTeam } from '../api/use-team'
 import { useSessionEntries } from '../hooks/use-session-entries'
 import { TeamDiagram } from './team-diagram'
+import { ProjectPlaybookLine } from '@/features/playbook/components/project-playbook-line'
 
 import { Label } from '@/components/ui/label'
 import { ink, look } from '@/components/ui/intents'
@@ -110,6 +111,7 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
         className="sm:max-w-2xl"
       >
         <TeamDiagram daemonId={daemonId} project={session.project} from={session.id} between={form} />
+        {session.project ? <ProjectPlaybookLine project={session.project} /> : null}
         {/* With a project, its feed above holds this session's tasks too (a tap on its role narrows to it). */}
         {session.project ? null : (
           <section aria-label="Tasks" className={`${look.rule.top} mt-2 pt-3`}>
@@ -139,6 +141,7 @@ export function ProjectTeamDialog({ daemonId, project, onClose }: { daemonId: st
     <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent title={project} description="Its team: who sends whom work, and what was sent." className="sm:max-w-2xl">
         <TeamDiagram daemonId={daemonId} project={project} />
+        <ProjectPlaybookLine project={project} />
       </DialogContent>
     </Dialog>
   )
