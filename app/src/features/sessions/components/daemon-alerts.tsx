@@ -14,7 +14,9 @@ import { ink } from '@/components/ui/intents'
 
 /** Why some sessions may be missing: a daemon that revoked this device, one behind a sign-in page, one
  *  that does not answer. One per daemon; the others' sessions still show. */
-export function DaemonAlerts({ daemons }: { daemons: DaemonSessions[] }) {
+/** The daemons something is wrong with: revoked this device, behind a sign-in page, not answering, a hub
+ *  being asked again. The banners say each; the sidebar's button and its Daemons entry show a dot. */
+export function useDaemonProblems(daemons: DaemonSessions[]) {
   const rejected = useRejectedDaemons()
   const status = useStreamStatus((s) => s.status)
   const down = useFallback((f) => f.down)
@@ -24,7 +26,12 @@ export function DaemonAlerts({ daemons }: { daemons: DaemonSessions[] }) {
   const blocked = daemons.filter((d) => status[d.daemon.id] === 'blocked')
   const failing = back ? [] : daemons.filter((d) => d.error && status[d.daemon.id] !== 'blocked' && !(d.daemon.id in down))
   const hubsDown = back ? [] : all.filter((d) => d.id in down) // being asked again right now
-  if (!rejected.length && !blocked.length && !failing.length && !hubsDown.length) return null
+  return { rejected, blocked, failing, hubsDown, all, any: rejected.length + blocked.length + failing.length + hubsDown.length > 0 }
+}
+
+export function DaemonAlerts({ daemons }: { daemons: DaemonSessions[] }) {
+  const { rejected, blocked, failing, hubsDown, all, any } = useDaemonProblems(daemons)
+  if (!any) return null
   return (
     <div className="flex flex-col gap-2 p-3">
       {hubsDown.map((hub) => {

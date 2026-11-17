@@ -15,6 +15,8 @@ import { ListChips } from '@/features/sessions/components/list-chips'
 import { ListMenu, ScopeChip, SearchField } from '@/features/sessions/components/list-controls'
 import { useSidebarPull } from '@/features/sessions/hooks/use-sidebar-pull'
 import { useSidebarDrawer } from '@/lib/sidebar-drawer'
+import { useDaemonsNeedALook } from '@/features/daemons/hooks/use-daemons-need-a-look'
+import { Dot } from '@/components/ui/indicators'
 import { NewSessionDialog } from '@/features/sessions/components/new-session-dialog'
 import { SessionList } from '@/features/sessions/components/session-list'
 import { ListSkeleton } from '@/features/sessions/components/list-skeleton'
@@ -63,6 +65,7 @@ function SessionsLayout() {
   const docked = useSidebarDocked()
   const hideList = useLayoutPrefs((s) => s.setList)
   const openSidebar = useSidebarDrawer((s) => s.setOpen)
+  const needsALook = useDaemonsNeedALook()
   const listPane = useRef<HTMLElement>(null)
   useSidebarPull(listPane, !docked) // a swipe right on the list: the sidebar, one level up
   const listRef = useRef<HTMLDivElement>(null)
@@ -113,8 +116,16 @@ function SessionsLayout() {
           <PaneHeader
             leading={
               docked ? null : (
-                <Button variant="ghost" size="icon-sm" aria-label="Open sidebar" title="Sidebar" onClick={() => openSidebar(true)}>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={needsALook ? `Open sidebar (${needsALook})` : 'Open sidebar'}
+                  title={needsALook ? `Sidebar · ${needsALook}` : 'Sidebar'}
+                  onClick={() => openSidebar(true)}
+                  className="relative"
+                >
                   <PanelLeft />
+                  {needsALook ? <Dot tone="warning" className="absolute top-0.5 right-0.5 size-2" /> : null}
                 </Button>
               )
             }

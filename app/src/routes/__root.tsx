@@ -1,22 +1,22 @@
-import { Link, Outlet, createRootRoute, useMatch } from '@tanstack/react-router'
-import { Layers, PanelLeftClose, PanelLeftOpen, Server } from 'lucide-react'
+import { Link, Outlet, createRootRoute } from '@tanstack/react-router'
+import { PanelLeftClose, PanelLeftOpen, Server } from 'lucide-react'
 import { useRef } from 'react'
 import { Button } from '@/components/ui/button'
-import { navItemClass, tabItemClass } from '@/components/ui/nav'
+import { navItemClass } from '@/components/ui/nav'
 import { AppUpdateBanner } from '@/features/daemons/components/app-update-banner'
 import { WebUsageMark } from '@/features/daemons/components/web-usage-mark'
 import { NewSessionHost } from '@/features/sessions/components/new-session-host'
 import { PaletteHost } from '@/features/palette/components/palette-host'
 import { SessionsNav } from '@/features/sessions/components/sessions-nav'
-import { useListMemory } from '@/features/sessions/store'
 import { useKeepPushSubscriptions } from '@/features/push/hooks/use-keep-push-subscriptions'
 import { settledIn, useCloseSettledNotifications, useNotificationClicks } from '@/features/push/hooks/use-notifications'
 import { useForgetRemovedScreens } from '@/features/terminal/screen-store'
 import { useAllSessions } from '@/features/sessions/api/use-sessions'
 import { isSettled } from '@/features/sessions/model/facets'
 import { useDaemonStreams, useRecheckRejected } from '@/lib/api/streams'
+import { useDaemonsNeedALook } from '@/features/daemons/hooks/use-daemons-need-a-look'
+import { Dot } from '@/components/ui/indicators'
 import { useHubFallback } from '@/lib/daemons/use-hub-fallback'
-import { cn } from '@/lib/cn'
 import { useConfiguredDaemons } from '@/lib/runtime-config'
 import { useColorScheme } from '@/lib/use-color-scheme'
 import { Drawer } from '@/components/ui/drawer'
@@ -35,6 +35,7 @@ function Sidebar({ inDrawer = false, onLeave }: { inDrawer?: boolean; onLeave?: 
   // Wide enough to dock: docked, it can be hidden (a drawer from then on); hidden, its drawer docks it again.
   const wide = useMediaQuery(SIDEBAR_QUERY)
   const setShown = useLayoutPrefs((s) => s.setSidebar)
+  const needsALook = useDaemonsNeedALook()
   return (
     <>
       <div className="flex h-14 shrink-0 items-center gap-2 px-4">
@@ -60,8 +61,9 @@ function Sidebar({ inDrawer = false, onLeave }: { inDrawer?: boolean; onLeave?: 
         <SessionsNav replace={inDrawer} />
       </div>
       <div className={`${look.rule.top} shrink-0 p-2`}>
-        <Link to="/daemons" replace={inDrawer} className={navItemClass}>
+        <Link to="/daemons" replace={inDrawer} className={navItemClass} title={needsALook ?? undefined}>
           <Server aria-hidden /> Daemons
+          {needsALook ? <Dot tone="warning" className="ml-auto" /> : null}
         </Link>
       </div>
     </>
@@ -69,8 +71,9 @@ function Sidebar({ inDrawer = false, onLeave }: { inDrawer?: boolean; onLeave?: 
 }
 
 /**
- * The app shell. From `lg`: a sidebar (sessions by view, device and folder; daemons). Below: a bottom
- * tab bar, hidden while a session is open on a phone (the session page has its own back and input).
+ * The app shell: a sidebar (sessions by view, device and folder; daemons), docked when there is room, else a
+ * drawer the list's header opens; no tab bar (Daemons is seldom needed: the sidebar, ⌘K and Settings reach
+ * it, and a dot on the sidebar's button says when it wants a look).
  */
 function RootLayout() {
   useColorScheme()
@@ -92,8 +95,6 @@ function RootLayout() {
       ),
     daemons.map((d) => d.updatedAt).join(),
   )
-  const inSession = useMatch({ from: '/_sessions/d/$daemonId/s/$sessionId', shouldThrow: false }) !== undefined
-  const lastSearch = useListMemory((s) => s.lastSearch)
   const docked = useSidebarDocked()
   const sidebarOpen = useSidebarDrawer((s) => s.open)
   const setSidebarOpen = useSidebarDrawer((s) => s.setOpen)
@@ -124,17 +125,6 @@ function RootLayout() {
         <main className="flex min-h-0 flex-1">
           <Outlet />
         </main>
-        <nav
-          aria-label="Main"
-          className={cn(`${look.bar.top} shrink-0 pb-[env(safe-area-inset-bottom)] lg:hidden`, inSession ? 'hidden md:flex' : 'flex')}
-        >
-          <Link to="/" search={lastSearch} className={tabItemClass} activeOptions={{ includeSearch: false }}>
-            <Layers aria-hidden /> Sessions
-          </Link>
-          <Link to="/daemons" className={tabItemClass}>
-            <Server aria-hidden /> Daemons
-          </Link>
-        </nav>
       </div>
     </div>
   )

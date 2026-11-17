@@ -42,9 +42,3 @@ export function NavSection({ title, action, children }: { title: string; action?
     </div>
   )
 }
-
-/** Classes for a bottom tab bar entry (phones and tablets). */
-export const tabItemClass = cn(
-  'flex flex-1 flex-col items-center justify-center gap-0.5 py-1.5 text-xs text-fg-muted',
-  'data-[status=active]:font-medium data-[status=active]:text-accent [&_svg]:size-5',
-)

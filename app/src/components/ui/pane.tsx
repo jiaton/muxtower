@@ -41,5 +41,6 @@ export function PaneHeader({
 
 /** The scrolling part of a pane. */
 export function PaneBody({ className, ...props }: ComponentProps<'div'>) {
-  return <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain', className)} {...props} />
+  // The last thing on the page (no tab bar under it): clear of a phone's home indicator.
+  return <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]', className)} {...props} />
 }

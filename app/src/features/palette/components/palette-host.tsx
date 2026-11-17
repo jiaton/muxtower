@@ -105,6 +105,7 @@ function Palette({ entries, current, actions = [] }: { entries: SessionEntry[]; 
       commands.push({ id: 'view', label: `Switch to the ${to}`, run: () => setView(current.key, to) })
     }
   }
+  commands.push({ id: 'daemons', label: 'Open Daemons', run: () => void navigate({ to: '/daemons' }) })
   const settingsOf = current?.daemon.id ?? hub?.id
   if (settingsOf)
     commands.push({
