@@ -28,7 +28,7 @@ if (typeof document !== 'undefined')
 
 /** Where focus goes back to when a dialog opening now closes: what had it, else (opened from a menu) the
  *  control the menu was opened from. */
-function returnTarget(): HTMLElement | null {
+export function returnTarget(): HTMLElement | null {
   const now = document.activeElement
   const usable = now instanceof HTMLElement && now !== document.body && !now.closest('[role="menu"]') && now.tabIndex >= 0
   return usable ? null : lastOutside // null: Radix's own (what had focus) is right

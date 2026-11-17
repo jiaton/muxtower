@@ -81,8 +81,8 @@ it('the group dialog offers the roles there are, the most held first, and saves 
 })
 
 it('search takes role: terms by key, with the rest as text', () => {
-  expect(searchTerms('role:PM')).toEqual({ roles: ['pm'], text: '' })
-  expect(searchTerms('role:"g2 worker" glasses role:pm')).toEqual({ roles: ['g2 worker', 'pm'], text: 'glasses' })
+  expect(searchTerms('role:PM')).toEqual({ roles: ['pm'], projects: [], text: '' })
+  expect(searchTerms('role:"g2 worker" glasses role:pm')).toEqual({ roles: ['g2 worker', 'pm'], projects: [], text: 'glasses' })
   expect(ids(filterEntries(team, { view: 'all', group: 'status', q: 'role:pm' }))).toEqual(['a1', 'b1'])
   expect(ids(filterEntries(team, { view: 'all', group: 'status', q: 'role:pm api' }))).toEqual(['b1'])
   expect(ids(filterEntries(team, { view: 'all', group: 'status', q: '调研' }))).toEqual(['b2']) // the role's text is searched too

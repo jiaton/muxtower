@@ -6,6 +6,7 @@ import { navItemClass, tabItemClass } from '@/components/ui/nav'
 import { AppUpdateBanner } from '@/features/daemons/components/app-update-banner'
 import { WebUsageMark } from '@/features/daemons/components/web-usage-mark'
 import { NewSessionHost } from '@/features/sessions/components/new-session-host'
+import { PaletteHost } from '@/features/palette/components/palette-host'
 import { SessionsNav } from '@/features/sessions/components/sessions-nav'
 import { useListMemory } from '@/features/sessions/store'
 import { useKeepPushSubscriptions } from '@/features/push/hooks/use-keep-push-subscriptions'
@@ -104,6 +105,7 @@ function RootLayout() {
   return (
     <div className="flex h-dvh overflow-hidden pt-[env(safe-area-inset-top)]">
       <NewSessionHost />
+      <PaletteHost />
       {docked ? (
         <aside className={`${look.bar.side} flex w-56 shrink-0 flex-col xl:w-64`} aria-label="Navigation">
           <Sidebar />
