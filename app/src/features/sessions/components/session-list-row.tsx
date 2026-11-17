@@ -45,7 +45,7 @@ export function SessionListRow({
       {(actions) => (
         <SwipeActions
           actions={actions
-            .filter((a) => !a.menuOnly)
+            .filter((a) => !a.menuOnly && !a.disabled)
             .map((a) => (
               <SwipeAction key={a.id} icon={a.icon} label={a.label} tone={a.tone} onClick={a.run} />
             ))}

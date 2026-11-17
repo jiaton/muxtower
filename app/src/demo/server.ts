@@ -145,6 +145,10 @@ const SESSION_ROUTES: Record<string, Handler> = {
   'POST hide': marked((body) => ({ hidden: body.hidden !== false })),
   'POST pin': marked((body) => ({ pinned: body.pinned !== false })),
   'POST archive': marked(() => ({ archived_at: new Date().toISOString() })),
+  'POST resume': (world, id) =>
+    world.mark(id, { archived_at: null, resume_blocked: null, state: 'idle', updated_at: new Date().toISOString() })
+      ? json(world.session(id))
+      : refuse(404, 'no such session'),
   'PUT notify': (world, id, body) =>
     world.mark(id, { notify: (body.level as Session['notify']) ?? 'all' }) ? json(world.session(id)) : refuse(404, 'no such session'),
   'GET names': (world, id) => {

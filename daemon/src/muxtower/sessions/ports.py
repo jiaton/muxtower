@@ -64,6 +64,9 @@ class ArchiveRecord:
     transcript: str | None
     items: str | None  # conversation items, JSON, when there is no transcript
     archived_at: datetime
+    # What starts it again (`recovery/`), JSON: its launch options, the agent's id, how it was named. None:
+    # archived before this was kept, or never run by muxtower here.
+    relaunch: str | None = None
 
 
 class ArchiveRepository(Protocol):

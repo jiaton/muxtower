@@ -26,6 +26,7 @@ import { useSendInput } from '@/features/terminal/api/use-terminal'
 import { useNewSessionRequest } from '../store'
 import { PlaceDialog } from './place-dialog'
 import { RenameDialog } from './rename-dialog'
+import { ResumeDialog } from './resume-dialog'
 import { ArchiveDialog, DeleteDialog, HideInsteadDialog } from './session-dialogs'
 import { TeamDialog } from './team-dialog'
 
@@ -37,6 +38,8 @@ export interface SessionAction {
   run: () => void
   /** Only in menus: a list row's swipe tray has room for the rest. */
   menuOnly?: boolean
+  /** Shown, not offered: why it cannot be done (a menu item, greyed, says so; a swipe tray leaves it out). */
+  disabled?: string
 }
 
 /** The key that does an action while a menu of them is open (`DropdownMenuItem shortcut`): mnemonic, one
@@ -81,7 +84,7 @@ export function SessionActions({
   const input = useSendInput(daemonId, session.id)
   const startHere = useNewSessionRequest((s) => s.start)
   const here = presetForSession(daemonId, session, useNodeNames(daemonId)) // null: not where one can start
-  const [dialog, setDialog] = useState<'rename' | 'place' | 'team' | 'archive' | 'delete' | null>(null)
+  const [dialog, setDialog] = useState<'rename' | 'place' | 'team' | 'archive' | 'delete' | 'resume' | null>(null)
   const ids = { daemonId, sessionId: session.id }
   const leaving = (then: () => void) => (open ? () => void navigate({ to: '/', search: true }).then(then) : then)
 
@@ -91,8 +94,18 @@ export function SessionActions({
   const actions: SessionAction[] = session.interrupted_at
     ? [{ id: 'resume', label: 'Start again', icon: RotateCcw, tone: 'accent', run: () => recover.mutate([session.id]) }, archive]
     : session.archived_at
-      ? [remove]
+      ? [...resumeArchived(), remove]
       : liveActions()
+
+  /** An archived session started again with its conversation; when it cannot be, why (another folder can
+   *  be given when its own is gone). */
+  function resumeArchived(): SessionAction[] {
+    const blocked = session.resume_blocked
+    if (!session.capabilities.resume && !blocked) return [] // an older daemon: it cannot tell
+    const open = () => setDialog('resume')
+    const why = blocked && blocked.code !== 'folder' ? blocked.reason : undefined
+    return [{ id: 'resume', label: 'Resume', icon: RotateCcw, tone: 'accent', run: open, disabled: why }]
+  }
 
   function liveActions(): SessionAction[] {
     const live: SessionAction[] = [
@@ -126,13 +139,21 @@ export function SessionActions({
     if (session.capabilities.archive) live.push(archive)
     // What it is doing now, stopped (Escape, as in its terminal); the session goes on.
     if (session.state === 'busy' && session.capabilities.screen)
-      live.push({ id: 'interrupt', label: 'Interrupt', icon: OctagonX, tone: 'neutral', menuOnly: true, run: () => input.mutate({ key: 'Escape' }) })
+      live.push({
+        id: 'interrupt',
+        label: 'Interrupt',
+        icon: OctagonX,
+        tone: 'neutral',
+        menuOnly: true,
+        run: () => input.mutate({ key: 'Escape' }),
+      })
     return live
   }
 
   return (
     <>
       {children(actions)}
+      {dialog === 'resume' ? <ResumeDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} /> : null}
       {dialog === 'rename' ? <RenameDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} /> : null}
       {dialog === 'place' ? <PlaceDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} /> : null}
       {dialog === 'team' ? <TeamDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} /> : null}

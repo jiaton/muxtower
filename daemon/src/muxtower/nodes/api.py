@@ -28,7 +28,9 @@ def _json(value: Any) -> Any:
 
 
 # What changes something here: audited as done by the hub, like a device's actions.
-MUTATING = frozenset({"input", "approve", "deny", "update", "terminate", "archive", "create", "recover"})
+MUTATING = frozenset({
+    "input", "approve", "deny", "update", "terminate", "archive", "create", "recover", "resume_archived",
+})  # fmt: skip
 # What changes the list here (as the same routes say for a device): the hub hears of it at once.
 CHANGES_LIST = MUTATING | {"mark_read"}
 
@@ -41,6 +43,7 @@ class NodeApi:
         self.processes = processes
         self.usage_now: Callable[[], MachineUsage] | None = None  # set once the usage sampler runs
         self.recover: Callable[[list[str]], list[Session]] | None = None  # set by the recovery service
+        self.resume_archived: Callable[[str, str | None], Session] | None = None  # likewise
         self.settings: SettingsService | None = None  # its feature settings, which the hub may change
         self.tokens: TokenService | None = None  # its device tokens: the hub's devices get one here (`direct.py`)
         self.directory = directory
@@ -94,6 +97,11 @@ class NodeApi:
                     raise Invalid("this node cannot start sessions again")
                 started = self.recover([sid])
                 return _json(started[0]) if started else None
+            case "resume_archived":
+                if self.resume_archived is None:
+                    raise Invalid("this node cannot start archived sessions again")
+                cwd = params.get("cwd")
+                return _json(self.resume_archived(sid, cwd if isinstance(cwd, str) else None))
             case "mint_token" | "revoke_token":
                 name = str(params.get("name", ""))
                 if self.tokens is None or not name.startswith(TOKEN_PREFIX):

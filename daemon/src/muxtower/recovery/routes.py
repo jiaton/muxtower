@@ -36,3 +36,22 @@ def recover(body: Recover, request: Request, device: CurrentDevice, audit: Audit
         audit.record(device.name, "recover", session.id)
     request.app.state.bus.publish("sessions", None)
     return started
+
+
+class Resume(BaseModel):
+    cwd: str | None = Field(
+        default=None, description="another folder to start it in, when its own is gone (`resume_blocked.code` folder)"
+    )
+
+
+@router.post("/sessions/{session_id}/resume")
+def resume(
+    session_id: str, request: Request, device: CurrentDevice, audit: Audit, body: Resume | None = None
+) -> Session:
+    """Starts an archived session again on the machine it ran on, its conversation resumed, under its own id
+    (its name, role, project, pins and notifications its own again); it leaves Archived. 409 says why not
+    (`Session.resume_blocked`)."""
+    started: Session = request.app.state.recovery.resume(session_id, body.cwd if body else None)
+    audit.record(device.name, "resume", session_id)
+    request.app.state.bus.publish("sessions", None)
+    return started

@@ -151,8 +151,10 @@ def create_app(
     # This daemon as a node of a hub, once it joined one (`muxtower pair --join`).
     recovery = RecoveryService(
         sessions, settings.recovery, lambda sid: isinstance(directory.source_of(sid), NodeSource),
-        node_sessions.recover,
+        node_sessions.recover, archive, processes,
     )  # fmt: skip
+    recovery.node_online = node_sessions.online
+    recovery.ask_node_resume = node_sessions.resume_archived
     usage = UsageSampler(
         daemon_name, settings.usage, lambda: list(monitor.timings),
         lambda sid: session.name if (session := directory.find(sid)) else None,
@@ -160,6 +162,7 @@ def create_app(
     node_api = NodeApi(directory, launcher, archiver, placements, audit, processes)
     node_api.usage_now = lambda: usage.current
     node_api.recover = recovery.recover
+    node_api.resume_archived = recovery.resume
     node_api.settings = feature_settings
     node_api.tokens = tokens
     direct_url = usable(settings.public_url) or tailscale_url(settings.port)  # where the app reaches it itself
@@ -262,6 +265,7 @@ def create_app(
     )  # fmt: skip
     mcp.session_tools.may_escalate = lambda: settings.launch.agents_may_escalate
     mcp.session_tools.audit = audit
+    mcp.session_tools.resume_archived = recovery.resume
     if (team_tools := getattr(mcp, "team_tools", None)) is not None:
         team_tools.machines = lambda: [
             (daemon_name, settings.sessions.folder()),

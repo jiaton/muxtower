@@ -38,6 +38,7 @@ CLOSE_INCOMPATIBLE = 4400
 METHODS = frozenset({
     "conversation", "screen", "watch_screen", "unwatch_screen", "input", "approve", "deny", "resize",
     "release_size", "update", "terminate", "archive", "mark_read", "detect_folder", "create", "image", "recover",
+    "resume_archived",
     "settings", "set_settings", "mint_token", "revoke_token", "names", "default_folder", "ended_bridges",
 })  # fmt: skip
 

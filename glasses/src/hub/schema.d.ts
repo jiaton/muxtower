@@ -792,6 +792,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume
+         * @description Starts an archived session again on the machine it ran on, its conversation resumed, under its own id
+         *     (its name, role, project, pins and notifications its own again); it leaves Archived. 409 says why not
+         *     (`Session.resume_blocked`).
+         */
+        post: operations["resume_v1_sessions__session_id__resume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_id}/screen": {
         parameters: {
             query?: never;
@@ -1060,6 +1082,12 @@ export interface components {
             rename: boolean;
             /** Resize */
             resize: boolean;
+            /**
+             * Resume
+             * @description an archived session that can be started again with its conversation (POST /resume); when it cannot, `Session.resume_blocked` says why
+             * @default false
+             */
+            resume: boolean;
             /**
              * Screen
              * @description a terminal screen can be shown (GET /screen)
@@ -1823,6 +1851,31 @@ export interface components {
             /** Rows */
             rows: number;
         };
+        /** Resume */
+        Resume: {
+            /**
+             * Cwd
+             * @description another folder to start it in, when its own is gone (`resume_blocked.code` folder)
+             */
+            cwd?: string | null;
+        };
+        /**
+         * ResumeBlock
+         * @description Why an archived session cannot be started again (`recovery/service.py`).
+         */
+        ResumeBlock: {
+            /**
+             * Code
+             * @description transcript: its conversation is gone; offline: its machine is; folder: its folder is gone (another may be given: POST /resume with cwd); not_ours: muxtower never ran it (Claude's desktop app, Remote Control only); runtime: its agent cannot be resumed here
+             * @enum {string}
+             */
+            code: "transcript" | "offline" | "folder" | "not_ours" | "runtime";
+            /**
+             * Reason
+             * @description said to the owner as it is
+             */
+            reason: string;
+        };
         /** RuntimeInfo */
         RuntimeInfo: {
             /** Available */
@@ -2082,6 +2135,8 @@ export interface components {
              * @description a few lines condensing last_message, once the hub has made them (long replies)
              */
             reply_summary?: string | null;
+            /** @description an archived session that cannot be started again: why (`capabilities.resume`) */
+            resume_blocked?: components["schemas"]["ResumeBlock"] | null;
             role?: components["schemas"]["SessionRole"] | null;
             /** Runtime */
             runtime: string;
@@ -3909,6 +3964,41 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    resume_v1_sessions__session_id__resume_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["Resume"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
             };
             /** @description Validation Error */
             422: {

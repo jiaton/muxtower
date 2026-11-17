@@ -13,6 +13,7 @@ def _record(row: sqlite3.Row) -> ArchiveRecord:
         transcript=row["transcript"],
         items=row["items"],
         archived_at=datetime.fromisoformat(row["archived_at"]),
+        relaunch=row["relaunch"],
     )
 
 
@@ -28,7 +29,8 @@ class SqliteArchiveRepository:
         with self.db.connect() as conn:
             conn.execute(
                 """INSERT OR REPLACE INTO archived_sessions
-                   (session_id, remote_id, session, transcript, items, archived_at) VALUES (?, ?, ?, ?, ?, ?)""",
+                   (session_id, remote_id, session, transcript, items, archived_at, relaunch)
+                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
                 (
                     record.session_id,
                     record.remote_id,
@@ -36,6 +38,7 @@ class SqliteArchiveRepository:
                     record.transcript,
                     record.items,
                     record.archived_at.isoformat(),
+                    record.relaunch,
                 ),
             )
 

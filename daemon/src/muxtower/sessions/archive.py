@@ -21,7 +21,7 @@ from datetime import UTC, datetime, timedelta
 
 from muxtower.errors import Conflict
 from muxtower.runtimes.models import AgentState
-from muxtower.sessions.models import Capabilities, Conversation, ConversationItem, Session, StateSource
+from muxtower.sessions.models import Capabilities, Conversation, ConversationItem, ResumeBlock, Session, StateSource
 from muxtower.sessions.ports import ArchiveRecord, ArchiveRepository
 from muxtower.sessions.transcripts import Transcripts
 
@@ -30,12 +30,20 @@ logger = logging.getLogger("muxtower.archive")
 READ_ONLY = Capabilities(screen=False, conversation=False, keys=[], resize=False, terminate=True, rename=False)
 
 
-def _view(record: ArchiveRecord) -> Session:
-    """Its last view, at rest: nothing runs, waits or can be typed into any more."""
+# Whether an archived session can be started again, and if not why (`RecoveryService.resumable`).
+Judge = Callable[[ArchiveRecord, Session], ResumeBlock | None]
+
+
+def _view(record: ArchiveRecord, judge: Judge | None = None) -> Session:
+    """Its last view, at rest: nothing runs, waits or can be typed into any more; whether it can be started
+    again (`judge`)."""
     readable = record.transcript is not None or record.items is not None
-    return Session.model_validate_json(record.session).model_copy(
+    view = Session.model_validate_json(record.session)
+    blocked = judge(record, view) if judge else ResumeBlock(code="runtime", reason="it cannot be started again here")
+    return view.model_copy(
         update={
-            "capabilities": READ_ONLY.model_copy(update={"conversation": readable}),
+            "capabilities": READ_ONLY.model_copy(update={"conversation": readable, "resume": blocked is None}),
+            "resume_blocked": blocked,
             "archived_at": record.archived_at,
             "tmux_socket": None,
             "tmux_session": None,
@@ -67,6 +75,7 @@ class SessionArchive:
         self.transcripts = transcripts
         self._lock = threading.Lock()
         self._records = {r.session_id: r for r in repo.list()}
+        self.judge: Judge | None = None  # set by the recovery service, which starts them again
 
     def ended(self) -> set[str]:
         """What live lists leave out: archived sessions, and the Remote Control sessions they were, while a
@@ -96,7 +105,7 @@ class SessionArchive:
         if days > 0:
             since = datetime.now(UTC) - timedelta(days=days)
             records = [r for r in records if r.archived_at >= since]
-        return [_view(r) for r in records]
+        return [_view(r, self.judge) for r in records]
 
     def unplaced(self, source: str) -> list[str]:
         """The archived sessions of `source` that name no parent: archived before forks were told, some
@@ -122,7 +131,11 @@ class SessionArchive:
     def get(self, session_id: str) -> Session | None:
         with self._lock:
             record = self._records.get(session_id)
-        return _view(record) if record else None
+        return _view(record, self.judge) if record else None
+
+    def record(self, session_id: str) -> ArchiveRecord | None:
+        with self._lock:
+            return self._records.get(session_id)
 
     def conversation(self, session_id: str, after: int, limit: int) -> Conversation:
         with self._lock:
@@ -136,8 +149,12 @@ class SessionArchive:
         page = newer[-limit:] if after == 0 else newer[:limit]
         return Conversation(session_id=session_id, items=page, latest_seq=max((i.seq for i in items), default=0))
 
-    def keep(self, session: Session, transcript: str | None, items: list[ConversationItem] | None) -> None:
-        """Keeps an ended session: its view, and its transcript or else its conversation items."""
+    def keep(
+        self, session: Session, transcript: str | None, items: list[ConversationItem] | None,
+        relaunch: str | None = None,
+    ) -> None:  # fmt: skip
+        """Keeps an ended session: its view, and its transcript or else its conversation items; `relaunch`,
+        what starts it again (`recovery/`)."""
         record = ArchiveRecord(
             session_id=session.id,
             remote_id=session.remote_id,
@@ -145,6 +162,7 @@ class SessionArchive:
             transcript=transcript,
             items=None if transcript or items is None else json.dumps([i.model_dump(mode="json") for i in items]),
             archived_at=datetime.now(UTC),
+            relaunch=relaunch,
         )
         self.repo.add(record)
         with self._lock:

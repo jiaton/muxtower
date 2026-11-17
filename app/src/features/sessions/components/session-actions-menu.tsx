@@ -26,13 +26,14 @@ const MENU_LABEL: Record<SessionAction['id'], (session: Session) => string> = {
   archive: () => 'Archive',
   interrupt: () => 'Interrupt (Esc)',
   delete: (s) => (s.interrupted_at ? 'Delete' : 'Delete from the archive'),
-  resume: () => 'Start again',
+  resume: (s) => (s.archived_at ? 'Resume' : 'Start again'),
 }
 
 /** What an action's item says under its label: the session's role, for Team (the label stays short). */
 const DETAIL: Partial<Record<SessionAction['id'], (session: Session) => string>> = {
   team: (s) => s.team_role || 'No role yet',
   archive: () => 'Ends the agent, keeps the history',
+  resume: (s) => (s.archived_at ? 'Starts it again, its conversation where it left off' : ''),
 }
 
 const DANGER: ReadonlySet<SessionAction['id']> = new Set(['delete'])
@@ -42,7 +43,8 @@ function Items({ session, actions }: { session: Session; actions: SessionAction[
     <DropdownMenuItem
       key={a.id}
       icon={a.icon}
-      detail={DETAIL[a.id]?.(session)}
+      detail={a.disabled ?? (DETAIL[a.id]?.(session) || undefined)}
+      disabled={Boolean(a.disabled)}
       tone={a.tone === 'danger' ? 'danger' : undefined}
       shortcut={ACTION_KEYS[a.id]}
       onSelect={a.run}

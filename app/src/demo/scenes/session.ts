@@ -30,6 +30,7 @@ export function demoSession(fields: Pick<Session, 'id' | 'name' | 'cwd'> & Parti
       archive_ends: true,
       place: false,
       images: true,
+      resume: false,
     },
     alt_screen: false,
     in_background: false,

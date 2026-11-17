@@ -18,7 +18,7 @@ from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.endable import where_it_runs
 from muxtower.sessions.launch import agent_may_ask
 from muxtower.sessions.launcher import Launcher
-from muxtower.sessions.models import CreateSession, UpdateSession
+from muxtower.sessions.models import CreateSession, Session, UpdateSession
 from muxtower.teams.service import TeamService
 
 RESUME_ARGS = {"claude-code": ["--resume"], "codex": ["resume"]}  # then the agent's own id for the conversation
@@ -40,8 +40,9 @@ class StartArgs(BaseModel):
     )
     resume: str | None = Field(
         default=None,
-        description="resume this conversation (Claude Code's session id, Codex's thread id) instead of a new "
-        "one; it keeps the role and project it had",
+        description="resume this conversation (Claude Code's session id, Codex's thread id, or an archived "
+        "muxtower session's id: started again on its machine as that session) instead of a new one; it keeps "
+        "the role and project it had",
     )
     role: str | None = Field(default=None, description="its role in its team (free text)")
     project: str | None = Field(
@@ -85,6 +86,8 @@ class SessionTools:
         self.archiver = archiver
         self.may_escalate: Callable[[], bool] = lambda: False  # `launch.agents_may_escalate`, set by the app
         self.audit: AuditLog | None = None  # set by the app: every start is recorded, however it ends
+        # An archived muxtower session started again (`RecoveryService.resume`), set by the app.
+        self.resume_archived: Callable[[str], Session] | None = None
         self.clock: Callable[[], float] = time.monotonic
         self._lock = threading.Lock()
         self._starting: dict[str, threading.Lock] = {}  # one start per key at a time
@@ -154,6 +157,12 @@ class SessionTools:
                 detail = f"machine={where} cwd={args.cwd or '-'} outcome={outcome} took={took:.1f}s"
                 self.audit.record(CALLER.get().actor, "mcp:start_session", session_id, detail)
 
+    def _archived(self, session_id: str) -> bool:
+        try:
+            return self.directory.get(session_id).archived_at is not None
+        except NotFound:
+            return False
+
     def _already(self, session_id: str) -> str | None:
         try:
             s = self.directory.get(session_id)
@@ -166,6 +175,10 @@ class SessionTools:
         )
 
     def _start(self, args: StartArgs) -> tuple[str, str]:
+        if args.resume and self.resume_archived and self._archived(args.resume):
+            started = self.resume_archived(args.resume)  # its own machine, folder and options
+            where = started.node or self.hub
+            return f"Started {started.name} ({started.id}) again on {where} in {started.cwd}, as it was.", started.id
         node = self._node(args.machine)
         agent_args: list[str] = []
         if args.resume:

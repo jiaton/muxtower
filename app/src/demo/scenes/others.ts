@@ -122,6 +122,7 @@ export function releaseNotes(): Scene {
         archive_ends: false, // in the desktop app: archiving only hides it here
         place: false,
         images: false,
+        resume: false,
       },
       origin: 'claude_desktop',
       state_source: 'remote',

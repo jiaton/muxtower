@@ -44,6 +44,13 @@ class AgentProcesses:
                 return found  # type: ignore[no-any-return]
         return None
 
+    def agent_for_remote(self, remote_id: str) -> str | None:
+        """The agent's own id of a Remote Control session, from what its process left (`ClaudeProcesses`)."""
+        for p in self.plugins:
+            if (ask := getattr(p, "agent_for_remote", None)) and (found := ask(remote_id)):
+                return found  # type: ignore[no-any-return]
+        return None
+
     def ended_bridges(self) -> dict[str, str]:
         """Bridges of muxtower's tmux sessions whose agent has ended (`ClaudeProcesses.ended_bridges`)."""
         found: dict[str, str] = {}

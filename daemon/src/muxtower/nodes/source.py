@@ -199,6 +199,18 @@ class NodeSource:
             raise Conflict(f"{session_id} is not interrupted")
         return self.view(node, Session.model_validate(result))
 
+    def online(self, name: str) -> bool:
+        node = self.nodes.all().get(name)
+        return bool(node and node.online)
+
+    def resume_archived(self, name: str, session_id: str, cwd: str | None) -> Session:
+        """Starts again, on node `name`, a session archived there (its id there), its conversation resumed."""
+        try:
+            result = self.call(name, "resume_archived", {"session_id": session_id, "cwd": cwd}, CREATE_SECONDS)
+        except Invalid as exc:
+            raise Conflict(f"{name} cannot do this yet: update muxtower there ({exc})") from exc
+        return self.view(self.nodes.all()[name], Session.model_validate(result))
+
     def update(self, session_id: str, patch: UpdateSession) -> Session:
         node, _ = self._require(session_id)
         result = Session.model_validate(self._call(session_id, "update", {"patch": patch.model_dump(mode="json")}))

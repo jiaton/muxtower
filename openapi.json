@@ -161,6 +161,12 @@
             "title": "Resize",
             "type": "boolean"
           },
+          "resume": {
+            "default": false,
+            "description": "an archived session that can be started again with its conversation (POST /resume); when it cannot, `Session.resume_blocked` says why",
+            "title": "Resume",
+            "type": "boolean"
+          },
           "screen": {
             "description": "a terminal screen can be shown (GET /screen)",
             "title": "Screen",
@@ -1820,6 +1826,52 @@
         "title": "Resize",
         "type": "object"
       },
+      "Resume": {
+        "properties": {
+          "cwd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "another folder to start it in, when its own is gone (`resume_blocked.code` folder)",
+            "title": "Cwd"
+          }
+        },
+        "title": "Resume",
+        "type": "object"
+      },
+      "ResumeBlock": {
+        "description": "Why an archived session cannot be started again (`recovery/service.py`).",
+        "properties": {
+          "code": {
+            "description": "transcript: its conversation is gone; offline: its machine is; folder: its folder is gone (another may be given: POST /resume with cwd); not_ours: muxtower never ran it (Claude's desktop app, Remote Control only); runtime: its agent cannot be resumed here",
+            "enum": [
+              "transcript",
+              "offline",
+              "folder",
+              "not_ours",
+              "runtime"
+            ],
+            "title": "Code",
+            "type": "string"
+          },
+          "reason": {
+            "description": "said to the owner as it is",
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "reason"
+        ],
+        "title": "ResumeBlock",
+        "type": "object"
+      },
       "RuntimeInfo": {
         "properties": {
           "available": {
@@ -2370,6 +2422,17 @@
             ],
             "description": "a few lines condensing last_message, once the hub has made them (long replies)",
             "title": "Reply Summary"
+          },
+          "resume_blocked": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResumeBlock"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "an archived session that cannot be started again: why (`capabilities.resume`)"
           },
           "role": {
             "anyOf": [
@@ -5337,6 +5400,66 @@
         "summary": "Release Size",
         "tags": [
           "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/resume": {
+      "post": {
+        "description": "Starts an archived session again on the machine it ran on, its conversation resumed, under its own id\n(its name, role, project, pins and notifications its own again); it leaves Archived. 409 says why not\n(`Session.resume_blocked`).",
+        "operationId": "resume_v1_sessions__session_id__resume_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/Resume"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resume",
+        "tags": [
+          "recovery"
         ]
       }
     },

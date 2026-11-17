@@ -84,6 +84,22 @@ class Capabilities(BaseModel):
         default=False, description="where it runs can be set by the owner or detected from its log (/placement)"
     )
     images: bool = Field(default=False, description="a message to it may carry images (SendInput.images)")
+    resume: bool = Field(
+        default=False,
+        description="an archived session that can be started again with its conversation (POST /resume); when it "
+        "cannot, `Session.resume_blocked` says why",
+    )
+
+
+class ResumeBlock(BaseModel):
+    """Why an archived session cannot be started again (`recovery/service.py`)."""
+
+    code: Literal["transcript", "offline", "folder", "not_ours", "runtime"] = Field(
+        description="transcript: its conversation is gone; offline: its machine is; folder: its folder is gone "
+        "(another may be given: POST /resume with cwd); not_ours: muxtower never ran it (Claude's desktop app, "
+        "Remote Control only); runtime: its agent cannot be resumed here"
+    )
+    reason: str = Field(description="said to the owner as it is")
 
 
 class GitPlace(BaseModel):
@@ -161,6 +177,9 @@ class Session(BaseModel):
     )
     node: str | None = Field(
         default=None, description="the node (another daemon joined to this one) it is reached through"
+    )
+    resume_blocked: ResumeBlock | None = Field(
+        default=None, description="an archived session that cannot be started again: why (`capabilities.resume`)"
     )
     fork_of: str | None = Field(
         default=None, description="the session it was forked from, as listed here (a side chat's too)"

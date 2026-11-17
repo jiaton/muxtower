@@ -9,7 +9,7 @@ const LEFT = 'Two of the four migrations are in. Next: backfill the new column, 
 /** What an interrupted session can do until it is started again: be deleted. */
 const STOPPED: Session['capabilities'] = {
   screen: false, conversation: false, keys: [], resize: false, terminate: true, rename: false, archive: false, archive_ends: true,
-  place: false, images: false,
+  place: false, images: false, resume: false,
 } // prettier-ignore
 
 /** A session the laptop's restart cut short: it waits, with its role and folder, to be started again. */
@@ -40,15 +40,19 @@ export function migrations(): Scene {
   }
 }
 
-/** Sessions ended and kept to read, under Archived: one from the laptop's desktop app, two from here. */
+const NOT_OURS = "muxtower never ran it: it ran in Claude's app or on Remote Control only, so start it there"
+
+/** Sessions ended and kept to read, under Archived: one from the laptop's desktop app (it cannot be
+ *  resumed from here), two muxtower ran here (they can). */
 export function archived(): Scene[] {
   const done = (id: string, name: string, cwd: string, days: number, node?: string): Scene => ({
     session: demoSession({
       id,
       name,
       cwd,
-      source: 'remote_control',
-      capabilities: { ...STOPPED, conversation: true },
+      source: node ? 'remote_control' : 'launched',
+      capabilities: { ...STOPPED, conversation: true, resume: !node },
+      resume_blocked: node ? { code: 'not_ours', reason: NOT_OURS } : null,
       state: 'idle',
       tmux_pane: null,
       archived_at: ago(days * 24 * 60),

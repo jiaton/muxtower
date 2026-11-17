@@ -258,6 +258,19 @@ class ClaudeProcesses:
         found = next(self.projects_dir.glob(f"*/{agent_id}.jsonl"), None)
         return continued(found, self.projects_dir) if found else None
 
+    def agent_for_remote(self, remote_id: str) -> str | None:
+        """The conversation's own id of a Remote Control session, from a process file that named it (left
+        after its process ended, until Claude Code tidies it away); None when none is left."""
+        for path in self.sessions_dir.glob("*.json"):
+            try:
+                info = json.loads(path.read_text())
+            except (OSError, ValueError):
+                continue
+            agent = info.get("sessionId") if isinstance(info, dict) else None
+            if _remote_id(info) == remote_id and isinstance(agent, str) and re.fullmatch(r"[0-9a-f-]{36}", agent):
+                return agent
+        return None
+
     def ended_bridges(self) -> dict[str, str]:
         """Remote Control sessions of muxtower's own tmux sessions whose Claude Code has ended (its process
         file is left, its process gone or another's): each to the first 8 of that muxtower session's id, as

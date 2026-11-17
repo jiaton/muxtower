@@ -51,6 +51,7 @@ export function docs(): Scene {
         archive_ends: true,
         place: false,
         images: false,
+        resume: false,
       },
       state: 'busy',
       state_source: 'screen',
