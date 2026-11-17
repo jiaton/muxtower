@@ -4,7 +4,8 @@ import { useDaemonsStore } from '@/lib/daemons/store'
 import type { Command } from './commands'
 import { chosenLanguages, startSpotter, type Spotter } from './kws'
 import { enabledPacks } from './packs'
-import { heardSummary, overlapsSpeech, quiet, readAll, sayAgain, stopSpeaking, TAIL_MS, useSpeech } from './speech'
+import { heardSummary, overlapsSpeech, quiet, readAll, stopSpeaking, TAIL_MS, useSpeech } from './speech'
+import { play } from './play'
 import { spokenListeners } from '@/lib/api/streams'
 import { entryKey } from '@/features/sessions/model/facets'
 import { LivePipeline, SHORT_MS, type Ask, type BoxOps, type Cue, type Heard, type Target } from './pipeline'
@@ -110,7 +111,7 @@ const pipeline = new LivePipeline({
   heard,
   speaking: () => useSpeech.getState().speaking || quiet(),
   overlapsSpeech,
-  speech: (command) => (command === 'stop' ? (stopSpeaking(), true) : command === 'repeat' ? sayAgain() : readAll()),
+  speech: (command) => (command === 'stop' ? (stopSpeaking(), true) : command === 'repeat' ? (void play(target), true) : readAll()),
   changed: () =>
     useLive.setState((s) => ({
       pending: pipeline.pending,

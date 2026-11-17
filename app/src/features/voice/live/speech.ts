@@ -53,6 +53,11 @@ interface SpeechState {
   setReadAloud: (on: boolean) => void
   speaking: boolean
   last: Said | null
+  /** Sessions (`entryKey`) with a summary that came while away (page hidden, another session in front):
+   *  not said unasked later; Play shows it is new. */
+  unheard: Record<string, true>
+  /** The session in front and its latest reply (Live's bar says), for Play and Read all. */
+  front: { key: string; reply: string | null } | null
 }
 
 export const useSpeech = create<SpeechState>()(
@@ -65,6 +70,8 @@ export const useSpeech = create<SpeechState>()(
       },
       speaking: false,
       last: null,
+      unheard: {},
+      front: null,
     }),
     { name: 'muxtower.read-aloud', version: 1, merge: mergeWithDefaults, partialize: (s) => ({ readAloud: s.readAloud }) },
   ),
@@ -144,25 +151,37 @@ export function stopSpeaking() {
 /** A spoken summary came (`spoken` stream frame): kept, and said when Read aloud is on and it is about the
  *  session in front. A summary that could not be made says why, then the reply's start. */
 export function heardSummary(said: Said & { error?: string | null }, inFront: string | null) {
-  const { readAloud } = useSpeech.getState()
+  const { readAloud, unheard } = useSpeech.getState()
   useSpeech.setState({ last: { key: said.key, text: said.text, reply: said.reply } })
-  if (!readAloud || said.key !== inFront) return
+  const away = typeof document !== 'undefined' && document.visibilityState === 'hidden'
+  if (!readAloud || said.key !== inFront || away) {
+    // Not said later unasked: Play marks it new.
+    if (said.text) useSpeech.setState({ unheard: { ...unheard, [said.key]: true } })
+    return
+  }
+  heardNow(said.key)
   if (said.text) speak(said.text)
   else if (said.error) speak(`${said.error}。${speakable(said.reply ?? '').slice(0, PIECE)}`)
 }
 
-/** "Say again": the last summary. */
-export function sayAgain(): boolean {
-  const last = useSpeech.getState().last
-  if (!last?.text) return false
-  speak(last.text)
-  return true
+function heardNow(key: string) {
+  const { [key]: _, ...rest } = useSpeech.getState().unheard
+  useSpeech.setState({ unheard: rest })
 }
 
-/** "Read all": the last reply, whole (no code read out). */
+/** Says a summary of the session in front (Play), as `play.ts` found or made it. */
+export function sayFound(key: string, text: string, reply: string) {
+  useSpeech.setState({ last: { key, text, reply } })
+  heardNow(key)
+  speak(text)
+}
+
+/** "Read all": the latest reply of the session in front, whole (no code read out). */
 export function readAll(): boolean {
-  const last = useSpeech.getState().last
-  if (!last?.reply) return false
-  speak(speakable(last.reply))
+  const { front, last } = useSpeech.getState()
+  const reply = front?.reply ?? (last && last.key === front?.key ? last.reply : null)
+  if (!reply) return false
+  if (front) heardNow(front.key)
+  speak(speakable(reply))
   return true
 }

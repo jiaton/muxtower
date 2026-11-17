@@ -3184,6 +3184,36 @@
         "title": "SnippetPart",
         "type": "object"
       },
+      "Spoken": {
+        "description": "A spoken summary kept: of which reply (its hash), when, what was said, and the reply itself.",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "reply": {
+            "title": "Reply",
+            "type": "string"
+          },
+          "reply_hash": {
+            "title": "Reply Hash",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "at",
+          "text",
+          "reply",
+          "reply_hash"
+        ],
+        "title": "Spoken",
+        "type": "object"
+      },
       "SpokenFrame": {
         "description": "A stream frame: what to say of a session's last turn (`text`), its full reply for \"read all\", or why\nnothing can be said (`error`).",
         "properties": {
@@ -6299,6 +6329,106 @@
         "summary": "Get Screen",
         "tags": [
           "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/spoken": {
+      "get": {
+        "description": "The session's last spoken summaries (Live's Read aloud), the latest last: those made while it was\nlistened to, even with the phone away.",
+        "operationId": "spoken_v1_sessions__session_id__spoken_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "last",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "maximum": 5,
+              "minimum": 1,
+              "title": "Last",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Spoken"
+                  },
+                  "title": "Response Spoken V1 Sessions  Session Id  Spoken Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Spoken",
+        "tags": [
+          "listen"
+        ]
+      },
+      "post": {
+        "description": "The spoken summary of the session's latest reply, made now when there is none (Play): one summarizer\ncall, counted against `listen.max_per_day`. 409 says why not.",
+        "operationId": "speak_latest_v1_sessions__session_id__spoken_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Spoken"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Speak Latest",
+        "tags": [
+          "listen"
         ]
       }
     },

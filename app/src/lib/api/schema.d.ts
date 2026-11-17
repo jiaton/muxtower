@@ -956,6 +956,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_id}/spoken": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Spoken
+         * @description The session's last spoken summaries (Live's Read aloud), the latest last: those made while it was
+         *     listened to, even with the phone away.
+         */
+        get: operations["spoken_v1_sessions__session_id__spoken_get"];
+        put?: never;
+        /**
+         * Speak Latest
+         * @description The spoken summary of the session's latest reply, made now when there is none (Play): one summarizer
+         *     call, counted against `listen.max_per_day`. 409 says why not.
+         */
+        post: operations["speak_latest_v1_sessions__session_id__spoken_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_id}/summary": {
         parameters: {
             query?: never;
@@ -2593,6 +2619,23 @@ export interface components {
              * @default false
              */
             match: boolean;
+            /** Text */
+            text: string;
+        };
+        /**
+         * Spoken
+         * @description A spoken summary kept: of which reply (its hash), when, what was said, and the reply itself.
+         */
+        Spoken: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Reply */
+            reply: string;
+            /** Reply Hash */
+            reply_hash: string;
             /** Text */
             text: string;
         };
@@ -4542,6 +4585,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Screen"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    spoken_v1_sessions__session_id__spoken_get: {
+        parameters: {
+            query?: {
+                last?: number;
+            };
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Spoken"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    speak_latest_v1_sessions__session_id__spoken_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Spoken"];
                 };
             };
             /** @description Validation Error */

@@ -120,3 +120,32 @@ def test_the_phone_listens_by_subscribing_and_stops_when_it_goes(make_app: Calla
         ws.receive_json()
         assert app.state.listen._listened["abc"].phones == 1
     assert app.state.listen.listening() == []  # its connection gone: no one listens
+
+
+def test_play_always_has_the_latest_reply_s_summary_kept_or_made_now() -> None:
+    d, s = Directory(), Summarizer()
+    listen = _service(d, s, cap=10)
+    d.turn("first", "reply one")
+    first = listen.latest("s1")  # nobody listened when it ended: made now, on asking
+    assert first is not None and getattr(first, "text", None) == "说法 1"
+    assert listen.latest("s1") is first and len(s.asked) == 1  # kept: not made twice
+    listen.listen("s1")
+    d.turn("second", "reply two")
+    listen.due(100)
+    assert listen.due(101) == ["s1"]
+    listen.speak("s1")  # said while it was listened to (the phone maybe away): kept
+    assert [k.text for k in listen.kept("s1")] == ["说法 1", "说法 2"]
+    assert listen.latest("s1") is listen.kept("s1")[-1] and len(s.asked) == 2
+    for i in range(6):
+        d.turn(f"p{i}", f"r{i}")
+        listen.latest("s1")
+    assert len(listen.kept("s1", 5)) == 5  # the last five
+
+
+def test_play_s_routes(make_app: Callable[..., FastAPI]) -> None:
+    app = make_app()
+    _, token = app.state.tokens.create("phone")
+    auth = {"Authorization": f"Bearer {token}"}
+    client = TestClient(app)
+    assert client.get("/v1/sessions/nope/spoken", headers=auth).json() == []
+    assert client.post("/v1/sessions/nope/spoken", headers=auth).status_code == 404

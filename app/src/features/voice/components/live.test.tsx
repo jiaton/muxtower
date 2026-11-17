@@ -67,11 +67,11 @@ it("what was heard takes the hint's place in the same row, then the hint comes b
   vi.useRealTimers()
 })
 
-it('Read aloud: a toggle beside pause; on, the controls grow and say again, read all and stop show', async () => {
+it('Read aloud: a toggle beside pause; on, the controls grow, Play and Read all whenever there is a reply', async () => {
   const { useSpeech } = await import('../live/speech')
-  useSpeech.setState({ readAloud: false, speaking: false, last: null })
+  useSpeech.setState({ readAloud: false, speaking: false, last: null, unheard: {} })
   useLive.setState({ phase: 'listening', commands: { state: 'ready' } })
-  render(<LiveBar />)
+  const { rerender } = render(<LiveBar daemonId="d" sessionId="s" reply={null} />)
   expect(screen.queryByRole('group', { name: 'Read aloud' })).toBeNull()
   const toggle = screen.getByRole('button', { name: /Read aloud: say each turn/ })
   expect(toggle.className).toMatch(/size-8/)
@@ -79,9 +79,14 @@ it('Read aloud: a toggle beside pause; on, the controls grow and say again, read
   expect(useSpeech.getState().readAloud).toBe(true)
   expect(screen.getByRole('button', { name: /Read aloud: on/ }).className).toMatch(/size-10/) // bigger
   expect(screen.getByRole('button', { name: /Stop writing/ }).className).toMatch(/size-10/)
-  expect(screen.getByRole('button', { name: /Say again/ })).toBeDisabled() // nothing said yet
-  act(() => useSpeech.setState({ last: { key: 'd/s', text: '好了', reply: 'Done' }, speaking: true }))
-  expect(screen.getByRole('button', { name: /Say again/ })).toBeEnabled()
-  expect(screen.getByRole('button', { name: /Stop$/ })).toBeEnabled()
-  act(() => useSpeech.setState({ readAloud: false, last: null, speaking: false }))
+  expect(screen.getByRole('button', { name: /^Play/ })).toBeDisabled() // no reply yet
+  rerender(<LiveBar daemonId="d" sessionId="s" reply="Done." />)
+  expect(screen.getByRole('button', { name: /^Play/ })).toBeEnabled() // a reply: Play can always say it
+  expect(screen.getByRole('button', { name: /Read all/ })).toBeEnabled()
+  expect(screen.getByRole('button', { name: /^Stop$/ })).toBeDisabled() // only while speaking
+  expect(screen.queryByText('new')).toBeNull()
+  act(() => useSpeech.setState({ unheard: { 'd/s': true }, speaking: true }))
+  expect(screen.getByRole('button', { name: /^Play/ })).toHaveTextContent('new') // came while away
+  expect(screen.getByRole('button', { name: /^Stop$/ })).toBeEnabled()
+  act(() => useSpeech.setState({ readAloud: false, last: null, speaking: false, unheard: {} }))
 })

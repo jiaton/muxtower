@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { heardSummary, pieces, readAll, sayAgain, speakable, stopSpeaking, useSpeech } from './speech'
+import { heardSummary, pieces, readAll, sayFound, speakable, stopSpeaking, useSpeech } from './speech'
 
 const said: string[] = []
 beforeEach(() => {
@@ -15,7 +15,7 @@ beforeEach(() => {
       u.onend?.()
     },
   })
-  useSpeech.setState({ readAloud: true, speaking: false, last: null })
+  useSpeech.setState({ readAloud: true, speaking: false, last: null, unheard: {}, front: null })
 })
 afterEach(() => vi.unstubAllGlobals())
 
@@ -33,17 +33,23 @@ it('reads a reply whole without its code or markdown marks', () => {
   )
 })
 
-it('says a summary of the session in front only; keeps it to say again; reads the reply whole on asking', () => {
+it('says a summary of the session in front only; one that came while away is marked new, not said later', () => {
   heardSummary({ key: 'd/other', text: '别的会话做完了', reply: 'r' }, 'd/s1')
-  expect(said).toEqual([]) // not the one in front: kept, not said
+  expect(said).toEqual([]) // not the one in front: not said
+  expect(useSpeech.getState().unheard).toEqual({ 'd/other': true }) // Play shows it new
   heardSummary({ key: 'd/s1', text: '测试修好了，等你确认', reply: 'Fixed it.\n```\ncode\n```' }, 'd/s1')
   expect(said).toEqual(['测试修好了，等你确认'])
-  expect(sayAgain()).toBe(true)
-  expect(readAll()).toBe(true)
-  expect(said.slice(-2)).toEqual(['测试修好了，等你确认', 'Fixed it. 一段代码。'])
-  useSpeech.setState({ readAloud: false })
+  Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
   heardSummary({ key: 'd/s1', text: '又一轮', reply: 'r' }, 'd/s1')
-  expect(said).toHaveLength(3) // Read aloud off: nothing said
+  Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+  expect(said).toHaveLength(1) // the page hidden: not said
+  expect(useSpeech.getState().unheard['d/s1']).toBe(true)
+  sayFound('d/s1', '又一轮', 'r') // played
+  expect(said.at(-1)).toBe('又一轮')
+  expect(useSpeech.getState().unheard['d/s1']).toBeUndefined()
+  useSpeech.setState({ front: { key: 'd/s1', reply: 'Fixed it.\n```\ncode\n```' } })
+  expect(readAll()).toBe(true) // the latest reply of the session in front
+  expect(said.at(-1)).toBe('Fixed it. 一段代码。')
 })
 
 it('a summary that could not be made says why, then the start of the reply', () => {

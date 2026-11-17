@@ -1,0 +1,24 @@
+import { createDaemonClient, unwrap } from '@/lib/api/client'
+import { useDaemonsStore } from '@/lib/daemons/store'
+import { entryKey } from '@/features/sessions/model/facets'
+import { sayFound, speak } from './speech'
+
+/** Play: the summary of the latest reply of the session in front, said now: kept on the hub, or made there
+ *  at once (one summarizer call) when that reply has none yet; the hub answers a kept one without a call. False when there is nothing to say; a reason
+ *  said aloud when it cannot be made. */
+export async function play(target: { daemonId: string; sessionId: string } | null): Promise<boolean> {
+  if (!target) return false
+  const key = entryKey(target.daemonId, target.sessionId)
+  const daemon = useDaemonsStore.getState().daemons.find((d) => d.id === target.daemonId)
+  if (!daemon) return false
+  try {
+    const found = unwrap(
+      await createDaemonClient(daemon).POST('/v1/sessions/{session_id}/spoken', { params: { path: { session_id: target.sessionId } } }),
+    )
+    sayFound(key, found.text, found.reply)
+    return true
+  } catch (error) {
+    speak(error instanceof Error ? error.message : '总结失败')
+    return false
+  }
+}

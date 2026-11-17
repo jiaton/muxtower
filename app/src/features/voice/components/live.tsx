@@ -1,4 +1,4 @@
-import { AudioLines, BookOpenText, Ear, Pause, Play, Repeat2, Square, Volume2, VolumeX, X } from 'lucide-react'
+import { AudioLines, BookOpenText, Ear, Pause, Play, Square, Volume2, VolumeX, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -6,12 +6,13 @@ import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/lib/use-media-query'
 import { pauseLive, resumeLive, sendFromKey, stopLive, toggleLive, useLive } from '../live/engine'
 import { feedbackOf, liveDetails } from '../live/feedback'
-import { readAll, sayAgain, stopSpeaking, useSpeech } from '../live/speech'
+import { readAll, stopSpeaking, useSpeech } from '../live/speech'
+import { play } from '../live/play'
 import type { Command } from '../live/commands'
 import { enabledPacks } from '../live/packs'
 import { composerColumns } from '@/components/ui/bar'
 import { Dot } from '@/components/ui/indicators'
-import { ink, liveRow } from '@/components/ui/intents'
+import { ink, liveRow, look } from '@/components/ui/intents'
 import { keepFocus } from '@/components/ui/gesture'
 
 const NOTE_KEY = 'muxtower.live.phone-note'
@@ -89,13 +90,29 @@ export function LiveButton() {
  *  "resume" is heard, or a tap). After its title, a hint; for a moment after something is heard, what
  *  became of it instead ("✓ sent", "nothing to send"), then the hint again. Loading, downloading and
  *  transcribing take the hint's place. On a phone, once: it needs the page in front and the screen on. */
-export function LiveBar() {
+export function LiveBar({
+  daemonId = '',
+  sessionId = '',
+  reply = null,
+}: {
+  daemonId?: string
+  sessionId?: string
+  /** The session's latest reply: Play and Read all have something to say. */
+  reply?: string | null
+}) {
   const { phase, speaking, pending, then, error, commands, heard } = useLive()
   const readAloud = useSpeech((s) => s.readAloud)
   const setReadAloud = useSpeech((s) => s.setReadAloud)
   const talking = useSpeech((s) => s.speaking)
-  const lastSaid = useSpeech((s) => s.last?.text)
-  const lastReply = useSpeech((s) => s.last?.reply)
+  const key = `${daemonId}/${sessionId}`
+  const isNew = useSpeech((s) => Boolean(s.unheard[key]))
+  // The session in front and its latest reply: what Play and Read all are about.
+  useEffect(() => {
+    useSpeech.setState({ front: { key, reply: reply ?? null } })
+    return () => {
+      useSpeech.setState({ front: null })
+    }
+  }, [key, reply])
   const big = readAloud && phase !== 'starting'
   const [, tick] = useState(0)
   useEffect(() => {
@@ -241,10 +258,17 @@ export function LiveBar() {
       {big ? (
         // Read aloud: what it can do, big enough to hit without looking long.
         <div className="flex gap-2 px-2 pb-1" role="group" aria-label="Read aloud">
-          <Button variant="secondary" size="lg" className="flex-1" disabled={!lastSaid} onClick={sayAgain} onPointerDown={keepFocus}>
-            <Repeat2 /> Say again
+          <Button
+            variant="secondary"
+            size="lg"
+            className="flex-1"
+            disabled={!reply}
+            onClick={() => void play({ daemonId, sessionId })}
+            onPointerDown={keepFocus}
+          >
+            <Play /> Play{isNew ? <span className={look.tag}>new</span> : null}
           </Button>
-          <Button variant="secondary" size="lg" className="flex-1" disabled={!lastReply} onClick={readAll} onPointerDown={keepFocus}>
+          <Button variant="secondary" size="lg" className="flex-1" disabled={!reply} onClick={readAll} onPointerDown={keepFocus}>
             <BookOpenText /> Read all
           </Button>
           <Button variant="secondary" size="lg" className="flex-1" disabled={!talking} onClick={stopSpeaking} onPointerDown={keepFocus}>

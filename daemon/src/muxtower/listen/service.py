@@ -40,6 +40,18 @@ OTHER_SETTLE = 4.0  # a screen read or a controller can flicker
 CHECK_SECONDS = 1.0
 
 
+KEPT = 5  # spoken summaries kept per session (Play, and what came while the phone was away)
+
+
+class Spoken(BaseModel):
+    """A spoken summary kept: of which reply (its hash), when, what was said, and the reply itself."""
+
+    at: datetime
+    text: str
+    reply: str
+    reply_hash: str
+
+
 class SpokenFrame(BaseModel):
     """A stream frame: what to say of a session's last turn (`text`), its full reply for "read all", or why
     nothing can be said (`error`)."""
@@ -74,6 +86,7 @@ class ListenService:
         self.max_per_day = max_per_day
         self._listened: dict[str, _Listened] = {}
         self._day: tuple[str, int] = ("", 0)
+        self._kept: dict[str, deque[Spoken]] = {}
         self._told_cap: str | None = None
 
     # --- who listens --------------------------------------------------------------------------------
@@ -184,7 +197,33 @@ class ListenService:
             return SpokenFrame(session_id=session_id, error="总结失败", reply=reply[-FULL_REPLY_CHARS:])
         logger.info("spoken summary of %s in %.1f s (%d chars in)", session_id, time.monotonic() - started, len(text))
         self._listened.setdefault(session_id, _Listened()).rounds.append((prompt, said))
+        session = self.directory.find(session_id)
+        reply_hash = _hash(session.last_message if session else reply) or ""
+        kept = self._kept.setdefault(session_id, deque(maxlen=KEPT))
+        kept.append(Spoken(at=datetime.now(UTC), text=said, reply=reply[-FULL_REPLY_CHARS:], reply_hash=reply_hash))
         return SpokenFrame(session_id=session_id, text=said, reply=reply[-FULL_REPLY_CHARS:])
+
+    def kept(self, session_id: str, last: int = KEPT) -> list[Spoken]:
+        """The session's last spoken summaries, the latest last."""
+        return list(self._kept.get(session_id, ()))[-max(1, last) :]
+
+    def latest(self, session_id: str) -> Spoken | SpokenFrame | None:
+        """Blocking: the spoken summary of the session's latest reply, made now if there is none yet (one
+        summarizer call, counted against the cap): Play always has something to say. A frame saying why
+        not when it cannot; None without a reply."""
+        session = self.directory.find(session_id)
+        current = _hash(session.last_message) if session else None
+        if current is None:
+            return None
+        kept = self._kept.get(session_id)
+        if kept and kept[-1].reply_hash == current:
+            return kept[-1]
+        entry = self._listened.setdefault(session_id, _Listened())
+        entry.seen = current  # said now: the turn watcher does not say it again
+        frame = self.speak(session_id)
+        if frame is None or frame.error:
+            return frame
+        return self._kept[session_id][-1]
 
     async def run_loop(self, bus: EventBus) -> None:
         """On every change of the sessions (and every second), a summary for each listened turn that ended,

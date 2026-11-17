@@ -14,6 +14,7 @@ from muxtower.diagnostics.routes import router as diagnostics_router
 from muxtower.errors import Conflict, Forbidden, Invalid, NotFound, TooManyRequests, Unauthorized, Unavailable
 from muxtower.hooks.routes import router as hooks_router
 from muxtower.infra.tmux import TmuxError
+from muxtower.listen.routes import router as listen_router
 from muxtower.mcp.routes import router as mcp_router
 from muxtower.nodes.direct import PrivateNetworkAccess
 from muxtower.nodes.routes import router as nodes_router
@@ -57,7 +58,8 @@ def serve(app: FastAPI, settings: Settings, allowed_origins: list[str], daemon_n
 
     routers = (system_router, auth_router, sessions_router, summaries_router, asr_router, mcp_router, stream_router,
                push_router, hooks_router, nodes_router, teams_router, usage_router, recovery_router,
-               settings_router, chips_router, diagnostics_router, playbook_router, search_router)  # fmt: skip
+               settings_router, chips_router, diagnostics_router, playbook_router, search_router,
+               listen_router)  # fmt: skip
     for router in routers:
         app.include_router(router)
 
