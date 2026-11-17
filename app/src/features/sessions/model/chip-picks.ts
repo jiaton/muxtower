@@ -5,8 +5,8 @@
  * Sessions the group held that are no longer known (archived, gone) are not shown, and not kept on save.
  */
 import type { Session } from '@/lib/api/types'
-import { MAX_PROJECTS, MAX_SESSIONS, OTHER, projectIn, projectLabel, type ChipGroup, type ChipMembers } from './chip-groups'
-import { placeOf, statusOf, type SessionEntry } from './facets'
+import { MAX_PROJECTS, MAX_ROLES, MAX_SESSIONS, OTHER, projectIn, projectLabel, type ChipGroup, type ChipMembers } from './chip-groups'
+import { placeOf, roleKeyOf, roleLabels, statusOf, type SessionEntry } from './facets'
 import { workspacesOf } from './workspaces'
 
 export type PickState = 'all' | 'some' | 'none'
@@ -25,6 +25,10 @@ export interface Picks {
   toggleProject: (project: string) => Picks
   toggleSession: (project: string, sessionId: string) => Picks
   shown: (q: string, open: string[]) => ShownProject[]
+  /** The roles known sessions have, by how many hold each (then the ones the group holds that none has now). */
+  roles: { key: string; label: string; count: number }[]
+  hasRole: (key: string) => boolean
+  toggleRole: (key: string) => Picks
   members: () => ChipMembers
   empty: () => boolean
   status: (session: Session) => string
@@ -50,17 +54,55 @@ function projectsOf(entries: SessionEntry[], held: string[]): { order: string[];
   return { order: [...known, ...kept, OTHER], by }
 }
 
+/** Every role key the known sessions have, the most held first, then those `held` that none has now. */
+function rolesOf(entries: SessionEntry[], held: string[]): Picks['roles'] {
+  const sessions = entries.filter((e) => placeOf(e.session) !== 'archived').map((e) => e.session)
+  const labels = roleLabels(sessions)
+  const count = new Map<string, number>()
+  for (const s of sessions) {
+    const key = roleKeyOf(s)
+    if (key) count.set(key, (count.get(key) ?? 0) + 1)
+  }
+  const known = [...count]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .map(([key, n]) => ({ key, label: labels.get(key)!, count: n }))
+  return [...known, ...held.filter((k) => !count.has(k)).map((key) => ({ key, label: key, count: 0 }))]
+}
+
 export function groupPicks(entries: SessionEntry[], group?: ChipGroup): Picks {
   const { order, by } = projectsOf(entries, group?.projects ?? [])
   const known = new Set([...by.values()].flat().map((e) => e.session.id))
-  return picks(order, by, new Set(group?.projects ?? []), new Set((group?.sessions ?? []).filter((id) => known.has(id))))
+  const roles = rolesOf(entries, group?.roles ?? [])
+  return picks(
+    order,
+    by,
+    roles,
+    new Set(group?.projects ?? []),
+    new Set((group?.sessions ?? []).filter((id) => known.has(id))),
+    new Set(group?.roles ?? []),
+  )
 }
 
-function picks(order: string[], by: Map<string, SessionEntry[]>, projects: Set<string>, sessions: Set<string>): Picks {
+function picks(
+  order: string[],
+  by: Map<string, SessionEntry[]>,
+  roleList: Picks['roles'],
+  projects: Set<string>,
+  sessions: Set<string>,
+  roles: Set<string>,
+): Picks {
   const sessionsOf = (project: string) => by.get(project) ?? []
   const idsOf = (project: string) => sessionsOf(project).map((e) => e.session.id)
-  const next = (p: Set<string>, s: Set<string>) => picks(order, by, p, s)
+  const next = (p: Set<string>, s: Set<string>, r = roles) => picks(order, by, roleList, p, s, r)
   const self: Picks = {
+    roles: roleList,
+    hasRole: (key) => roles.has(key),
+    toggleRole: (key) => {
+      const r = new Set(roles)
+      if (r.has(key)) r.delete(key)
+      else if (r.size < MAX_ROLES) r.add(key)
+      return next(projects, sessions, r)
+    },
     sessionsOf,
     state: (project) => (projects.has(project) ? 'all' : idsOf(project).some((id) => sessions.has(id)) ? 'some' : 'none'),
     holds: (project, id) => projects.has(project) || sessions.has(id),
@@ -93,8 +135,8 @@ function picks(order: string[], by: Map<string, SessionEntry[]>, projects: Set<s
         return [{ project, sessions: matching.length ? matching : all, expanded: matching.length > 0 || open.includes(project) }]
       })
     },
-    members: () => ({ projects: order.filter((p) => projects.has(p)), sessions: [...sessions] }),
-    empty: () => !projects.size && !sessions.size,
+    members: () => ({ projects: order.filter((p) => projects.has(p)), sessions: [...sessions], roles: [...roles] }),
+    empty: () => !projects.size && !sessions.size && !roles.size,
     status: (session) => statusOf(session),
   }
   return self

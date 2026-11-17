@@ -23,6 +23,8 @@ import {
   deviceOf,
   isAssistant,
   projectGroupOf,
+  roleKeyOf,
+  roleLabels,
   sourceOf,
   statusOf,
   type Place,
@@ -31,7 +33,7 @@ import {
 
 /** What the list shows; hidden and archived sessions are only in their own view, and counted nowhere else. */
 export const VIEWS = ['all', 'needs', 'unread', 'working', 'hidden', 'archived', 'interrupted'] as const
-export const GROUPINGS = ['status', 'project', 'device', 'agent', 'source', 'account', 'none'] as const
+export const GROUPINGS = ['status', 'project', 'role', 'device', 'agent', 'source', 'account', 'none'] as const
 export type View = (typeof VIEWS)[number]
 export type GroupBy = (typeof GROUPINGS)[number]
 
@@ -73,6 +75,7 @@ export const placeIn = (view: View): Place => (view === 'hidden' || view === 'ar
 export const GROUP_LABEL: Record<GroupBy, string> = {
   status: 'Status',
   project: 'Project',
+  role: 'Role',
   device: 'Device and folder',
   agent: 'Agent',
   source: 'Source',
@@ -151,7 +154,12 @@ export interface Implied {
   account?: boolean
   /** A project's group: its sessions run on several devices, each row says which (a tag). */
   project?: boolean
+  /** A role's group: the same role in several projects, each row says which project (a tag). */
+  role?: boolean
 }
+
+/** The group of sessions with no role, last when grouping by role. */
+export const NO_ROLE = 'No role'
 
 export interface Section {
   key: string
@@ -290,6 +298,21 @@ export function groupEntries(entries: SessionEntry[], by: GroupBy): Group[] {
           places.kind.get(key) === 'folder' ? ('folder' as const) : places.kind.get(key) === 'project' ? ('project' as const) : undefined,
         entries: byPlace.get(key)!,
         implies: { project: true },
+      })),
+    ]
+  }
+
+  if (by === 'role') {
+    const labels = roleLabels(rest.map((e) => e.session))
+    const byRole = bucket(rest, (e) => roleKeyOf(e.session) ?? NO_ROLE)
+    const keys = bySize(byRole, NO_ROLE)
+    return [
+      ...groups,
+      ...keys.map((key) => ({
+        key: `role:${key}`,
+        label: labels.get(key) ?? key,
+        entries: byRole.get(key)!,
+        implies: { role: key !== NO_ROLE },
       })),
     ]
   }

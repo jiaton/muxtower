@@ -39,5 +39,5 @@ it('shows a project holding some of its sessions as mixed, and finds a session b
   expect(screen.queryByText('Fix the lights')).toBeNull()
   fireEvent.click(screen.getByRole('checkbox', { name: /Plan the release/ }))
   fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-  expect(onSave).toHaveBeenCalledWith('Focus', { projects: [], sessions: ['s2', 's1'] })
+  expect(onSave).toHaveBeenCalledWith('Focus', { projects: [], sessions: ['s2', 's1'], roles: [] })
 })

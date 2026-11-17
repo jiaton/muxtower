@@ -70,7 +70,7 @@ const marked =
     world.mark(id, patch(body)) ? empty() : refuse(404, 'no such session')
 
 /** The owner's groups of projects (the second chip row), kept for this visit. */
-type ChipGroup = { id: string; name: string; projects: string[]; sessions: string[] }
+type ChipGroup = { id: string; name: string; projects: string[]; sessions: string[]; roles?: string[] }
 const CHIP_GROUPS = new WeakMap<World, ChipGroup[]>()
 const STARTING_GROUPS: ChipGroup[] = [
   { id: 'product', name: 'Product', projects: ['acme/shop-api', 'acme/web-app'], sessions: [] },

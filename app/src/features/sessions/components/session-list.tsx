@@ -315,6 +315,7 @@ export function SessionList({
             showAccount: context.showAccount && !group.implies.account,
             showAgent: context.showAgent && !group.implies.agent,
             deviceTag: group.implies.project,
+            projectTag: context.projectTag || group.implies.role,
           },
         }
         return (

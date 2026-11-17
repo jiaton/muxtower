@@ -1,14 +1,24 @@
 /** Which sessions the list shows for a query: its view, scope, chip and search text. */
 import { inChip } from './chip-groups'
-import { folderOf, placeOf, statusOf, type SessionEntry } from './facets'
+import { folderOf, placeOf, roleKeyOf, statusOf, type SessionEntry } from './facets'
 import { worktreeOf } from './places'
 import { accountLabel, agentLabel, deviceLabel, folderLabel, placeIn, projectLabel, sourceLabel, type SessionQuery } from './query'
 import { inWorkspace, isWorkspace, workspaceOfLoose, workspacesOf } from './workspaces'
+
+const ROLE_TERM = /(?:^|\s)role:(?:"([^"]+)"|(\S+))/gi
+
+/** Search text split into its `role:` terms (role keys: `role:pm`, `role:"g2 worker"`; several: any of
+ *  them) and the rest, matched as text. */
+export function searchTerms(q: string): { roles: string[]; text: string } {
+  const roles = [...q.matchAll(ROLE_TERM)].map((m) => (m[1] ?? m[2]).trim().toLowerCase()).filter(Boolean)
+  return { roles, text: q.replace(ROLE_TERM, ' ').trim().toLowerCase() }
+}
 
 function matchesText(entry: SessionEntry, q: string): boolean {
   const { session } = entry
   const haystack = [
     session.name,
+    session.team_role,
     folderLabel(entry),
     projectLabel(entry),
     deviceLabel(entry),
@@ -22,7 +32,7 @@ function matchesText(entry: SessionEntry, q: string): boolean {
 }
 
 export function filterEntries(entries: SessionEntry[], query: SessionQuery): SessionEntry[] {
-  const q = query.q?.trim().toLowerCase()
+  const { roles, text: q } = searchTerms(query.q ?? '')
   const workspaces = query.chip || query.folder ? workspacesOf(entries) : new Set<string>()
   return entries.filter((entry) => {
     const status = statusOf(entry.session)
@@ -35,6 +45,7 @@ export function filterEntries(entries: SessionEntry[], query: SessionQuery): Ses
     if (query.account && accountLabel(entry) !== query.account) return false
     if (query.project && projectLabel(entry) !== query.project) return false
     if (query.chip && !inChip(entry, query.chip, workspaces)) return false
+    if (roles.length && !roles.includes(roleKeyOf(entry.session) ?? '')) return false
     return !q || matchesText(entry, q)
   })
 }

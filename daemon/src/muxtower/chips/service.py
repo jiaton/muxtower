@@ -2,7 +2,8 @@
 holds whole (project names as the app reads them from its sessions, or OTHER, sessions to come included)
 and single sessions besides (their ids, a fixed list), in the owner's order. Kept on
 the hub, the same on every device; a node asks its hub (`HubClient.ask`). A project no session has any
-more stays in its groups."""
+more stays in its groups. A group may also hold roles (role keys, as the app reads them from a session's role:
+its leading name, "PM"), each matched in every project."""
 
 import json
 
@@ -15,6 +16,8 @@ MAX_PROJECTS = 40  # in one group
 MAX_NAME = 40  # characters of a group's name
 MAX_SESSIONS = 100  # single sessions in one group
 MAX_PROJECT_NAME = 200
+MAX_ROLES = 20  # role keys in one group
+MAX_ROLE = 80  # characters of a role key
 OTHER = ":other"  # the sessions of no project: home, /, a temp folder, or no folder at all (the app's rule)
 
 
@@ -28,6 +31,10 @@ class ChipGroup(BaseModel):
     sessions: list[str] = Field(
         default_factory=list, max_length=MAX_SESSIONS,
         description="single sessions it holds besides whole projects: their ids as the hub lists them",
+    )  # fmt: skip
+    roles: list[str] = Field(
+        default_factory=list, max_length=MAX_ROLES,
+        description="role keys it holds in every project: a role's leading name, compared without case (\"pm\")",
     )  # fmt: skip
 
     @field_validator("name")
@@ -51,6 +58,13 @@ class ChipGroup(BaseModel):
             raise ValueError("a session id is 1 to 200 characters")
         return list(dict.fromkeys(sessions))
 
+    @field_validator("roles")
+    @classmethod
+    def roles_named(cls, roles: list[str]) -> list[str]:
+        if any(not r.strip() or len(r) > MAX_ROLE for r in roles):
+            raise ValueError(f"a role is 1 to {MAX_ROLE} characters")
+        return list(dict.fromkeys(r.strip().lower() for r in roles))
+
 
 class ChipGroups(BaseModel):
     groups: list[ChipGroup] = Field(max_length=MAX_GROUPS, description="in the order the chips show them")
@@ -69,11 +83,17 @@ class ChipGroupStore:
 
     def load(self) -> ChipGroups:
         with self.db.connect() as conn:
-            rows = conn.execute("SELECT id, name, projects, sessions FROM chip_groups ORDER BY position").fetchall()
+            rows = conn.execute(
+                "SELECT id, name, projects, sessions, roles FROM chip_groups ORDER BY position"
+            ).fetchall()
         return ChipGroups(
             groups=[
                 ChipGroup(
-                    id=r["id"], name=r["name"], projects=json.loads(r["projects"]), sessions=json.loads(r["sessions"])
+                    id=r["id"],
+                    name=r["name"],
+                    projects=json.loads(r["projects"]),
+                    sessions=json.loads(r["sessions"]),
+                    roles=json.loads(r["roles"]),
                 )
                 for r in rows
             ]
@@ -83,9 +103,9 @@ class ChipGroupStore:
         with self.db.connect() as conn:
             conn.execute("DELETE FROM chip_groups")
             conn.executemany(
-                "INSERT INTO chip_groups (position, id, name, projects, sessions) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO chip_groups (position, id, name, projects, sessions, roles) VALUES (?, ?, ?, ?, ?, ?)",
                 [
-                    (i, g.id, g.name, json.dumps(g.projects), json.dumps(g.sessions))
+                    (i, g.id, g.name, json.dumps(g.projects), json.dumps(g.sessions), json.dumps(g.roles))
                     for i, g in enumerate(groups.groups)
                 ],
             )

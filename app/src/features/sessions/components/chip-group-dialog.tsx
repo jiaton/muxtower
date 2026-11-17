@@ -1,3 +1,4 @@
+import { chip } from '@/components/ui/chip'
 import { Search } from 'lucide-react'
 import { useState } from 'react'
 import { Banner } from '@/components/ui/banner'
@@ -15,7 +16,8 @@ import { ink, look } from '@/components/ui/intents'
 
 const TONE: Record<string, 'warn' | 'error' | 'ok'> = { needs: 'warn', error: 'error', working: 'ok' }
 
-/** A group of projects, new (`group` undefined) or to edit: a name, then each project, ticked whole (its
+/** A group of projects, new (`group` undefined) or to edit: a name, the roles it holds in every project
+ *  (every project's PM), then each project, ticked whole (its
  *  sessions to come too) or opened to tick single sessions of it (a fixed list). The search finds a
  *  session by its name and opens its project: where a session falls is what the owner may not know. */
 export function ChipGroupDialog({
@@ -57,6 +59,25 @@ export function ChipGroupDialog({
             placeholder="Name"
             autoFocus={!group}
           />
+          {picks.roles.length ? (
+            <div role="group" aria-label="Roles, in every project" className="flex flex-col gap-1">
+              <p className={ink.meta}>Roles, in every project</p>
+              <div className="flex flex-wrap gap-1.5">
+                {picks.roles.map((r) => (
+                  <Button
+                    key={r.key}
+                    variant="plain"
+                    aria-pressed={picks.hasRole(r.key)}
+                    onClick={() => setPicks(picks.toggleRole(r.key))}
+                    className={chip({ kind: 'choice' })}
+                  >
+                    <span className="max-w-40 truncate">{r.label}</span>
+                    <span className={ink.count}>{r.count}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ) : null}
           <Input
             icon={<Search />}
             value={q}

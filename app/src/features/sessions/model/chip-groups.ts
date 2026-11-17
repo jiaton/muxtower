@@ -6,7 +6,7 @@
  * folder, a workspace (a folder holding repositories, `workspaces.ts`) or no folder at all, is in Other.
  */
 import type { Session } from '@/lib/api/types'
-import { folderName, folderOf, placeOf, type SessionEntry } from './facets'
+import { folderName, folderOf, placeOf, roleKeyOf, type SessionEntry } from './facets'
 import { inWorkspace, workspacesOf } from './workspaces'
 
 /** The pseudo project of sessions that have none (as the hub keeps it in a group). */
@@ -19,11 +19,14 @@ export const MAX_GROUPS = 20
 export const MAX_PROJECTS = 40
 export const MAX_NAME = 40
 export const MAX_SESSIONS = 100
+export const MAX_ROLES = 20
 
 /** Projects held whole (sessions to come included), and single sessions besides (a fixed list). */
 export interface ChipMembers {
   projects: string[]
   sessions: string[]
+  /** Role keys (`roleKeyOf`: "pm"), each held in every project: a chip of every project's PM. */
+  roles?: string[]
 }
 
 export interface ChipGroup extends ChipMembers {
@@ -81,7 +84,8 @@ export function projectsByActivity(entries: SessionEntry[]): string[] {
 /** What the row shows: the groups in their order, else one chip per recent project; null when it would
  *  show a single project and no groups (no row, no height taken). */
 export function projectChips(groups: ChipGroup[], entries: SessionEntry[]): ProjectChip[] | null {
-  if (groups.length) return groups.map((g) => ({ id: g.id, label: g.name, projects: g.projects, sessions: g.sessions ?? [] }))
+  if (groups.length)
+    return groups.map((g) => ({ id: g.id, label: g.name, projects: g.projects, sessions: g.sessions ?? [], roles: g.roles ?? [] }))
   const projects = projectsByActivity(entries)
   if (projects.length <= 1) return null
   return projects.slice(0, AUTO_CHIPS).map((p) => ({ id: `p:${p}`, label: projectLabel(p), projects: [p], sessions: [] }))
@@ -93,9 +97,15 @@ export function chipMembers(id: string | undefined, groups: ChipGroup[]): ChipMe
   if (!id) return null
   if (id.startsWith('p:')) return { projects: [id.slice(2)], sessions: [] }
   const group = groups.find((g) => g.id === id)
-  return group ? { projects: group.projects, sessions: group.sessions ?? [] } : null
+  return group ? { projects: group.projects, sessions: group.sessions ?? [], roles: group.roles ?? [] } : null
 }
 
-/** Whether a chip holds a session: its project whole, or the session itself. */
-export const inChip = (entry: SessionEntry, chip: ChipMembers, workspaces: Set<string>) =>
-  chip.projects.includes(projectIn(entry, workspaces)) || chip.sessions.includes(entry.session.id)
+/** Whether a chip holds a session: its project whole, its role (in any project), or the session itself. */
+export function inChip(entry: SessionEntry, chip: ChipMembers, workspaces: Set<string>): boolean {
+  if (chip.projects.includes(projectIn(entry, workspaces)) || chip.sessions.includes(entry.session.id)) return true
+  const role = chip.roles?.length ? roleKeyOf(entry.session) : null
+  return role !== null && chip.roles!.includes(role)
+}
+
+/** Whether a chip picks sessions by role: its rows then say which project each is in. */
+export const byRole = (chip: ChipMembers | null | undefined) => Boolean(chip?.roles?.length)

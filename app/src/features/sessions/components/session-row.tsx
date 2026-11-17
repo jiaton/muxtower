@@ -3,7 +3,17 @@ import { GitCompareArrows } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { ago } from '@/lib/time'
-import { NO_ENVIRONMENT, agentOf, deviceOf, folderName, folderOf, isAssistant, sourceOf, type SessionEntry } from '../model/facets'
+import {
+  NO_ENVIRONMENT,
+  agentOf,
+  deviceOf,
+  folderName,
+  folderOf,
+  isAssistant,
+  placeGroupOf,
+  sourceOf,
+  type SessionEntry,
+} from '../model/facets'
 import { alsoWritingText } from '../model/writes'
 import { AgentMark } from './agent-mark'
 import { NOTIFY_LEVELS } from './notify-items'
@@ -26,6 +36,8 @@ export interface RowContext {
   nested?: boolean
   /** In a group of sessions on several devices (a project's): the device as a tag by the name. */
   deviceTag?: boolean
+  /** Sessions picked by role (every project's PM): each row says which project, as a tag. */
+  projectTag?: boolean
 }
 
 /** One line of Markdown as plain text: no emphasis marks, code ticks or heading hashes. */
@@ -88,6 +100,9 @@ export function SessionRow({
             <span className={cn('min-w-0 flex-1 truncate', session.unread || session.needs_attention ? ink.emphasis : ink.strong)}>
               {session.name}
             </span>
+            {context.projectTag ? (
+              <span className={`${look.tag} max-w-40 shrink-0 self-center truncate`}>{placeGroupOf(session).name}</span>
+            ) : null}
             {context.deviceTag ? <span className={`${look.tag} shrink-0 self-center`}>{deviceOf(session) ?? NO_ENVIRONMENT}</span> : null}
             {writing ? (
               <span title={writing} className="shrink-0 self-center">

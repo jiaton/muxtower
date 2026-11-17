@@ -30,7 +30,8 @@ import { foldForks } from '@/features/sessions/model/forks'
 import { foldSideChats } from '@/features/sessions/model/side-chats'
 import { parseListSearch, toQuery } from '@/features/sessions/model/search'
 import { useChipGroups } from '@/features/sessions/api/use-chip-groups'
-import { chipMembers } from '@/features/sessions/model/chip-groups'
+import { byRole, chipMembers } from '@/features/sessions/model/chip-groups'
+import { searchTerms } from '@/features/sessions/model/filter'
 import { ProjectChips } from '@/features/sessions/components/project-chips'
 import { useListMemory, useListPrefs, useSessionDrawer } from '@/features/sessions/store'
 import { cn } from '@/lib/cn'
@@ -172,6 +173,7 @@ function SessionsLayout() {
                   showDaemon: daemons.filter((d) => !d.daemon.via).length > 1, // a hub's node reached directly is no daemon of its own
                   showAccount: facets.accounts.length > 0 && !query.account,
                   showAgent: agentsDiffer([...visible, ...kept].map((e) => e.session)),
+                  projectTag: byRole(query.chip) || searchTerms(query.q ?? '').roles.length > 0,
                 }}
                 extra={({ daemon, session }) =>
                   session.needs_attention && session.pending ? (

@@ -223,6 +223,15 @@
             "title": "Projects",
             "type": "array"
           },
+          "roles": {
+            "description": "role keys it holds in every project: a role's leading name, compared without case (\"pm\")",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 20,
+            "title": "Roles",
+            "type": "array"
+          },
           "sessions": {
             "description": "single sessions it holds besides whole projects: their ids as the hub lists them",
             "items": {

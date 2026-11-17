@@ -25,8 +25,8 @@ def test_what_is_put_is_read_back_in_its_order(make_app: Callable[..., FastAPI])
     put = client.put("/v1/chip-groups", json={"groups": groups}, headers=auth)
     assert put.status_code == 200
     expected = [
-        {"id": "g2", "name": "Focus", "projects": ["muxtower", "ha"], "sessions": ["mac~ab12", "ab34"]},  # each once
-        {"id": "g1", "name": "Rest", "projects": [OTHER], "sessions": []},
+        {"id": "g2", "name": "Focus", "projects": ["muxtower", "ha"], "sessions": ["mac~ab12", "ab34"], "roles": []},
+        {"id": "g1", "name": "Rest", "projects": [OTHER], "sessions": [], "roles": []},
     ]
     assert put.json()["groups"] == expected and client.get("/v1/chip-groups", headers=auth).json()["groups"] == expected
     assert client.put("/v1/chip-groups", json={"groups": []}, headers=auth).json() == {"groups": []}  # replaced
@@ -66,3 +66,13 @@ async def test_the_hub_answers_a_nodes_chip_groups(make_app: Callable[..., FastA
         await asked.answer(app.state.mcp, "mac", {"id": 2, "method": "chip_groups", "params": {}}, store)
     )
     assert reply["result"]["groups"][0]["id"] == "f"
+
+
+def test_a_group_holds_roles_by_key(make_app: Callable[..., FastAPI]) -> None:
+    client, auth = _client(make_app())
+    groups = [{"id": "pms", "name": "PMs", "projects": [], "roles": [" PM ", "pm", "Research"]}]
+    put = client.put("/v1/chip-groups", json={"groups": groups}, headers=auth)
+    assert put.json()["groups"][0]["roles"] == ["pm", "research"]  # keys: trimmed, without case, each once
+    assert client.get("/v1/chip-groups", headers=auth).json()["groups"][0]["roles"] == ["pm", "research"]
+    bad = [{"id": "x", "name": "x", "projects": [], "roles": [" "]}]
+    assert client.put("/v1/chip-groups", json={"groups": bad}, headers=auth).status_code == 422

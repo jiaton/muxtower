@@ -54,7 +54,7 @@ describe('the second row', () => {
     expect(projectChips([rest, focus], entries)?.map((c) => c.label)).toEqual(['Rest', 'Focus'])
     expect(projectChips([], entries)?.map((c) => c.id)).toEqual(['p:ha', 'p:web', 'p:muxtower', `p:${OTHER}`])
     expect(projectChips([], entries.slice(0, 1))).toBeNull()
-    expect(chipMembers('focus', [focus])).toEqual({ projects: ['muxtower', 'ha'], sessions: [] })
+    expect(chipMembers('focus', [focus])).toEqual({ projects: ['muxtower', 'ha'], sessions: [], roles: [] })
     expect(chipMembers('p:web', [])).toEqual({ projects: ['web'], sessions: [] })
     expect(chipMembers('deleted', [focus])).toBeNull() // a group since deleted narrows nothing
   })

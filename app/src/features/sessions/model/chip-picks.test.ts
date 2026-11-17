@@ -33,20 +33,20 @@ describe('ticking projects and sessions', () => {
 
   it('a project ticked holds it whole; unticked, none of it', () => {
     let picks = groupPicks(entries).toggleSession('muxtower', 'm1').toggleProject('muxtower')
-    expect(picks.members()).toEqual({ projects: ['muxtower'], sessions: [] })
+    expect(picks.members()).toEqual({ projects: ['muxtower'], sessions: [], roles: [] })
     picks = picks.toggleProject('muxtower')
-    expect(picks.members()).toEqual({ projects: [], sessions: [] })
+    expect(picks.members()).toEqual({ projects: [], sessions: [], roles: [] })
   })
 
   it('every session ticked one by one stays a fixed list, never the project', () => {
     const picks = groupPicks(entries).toggleSession('muxtower', 'm1').toggleSession('muxtower', 'm2')
-    expect(picks.members()).toEqual({ projects: [], sessions: ['m1', 'm2'] })
+    expect(picks.members()).toEqual({ projects: [], sessions: ['m1', 'm2'], roles: [] })
     expect(picks.state('muxtower')).toBe('some')
   })
 
   it('a session let go of a whole project keeps the others, one by one', () => {
     const picks = groupPicks(entries, { id: 'g', name: 'G', projects: ['muxtower'], sessions: [] }).toggleSession('muxtower', 'm2')
-    expect(picks.members()).toEqual({ projects: [], sessions: ['m1'] })
+    expect(picks.members()).toEqual({ projects: [], sessions: ['m1'], roles: [] })
   })
 
   it('sessions no longer known are dropped on save', () => {

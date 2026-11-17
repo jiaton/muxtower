@@ -1093,6 +1093,11 @@ export interface components {
              */
             projects: string[];
             /**
+             * Roles
+             * @description role keys it holds in every project: a role's leading name, compared without case ("pm")
+             */
+            roles?: string[];
+            /**
              * Sessions
              * @description single sessions it holds besides whole projects: their ids as the hub lists them
              */

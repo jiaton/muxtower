@@ -115,6 +115,44 @@ export function placeGroupOf(session: Session): { kind: 'project' | 'folder' | '
   return { kind: 'folder', name: folder }
 }
 
+// --- role -------------------------------------------------------------------------------------
+
+/** Where a role's name ends and what it is for begins: a dash with spaces round it ("PM — 只读…",
+ *  "worker - …"), a colon ("g2 worker: glasses"), an opening bracket ("PM（只读）"). A dash inside a
+ *  word ("g2-worker") is part of the name. */
+const ROLE_END = /\s*[—–]\s*|\s+-\s+|\s*[:：（(]/
+
+/** The leading name of a role as written ("PM — 只读：…" → "PM"); null for no role. */
+export function roleNameOf(session: Session): string | null {
+  const name = session.team_role?.split(ROLE_END)[0]?.trim()
+  return name || null
+}
+
+/** A role as it is filtered and grouped by: its leading name without case ("pm"), the same for every
+ *  project's PM; null for no role. */
+export const roleKeyOf = (session: Session): string | null => roleNameOf(session)?.toLowerCase() ?? null
+
+const capitals = (text: string) => [...text].filter((c) => c !== c.toLowerCase()).length
+
+/** How each role key is shown: as its sessions write it most; a tie to the more capitalised ("PM" over "pm"). */
+export function roleLabels(sessions: Session[]): Map<string, string> {
+  const counts = new Map<string, Map<string, number>>()
+  for (const session of sessions) {
+    const name = roleNameOf(session)
+    if (!name) continue
+    const key = name.toLowerCase()
+    const ways = counts.get(key) ?? new Map<string, number>()
+    ways.set(name, (ways.get(name) ?? 0) + 1)
+    counts.set(key, ways)
+  }
+  return new Map(
+    [...counts].map(([key, ways]) => [
+      key,
+      [...ways].reduce((a, b) => (b[1] > a[1] || (b[1] === a[1] && capitals(b[0]) > capitals(a[0])) ? b : a))[0],
+    ]),
+  )
+}
+
 // --- source -------------------------------------------------------------------------------------
 
 export const SOURCES = ['muxtower', 'tmux', 'Headless', 'CLI', 'Desktop app', 'IDE', 'Mobile app', 'Web', 'SDK'] as const
