@@ -4,7 +4,7 @@ import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/lib/use-media-query'
-import { pauseLive, resumeLive, sendFromKey, stopLive, toggleLive, useLive } from '../live/engine'
+import { cancelArmedSend, pauseLive, resumeLive, sendFromKey, stopLive, toggleLive, useLive } from '../live/engine'
 import { feedbackOf, liveDetails } from '../live/feedback'
 import { readAll, stopSpeaking, useSpeech } from '../live/speech'
 import { play } from '../live/play'
@@ -52,6 +52,11 @@ export function LiveButton() {
     }
     // Before the message box's own keys (capture): with Live on, ⌘↵ there waits for speech still landing.
     const onSend = (e: KeyboardEvent) => {
+      // Esc lets a ⌘↵ that waits for the speech go (nothing sent), unless a dialog takes Esc.
+      if (e.key === 'Escape' && !document.querySelector('[role="dialog"], [role="alertdialog"]') && cancelArmedSend()) {
+        e.preventDefault()
+        return
+      }
       if (!sendKey(e)) return
       e.preventDefault()
       e.stopPropagation()
@@ -187,7 +192,7 @@ export function LiveBar({
     : phase === 'starting'
       ? 'Starting Live…'
       : speaking
-        ? 'Live · hearing you…'
+        ? `Live · hearing you…${then === 'send' ? ' then sending' : ''}`
         : pending
           ? `Live · writing…${pending > 1 ? ` (${pending})` : ''}${then === 'send' ? ' then sending' : ''}`
           : 'Live · speak to write'

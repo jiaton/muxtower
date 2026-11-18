@@ -90,3 +90,9 @@ it('Read aloud: a toggle beside pause; on, the controls grow, Play and Read all 
   expect(screen.getByRole('button', { name: /^Stop$/ })).toBeEnabled()
   act(() => useSpeech.setState({ readAloud: false, last: null, speaking: false, unheard: {} }))
 })
+
+it('⌘↵ pressed while still speaking: the bar says it sends once that is written', () => {
+  useLive.setState({ phase: 'listening', speaking: true, then: 'send', commands: { state: 'ready' } })
+  render(<LiveBar />)
+  expect(screen.getByText('Live · hearing you… then sending')).toBeInTheDocument()
+})

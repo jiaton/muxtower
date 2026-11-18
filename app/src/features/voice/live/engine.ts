@@ -115,6 +115,7 @@ const pipeline = new LivePipeline({
   cue: (cue) => playCue(cue),
   spot: (pcm) => (spotter ? spotter.spot(pcm) : Promise.resolve(undefined)), // undefined: not loaded
   heard,
+  hearing: () => useLive.getState().speaking,
   speaking: () => useSpeech.getState().speaking || quiet(),
   overlapsSpeech,
   speech: (command) => (command === 'stop' ? (stopSpeaking(), true) : command === 'repeat' ? (void play(target), true) : readAll()),
@@ -197,35 +198,43 @@ export async function toggleLive() {
         utterance.end()
         useLive.setState({ speaking: false })
         heard({ kind: 'ignored', why: 'too short' })
+        pipeline.heardEnd() // a ⌘↵ waiting for it: nothing more to write, it sends now
       },
       onSpeechEnd: (audio: Float32Array) => {
         useLive.setState({ speaking: false })
-        // The segment holds the lead-in and the second of silence that ended it: its speech is what is between
-        // (how long it was said decides whether it may be a command), and most of that silence is not sent.
-        // A command already taken from its start (`claim`): only what was said after it is left, if anything.
-        const taken = utterance.end()
-        if (taken === null) return
-        const heardTo = Date.now()
-        if (overlapsSpeech(heardFrom, heardTo)) {
-          // Begun or ended while Read aloud spoke, or in its tail: its own voice. Dropped, never uploaded.
-          heard({ kind: 'ignored', why: 'speaking' })
-          return count('dropped')
-        }
-        const whole = audio.subarray(0, Math.max(0, audio.length - ((PAUSE_MS - TAIL_KEPT_MS) * RATE) / 1000))
-        const said = taken ? whole.subarray(Math.min(whole.length, (LEAD_MS * RATE) / 1000 + taken)) : whole
-        if (taken && said.length < (MIN_SPEECH_MS * RATE) / 1000) return
-        if (rms(said) < MIN_LEVEL) {
-          heard({ kind: 'ignored', why: 'too quiet' })
-          return count('dropped')
-        }
-        const speechMs = (n: number) => Math.max(0, (n / RATE) * 1000 - LEAD_MS - TAIL_KEPT_MS)
-        if (seen(said)) return // the same speech handed over again: it is written once
-        for (const part of parts(said)) {
-          const ms = speechMs(part.length)
-          void pipeline.segment({ target: started, audio: wav(part), ms, pcm: ms <= SHORT_MS ? part : undefined, heardFrom, heardTo })
+        try {
+          heardSpeech(audio)
+        } finally {
+          pipeline.heardEnd() // a ⌘↵ waiting for this speech: sent once what it said has landed
         }
       },
     })
+    function heardSpeech(audio: Float32Array) {
+      // The segment holds the lead-in and the second of silence that ended it: its speech is what is between
+      // (how long it was said decides whether it may be a command), and most of that silence is not sent.
+      // A command already taken from its start (`claim`): only what was said after it is left, if anything.
+      const taken = utterance.end()
+      if (taken === null) return
+      const heardTo = Date.now()
+      if (overlapsSpeech(heardFrom, heardTo)) {
+        // Begun or ended while Read aloud spoke, or in its tail: its own voice. Dropped, never uploaded.
+        heard({ kind: 'ignored', why: 'speaking' })
+        return count('dropped')
+      }
+      const whole = audio.subarray(0, Math.max(0, audio.length - ((PAUSE_MS - TAIL_KEPT_MS) * RATE) / 1000))
+      const said = taken ? whole.subarray(Math.min(whole.length, (LEAD_MS * RATE) / 1000 + taken)) : whole
+      if (taken && said.length < (MIN_SPEECH_MS * RATE) / 1000) return
+      if (rms(said) < MIN_LEVEL) {
+        heard({ kind: 'ignored', why: 'too quiet' })
+        return count('dropped')
+      }
+      const speechMs = (n: number) => Math.max(0, (n / RATE) * 1000 - LEAD_MS - TAIL_KEPT_MS)
+      if (seen(said)) return // the same speech handed over again: it is written once
+      for (const part of parts(said)) {
+        const ms = speechMs(part.length)
+        void pipeline.segment({ target: started, audio: wav(part), ms, pcm: ms <= SHORT_MS ? part : undefined, heardFrom, heardTo })
+      }
+    }
     if (run !== runs) {
       await made.destroy().catch(() => undefined) // never two listening at once, each writing what it hears
       return
@@ -243,6 +252,7 @@ export async function toggleLive() {
 
 export async function stopLive() {
   runs += 1
+  pipeline.disarm() // a ⌘↵ waiting for speech goes with Live
   stopSpeaking() // Read aloud goes with Live
   const was = vad
   vad = null
@@ -387,6 +397,11 @@ export function sendFromKey(): boolean {
 
 export function resumeLive() {
   pipeline.resume()
+}
+
+/** Esc while a ⌘↵ waits for the speech being heard: it is let go (nothing sent). False when none waits. */
+export function cancelArmedSend(): boolean {
+  return pipeline.disarm()
 }
 
 export function pauseLive() {

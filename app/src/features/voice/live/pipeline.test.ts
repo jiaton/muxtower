@@ -348,3 +348,108 @@ describe('while Read aloud speaks, and just after', () => {
     expect(asked).toEqual(['repeat'])
   })
 })
+
+describe('⌘↵ while still speaking', () => {
+  function armedSetup() {
+    const t = setup()
+    let hearing = false
+    const boxes: Record<string, string[]> = {}
+    const sent: string[] = []
+    const live = new LivePipeline({
+      transcribe: t.transcribe,
+      ops: () => ({
+        append: (x, text) => (boxes[x.sessionId] = [...(boxes[x.sessionId] ?? []), text]),
+        clear: () => {},
+        undo: () => false,
+        send: (x) => {
+          sent.push((boxes[x.sessionId] ?? []).join(' '))
+          boxes[x.sessionId] = []
+          return 'sent'
+        },
+      }),
+      cue: () => {},
+      hearing: () => hearing,
+    })
+    return { live, t, sent, boxes, hear: (on: boolean) => (hearing = on) }
+  }
+
+  it('waits for the speech being heard to end and land, then sends once, its words included', async () => {
+    const { live, t, sent, hear } = armedSetup()
+    hear(true)
+    void live.keyed('send', A) // pressed mid-sentence
+    void live.keyed('send', A) // and again: no second send
+    expect(live.then).toBe('send') // "hearing you… then sending"
+    expect(sent).toEqual([])
+    hear(false)
+    void live.segment({ target: A, audio: new Blob(['4000']), ms: 4000 }) // the speech ends: handed on
+    live.heardEnd()
+    await t.flush()
+    expect(sent).toEqual([]) // its words not landed yet
+    t.uploads[0]!.resolve('fix the login test')
+    await t.flush()
+    await t.flush()
+    expect(sent).toEqual(['fix the login test'])
+    expect(live.then).toBeNull()
+  })
+
+  it('with nothing being heard, it sends at once', async () => {
+    const { live, sent, boxes } = armedSetup()
+    boxes.a = ['typed already']
+    await live.keyed('send', A)
+    expect(sent).toEqual(['typed already'])
+  })
+
+  it('a speech dropped (too short, not speech) still sends what is there', async () => {
+    const { live, t, sent, boxes, hear } = armedSetup()
+    boxes.a = ['typed already']
+    hear(true)
+    void live.keyed('send', A)
+    hear(false)
+    live.heardEnd() // the VAD let it go: no segment
+    await t.flush()
+    expect(sent).toEqual(['typed already'])
+  })
+
+  it('Esc (or pause) lets it go: nothing sent', async () => {
+    const { live, t, sent, hear } = armedSetup()
+    hear(true)
+    void live.keyed('send', A)
+    expect(live.disarm()).toBe(true)
+    expect(live.then).toBeNull()
+    hear(false)
+    live.heardEnd()
+    await t.flush()
+    expect(sent).toEqual([])
+    hear(true)
+    void live.keyed('send', A)
+    live.pause()
+    live.heardEnd()
+    await t.flush()
+    expect(sent).toEqual([])
+  })
+
+  it('a transcription that fails still sends what is there; a spoken "send" meanwhile is the same send', async () => {
+    const { live, t, sent, boxes, hear } = armedSetup()
+    boxes.a = ['typed']
+    t.transcribe.mockImplementationOnce(() => Promise.reject(new Error('speech to text is down')))
+    hear(true)
+    void live.keyed('send', A)
+    hear(false)
+    void live.segment({ target: A, audio: new Blob(['4000']), ms: 4000 })
+    live.heardEnd()
+    await t.flush()
+    await t.flush()
+    expect(sent).toEqual(['typed']) // its words lost: what was there goes
+    expect(live.error).toBe('speech to text is down') // and the bar says why
+    hear(true)
+    void live.keyed('send', A)
+    hear(false)
+    void live.segment({ target: A, audio: new Blob(['4000']), ms: 4000 })
+    live.heardEnd()
+    await t.flush()
+    t.uploads[0]!.resolve('deploy it and send') // a long one ending in "send"
+    await t.flush()
+    await t.flush()
+    expect(sent).toEqual(['typed', 'deploy it']) // sent once
+  })
+})

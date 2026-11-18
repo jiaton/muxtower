@@ -59,6 +59,8 @@ interface Deps {
   /** What became of the last thing heard (`feedbackOf` says it in a few words). */
   heard?: (event: Heard) => void
   count?: (what: 'segment' | 'uploaded' | 'dropped' | 'command' | 'spotted') => void
+  /** The VAD hears speech now (a segment not yet cut): ⌘↵ waits for it. */
+  hearing?: () => boolean
   /** Read aloud is speaking, or just was (its tail): nothing is heard at all meanwhile. */
   speaking?: () => boolean
   /** Whether what was heard between these times overlapped its speaking (or tail): then it is dropped. */
@@ -81,6 +83,9 @@ export class LivePipeline {
   pending = 0
   /** A command heard on its own that waits for the words said before it to land (then done). */
   then: Command | null = null
+  /** ⌘↵ pressed while still speaking: sent when that speech has ended and landed (`heardEnd`). */
+  private armed: { command: Command; target: Target } | null = null
+  private sends = 0 // sends so far: an armed send that another (a spoken "send") beat to it is none
   error: string | null = null
   private applied: Promise<void> = Promise.resolve() // the last segment's result, landed
   private gate: Promise<void> = Promise.resolve() // what a new upload waits for: the short ones before it
@@ -92,6 +97,7 @@ export class LivePipeline {
   }
 
   pause() {
+    this.disarm() // a send waiting for the speech is let go too
     if (this.state === 'paused') return
     this.state = 'paused'
     this.deps.cue('paused')
@@ -212,8 +218,17 @@ export class LivePipeline {
   }
 
   /** "send" from the keyboard (⌘↵): the spoken one's path, done once what was said before has landed.
-   *  Paused (commands only) too: what is in the box is the owner's to send. */
+   *  Paused (commands only) too: what is in the box is the owner's to send. Pressed while still speaking:
+   *  armed, it waits for that speech to end and land (`heardEnd`), then sends, once (pressed again meanwhile:
+   *  nothing more; `disarm` lets it go). */
   keyed(command: Command, target: Target): Promise<void> {
+    if (this.armed) return this.applied // armed already: one send
+    if (this.deps.hearing?.()) {
+      this.armed = { command, target }
+      this.then = command
+      this.deps.changed?.()
+      return this.applied
+    }
     if (this.pending > 0) {
       this.then = command
       this.deps.changed?.()
@@ -226,6 +241,36 @@ export class LivePipeline {
     this.applied = landed
     this.gate = landed
     return landed
+  }
+
+  /** The speech being heard when ⌘↵ was pressed has ended (handed on as segments, or dropped as too short,
+   *  too quiet, not speech): the armed send goes once what it said has landed, or at once if nothing came. */
+  heardEnd() {
+    const armed = this.armed
+    if (!armed) return
+    this.armed = null
+    const sends = this.sends
+    const landed = this.applied.then(() => {
+      if (this.then === armed.command) this.then = null
+      if (this.sends === sends) this.act(armed.command, armed.target, 'key') // else what was said sent it already
+      this.deps.changed?.()
+    })
+    this.applied = landed
+    this.gate = landed
+  }
+
+  /** An armed send let go (Esc, pause, Live off): nothing is sent. */
+  disarm(): boolean {
+    if (!this.armed) return false
+    if (this.then === this.armed.command) this.then = null
+    this.armed = null
+    this.deps.changed?.()
+    return true
+  }
+
+  /** Whether a ⌘↵ waits for the speech being heard. */
+  get waitingToSend(): boolean {
+    return this.armed !== null
   }
 
   private async long(target: Target, audio: Blob): Promise<string> {
@@ -261,6 +306,8 @@ export class LivePipeline {
     const done = (ok: boolean) => this.deps.heard?.({ kind: 'command', command, done: ok, how })
     switch (command) {
       case 'send': {
+        if (how !== 'key') this.disarm() // a spoken "send" while ⌘↵ waits: the same send, once
+        this.sends += 1
         const sent = ops.send(target) === 'sent'
         done(sent)
         return this.deps.cue(sent ? 'sent' : 'empty')
