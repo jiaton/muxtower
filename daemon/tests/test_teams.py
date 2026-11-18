@@ -31,6 +31,9 @@ def delivering(app: FastAPI) -> Iterator[None]:
             loop.run_until_complete(runs[0])
         except asyncio.CancelledError:
             pass
+        # A delivery still running in its worker thread (cancelling the loop does not stop it) finishes
+        # before this returns: nothing of this loop sends after it is stopped.
+        loop.run_until_complete(loop.shutdown_default_executor())
 
     thread = threading.Thread(target=run, daemon=True)
     thread.start()
@@ -409,20 +412,24 @@ def test_one_loop_sends_each_task_once_and_goes_on_after_a_restart(
     directory = app.state.directory
     real = directory.send_input
     sent: list[str] = []
+    in_send = threading.Event()  # a send has begun (as an HTTP call to Remote Control would take a while)
+    go_on = threading.Event()  # ... and may finish
 
     def slow(session_id: str, body: Any) -> None:
         sent.append(body.text)
-        time.sleep(0.3)  # an HTTP call to Remote Control
+        in_send.set()
+        go_on.wait(5)
         real(session_id, body)
 
     monkeypatch.setattr(directory, "send_input", slow)
     with delivering(app):
         sender = threading.Thread(target=tasks.send, args=(research.id, "research", worker.id, "Build it."))
         sender.start()
+        assert in_send.wait(5)  # the loop is sending it now
         for _ in range(5):  # changes of state wake it again and again meanwhile
-            time.sleep(0.03)
             tasks.wake()
-        sender.join()
+        go_on.set()
+        sender.join(10)
         until(lambda: tasks.recent([worker.id]).get(worker.id, [None])[0].status == "delivered")
         assert [t.split("] ", 1)[1] for t in sent] == ["Build it."]
 
