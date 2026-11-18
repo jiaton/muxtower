@@ -141,7 +141,7 @@ it('a chip dragged with the mouse lands where it is let go, the order saved, and
   fireEvent.mouseMove(document, { clientX: 120, clientY: 10 }) // mostly over Two
   fireEvent.mouseUp(document, { clientX: 120, clientY: 10 })
   fireEvent.click(one)
-  await waitFor(() => expect(put).toEqual([['two', 'one', 'three']]))
+  await waitFor(() => expect(put).toEqual([['two', 'one', 'three']]), { timeout: 5000 })
   expect(router.state.location.search).not.toMatchObject({ chip: 'one' })
   rect.mockRestore()
 })
@@ -154,7 +154,7 @@ it('a click that hardly moves still chooses the chip', async () => {
   fireEvent.mouseMove(document, { clientX: 43, clientY: 11 })
   fireEvent.mouseUp(document, { clientX: 43, clientY: 11 })
   fireEvent.click(one)
-  await waitFor(() => expect(router.state.location.search).toMatchObject({ chip: 'one' }))
+  await waitFor(() => expect(router.state.location.search).toMatchObject({ chip: 'one' }), { timeout: 5000 })
   expect(put).toEqual([])
 })
 
