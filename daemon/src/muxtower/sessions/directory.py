@@ -270,14 +270,16 @@ class SessionDirectory(OwnerMarks):
         if body.key is not None and keys and body.key not in keys:
             raise Conflict(f"this session takes only these keys: {', '.join(keys)}")
         source = self.source_of(session_id)
-        remote = self.source_of(session.remote_id) if session.remote_id else None
         if body.images and not session.capabilities.images:
             raise Conflict("this session takes no images")
-        if source is None and remote is not None and session.remote_id and body.text is not None:
-            # Also on Remote Control: send the message there, structured, instead of typing it into a
-            # terminal that may be showing a dialog.
-            remote.send_text(session.remote_id, body.text, body.images)
+        remote = self.source_of(session.remote_id) if session.remote_id else None
+        if source is None and remote is not None and body.text is not None and session.runtime != "claude-code":
+            # A Codex pane that is also a shared app-server thread: the message goes to the thread, whole.
+            remote.send_text(session.remote_id or "", body.text, body.images)
         elif source is None:
+            # A session in tmux here: typed (or pasted) into its pane. A Claude Code one also on Remote Control
+            # included: sent over Remote Control, Claude Code (2.1.3xx) takes a message for one from another
+            # Claude session, asks the owner to approve it, and tells the agent it is not from its user.
             self.terminal.send(session_id, body)
         elif body.text is not None:
             source.send_text(session_id, body.text, body.images)  # a message is sent whole; `enter` is implied

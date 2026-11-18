@@ -43,9 +43,10 @@ def label(sender: Member | None, device: str) -> str:
 
 
 def _by_remote_control(session: Session) -> bool:
-    """Its messages go to Remote Control, structured: they cannot land in a prompt."""
+    """Its messages go structured (Remote Control with no pane, a Codex shared thread): they cannot land in a
+    prompt. A Claude Code pane also on Remote Control is typed into, like any pane."""
     return session.source is SessionSource.REMOTE_CONTROL or (
-        session.remote_id is not None and session.runtime == "claude-code"
+        session.remote_id is not None and session.runtime != "claude-code"
     )
 
 

@@ -423,3 +423,38 @@ def test_former_bridges_are_found_from_process_files_left_for_the_same_conversat
         json.dumps({"type": "continued-in", "continuedInSessionId": current}) + "\n"
     )
     assert ClaudeProcesses(tmp_path / "claude", proc=proc).former_remote_ids(pid) == ["cse_OLD"]
+
+
+def test_a_message_to_a_tmux_claude_also_on_remote_control_is_typed_into_its_pane(tmp_path: Path) -> None:
+    # Sent over Remote Control, Claude Code takes it for a message from another Claude session (approval asked,
+    # "not your user"): the owner's words are typed into the pane, pictures pasted ahead of them.
+    tmux = FakeTmux()
+    pane = tmux.add_pane("default", "work", "claude")
+    pane.info = dataclasses.replace(pane.info, pid=4242)
+    port = FakeRemoteControl()
+    port.sessions = [session("cse_1", title="Fix the login bug")]
+    source = RemoteControlSource(port, {})
+    source.tick()
+    settings = load_settings(
+        config_file=tmp_path / "none.toml", env={},
+        overrides={"state_dir": tmp_path / "s", "config_dir": tmp_path / "c", "serve_ui": False},
+    )  # fmt: skip
+    app = create_app(settings, tmux=tmux, run_loops=False, remote_control=source)
+    Monitor(app.state.sessions, FakeProcesses({4242: "cse_1"})).tick()
+    client = TestClient(app)
+    _, token = app.state.tokens.create("phone")
+    auth = {"Authorization": f"Bearer {token}"}
+    merged = next(s for s in client.get("/v1/sessions", headers=auth).json() if s["remote_id"] == "cse_1")
+
+    said = "Look at “this” — and 'that'\nsecond line"
+    png = {"media_type": "image/png", "data": "iVBORw0KGgo="}
+    url = f"/v1/sessions/{merged['id']}/input"
+    r = client.post(url, headers=auth, json={"text": said, "enter": True, "images": [png]})
+    assert r.status_code == 204, r.text
+    assert [c for c in port.calls if c[0] == "message"] == []  # nothing over Remote Control
+    kinds = [k for k, _ in pane.sent]
+    assert kinds == ["paste", "paste", "key"]  # the picture's path, the words whole, Enter
+    assert pane.sent[1] == ("paste", said) and pane.sent[2] == ("key", "Enter")
+    client.post(url, headers=auth, json={"text": "go on", "enter": True})
+    assert pane.sent[-2:] == [("text", "go on"), ("key", "Enter")]
+    assert [c for c in port.calls if c[0] == "message"] == []

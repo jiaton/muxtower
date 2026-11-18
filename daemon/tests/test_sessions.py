@@ -177,3 +177,21 @@ def test_a_long_or_multi_line_message_is_pasted_not_typed(app: FastAPI, client: 
         )
     assert pane.sent == [("paste", transcript), ("key", "Enter"), ("paste", "x" * 500), ("key", "Enter")]
     assert pauses == [0.3, 0.3]  # the paste lands before the Enter that sends it
+
+
+def test_words_are_not_typed_into_a_claude_dialog(app: FastAPI, client: TestClient, auth: dict[str, str],
+                                                  tmux: FakeTmux) -> None:  # fmt: skip
+    pane = tmux.add_pane("default", "work", "claude")
+    pane.screen = screens.PERMISSION
+    app.state.monitor.tick()
+    sid = client.get("/v1/sessions", headers=auth).json()[0]["id"]
+    res = client.post(f"/v1/sessions/{sid}/input", json={"text": "also do X", "enter": True}, headers=auth)
+    assert res.status_code == 409 and "waiting on a prompt" in res.json()["detail"]
+    assert pane.sent == []  # Enter would have picked its first choice
+    assert client.post(f"/v1/sessions/{sid}/input", json={"key": "Escape"}, headers=auth).status_code == 204
+    pane.screen = screens.IDLE
+    app.state.monitor.tick()
+    assert (
+        client.post(f"/v1/sessions/{sid}/input", json={"text": "also do X", "enter": True}, headers=auth).status_code
+        == 204
+    )

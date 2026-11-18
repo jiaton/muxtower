@@ -9,7 +9,7 @@ from muxtower.approval.models import ApprovalResult, Approve
 from muxtower.auth.deps import CurrentDevice
 from muxtower.auth.routes import Audit
 from muxtower.errors import Conflict
-from muxtower.runtimes.models import RuntimeInfo
+from muxtower.runtimes.models import AgentState, RuntimeInfo
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.launcher import Launcher
@@ -224,8 +224,18 @@ def get_screen(session_id: str, _: CurrentDevice, directory: Directory, history:
     return directory.screen(session_id, history)
 
 
+PROMPT_STATES = frozenset(
+    {AgentState.NEEDS_PERMISSION, AgentState.NEEDS_ANSWER, AgentState.NEEDS_TRUST, AgentState.PLAN_REVIEW}
+)
+
+
 @router.post("/sessions/{session_id}/input", status_code=204)
 def send_input(session_id: str, body: SendInput, device: CurrentDevice, directory: Directory, audit: Audit) -> None:
+    if body.text is not None and directory.source_of(session_id) is None:
+        session = directory.get(session_id)
+        if session.runtime == "claude-code" and session.state in PROMPT_STATES:
+            # Typed into its dialog, the words would go nowhere and Enter would pick its first choice.
+            raise Conflict("it is waiting on a prompt: answer it first, then send")
     directory.send_input(session_id, body)
     # The typed text itself is never logged.
     what = f"key={body.key}" if body.key else f"text chars={len(body.text or '')} enter={body.enter}"
