@@ -149,3 +149,17 @@ def test_play_s_routes(make_app: Callable[..., FastAPI]) -> None:
     client = TestClient(app)
     assert client.get("/v1/sessions/nope/spoken", headers=auth).json() == []
     assert client.post("/v1/sessions/nope/spoken", headers=auth).status_code == 404
+
+
+def test_a_summary_is_voiced_as_soon_as_it_is_made_when_the_hub_has_a_voice() -> None:
+    d, s = Directory(), Summarizer()
+    listen = _service(d, s)
+    voiced: list[str] = []
+    listen.tts = SimpleNamespace(why_not=lambda: None, speak=lambda text: voiced.append(text) or b"mp3")
+    d.turn("go", "done")
+    listen.speak("s1")
+    assert voiced == ["说法 1"]  # ready in the cache before the phone asks
+    listen.tts = SimpleNamespace(why_not=lambda: "off", speak=lambda text: voiced.append(text))
+    d.turn("again", "done again")
+    listen.speak("s1")
+    assert voiced == ["说法 1"]  # off: nothing made

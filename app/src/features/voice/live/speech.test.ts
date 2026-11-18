@@ -73,6 +73,7 @@ it('is quiet while it speaks and for a tail after, and knows what overlapped tha
   expect(quiet()).toBe(true)
   vi.setSystemTime(12_000)
   finish?.() // done speaking at 12000
+  for (let i = 0; i < 10; i++) await Promise.resolve()
   expect(useSpeech.getState().speaking).toBe(false)
   expect(quiet()).toBe(true) // the tail
   expect(overlapsSpeech(11_500, 13_000)).toBe(true) // began while it spoke, ended after

@@ -6,6 +6,7 @@ import { SettingsForm } from '@/features/daemons/components/settings-form'
 import { DictionarySettings } from '@/features/voice/components/dictionary'
 import { PlaybookSettings } from '@/features/playbook/components/playbook-settings'
 import { SearchStatus } from '@/features/palette/components/search-status'
+import { TtsSettings } from '@/features/voice/components/tts-settings'
 import { useDaemon } from '@/lib/daemons/store'
 import { ink } from '@/components/ui/intents'
 
@@ -47,7 +48,11 @@ function SettingsPage() {
                 extras={
                   node
                     ? undefined
-                    : { 'Voice input': <DictionarySettings daemonId={daemonId} />, Search: <SearchStatus daemonId={daemonId} /> }
+                    : {
+                        'Voice input': <DictionarySettings daemonId={daemonId} />,
+                        Search: <SearchStatus daemonId={daemonId} />,
+                        'Read aloud voice': <TtsSettings daemonId={daemonId} />,
+                      }
                 }
               />
               {node || playbook ? null : <PlaybookSettings daemonId={daemonId} />}

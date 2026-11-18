@@ -1122,6 +1122,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/tts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Tts Status
+         * @description Whether Read aloud speaks in the hub's voice now, and why not; this month's characters.
+         */
+        get: operations["tts_status_v1_tts_get"];
+        put?: never;
+        /**
+         * Tts Say
+         * @description The text said in the hub's voice, mp3; 503 says why not (off, key, cap, quota, timeout, failed):
+         *     the phone then speaks it itself.
+         */
+        post: operations["tts_say_v1_tts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/usage": {
         parameters: {
             query?: never;
@@ -2166,6 +2191,18 @@ export interface components {
              */
             permission_modes?: components["schemas"]["ModeInfo"][];
         };
+        /** Say */
+        Say: {
+            /** Style */
+            style?: string | null;
+            /** Text */
+            text: string;
+            /**
+             * Voice
+             * @description another voice than the set one (Settings' Preview)
+             */
+            voice?: string | null;
+        };
         /** Screen */
         Screen: {
             /**
@@ -2872,6 +2909,47 @@ export interface components {
             language?: string | null;
             /** Text */
             text: string;
+        };
+        /** TtsStatus */
+        TtsStatus: {
+            /**
+             * Available
+             * @description Read aloud uses the hub's voice now (else the phone's)
+             */
+            available: boolean;
+            /**
+             * Characters
+             * @description sent to Azure this month
+             */
+            characters: number;
+            /**
+             * Free Tier
+             * @default 500000
+             */
+            free_tier: number;
+            /** Key Present */
+            key_present: boolean;
+            /** Month */
+            month: string;
+            /** Provider */
+            provider: string;
+            /** Region */
+            region: string;
+            /** Soft Cap */
+            soft_cap: number;
+            /** Style */
+            style: string;
+            /** Styles */
+            styles: string[];
+            /** Voice */
+            voice: string;
+            /** Voices */
+            voices: string[];
+            /**
+             * Why Not
+             * @description off, key (missing or refused), cap, quota
+             */
+            why_not?: string | null;
         };
         /**
          * TurnSummary
@@ -4888,6 +4966,59 @@ export interface operations {
                     "application/json": {
                         [key: string]: components["schemas"]["TeamTask"];
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    tts_status_v1_tts_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TtsStatus"];
+                };
+            };
+        };
+    };
+    tts_say_v1_tts_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Say"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "audio/mpeg": unknown;
                 };
             };
             /** @description Validation Error */

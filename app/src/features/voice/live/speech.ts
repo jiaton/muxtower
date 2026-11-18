@@ -58,6 +58,8 @@ interface SpeechState {
   unheard: Record<string, true>
   /** The session in front and its latest reply (Live's bar says), for Play and Read all. */
   front: { key: string; reply: string | null } | null
+  /** Said once in Live's bar: why it speaks as it does ("using the phone's voice"). */
+  note: string | null
 }
 
 export const useSpeech = create<SpeechState>()(
@@ -72,6 +74,7 @@ export const useSpeech = create<SpeechState>()(
       last: null,
       unheard: {},
       front: null,
+      note: null,
     }),
     { name: 'muxtower.read-aloud', version: 1, merge: mergeWithDefaults, partialize: (s) => ({ readAloud: s.readAloud }) },
   ),
@@ -118,32 +121,94 @@ function chineseVoice(): SpeechSynthesisVoice | null {
 let run = 0 // each new speech: the ones before it stop
 
 /** Says the text (cutting off whatever was being said), in pieces. */
-export function speak(text: string) {
-  const s = synth()
-  if (!s || !text.trim()) return
-  s.cancel()
-  const mine = ++run
-  const queue = pieces(text)
-  began()
-  useSpeech.setState({ speaking: true })
-  const next = () => {
-    if (mine !== run) return
-    const piece = queue.shift()
-    if (!piece) return (ended(), useSpeech.setState({ speaking: false }))
+/** Where a piece's audio is made, when the hub has a voice (`hub-voice.ts`): its mp3, or a refusal (the
+ *  phone's own voice says it then). None: the phone's voice. */
+type HubVoice = (text: string) => Promise<Blob>
+let hubVoice: HubVoice | null = null
+export function setHubVoice(voice: HubVoice | null) {
+  hubVoice = voice
+}
+
+let playing: HTMLAudioElement | null = null
+
+function playAudio(blob: Blob): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob)
+    const audio = new Audio(url)
+    playing = audio
+    const done = (ok: boolean) => () => {
+      URL.revokeObjectURL(url)
+      if (playing === audio) playing = null
+      if (ok) resolve()
+      else reject(new Error('could not play'))
+    }
+    audio.onended = done(true)
+    audio.onerror = done(false)
+    audio.play().catch(done(false))
+  })
+}
+
+function sayLocally(piece: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const s = synth()
+    if (!s) return reject(new Error('no voice'))
     const u = new SpeechSynthesisUtterance(piece)
     const zh = chineseVoice()
     if (zh) u.voice = zh
     u.lang = zh?.lang ?? 'zh-CN'
-    u.onend = next
-    u.onerror = () => mine === run && (ended(), useSpeech.setState({ speaking: false }))
+    u.onend = () => resolve()
+    u.onerror = () => reject(new Error('could not say'))
     s.speak(u)
-  }
-  next()
+  })
+}
+
+/** Says the text (cutting off whatever was being said), in pieces: in the hub's voice when it has one, the
+ *  next piece fetched while one plays; in the phone's own voice when it has none, or does not answer (said
+ *  once: "using the phone's voice"). */
+export function speak(text: string) {
+  if (!text.trim() || (!hubVoice && !synth())) return
+  synth()?.cancel()
+  playing?.pause()
+  const mine = ++run
+  const queue = pieces(text)
+  began()
+  useSpeech.setState({ speaking: true })
+  const fetchOf = (piece: string | undefined) => (piece && hubVoice ? hubVoice(piece).catch(() => null) : Promise.resolve(null))
+  void (async () => {
+    let next = fetchOf(queue[0])
+    let local = !hubVoice
+    for (let i = 0; i < queue.length; i++) {
+      if (mine !== run) return
+      const piece = queue[i]!
+      const audio = local ? null : await next
+      next = local ? Promise.resolve(null) : fetchOf(queue[i + 1]) // fetched while this one plays
+      if (mine !== run) return
+      try {
+        if (audio) await playAudio(audio)
+        else {
+          if (!local && hubVoice) {
+            local = true // the hub did not answer: the phone's voice from here on
+            useSpeech.setState({ note: "using the phone's voice" })
+          }
+          await sayLocally(piece)
+        }
+      } catch {
+        if (mine !== run) return
+        await sayLocally(piece).catch(() => undefined)
+      }
+    }
+    if (mine === run) {
+      ended()
+      useSpeech.setState({ speaking: false })
+    }
+  })()
 }
 
 export function stopSpeaking() {
   run += 1
   synth()?.cancel()
+  playing?.pause()
+  playing = null
   ended()
   useSpeech.setState({ speaking: false })
 }

@@ -87,6 +87,7 @@ class ListenService:
         self._listened: dict[str, _Listened] = {}
         self._day: tuple[str, int] = ("", 0)
         self._kept: dict[str, deque[Spoken]] = {}
+        self.tts: Any = None  # the hub's voice (`tts/`): a summary is said with it as soon as it is made
         self._told_cap: str | None = None
 
     # --- who listens --------------------------------------------------------------------------------
@@ -201,6 +202,11 @@ class ListenService:
         reply_hash = _hash(session.last_message if session else reply) or ""
         kept = self._kept.setdefault(session_id, deque(maxlen=KEPT))
         kept.append(Spoken(at=datetime.now(UTC), text=said, reply=reply[-FULL_REPLY_CHARS:], reply_hash=reply_hash))
+        if self.tts is not None and self.tts.why_not() is None:
+            try:
+                self.tts.speak(said)  # made now and kept: the phone's request for it is answered at once
+            except Exception as exc:  # noqa: BLE001 - the phone then says it itself
+                logger.info("could not voice the summary of %s ahead: %s", session_id, exc)
         return SpokenFrame(session_id=session_id, text=said, reply=reply[-FULL_REPLY_CHARS:])
 
     def kept(self, session_id: str, last: int = KEPT) -> list[Spoken]:

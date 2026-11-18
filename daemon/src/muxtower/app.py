@@ -90,6 +90,7 @@ from muxtower.teams.tasks import TaskService
 from muxtower.terminal.images import ImageDrop
 from muxtower.terminal.ports import TmuxPort
 from muxtower.terminal.service import TerminalService
+from muxtower.tts.service import TtsService
 from muxtower.usage.sampler import UsageSampler
 from muxtower.writes.tracker import WriteTracker, Writing
 
@@ -282,9 +283,11 @@ def create_app(
     mcp.session_tools.may_escalate = lambda: settings.launch.agents_may_escalate
     mcp.session_tools.audit = audit
     mcp.session_tools.resume_archived = recovery.resume
+    tts = TtsService(lambda: settings.tts, settings.state_dir)
     listen = ListenService(
         directory, lambda: summaries.summarizer, lambda: settings.listen.rounds, lambda: settings.listen.max_per_day
     )
+    listen.tts = tts  # a summary's voice made with it, ready when the phone asks
     search_index = SearchIndex(settings.state_dir / "search.db")  # its own file: never locks muxtower.db
 
     def full_text() -> bool:  # auto: on, except on a node (turned on there from its settings)
@@ -310,7 +313,7 @@ def create_app(
         concierge=concierge, teams=teams, team_tasks=team_tasks, usage=usage, recovery=recovery, writes=writes,
         watches=watches,
         direct=DirectAccess(nodes, node_sessions.call), feature_settings=feature_settings,
-        chip_groups=ChipGroupStore(db), playbook=playbook, search=search, indexer=indexer, listen=listen,
+        chip_groups=ChipGroupStore(db), playbook=playbook, search=search, indexer=indexer, listen=listen, tts=tts,
         node_sessions=node_sessions, mcp=mcp, asr=asr, asr_dictionary=dictionary_store,
         diagnostics=DiagnosticsService(settings.state_dir / "diagnostics"),
         terminal=terminal, approvals=approvals, audit=audit, push=push,

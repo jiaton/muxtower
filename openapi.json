@@ -2186,6 +2186,44 @@
         "title": "RuntimeInfo",
         "type": "object"
       },
+      "Say": {
+        "properties": {
+          "style": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style"
+          },
+          "text": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          },
+          "voice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "another voice than the set one (Settings' Preview)",
+            "title": "Voice"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "Say",
+        "type": "object"
+      },
       "Screen": {
         "properties": {
           "ansi": {
@@ -3776,6 +3814,94 @@
           "text"
         ],
         "title": "Transcript",
+        "type": "object"
+      },
+      "TtsStatus": {
+        "properties": {
+          "available": {
+            "description": "Read aloud uses the hub's voice now (else the phone's)",
+            "title": "Available",
+            "type": "boolean"
+          },
+          "characters": {
+            "description": "sent to Azure this month",
+            "title": "Characters",
+            "type": "integer"
+          },
+          "free_tier": {
+            "default": 500000,
+            "title": "Free Tier",
+            "type": "integer"
+          },
+          "key_present": {
+            "title": "Key Present",
+            "type": "boolean"
+          },
+          "month": {
+            "title": "Month",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "region": {
+            "title": "Region",
+            "type": "string"
+          },
+          "soft_cap": {
+            "title": "Soft Cap",
+            "type": "integer"
+          },
+          "style": {
+            "title": "Style",
+            "type": "string"
+          },
+          "styles": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Styles",
+            "type": "array"
+          },
+          "voice": {
+            "title": "Voice",
+            "type": "string"
+          },
+          "voices": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Voices",
+            "type": "array"
+          },
+          "why_not": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "off, key (missing or refused), cap, quota",
+            "title": "Why Not"
+          }
+        },
+        "required": [
+          "provider",
+          "available",
+          "region",
+          "voice",
+          "style",
+          "key_present",
+          "month",
+          "characters",
+          "soft_cap",
+          "voices",
+          "styles"
+        ],
+        "title": "TtsStatus",
         "type": "object"
       },
       "TurnSummary": {
@@ -6784,6 +6910,64 @@
         "summary": "Latest Tasks",
         "tags": [
           "teams"
+        ]
+      }
+    },
+    "/v1/tts": {
+      "get": {
+        "description": "Whether Read aloud speaks in the hub's voice now, and why not; this month's characters.",
+        "operationId": "tts_status_v1_tts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TtsStatus"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Tts Status",
+        "tags": [
+          "tts"
+        ]
+      },
+      "post": {
+        "description": "The text said in the hub's voice, mp3; 503 says why not (off, key, cap, quota, timeout, failed):\nthe phone then speaks it itself.",
+        "operationId": "tts_say_v1_tts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Say"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "audio/mpeg": {}
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Tts Say",
+        "tags": [
+          "tts"
         ]
       }
     },

@@ -8,6 +8,7 @@ import { pauseLive, resumeLive, sendFromKey, stopLive, toggleLive, useLive } fro
 import { feedbackOf, liveDetails } from '../live/feedback'
 import { readAll, stopSpeaking, useSpeech } from '../live/speech'
 import { play } from '../live/play'
+import { chooseHubVoice } from '../live/hub-voice'
 import type { Command } from '../live/commands'
 import { enabledPacks } from '../live/packs'
 import { composerColumns } from '@/components/ui/bar'
@@ -106,6 +107,11 @@ export function LiveBar({
   const talking = useSpeech((s) => s.speaking)
   const key = `${daemonId}/${sessionId}`
   const isNew = useSpeech((s) => Boolean(s.unheard[key]))
+  const voiceNote = useSpeech((s) => s.note)
+  // Whose voice: the hub's (its daemon's, when it has one), else the phone's.
+  useEffect(() => {
+    if (readAloud) void chooseHubVoice(daemonId || null)
+  }, [readAloud, daemonId])
   // The session in front and its latest reply: what Play and Read all are about.
   useEffect(() => {
     useSpeech.setState({ front: { key, reply: reply ?? null } })
@@ -257,7 +263,8 @@ export function LiveBar({
       </div>
       {big ? (
         // Read aloud: what it can do, big enough to hit without looking long.
-        <div className="flex gap-2 px-2 pb-1" role="group" aria-label="Read aloud">
+        <div className="flex flex-wrap gap-2 px-2 pb-1" role="group" aria-label="Read aloud">
+          {voiceNote ? <p className={`${ink.meta} w-full`}>{voiceNote}</p> : null}
           <Button
             variant="secondary"
             size="lg"

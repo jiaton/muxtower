@@ -98,6 +98,25 @@ class AsrSettings(BaseModel):
         return None
 
 
+class TtsSettings(BaseModel):
+    """`[tts]`: the voice Read aloud speaks in, made on the hub (`tts/`). Off: the phone's own voice."""
+
+    provider: Literal["off", "azure"] = "off"
+    region: str = "eastus"  # the Azure Speech resource's region
+    voice: str = "zh-CN-XiaoxiaoNeural"
+    style: str = ""  # an Azure speaking style (e.g. "chat", "assistant"); empty: the voice's own
+    api_key: str | None = None  # or api_key_file (0600); env MUXTOWER_TTS_API_KEY
+    api_key_file: Path | None = None
+    monthly_soft_cap: int = Field(default=450_000, ge=0)  # characters a month; then the phone's voice (F0: 500k)
+
+    def key(self) -> str | None:
+        if self.api_key:
+            return self.api_key
+        if self.api_key_file and self.api_key_file.expanduser().is_file():
+            return self.api_key_file.expanduser().read_text().strip() or None
+        return None
+
+
 class ConciergeSettings(BaseModel):
     """An assistant: a Claude Code session muxtower keeps running, which the owner talks to instead of
     each session. It reaches the other sessions through muxtower's MCP tools (/v1/mcp)."""
@@ -224,6 +243,7 @@ class Settings(BaseModel):
     archive: ArchiveSettings = Field(default_factory=ArchiveSettings)
     search: SearchSettings = Field(default_factory=SearchSettings)
     listen: ListenSettings = Field(default_factory=ListenSettings)
+    tts: TtsSettings = Field(default_factory=TtsSettings)
     writes: WritesSettings = Field(default_factory=WritesSettings)
     launch: LaunchSettings = Field(default_factory=LaunchSettings)
     sessions: SessionSettings = Field(default_factory=SessionSettings)
@@ -262,6 +282,7 @@ _ENV_KEYS: dict[str, tuple[str, ...]] = {
     "MUXTOWER_SUMMARIES_PROVIDER": ("summaries", "provider"),
     "MUXTOWER_ASR_PROVIDER": ("asr", "provider"),
     "MUXTOWER_ASR_API_KEY": ("asr", "api_key"),
+    "MUXTOWER_TTS_API_KEY": ("tts", "api_key"),
     "MUXTOWER_CONCIERGE_ENABLED": ("concierge", "enabled"),
 }
 
