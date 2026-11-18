@@ -26,5 +26,5 @@ def speak_latest(session_id: str, request: Request, _: CurrentDevice) -> Spoken:
     if found is None:
         raise NotFound("this session has no reply to say")
     if not isinstance(found, Spoken):
-        raise Conflict(found.error or "no summary")
+        raise Conflict(found.error or "failed")  # the phone says why in the language spoken
     return found

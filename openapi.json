@@ -2188,6 +2188,18 @@
       },
       "Say": {
         "properties": {
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what the text is in (zh, en, \u2026): its voice, when none is set",
+            "title": "Language"
+          },
           "style": {
             "anyOf": [
               {
@@ -3119,7 +3131,8 @@
               "bool",
               "number",
               "text",
-              "args"
+              "args",
+              "multiline"
             ],
             "title": "Kind",
             "type": "string"
@@ -3223,11 +3236,16 @@
         "type": "object"
       },
       "Spoken": {
-        "description": "A spoken summary kept: of which reply (its hash), when, what was said, and the reply itself.",
+        "description": "A spoken summary kept: of which reply (its hash), when, what was said, the reply itself, and the\nlanguage it is in (a tag: zh, en, \u2026).",
         "properties": {
           "at": {
             "format": "date-time",
             "title": "At",
+            "type": "string"
+          },
+          "language": {
+            "default": "en",
+            "title": "Language",
             "type": "string"
           },
           "reply": {
@@ -3258,13 +3276,25 @@
           "error": {
             "anyOf": [
               {
+                "enum": [
+                  "unavailable",
+                  "limit",
+                  "failed"
+                ],
                 "type": "string"
               },
               {
                 "type": "null"
               }
             ],
+            "description": "unavailable (no summarizer), limit (today's are used up), failed",
             "title": "Error"
+          },
+          "language": {
+            "default": "en",
+            "description": "what it is said in, a tag (zh, en, \u2026): the voice, the words",
+            "title": "Language",
+            "type": "string"
           },
           "reply": {
             "anyOf": [
@@ -3865,8 +3895,17 @@
             "type": "array"
           },
           "voice": {
+            "description": "the voice set; empty: by the language spoken (voice_for)",
             "title": "Voice",
             "type": "string"
+          },
+          "voice_for": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "description": "the voice per language when none is set",
+            "title": "Voice For",
+            "type": "object"
           },
           "voices": {
             "items": {

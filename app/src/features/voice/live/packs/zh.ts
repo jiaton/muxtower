@@ -35,4 +35,12 @@ export const zh: CommandPack = {
     ['f', 'ā', 's', 'ōng'],
     ['f', 'ā', 'sh', 'āo'],
   ],
+  spoken: {
+    voiceTag: 'zh-CN',
+    unavailable: '还没有设置总结',
+    limit: '今天的语音总结已到上限',
+    failed: '总结失败',
+    code: '一段代码',
+    phoneVoice: '正在用手机的声音',
+  },
 }

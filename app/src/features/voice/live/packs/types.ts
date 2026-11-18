@@ -27,4 +27,21 @@ export interface CommandPack {
    *  pinyin initials and toned finals for Chinese), and decoys: words close to "send" that are no command. */
   tokens: Partial<Record<Command, string[][]>>
   decoys: string[][]
+  /** Read aloud's own words in this language, said or shown when no summary can be (`speech.ts`). */
+  spoken: SpokenWords
+}
+
+export interface SpokenWords {
+  /** The phone's voice for it (a BCP 47 tag, e.g. zh-CN). */
+  voiceTag: string
+  /** No summarizer is set up on the hub. */
+  unavailable: string
+  /** Today's spoken summaries are used up. */
+  limit: string
+  /** The summary could not be made. */
+  failed: string
+  /** Said in place of a block of code when a reply is read whole. */
+  code: string
+  /** The hub's voice did not answer: the phone speaks itself. */
+  phoneVoice: string
 }

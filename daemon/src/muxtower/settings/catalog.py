@@ -8,7 +8,7 @@ that use it are built when the daemon starts, so a change applies then."""
 from dataclasses import dataclass
 from typing import Literal
 
-Kind = Literal["choice", "bool", "number", "text", "args"]
+Kind = Literal["choice", "bool", "number", "text", "args", "multiline"]
 
 
 @dataclass(frozen=True)
@@ -30,6 +30,11 @@ FIELDS: tuple[Field, ...] = (
     Field("search.full_text", "Search", "Search inside conversations (Cmd+K)", "choice", "now",
           "prompts and replies are indexed on this machine, in its own file; auto: on, except on a node "
           "(a computer joined to a hub); off: the index is deleted", ("auto", "on", "off")),
+    Field("listen.language", "Summaries", "Language spoken and summarized in", "choice", "now",
+          "auto: each reply's own; Read aloud and the glasses' summaries both follow it",
+          ("auto", "zh", "en", "ja", "ko", "de", "fr", "es", "pt", "it")),
+    Field("listen.prompt", "Summaries", "Read aloud: what the summarizer is told", "multiline", "now",
+          "{language} is the language set (or the reply's own); the turn follows it, as data"),
     Field("listen.rounds", "Summaries", "Read aloud: earlier prompts given as context", "number", "now",
           "with what was said of each; 0: this turn only"),
     Field("listen.max_per_day", "Summaries", "Read aloud: summaries a day, at most", "number", "now"),
@@ -37,12 +42,17 @@ FIELDS: tuple[Field, ...] = (
           "azure: Azure's neural voices, made on the hub (its key in the config file, tts.api_key_file); "
           "off: the phone's own voice", ("off", "azure")),
     Field("tts.region", "Read aloud voice", "Azure region", "text", "now", "the Speech resource's, e.g. eastus"),
-    Field("tts.voice", "Read aloud voice", "Voice", "choice", "now", "", (
+    Field("tts.voice", "Read aloud voice", "Voice", "choice", "now",
+          "empty: by the language spoken (Chinese Xiaoxiao, English Ava Multilingual, …); a multilingual voice "
+          "says mixed text in one voice", (
+        "", "zh-CN-XiaoxiaoMultilingualNeural", "zh-CN-YunyiMultilingualNeural", "en-US-AvaMultilingualNeural",
+        "en-US-AndrewMultilingualNeural", "en-US-EmmaMultilingualNeural", "en-US-BrianMultilingualNeural",
         "zh-CN-XiaoxiaoNeural", "zh-CN-XiaoyiNeural", "zh-CN-XiaochenNeural", "zh-CN-XiaohanNeural",
         "zh-CN-XiaomengNeural", "zh-CN-XiaomoNeural", "zh-CN-XiaoqiuNeural", "zh-CN-XiaoruiNeural",
         "zh-CN-XiaoshuangNeural", "zh-CN-XiaoxuanNeural", "zh-CN-XiaoyanNeural", "zh-CN-XiaozhenNeural",
         "zh-CN-YunxiNeural", "zh-CN-YunjianNeural", "zh-CN-YunyangNeural", "zh-CN-YunxiaNeural",
-        "zh-CN-YunfengNeural", "zh-CN-YunhaoNeural", "zh-CN-YunyeNeural", "zh-CN-YunzeNeural")),
+        "zh-CN-YunfengNeural", "zh-CN-YunhaoNeural", "zh-CN-YunyeNeural", "zh-CN-YunzeNeural",
+        "en-US-AvaNeural", "en-US-AndrewNeural", "en-GB-SoniaNeural", "ja-JP-NanamiNeural", "ko-KR-SunHiNeural")),
     Field("tts.style", "Read aloud voice", "Speaking style", "choice", "now",
           "empty: the voice's own; not every voice has every style",
           ("", "chat", "assistant", "customerservice", "cheerful", "calm", "gentle", "newscast")),

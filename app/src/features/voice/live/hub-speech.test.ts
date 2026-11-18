@@ -74,7 +74,7 @@ it("falls back to the phone's voice when the hub does not answer, and says so on
   await settle()
   await settle()
   expect(local).toEqual(['部署好了。'])
-  expect(useSpeech.getState().note).toBe("using the phone's voice")
+  expect(useSpeech.getState().note).toBe('正在用手机的声音') // in the language of what is said
   expect(useSpeech.getState().speaking).toBe(false)
 })
 

@@ -29,14 +29,34 @@ CACHE_BYTES = 64 * 1024 * 1024
 FREE_TIER = 500_000
 REFUSAL_SECONDS = 600  # Azure's refusal (quota, key) believed this long: then asked again
 
-# Azure's zh-CN neural voices (its catalog; a voice the region lacks says so when used).
+# The voice for a language when none is set (`tts.voice` empty): a set one always wins. Multilingual voices
+# say mixed text (a Chinese sentence with English words) in one voice; one for any language not listed.
+VOICE_FOR = {
+    "zh": "zh-CN-XiaoxiaoNeural", "en": "en-US-AvaMultilingualNeural", "ja": "ja-JP-NanamiNeural",
+    "ko": "ko-KR-SunHiNeural", "de": "de-DE-SeraphinaMultilingualNeural", "fr": "fr-FR-VivienneMultilingualNeural",
+    "es": "es-ES-XimenaMultilingualNeural", "it": "it-IT-IsabellaMultilingualNeural",
+    "pt": "pt-BR-ThalitaMultilingualNeural",
+}  # fmt: skip
+ANY_LANGUAGE = "en-US-AvaMultilingualNeural"
+
+# Azure's neural voices offered in Settings (its catalog; a voice the region lacks says so when used).
 VOICES = (
+    "zh-CN-XiaoxiaoMultilingualNeural", "zh-CN-YunyiMultilingualNeural", "en-US-AvaMultilingualNeural",
+    "en-US-AndrewMultilingualNeural", "en-US-EmmaMultilingualNeural", "en-US-BrianMultilingualNeural",
     "zh-CN-XiaoxiaoNeural", "zh-CN-XiaoyiNeural", "zh-CN-XiaochenNeural", "zh-CN-XiaohanNeural",
     "zh-CN-XiaomengNeural", "zh-CN-XiaomoNeural", "zh-CN-XiaoqiuNeural", "zh-CN-XiaoruiNeural",
     "zh-CN-XiaoshuangNeural", "zh-CN-XiaoxuanNeural", "zh-CN-XiaoyanNeural", "zh-CN-XiaozhenNeural",
     "zh-CN-YunxiNeural", "zh-CN-YunjianNeural", "zh-CN-YunyangNeural", "zh-CN-YunxiaNeural",
     "zh-CN-YunfengNeural", "zh-CN-YunhaoNeural", "zh-CN-YunyeNeural", "zh-CN-YunzeNeural",
+    "en-US-AvaNeural", "en-US-AndrewNeural", "en-GB-SoniaNeural", "ja-JP-NanamiNeural", "ko-KR-SunHiNeural",
 )  # fmt: skip
+
+
+def voice_for(set_voice: str, language: str | None) -> str:
+    """The voice to speak in: the one set, else the language's, else one that speaks any."""
+    return set_voice or VOICE_FOR.get((language or "").lower(), ANY_LANGUAGE)
+
+
 STYLES = ("", "chat", "assistant", "customerservice", "cheerful", "calm", "gentle", "newscast")
 
 
@@ -96,7 +116,8 @@ class TtsStatus(BaseModel):
     available: bool = Field(description="Read aloud uses the hub's voice now (else the phone's)")
     why_not: str | None = Field(default=None, description="off, key (missing or refused), cap, quota")
     region: str
-    voice: str
+    voice: str = Field(description="the voice set; empty: by the language spoken (voice_for)")
+    voice_for: dict[str, str] = Field(default_factory=dict, description="the voice per language when none is set")
     style: str
     key_present: bool
     month: str
@@ -147,7 +168,8 @@ class TtsService:
         month, used = self._usage()
         why = self.why_not()
         return TtsStatus(
-            provider=s.provider, available=why is None, why_not=why, region=s.region, voice=s.voice, style=s.style,
+            provider=s.provider, available=why is None, why_not=why, region=s.region, voice=s.voice,
+            voice_for=dict(VOICE_FOR), style=s.style,
             key_present=bool(s.key()), month=month, characters=used, soft_cap=s.monthly_soft_cap,
             voices=list(VOICES), styles=list(STYLES),
         )  # fmt: skip
@@ -156,14 +178,16 @@ class TtsService:
         digest = hashlib.sha256(f"{voice}\\n{style}\\n{text}".encode()).hexdigest()
         return self.cache / f"{digest}.mp3"
 
-    def speak(self, text: str, voice: str | None = None, style: str | None = None) -> bytes:
+    def speak(
+        self, text: str, voice: str | None = None, style: str | None = None, language: str | None = None
+    ) -> bytes:
         """Blocking: the text said, mp3. Kept and reused; a new one counted. Refused (Unavailable) when
         the hub cannot say it now: then the phone does."""
         s = self.settings()
         text = text.strip()[:MAX_TEXT]
         if not text:
             raise Refused("failed", "nothing to say")
-        voice = voice or s.voice
+        voice = voice or voice_for(s.voice, language)
         style = s.style if style is None else style
         path = self._path(text, voice, style)
         if path.exists():

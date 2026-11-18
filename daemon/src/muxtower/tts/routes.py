@@ -11,6 +11,9 @@ class Say(BaseModel):
     text: str = Field(min_length=1, max_length=MAX_TEXT)
     voice: str | None = Field(default=None, description="another voice than the set one (Settings' Preview)")
     style: str | None = None
+    language: str | None = Field(
+        default=None, description="what the text is in (zh, en, …): its voice, when none is set"
+    )
 
 
 @router.get("/tts")
@@ -25,5 +28,5 @@ def tts_say(body: Say, request: Request, _: CurrentDevice) -> Response:
     """The text said in the hub's voice, mp3; 503 says why not (off, key, cap, quota, timeout, failed):
     the phone then speaks it itself."""
     service: TtsService = request.app.state.tts
-    audio = service.speak(body.text, body.voice, body.style)
+    audio = service.speak(body.text, body.voice, body.style, body.language)
     return Response(content=audio, media_type="audio/mpeg", headers={"Cache-Control": "private, max-age=86400"})

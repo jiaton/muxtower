@@ -10,7 +10,8 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from muxtower.listen.service import INSTRUCTIONS, ListenService
+from muxtower.config import DEFAULT_LISTEN_PROMPT
+from muxtower.listen.service import ListenService, instructions
 from muxtower.runtimes.models import AgentState
 from muxtower.sessions.models import ConversationItem, ConversationItemKind, StateSource
 
@@ -70,10 +71,12 @@ def test_a_listened_turn_is_said_once_from_its_context_and_what_came_before_is_n
         assert frame is not None and frame.text == f"说法 {i + 1}" and frame.reply == f"reply {i}"
         assert listen.due(23 + i * 10) == []  # said once
     instructions, text = s.asked[-1]
-    assert instructions == INSTRUCTIONS
-    assert "会话: web-app · 角色 worker · 项目 acme/web" in text
-    assert "主人: prompt 3" in text and "助手回复: reply 3" in text
-    assert "主人: prompt 2" in text and "汇报: 说法 3" in text and "主人: prompt 1" in text
+    assert instructions == DEFAULT_LISTEN_PROMPT.replace(
+        "{language}", "the language the assistant's reply is written in"
+    )
+    assert "Session: web-app · role worker · project acme/web" in text
+    assert "User: prompt 3" in text and "Assistant's reply: reply 3" in text
+    assert "User: prompt 2" in text and "Said: 说法 3" in text and "User: prompt 1" in text
     assert "prompt 0" not in text  # two earlier rounds, as set
     assert "reply 2" not in text  # earlier replies stand in by what was said of them
 
@@ -89,7 +92,7 @@ def test_a_reply_read_off_a_screen_settles_longer_and_one_waiting_on_the_owner_a
     d.session.needs_attention = True
     d.session.pending = SimpleNamespace(tool_name="Bash", detail="rm -rf build", options=[SimpleNamespace(label="Yes")])
     assert listen.due(10) == ["s1"]
-    assert "等待: Bash rm -rf build 选项: Yes" in (listen.context("s1") or ("",))[0]
+    assert "Waiting for: Bash rm -rf build Options: Yes" in (listen.context("s1") or ("",))[0]
 
 
 def test_a_daily_cap_and_no_summarizer_are_said_once() -> None:
@@ -99,11 +102,11 @@ def test_a_daily_cap_and_no_summarizer_are_said_once() -> None:
     d.turn("a", "b")
     assert (listen.speak("s1") or SimpleNamespace(text=None)).text == "说法 1"
     capped = listen.speak("s1")
-    assert capped is not None and capped.error == "今天的语音总结已到上限" and capped.reply == "b"
+    assert capped is not None and capped.error == "limit" and capped.reply == "b"
     assert listen.speak("s1") is None  # said once a day
     assert len(s.asked) == 1
     none = _service(d, None).speak("s1")
-    assert none is not None and none.error and "summaries.provider" in none.error
+    assert none is not None and none.error == "unavailable"
 
 
 def test_the_phone_listens_by_subscribing_and_stops_when_it_goes(make_app: Callable[..., FastAPI]) -> None:
@@ -155,7 +158,7 @@ def test_a_summary_is_voiced_as_soon_as_it_is_made_when_the_hub_has_a_voice() ->
     d, s = Directory(), Summarizer()
     listen = _service(d, s)
     voiced: list[str] = []
-    listen.tts = SimpleNamespace(why_not=lambda: None, speak=lambda text: voiced.append(text) or b"mp3")
+    listen.tts = SimpleNamespace(why_not=lambda: None, speak=lambda text, language=None: voiced.append(text) or b"mp3")
     d.turn("go", "done")
     listen.speak("s1")
     assert voiced == ["说法 1"]  # ready in the cache before the phone asks
@@ -163,3 +166,24 @@ def test_a_summary_is_voiced_as_soon_as_it_is_made_when_the_hub_has_a_voice() ->
     d.turn("again", "done again")
     listen.speak("s1")
     assert voiced == ["说法 1"]  # off: nothing made
+
+
+def test_it_speaks_the_language_set_or_each_reply_s_own_and_takes_another_prompt() -> None:
+    from muxtower.listen.language import detect
+
+    replies = ("修好了测试", "テストを直しました", "테스트를 고쳤어요", "Fixed the test", "PR 212 的 CI 挂了")
+    assert [detect(t) for t in replies] == ["zh", "ja", "ko", "en", "zh"]
+    d, s = Directory(), Summarizer()
+    auto = _service(d, s)
+    d.turn("fix it", "I fixed the flaky test and pushed it.")
+    frame = auto.speak("s1")
+    assert frame is not None and frame.language == "en"
+    assert "the language the assistant's reply is written in" in s.asked[-1][0]  # auto: the reply's own
+    d.turn("修一下", "测试修好了，已经推上去了。")
+    assert (auto.speak("s1") or frame).language == "zh"
+    fixed = ListenService(d, lambda: s, lambda: 3, lambda: 100, lambda: "zh", lambda: "Say it in {language}, briefly.")
+    d.turn("fix it", "Done, all green.")
+    assert (fixed.speak("s1") or frame).language == "zh"  # set: whatever the reply is in
+    assert s.asked[-1][0] == "Say it in Chinese (Mandarin, simplified), briefly."  # the prompt set, its placeholder
+    assert instructions(DEFAULT_LISTEN_PROMPT, "ja").startswith("Summarise the assistant's last turn")
+    assert "主人" not in DEFAULT_LISTEN_PROMPT and "driv" not in DEFAULT_LISTEN_PROMPT

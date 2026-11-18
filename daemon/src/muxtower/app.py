@@ -140,6 +140,7 @@ def create_app(
     approvals = ApprovalService(sessions)
     terminal = TerminalService(sessions, monitor, ImageDrop(settings.state_dir / "images"))
     summaries = build_summaries(settings, db)
+    summaries.language = lambda: settings.listen.language  # glasses and Read aloud speak the same language
     marks = SessionMarks(SqliteMarksRepository(db))
     transcripts = Transcripts()
     archive = SessionArchive(SqliteArchiveRepository(db), transcripts, lambda: settings.archive.hide_after_days)
@@ -285,8 +286,9 @@ def create_app(
     mcp.session_tools.resume_archived = recovery.resume
     tts = TtsService(lambda: settings.tts, settings.state_dir)
     listen = ListenService(
-        directory, lambda: summaries.summarizer, lambda: settings.listen.rounds, lambda: settings.listen.max_per_day
-    )
+        directory, lambda: summaries.summarizer, lambda: settings.listen.rounds, lambda: settings.listen.max_per_day,
+        lambda: settings.listen.language, lambda: settings.listen.prompt,
+    )  # fmt: skip
     listen.tts = tts  # a summary's voice made with it, ready when the phone asks
     search_index = SearchIndex(settings.state_dir / "search.db")  # its own file: never locks muxtower.db
 

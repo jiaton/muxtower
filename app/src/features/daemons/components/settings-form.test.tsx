@@ -70,4 +70,39 @@ describe('SettingsForm', () => {
     fireEvent.click(screen.getByRole('button', { name: /Back to the default for Longer than/ }))
     await waitFor(() => expect(sent).toEqual([{ values: { 'recovery.mode': 'auto' } }, { values: { 'summaries.min_chars': null } }]))
   })
+
+  it('a long list is picked from a list (empty: by language), a prompt is a box with its default shown', async () => {
+    const sent: unknown[] = []
+    const voices = ['', 'zh-CN-XiaoxiaoNeural', 'en-US-AvaMultilingualNeural', 'a', 'b', 'c']
+    const listed: MachineSettings = {
+      machine: 'hub',
+      settings: [
+        setting('tts.voice', { section: 'Read aloud voice', label: 'Voice', choices: voices, value: '', default: '' }),
+        setting('listen.prompt', {
+          section: 'Summaries', label: 'Prompt', kind: 'multiline', value: 'Say it in {language}.', default: 'Say it in {language}.',
+        }),
+      ],
+    } // prettier-ignore
+    server.use(
+      http.get(`${DAEMON_URL}/v1/settings`, () => HttpResponse.json(listed)),
+      http.patch(`${DAEMON_URL}/v1/settings`, async ({ request }) => {
+        sent.push(await request.json())
+        return HttpResponse.json(listed)
+      }),
+    )
+    renderForm()
+    const voice = await screen.findByRole('combobox', { name: 'Voice' })
+    expect(screen.getByRole('option', { name: 'by language' })).toBeInTheDocument()
+    fireEvent.change(voice, { target: { value: 'en-US-AvaMultilingualNeural' } })
+    const prompt = screen.getByRole('textbox', { name: 'Prompt' })
+    expect(prompt).toHaveAttribute('placeholder', 'Say it in {language}.')
+    fireEvent.change(prompt, { target: { value: 'In {language}, one sentence.' } })
+    fireEvent.blur(prompt)
+    await waitFor(() =>
+      expect(sent).toEqual([
+        { values: { 'tts.voice': 'en-US-AvaMultilingualNeural' } },
+        { values: { 'listen.prompt': 'In {language}, one sentence.' } },
+      ]),
+    )
+  })
 })

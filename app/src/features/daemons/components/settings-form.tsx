@@ -3,7 +3,8 @@ import { FileLock2, RotateCcw } from 'lucide-react'
 import { useState } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { Input, Textarea } from '@/components/ui/input'
+import { Select } from '@/components/ui/select'
 import { Segmented } from '@/components/ui/segmented'
 import { Switch } from '@/components/ui/switch'
 import type { SettingView } from '@/lib/api/types'
@@ -93,6 +94,18 @@ function SettingRow({ setting: s, busy, onChange }: { setting: SettingView; busy
 
 function Control({ setting: s, disabled, onChange }: { setting: SettingView; disabled: boolean; onChange: (value: unknown) => void }) {
   if (s.kind === 'bool') return <Switch checked={Boolean(s.value)} disabled={disabled} onCheckedChange={onChange} aria-label={s.label} />
+  if (s.kind === 'multiline') return <LongTextControl key={String(s.value)} setting={s} disabled={disabled} onChange={onChange} />
+  if (s.kind === 'choice' && !disabled && s.choices.length > 5)
+    // Many to pick from (voices): a list, not a row of buttons.
+    return (
+      <Select aria-label={s.label} value={String(s.value ?? '')} onChange={(e) => onChange(e.target.value)} className="w-56">
+        {s.choices.map((c) => (
+          <option key={c} value={c}>
+            {c || 'by language'}
+          </option>
+        ))}
+      </Select>
+    )
   if (s.kind === 'choice')
     return disabled ? (
       <span className={ink.body}>{String(s.value)}</span>
@@ -105,6 +118,33 @@ function Control({ setting: s, disabled, onChange }: { setting: SettingView; dis
       />
     )
   return <TextControl key={String(s.value)} setting={s} disabled={disabled} onChange={onChange} />
+}
+
+/** A long text (a prompt), sent on leaving the box; empty, or Back to the default, gives the default. */
+function LongTextControl({
+  setting: s,
+  disabled,
+  onChange,
+}: {
+  setting: SettingView
+  disabled: boolean
+  onChange: (value: unknown) => void
+}) {
+  const shown = s.value === null || s.value === undefined ? '' : String(s.value)
+  const [draft, setDraft] = useState(shown)
+  return (
+    <Textarea
+      code
+      rows={5}
+      className="w-full sm:w-96"
+      value={draft}
+      placeholder={s.default === null || s.default === undefined ? 'default' : String(s.default)}
+      disabled={disabled}
+      aria-label={s.label}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => draft.trim() !== shown.trim() && onChange(draft.trim())}
+    />
+  )
 }
 
 /** A number or a text, sent once typed (Enter or leaving the box), not on every key. */

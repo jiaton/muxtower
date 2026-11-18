@@ -33,10 +33,17 @@ it("asks the hub for the latest reply's summary (kept, or made now) and says it,
 })
 
 it('says why when it cannot', async () => {
-  server.use(
-    http.post(`${DAEMON_URL}/v1/sessions/s1/spoken`, () => HttpResponse.json({ detail: '今天的语音总结已到上限' }, { status: 409 })),
-  )
+  server.use(http.post(`${DAEMON_URL}/v1/sessions/s1/spoken`, () => HttpResponse.json({ detail: 'limit' }, { status: 409 })))
+  useSpeech.setState({ front: { key: 'x', reply: '测试修好了。' } }) // said in the language of what is there
   const daemon = addDaemon()
   expect(await play({ daemonId: daemon.id, sessionId: 's1' })).toBe(false)
-  expect(said[0]).toContain('上限')
+  expect(said[0]).toBe('今天的语音总结已到上限')
+})
+
+it('says the same in English when that is what is there', async () => {
+  server.use(http.post(`${DAEMON_URL}/v1/sessions/s1/spoken`, () => HttpResponse.json({ detail: 'unavailable' }, { status: 409 })))
+  useSpeech.setState({ front: { key: 'x', reply: 'Fixed the test.' } })
+  const daemon = addDaemon()
+  expect(await play({ daemonId: daemon.id, sessionId: 's1' })).toBe(false)
+  expect(said[0]).toBe('No summarizer is set up')
 })

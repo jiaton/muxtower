@@ -29,7 +29,7 @@ it('says a long text in pieces, at sentence ends where it can', () => {
 
 it('reads a reply whole without its code or markdown marks', () => {
   expect(speakable('**Done.** Run `make check`:\n```sh\nmake check\n```\nSee [docs](http://x).')).toBe(
-    'Done. Run make check: 一段代码。 See docs.',
+    'Done. Run make check: a block of code. See docs.',
   )
 })
 
@@ -49,12 +49,12 @@ it('says a summary of the session in front only; one that came while away is mar
   expect(useSpeech.getState().unheard['d/s1']).toBeUndefined()
   useSpeech.setState({ front: { key: 'd/s1', reply: 'Fixed it.\n```\ncode\n```' } })
   expect(readAll()).toBe(true) // the latest reply of the session in front
-  expect(said.at(-1)).toBe('Fixed it. 一段代码。')
+  expect(said.at(-1)).toBe('Fixed it. a block of code.')
 })
 
 it('a summary that could not be made says why, then the start of the reply', () => {
-  heardSummary({ key: 'd/s1', text: null, reply: 'The build is green.', error: '总结失败' }, 'd/s1')
-  expect(said).toEqual(['总结失败。The build is green.'])
+  heardSummary({ key: 'd/s1', text: null, reply: 'The build is green.', error: 'failed', language: 'en' }, 'd/s1')
+  expect(said).toEqual(['The summary could not be made. The build is green.'])
   stopSpeaking()
   expect(useSpeech.getState().speaking).toBe(false)
 })

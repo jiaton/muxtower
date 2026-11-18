@@ -1,11 +1,12 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { mergeWithDefaults } from '@/lib/persist-merge'
+import { languageOf, spokenIn } from './packs'
 
 /**
  * Live's Read aloud: a listened session's turns said in a few words when they end (the daemon's spoken
- * summaries, `listen/`), its full reply on asking, by the browser's own speech (a Chinese voice when it has
- * one). Long text goes in pieces (a browser stops a long utterance). While it speaks, Live writes nothing:
+ * summaries, `listen/`), its full reply on asking, in the hub's voice or the browser's own, in the language
+ * of what is said (its own words, such as "a block of code", from its language's pack). Long text goes in pieces (a browser stops a long utterance). While it speaks, Live writes nothing:
  * it hears nothing at all, nor for a moment after (`TAIL_MS`), and drops anything it heard that overlapped
  * that time (`pipeline.ts`, `engine.ts`): "stop" is the button then; the spoken commands work once it is done.
  */
@@ -46,7 +47,12 @@ export interface Said {
   key: string
   text: string | null
   reply: string | null
+  /** What it is in (a tag: zh, en, …): the voice and Read aloud's own words. */
+  language?: string
 }
+
+/** Why nothing could be said, as the hub says it (`listen/service.py` Problem). */
+export type Problem = 'unavailable' | 'limit' | 'failed'
 
 export interface Front {
   key: string
@@ -109,10 +115,10 @@ export const useSpeech = create<SpeechState>()(
 
 const synth = () => (typeof window !== 'undefined' && 'speechSynthesis' in window ? window.speechSynthesis : null)
 
-/** What is said of a reply read whole: no code read out, nor markdown's marks. */
-export function speakable(reply: string): string {
+/** What is said of a reply read whole: no code read out (named, in its language), nor markdown's marks. */
+export function speakable(reply: string, language = languageOf(reply)): string {
   return reply
-    .replace(CODE, ' 一段代码。 ')
+    .replace(CODE, ` ${spokenIn(language).code}. `)
     .replace(/`([^`]*)`/g, '$1')
     .replace(/[#*_>|]+/g, ' ')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
@@ -136,13 +142,11 @@ export function pieces(text: string, size = PIECE): string[] {
   return out
 }
 
-let voice: SpeechSynthesisVoice | null | undefined
-function chineseVoice(): SpeechSynthesisVoice | null {
-  if (voice === undefined || voice === null) {
-    const voices = synth()?.getVoices() ?? []
-    voice = voices.find((v) => v.lang === 'zh-CN') ?? voices.find((v) => v.lang.startsWith('zh')) ?? null
-  }
-  return voice
+/** The phone's own voice for a language (`voiceTag`, e.g. zh-CN): that exact one, else any of it. */
+function voiceFor(tag: string): SpeechSynthesisVoice | null {
+  const voices = synth()?.getVoices() ?? []
+  const lang = tag.split('-')[0]!
+  return voices.find((v) => v.lang === tag) ?? voices.find((v) => v.lang.toLowerCase().startsWith(lang)) ?? null
 }
 
 let run = 0 // each new speech: the ones before it stop
@@ -150,7 +154,7 @@ let run = 0 // each new speech: the ones before it stop
 /** Says the text (cutting off whatever was being said), in pieces. */
 /** Where a piece's audio is made, when the hub has a voice (`hub-voice.ts`): its mp3, or a refusal (the
  *  phone's own voice says it then). None: the phone's voice. */
-type HubVoice = (text: string) => Promise<Blob>
+type HubVoice = (text: string, language: string) => Promise<Blob>
 let hubVoice: HubVoice | null = null
 export function setHubVoice(voice: HubVoice | null) {
   hubVoice = voice
@@ -240,14 +244,15 @@ function playAudio(blob: Blob): Promise<void> {
   })
 }
 
-function sayLocally(piece: string): Promise<void> {
+function sayLocally(piece: string, language: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const s = synth()
     if (!s) return reject(new Error('no voice'))
     const u = new SpeechSynthesisUtterance(piece)
-    const zh = chineseVoice()
-    if (zh) u.voice = zh
-    u.lang = zh?.lang ?? 'zh-CN'
+    const tag = spokenIn(language).voiceTag
+    const voice = voiceFor(tag)
+    if (voice) u.voice = voice
+    u.lang = voice?.lang ?? tag
     u.onend = () => resolve()
     u.onerror = () => reject(new Error('could not say'))
     s.speak(u)
@@ -257,17 +262,18 @@ function sayLocally(piece: string): Promise<void> {
 /** Says the text (cutting off whatever was being said), in pieces: in the hub's voice when it has one, the
  *  next piece fetched while one plays; in the phone's own voice when it has none, or does not answer (said
  *  once: "using the phone's voice"). */
-export function speak(text: string, about: { title?: string; kind?: Caption['kind'] } = {}) {
+export function speak(text: string, about: { title?: string; kind?: Caption['kind']; language?: string } = {}) {
   if (!text.trim() || (!hubVoice && !synth())) return
   synth()?.cancel()
   playing?.pause()
   const mine = ++run
   const queue = pieces(text)
+  const language = about.language ?? languageOf(text)
   began()
   clearTimeout(captionTimer)
   const caption: Caption = { title: about.title ?? '', kind: about.kind ?? 'summary', pieces: queue, at: 0, done: false }
   useSpeech.setState({ speaking: true, caption })
-  const fetchOf = (piece: string | undefined) => (piece && hubVoice ? hubVoice(piece).catch(() => null) : Promise.resolve(null))
+  const fetchOf = (piece: string | undefined) => (piece && hubVoice ? hubVoice(piece, language).catch(() => null) : Promise.resolve(null))
   void (async () => {
     let next = fetchOf(queue[0])
     let local = !hubVoice
@@ -287,13 +293,13 @@ export function speak(text: string, about: { title?: string; kind?: Caption['kin
           showMedia(null) // the phone's own voice: nothing for the system to show
           if (!local && hubVoice) {
             local = true // the hub did not answer: the phone's voice from here on
-            useSpeech.setState({ note: "using the phone's voice" })
+            useSpeech.setState({ note: spokenIn(language).phoneVoice })
           }
-          await sayLocally(piece)
+          await sayLocally(piece, language)
         }
       } catch {
         if (mine !== run) return
-        await sayLocally(piece).catch(() => undefined)
+        await sayLocally(piece, language).catch(() => undefined)
       }
     }
     if (mine === run) {
@@ -318,9 +324,9 @@ export function stopSpeaking() {
 
 /** A spoken summary came (`spoken` stream frame): kept, and said when Read aloud is on and it is about the
  *  session in front. A summary that could not be made says why, then the reply's start. */
-export function heardSummary(said: Said & { error?: string | null }, inFront: string | null) {
+export function heardSummary(said: Said & { error?: Problem | null }, inFront: string | null) {
   const { readAloud, unheard } = useSpeech.getState()
-  useSpeech.setState({ last: { key: said.key, text: said.text, reply: said.reply } })
+  useSpeech.setState({ last: { key: said.key, text: said.text, reply: said.reply, language: said.language } })
   const away = typeof document !== 'undefined' && document.visibilityState === 'hidden'
   if (!readAloud || said.key !== inFront || away) {
     // Not said later unasked: Play marks it new.
@@ -329,8 +335,16 @@ export function heardSummary(said: Said & { error?: string | null }, inFront: st
   }
   heardNow(said.key)
   const title = nameOf(said.key)
-  if (said.text) speak(said.text, { title })
-  else if (said.error) speak(`${said.error}。${speakable(said.reply ?? '').slice(0, PIECE)}`, { title })
+  const language = said.language ?? languageOf(said.text ?? said.reply ?? '')
+  if (said.text) speak(said.text, { title, language })
+  else if (said.error)
+    speak(`${problemSaid(said.error, language)}. ${speakable(said.reply ?? '', language).slice(0, PIECE)}`, { title, language })
+}
+
+/** Why nothing could be said, in the language spoken. */
+export function problemSaid(problem: string, language: string): string {
+  const words = spokenIn(language)
+  return problem === 'unavailable' ? words.unavailable : problem === 'limit' ? words.limit : words.failed
 }
 
 const nameOf = (key: string) => {
@@ -344,10 +358,10 @@ function heardNow(key: string) {
 }
 
 /** Says a summary of the session in front (Play), as `play.ts` found or made it. */
-export function sayFound(key: string, text: string, reply: string) {
-  useSpeech.setState({ last: { key, text, reply } })
+export function sayFound(key: string, text: string, reply: string, language?: string) {
+  useSpeech.setState({ last: { key, text, reply, language } })
   heardNow(key)
-  speak(text, { title: nameOf(key) })
+  speak(text, { title: nameOf(key), language })
 }
 
 /** "Read all": the latest reply of the session in front, whole (no code read out). */
@@ -356,6 +370,7 @@ export function readAll(): boolean {
   const reply = front?.reply ?? (last && last.key === front?.key ? last.reply : null)
   if (!reply) return false
   if (front) heardNow(front.key)
-  speak(speakable(reply), { title: front?.name ?? '', kind: 'reply' })
+  const language = languageOf(reply)
+  speak(speakable(reply, language), { title: front?.name ?? '', kind: 'reply', language })
   return true
 }

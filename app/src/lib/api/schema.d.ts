@@ -2193,6 +2193,11 @@ export interface components {
         };
         /** Say */
         Say: {
+            /**
+             * Language
+             * @description what the text is in (zh, en, …): its voice, when none is set
+             */
+            language?: string | null;
             /** Style */
             style?: string | null;
             /** Text */
@@ -2612,7 +2617,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "choice" | "bool" | "number" | "text" | "args";
+            kind: "choice" | "bool" | "number" | "text" | "args" | "multiline";
             /** Label */
             label: string;
             /**
@@ -2661,7 +2666,8 @@ export interface components {
         };
         /**
          * Spoken
-         * @description A spoken summary kept: of which reply (its hash), when, what was said, and the reply itself.
+         * @description A spoken summary kept: of which reply (its hash), when, what was said, the reply itself, and the
+         *     language it is in (a tag: zh, en, …).
          */
         Spoken: {
             /**
@@ -2669,6 +2675,11 @@ export interface components {
              * Format: date-time
              */
             at: string;
+            /**
+             * Language
+             * @default en
+             */
+            language: string;
             /** Reply */
             reply: string;
             /** Reply Hash */
@@ -2682,8 +2693,17 @@ export interface components {
          *     nothing can be said (`error`).
          */
         SpokenFrame: {
-            /** Error */
-            error?: string | null;
+            /**
+             * Error
+             * @description unavailable (no summarizer), limit (today's are used up), failed
+             */
+            error?: ("unavailable" | "limit" | "failed") | null;
+            /**
+             * Language
+             * @description what it is said in, a tag (zh, en, …): the voice, the words
+             * @default en
+             */
+            language: string;
             /** Reply */
             reply?: string | null;
             /** Session Id */
@@ -2941,8 +2961,18 @@ export interface components {
             style: string;
             /** Styles */
             styles: string[];
-            /** Voice */
+            /**
+             * Voice
+             * @description the voice set; empty: by the language spoken (voice_for)
+             */
             voice: string;
+            /**
+             * Voice For
+             * @description the voice per language when none is set
+             */
+            voice_for?: {
+                [key: string]: string;
+            };
             /** Voices */
             voices: string[];
             /**

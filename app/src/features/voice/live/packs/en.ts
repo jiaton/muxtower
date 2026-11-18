@@ -50,4 +50,12 @@ export const en: CommandPack = {
     ['S', 'P', 'EH1', 'N', 'T'],
     ['EH1', 'N', 'D'],
   ],
+  spoken: {
+    voiceTag: 'en-US',
+    unavailable: 'No summarizer is set up',
+    limit: "Today's spoken summaries are used up",
+    failed: 'The summary could not be made',
+    code: 'a block of code',
+    phoneVoice: "using the phone's voice",
+  },
 }

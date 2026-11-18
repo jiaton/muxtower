@@ -1,5 +1,6 @@
 import { createDaemonClient } from '@/lib/api/client'
 import { useDaemonsStore } from '@/lib/daemons/store'
+import { languageOf, spokenIn } from './packs'
 import { setHubVoice, useSpeech } from './speech'
 
 const ANSWER_MS = 3000 // a piece's audio, at most this long coming: else the phone's voice
@@ -20,7 +21,8 @@ async function available(daemonId: string): Promise<boolean> {
     try {
       const res = await createDaemonClient(daemon).GET('/v1/tts', { signal: AbortSignal.timeout(ANSWER_MS) })
       ok = Boolean(res.data?.available)
-      if (res.data && !ok && res.data.why_not && res.data.why_not !== 'off') useSpeech.setState({ note: "using the phone's voice" })
+      if (res.data && !ok && res.data.why_not && res.data.why_not !== 'off')
+        useSpeech.setState({ note: spokenIn(languageOf(useSpeech.getState().front?.reply ?? '')).phoneVoice })
     } catch {
       ok = false
     }
@@ -35,9 +37,9 @@ export async function chooseHubVoice(daemonId: string | null) {
   const daemon = useDaemonsStore.getState().daemons.find((d) => d.id === daemonId)
   if (!daemon) return setHubVoice(null)
   useSpeech.setState({ note: null })
-  setHubVoice(async (text) => {
+  setHubVoice(async (text, language) => {
     const res = await createDaemonClient(daemon).POST('/v1/tts', {
-      body: { text },
+      body: { text, language },
       parseAs: 'blob',
       signal: AbortSignal.timeout(ANSWER_MS),
     })

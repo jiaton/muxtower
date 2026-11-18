@@ -108,3 +108,18 @@ def test_routes_off_by_default_and_never_showing_the_key(make_app: Callable[...,
     res = client.post("/v1/tts", json={"text": "你好", "voice": "zh-CN-YunxiNeural"}, headers=auth)
     assert res.status_code == 200 and res.headers["content-type"] == "audio/mpeg"
     assert "test-key-not-real" not in client.get("/v1/tts", headers=auth).text
+
+
+def test_the_voice_follows_the_language_unless_one_is_set(tmp_path: Path) -> None:
+    from muxtower.tts.service import voice_for
+
+    assert voice_for("", "zh") == "zh-CN-XiaoxiaoNeural"
+    assert voice_for("", "en") == "en-US-AvaMultilingualNeural"
+    assert voice_for("", "sv") == "en-US-AvaMultilingualNeural"  # any other: a voice that speaks any
+    assert voice_for("zh-CN-YunxiNeural", "en") == "zh-CN-YunxiNeural"  # the one set wins
+    tts, fake, _ = _service(tmp_path, voice="")
+    tts.speak("Fixed it.", language="en")
+    tts.speak("修好了。", language="zh")
+    assert ['name="en-US-AvaMultilingualNeural"' in b for b, _, _ in fake.asked] == [True, False]
+    assert 'name="zh-CN-XiaoxiaoNeural"' in fake.asked[1][0] and 'xml:lang="zh-CN"' in fake.asked[1][0]
+    assert tts.status().voice_for["en"] == "en-US-AvaMultilingualNeural"

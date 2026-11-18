@@ -94,7 +94,13 @@ useSpeech.subscribe((now, was) => {
 // A listened session's spoken summary: said when it is the one in front (`speech.ts`).
 spokenListeners.add((daemonId, frame) =>
   heardSummary(
-    { key: entryKey(daemonId, frame.session_id), text: frame.text ?? null, reply: frame.reply ?? null, error: frame.error },
+    {
+      key: entryKey(daemonId, frame.session_id),
+      text: frame.text ?? null,
+      reply: frame.reply ?? null,
+      error: frame.error,
+      language: frame.language,
+    },
     target ? entryKey(target.daemonId, target.sessionId) : null,
   ),
 )

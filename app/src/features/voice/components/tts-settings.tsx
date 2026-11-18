@@ -15,7 +15,14 @@ const WHY: Record<string, string> = {
   cap: "This month's cap is reached: the phone's voice until the month turns.",
   quota: "Azure's quota is used up: the phone's voice for now.",
 }
-const SAMPLE = 'staging 上的 deploy 已经完成了，健康检查全部通过。'
+// A sample in the voice's language (by its name, e.g. zh-CN-…; none set: the English voice's).
+const SAMPLES: Record<string, string> = {
+  zh: 'staging 上的 deploy 已经完成了，健康检查全部通过。',
+  ja: 'staging へのデプロイが終わり、ヘルスチェックはすべて通りました。',
+  ko: 'staging 배포가 끝났고 상태 점검도 모두 통과했습니다.',
+  en: 'The deploy to staging is done, and every health check passed.',
+}
+const sampleFor = (voice: string) => SAMPLES[voice.split('-')[0] ?? ''] ?? SAMPLES.en!
 const count = (n: number) => n.toLocaleString('en-US')
 
 /** Under "Read aloud voice" in the hub's settings: whether its voice is in use (and why not), the key file
@@ -39,7 +46,10 @@ export function TtsSettings({ daemonId }: { daemonId: string }) {
   const listen = async () => {
     setPreview({ busy: true, error: null })
     try {
-      const res = await createDaemonClient(daemon!).POST('/v1/tts', { body: { text: SAMPLE }, parseAs: 'blob' })
+      const res = await createDaemonClient(daemon!).POST('/v1/tts', {
+        body: { text: sampleFor(s.voice), language: s.voice.split('-')[0] || 'en' },
+        parseAs: 'blob',
+      })
       if (!res.data) throw new Error(res.error && 'detail' in res.error ? String(res.error.detail) : 'no voice')
       const url = URL.createObjectURL(res.data as Blob)
       const audio = new Audio(url)
@@ -53,7 +63,9 @@ export function TtsSettings({ daemonId }: { daemonId: string }) {
   return (
     <div className="flex flex-col gap-2">
       <p className={ink.body}>
-        {s.available ? `In use: ${s.voice}${s.style ? ` (${s.style})` : ''}, ${s.region}.` : (WHY[s.why_not ?? 'off'] ?? s.why_not)}
+        {s.available
+          ? `In use: ${s.voice || 'a voice for each language'}${s.style ? ` (${s.style})` : ''}, ${s.region}.`
+          : (WHY[s.why_not ?? 'off'] ?? s.why_not)}
       </p>
       <p className={ink.meta}>
         Key file: {s.key_present ? 'present' : 'missing'} · This month ({s.month}): {count(s.characters)} characters of the{' '}
