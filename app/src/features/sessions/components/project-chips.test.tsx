@@ -35,6 +35,7 @@ function show(sessions: SessionEntry[], groups: ChipGroup[], chip?: string, list
       <RouterProvider router={router} />
     </Wrapper>,
   )
+  return router
 }
 
 const labels = async () =>
@@ -89,8 +90,8 @@ it('scrolls the chosen chip into view', async () => {
   rect.mockRestore()
 })
 
-it('a right click on a group offers Edit, Move and Delete; Move right puts the new order', async () => {
-  const put: unknown[] = []
+function watchPut() {
+  const put: string[][] = []
   server.use(
     http.put(`${DAEMON_URL}/v1/chip-groups`, async ({ request }) => {
       const body = (await request.json()) as { groups: ChipGroup[] }
@@ -98,19 +99,110 @@ it('a right click on a group offers Edit, Move and Delete; Move right puts the n
       return HttpResponse.json(body)
     }),
   )
-  show(entries, [
-    { id: 'one', name: 'One', projects: ['a'], sessions: [] },
-    { id: 'two', name: 'Two', projects: ['b'], sessions: [] },
-  ])
+  return put
+}
+
+const three: ChipGroup[] = [
+  { id: 'one', name: 'One', projects: ['a'], sessions: [] },
+  { id: 'two', name: 'Two', projects: ['b'], sessions: [] },
+  { id: 'three', name: 'Three', projects: ['c'], sessions: [] },
+]
+
+/** Chips 100 px apart, 90 wide, in the order they are drawn; the row from 0 to 300. */
+function lineUp() {
+  return vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (this: Element) {
+    const holders = [...document.querySelectorAll('[data-chip-id]')]
+    const i = holders.findIndex((h) => h === this || h.contains(this))
+    const left = i >= 0 ? i * 100 : 0
+    const width = i >= 0 ? 90 : 300
+    return { left, width, right: left + width, top: 0, height: 32, bottom: 32, x: left, y: 0, toJSON: () => ({}) } as DOMRect
+  })
+}
+
+it("a right click opens the chip's own menu, under it: its name, its teams, Edit, Delete (no Move)", async () => {
+  show(entries, three)
   fireEvent.contextMenu(await screen.findByRole('link', { name: /One/ }))
   const menu = await screen.findByRole('menu')
+  expect(within(menu).getByText('One')).toBeInTheDocument()
   expect(
     within(menu)
       .getAllByRole('menuitem')
       .map((i) => i.textContent),
-  ).toEqual(['Team · a', 'Edit', 'Move right', 'Delete'])
-  fireEvent.click(within(menu).getByRole('menuitem', { name: 'Move right' }))
-  await waitFor(() => expect(put).toEqual([['two', 'one']]))
+  ).toEqual(['Team · a', 'Edit', 'Delete'])
+})
+
+it('a chip dragged with the mouse lands where it is let go, and the order is saved', async () => {
+  const put = watchPut()
+  const rect = lineUp()
+  const router = show(entries, three)
+  const one = await screen.findByRole('link', { name: /One/ })
+  fireEvent.pointerDown(one, { button: 0, pointerId: 1, pointerType: 'mouse', clientX: 40, clientY: 10 })
+  fireEvent.pointerMove(one, { pointerId: 1, pointerType: 'mouse', clientX: 170, clientY: 12 }) // past Two's middle
+  await waitFor(async () => expect(await labels()).toEqual(['Two1', 'One1', 'Three1'])) // shown where it would land
+  fireEvent.pointerUp(one, { pointerId: 1, pointerType: 'mouse', clientX: 170, clientY: 12 })
+  fireEvent.click(one) // the click a drop makes chooses nothing
+  await waitFor(() => expect(put).toEqual([['two', 'one', 'three']]))
+  expect(router.state.location.search).not.toMatchObject({ chip: 'one' }) // not chosen by the drop
+  rect.mockRestore()
+})
+
+it('a drag let go anywhere still lands (the chip moves in the row as it is dragged)', async () => {
+  const put = watchPut()
+  const rect = lineUp()
+  show(entries, three)
+  const three_ = await screen.findByRole('link', { name: /Three/ })
+  fireEvent.pointerDown(three_, { button: 0, pointerId: 4, pointerType: 'mouse', clientX: 240, clientY: 10 })
+  fireEvent.pointerMove(three_, { pointerId: 4, pointerType: 'mouse', clientX: 20, clientY: 10 })
+  fireEvent.pointerUp(document.body, { pointerId: 4, pointerType: 'mouse', clientX: 20, clientY: 10 }) // not on the chip
+  await waitFor(() => expect(put).toEqual([['three', 'one', 'two']]))
+  rect.mockRestore()
+})
+
+it('a click that hardly moves still chooses the chip', async () => {
+  const put = watchPut()
+  const router = show(entries, three)
+  const one = await screen.findByRole('link', { name: /One/ })
+  fireEvent.pointerDown(one, { button: 0, pointerId: 1, pointerType: 'mouse', clientX: 40, clientY: 10 })
+  fireEvent.pointerMove(one, { pointerId: 1, pointerType: 'mouse', clientX: 43, clientY: 11 })
+  fireEvent.pointerUp(one, { pointerId: 1, pointerType: 'mouse', clientX: 43, clientY: 11 })
+  fireEvent.click(one)
+  await waitFor(() => expect(router.state.location.search).toMatchObject({ chip: 'one' })) // chosen
+  expect(put).toEqual([])
+})
+
+it('Alt+→ and Alt+← move a focused chip one place', async () => {
+  const put = watchPut()
+  show(entries, three)
+  const two = await screen.findByRole('link', { name: /Two/ })
+  fireEvent.keyDown(two, { key: 'ArrowRight', altKey: true })
+  fireEvent.keyDown(two, { key: 'ArrowLeft', altKey: true })
+  fireEvent.keyDown(two, { key: 'ArrowRight' }) // no Alt: nothing
+  await waitFor(() =>
+    expect(put).toEqual([
+      ['one', 'three', 'two'],
+      ['two', 'one', 'three'],
+    ]),
+  )
+})
+
+it('a finger moving at once scrolls the row; held first, it drags', async () => {
+  vi.useFakeTimers({ shouldAdvanceTime: true })
+  const put = watchPut()
+  const rect = lineUp()
+  show(entries, three)
+  const one = await screen.findByRole('link', { name: /One/ })
+  fireEvent.pointerDown(one, { button: 0, pointerId: 2, pointerType: 'touch', clientX: 40, clientY: 10 })
+  fireEvent.pointerMove(one, { pointerId: 2, pointerType: 'touch', clientX: 120, clientY: 10 }) // a swipe
+  vi.advanceTimersByTime(400)
+  fireEvent.pointerUp(one, { pointerId: 2, pointerType: 'touch', clientX: 120, clientY: 10 })
+  expect(put).toEqual([])
+  fireEvent.pointerDown(one, { button: 0, pointerId: 3, pointerType: 'touch', clientX: 40, clientY: 10 })
+  vi.advanceTimersByTime(350) // held: picked up
+  fireEvent.pointerMove(one, { pointerId: 3, pointerType: 'touch', clientX: 260, clientY: 10 })
+  fireEvent.pointerUp(one, { pointerId: 3, pointerType: 'touch', clientX: 260, clientY: 10 })
+  await waitFor(() => expect(put).toEqual([['two', 'three', 'one']]))
+  rect.mockRestore()
+  vi.useRealTimers()
 })
 
 it('a group’s menu offers its teams, six then "More teams…", and one chosen shows its card', async () => {

@@ -195,6 +195,9 @@ export const roleCard = ({ centre = false, busy = false, outside = false }: { ce
  *  message (`Clamp`). */
 export const fadeOut = '[mask-image:linear-gradient(to_bottom,black_calc(100%-2.5em),transparent)]'
 
+/** A chip being dragged into order (project-chips.tsx): it sits where it would land, outlined. */
+export const dragging = 'rounded-full opacity-80 ring-2 ring-accent ring-offset-1 ring-offset-surface'
+
 /** What Read aloud is saying, floating over the page (`ReadAloudCaption`): a card above the rest. */
 export const caption = cn('rounded-lg border border-border bg-surface shadow-card', 'text-fg')
 /** Its words: large enough to read at a glance, about four lines, then they scroll. */
