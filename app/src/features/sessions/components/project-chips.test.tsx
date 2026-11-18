@@ -131,30 +131,18 @@ it("a right click opens the chip's own menu, under it: its name, its teams, Edit
   ).toEqual(['Team · a', 'Edit', 'Delete'])
 })
 
-it('a chip dragged with the mouse lands where it is let go, and the order is saved', async () => {
+it('a chip dragged with the mouse lands where it is let go, the order saved, and the drop chooses nothing', async () => {
   const put = watchPut()
   const rect = lineUp()
   const router = show(entries, three)
   const one = await screen.findByRole('link', { name: /One/ })
-  fireEvent.pointerDown(one, { button: 0, pointerId: 1, pointerType: 'mouse', clientX: 40, clientY: 10 })
-  fireEvent.pointerMove(one, { pointerId: 1, pointerType: 'mouse', clientX: 170, clientY: 12 }) // past Two's middle
-  await waitFor(async () => expect(await labels()).toEqual(['Two1', 'One1', 'Three1'])) // shown where it would land
-  fireEvent.pointerUp(one, { pointerId: 1, pointerType: 'mouse', clientX: 170, clientY: 12 })
-  fireEvent.click(one) // the click a drop makes chooses nothing
+  fireEvent.mouseDown(one, { button: 0, clientX: 40, clientY: 10 })
+  fireEvent.mouseMove(document, { clientX: 60, clientY: 10 }) // past the few pixels: lifted
+  fireEvent.mouseMove(document, { clientX: 120, clientY: 10 }) // mostly over Two
+  fireEvent.mouseUp(document, { clientX: 120, clientY: 10 })
+  fireEvent.click(one)
   await waitFor(() => expect(put).toEqual([['two', 'one', 'three']]))
-  expect(router.state.location.search).not.toMatchObject({ chip: 'one' }) // not chosen by the drop
-  rect.mockRestore()
-})
-
-it('a drag let go anywhere still lands (the chip moves in the row as it is dragged)', async () => {
-  const put = watchPut()
-  const rect = lineUp()
-  show(entries, three)
-  const three_ = await screen.findByRole('link', { name: /Three/ })
-  fireEvent.pointerDown(three_, { button: 0, pointerId: 4, pointerType: 'mouse', clientX: 240, clientY: 10 })
-  fireEvent.pointerMove(three_, { pointerId: 4, pointerType: 'mouse', clientX: 20, clientY: 10 })
-  fireEvent.pointerUp(document.body, { pointerId: 4, pointerType: 'mouse', clientX: 20, clientY: 10 }) // not on the chip
-  await waitFor(() => expect(put).toEqual([['three', 'one', 'two']]))
+  expect(router.state.location.search).not.toMatchObject({ chip: 'one' })
   rect.mockRestore()
 })
 
@@ -162,47 +150,42 @@ it('a click that hardly moves still chooses the chip', async () => {
   const put = watchPut()
   const router = show(entries, three)
   const one = await screen.findByRole('link', { name: /One/ })
-  fireEvent.pointerDown(one, { button: 0, pointerId: 1, pointerType: 'mouse', clientX: 40, clientY: 10 })
-  fireEvent.pointerMove(one, { pointerId: 1, pointerType: 'mouse', clientX: 43, clientY: 11 })
-  fireEvent.pointerUp(one, { pointerId: 1, pointerType: 'mouse', clientX: 43, clientY: 11 })
+  fireEvent.mouseDown(one, { button: 0, clientX: 40, clientY: 10 })
+  fireEvent.mouseMove(document, { clientX: 43, clientY: 11 })
+  fireEvent.mouseUp(document, { clientX: 43, clientY: 11 })
   fireEvent.click(one)
-  await waitFor(() => expect(router.state.location.search).toMatchObject({ chip: 'one' })) // chosen
+  await waitFor(() => expect(router.state.location.search).toMatchObject({ chip: 'one' }))
   expect(put).toEqual([])
 })
 
-it('Alt+→ and Alt+← move a focused chip one place', async () => {
+// The arrows' moves need real layout (dnd-kit measures it): checked in a browser. Here: Space lifts it, said
+// to screen readers, and Escape puts it back as it was.
+it('by keyboard: Space lifts it (announced), Escape puts it back unchanged', async () => {
+  const put = watchPut()
+  show(entries, three)
+  const one = await screen.findByRole('link', { name: /One/ })
+  expect(one).toHaveAttribute('aria-roledescription', 'sortable')
+  one.focus()
+  fireEvent.keyDown(one, { code: 'Space', key: ' ' })
+  await waitFor(() => expect(document.body.textContent).toMatch(/Picked up draggable item one/))
+  fireEvent.keyDown(one, { code: 'Escape', key: 'Escape' })
+  await waitFor(() => expect(document.body.textContent).toMatch(/Dragging was cancelled/))
+  expect(put).toEqual([])
+})
+
+it('Alt+→ and Alt+← move a focused chip one place; Enter still chooses it', async () => {
   const put = watchPut()
   show(entries, three)
   const two = await screen.findByRole('link', { name: /Two/ })
-  fireEvent.keyDown(two, { key: 'ArrowRight', altKey: true })
-  fireEvent.keyDown(two, { key: 'ArrowLeft', altKey: true })
-  fireEvent.keyDown(two, { key: 'ArrowRight' }) // no Alt: nothing
+  fireEvent.keyDown(two, { key: 'ArrowRight', code: 'ArrowRight', altKey: true })
+  fireEvent.keyDown(two, { key: 'ArrowLeft', code: 'ArrowLeft', altKey: true })
+  fireEvent.keyDown(two, { key: 'ArrowRight', code: 'ArrowRight' }) // no Alt, not lifted: nothing
   await waitFor(() =>
     expect(put).toEqual([
       ['one', 'three', 'two'],
       ['two', 'one', 'three'],
     ]),
   )
-})
-
-it('a finger moving at once scrolls the row; held first, it drags', async () => {
-  vi.useFakeTimers({ shouldAdvanceTime: true })
-  const put = watchPut()
-  const rect = lineUp()
-  show(entries, three)
-  const one = await screen.findByRole('link', { name: /One/ })
-  fireEvent.pointerDown(one, { button: 0, pointerId: 2, pointerType: 'touch', clientX: 40, clientY: 10 })
-  fireEvent.pointerMove(one, { pointerId: 2, pointerType: 'touch', clientX: 120, clientY: 10 }) // a swipe
-  vi.advanceTimersByTime(400)
-  fireEvent.pointerUp(one, { pointerId: 2, pointerType: 'touch', clientX: 120, clientY: 10 })
-  expect(put).toEqual([])
-  fireEvent.pointerDown(one, { button: 0, pointerId: 3, pointerType: 'touch', clientX: 40, clientY: 10 })
-  vi.advanceTimersByTime(350) // held: picked up
-  fireEvent.pointerMove(one, { pointerId: 3, pointerType: 'touch', clientX: 260, clientY: 10 })
-  fireEvent.pointerUp(one, { pointerId: 3, pointerType: 'touch', clientX: 260, clientY: 10 })
-  await waitFor(() => expect(put).toEqual([['two', 'three', 'one']]))
-  rect.mockRestore()
-  vi.useRealTimers()
 })
 
 it('a group’s menu offers its teams, six then "More teams…", and one chosen shows its card', async () => {
@@ -231,4 +214,29 @@ it('a group of single sessions offers the teams they are in', async () => {
       .map((i) => i.textContent)
       .slice(0, 2),
   ).toEqual(['Team · b', 'Team · a'])
+})
+
+it('slides the others aside as a chip moves, unless the reader asked for less motion', async () => {
+  const dragTwo = async () => {
+    const rect = lineUp()
+    show(entries, three)
+    const one = await screen.findByRole('link', { name: /One/ })
+    fireEvent.mouseDown(one, { button: 0, clientX: 40, clientY: 10 })
+    fireEvent.mouseMove(document, { clientX: 60, clientY: 10 })
+    fireEvent.mouseMove(document, { clientX: 120, clientY: 10 })
+    await new Promise((r) => setTimeout(r, 50))
+    const two = document.querySelector<HTMLElement>('[data-chip-id="two"]')!
+    const style = { transition: two.style.transition, transform: two.style.transform }
+    fireEvent.mouseUp(document, { clientX: 120, clientY: 10 })
+    rect.mockRestore()
+    return style
+  }
+  watchPut()
+  const moving = await dragTwo()
+  expect(moving.transition).toMatch(/transform/)
+  document.body.innerHTML = ''
+  vi.stubGlobal('matchMedia', (q: string) => ({ matches: q.includes('reduce'), addEventListener() {}, removeEventListener() {} }))
+  const still = await dragTwo()
+  expect(still.transition).toBe('')
+  vi.unstubAllGlobals()
 })

@@ -22,6 +22,8 @@
 - Routing: TanStack Router (file routes in `src/routes/`)
 - Server state: TanStack Query · Client state: Zustand (persisted) — Zustand only, no Context stores
 - Contract: `openapi-typescript` types from `../openapi.json` + `openapi-fetch`
+- Drag and drop: dnd-kit (`@dnd-kit/core`, `sortable`, `modifiers`), e.g. the chip row's order (`project-chips.tsx`)
+- Standard interactions (drag and drop, sortable lists, virtualised lists, gestures beyond our simple swipes) come from a maintained open-source library (dnd-kit and the like), not hand-rolled code; a new one's bundle cost is said in its commit
 - Terminal: our own view (`features/terminal`): ANSI → HTML lines (`lib/ansi.ts`) in a natively scrolling box, diffed line by line (`features/terminal/lines.ts`); no xterm.js. Non-ASCII text gets exactly the cells tmux gives it (`lib/cell-width.ts`), so every line adds up to the pane's columns: a CJK character is its fallback font scaled to exactly two cells (`term-wide`, the scale measured in the browser by the terminal view), an emoji or other wide symbol a 2ch box, other runs a box their width in `ch`, so columns line up whatever fallback font draws it; ASCII is drawn in the JetBrains Mono the app ships (`src/assets/fonts/`, Regular and Bold, OFL), since a browser with no monospace font draws `monospace` proportionally · PWA/push: `vite-plugin-pwa` (injectManifest, own service worker). App and notification icons: SVG sources (`public/icon.svg`, `scripts/icons/`) rendered to the PNGs in `public/` by `npm run icons` (commit both); Android needs PNGs to install the app and to show its notifications under its own icon
 
 ### Terminal glyphs: every class has one rule
