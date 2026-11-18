@@ -47,3 +47,13 @@ def test_long_folders_keep_their_last_parts() -> None:
 def test_one_line_flattens_and_cuts() -> None:
     assert one_line("a\n\n- b  `c`", limit=20) == "a b c"
     assert one_line("x" * 30, limit=10) == "x" * 9 + "…"
+
+
+def test_a_message_held_from_another_session_asks_whether_to_deliver_it() -> None:
+    held = session(
+        state=AgentState.NEEDS_PERMISSION, needs_attention=True, machine=None, cwd="",
+        pending=PendingAction(
+            state=AgentState.NEEDS_PERMISSION, kind="peer_message", sender="builder-7", detail="rerun lint"
+        ),
+    )  # fmt: skip
+    assert attention_text(held) == ("web", "web received a message from builder-7: deliver?")

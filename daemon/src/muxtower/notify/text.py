@@ -35,6 +35,9 @@ def attention_text(session: Session) -> tuple[str, str]:
     pending = session.pending
     detail = one_line(pending.detail) if pending and pending.detail else ""
     tool = pending.tool_name if pending else None
+    if pending and pending.kind == "peer_message":
+        sender = pending.sender or "another session"
+        return session.name, _with_place(f"{session.name} received a message from {sender}: deliver?", session)
     match session.state:
         case AgentState.NEEDS_PERMISSION:
             what = f"Approve {tool}: {detail}" if tool and detail else f"Approve {tool or 'a tool call'}"

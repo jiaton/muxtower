@@ -38,6 +38,12 @@ class PendingAction(BaseModel):
         default_factory=list,
         description="a multiple-choice prompt's questions, when known: answer them all at once with `answers`",
     )
+    kind: str | None = Field(
+        default=None,
+        description="peer_message: a message from another agent session, held for the owner (`detail` is "
+        "the message, `sender` who sent it); approve with its Deliver or Deny option, there is no default",
+    )
+    sender: str | None = Field(default=None, description="peer_message: who sent it, as the dialog says")
 
 
 class Placement(BaseModel):

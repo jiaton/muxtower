@@ -1,6 +1,7 @@
-import { Check, X } from 'lucide-react'
+import { Check, Send, X } from 'lucide-react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
+import { Clamp } from '@/components/ui/clamp'
 import type { PendingAction } from '@/lib/api/types'
 import { useAnswer, useApprove, useDeny } from '../api/use-approval'
 import { QuestionForm } from './question-form'
@@ -17,6 +18,8 @@ export function PendingActionCard({ daemonId, sessionId, pending }: { daemonId: 
   const busy = approve.isPending || answer.isPending || deny.isPending
   const error = approve.error ?? answer.error ?? deny.error
   const options = pending.options ?? []
+  if (pending.kind === 'peer_message')
+    return <PeerMessage pending={pending} busy={busy} error={error} pick={(key) => approve.mutate(key)} />
 
   return (
     <div className="flex flex-col gap-3">
@@ -51,6 +54,49 @@ export function PendingActionCard({ daemonId, sessionId, pending }: { daemonId: 
       <Button variant="ghost" className="self-start" disabled={busy} onClick={() => deny.mutate()}>
         <X /> Deny (Esc)
       </Button>
+      {error ? <Banner tone="error">{error.message}</Banner> : null}
+    </div>
+  )
+}
+
+/** A message from another agent session that Claude Code holds for the owner: who sent it, what it says,
+ *  and its own two choices, Deliver and Deny. Neither is a default: nothing delivers it by accident. */
+function PeerMessage({
+  pending,
+  busy,
+  error,
+  pick,
+}: {
+  pending: PendingAction
+  busy: boolean
+  error: Error | null
+  pick: (key: string) => void
+}) {
+  const options = pending.options ?? []
+  const deliver = options.find((o) => /^Deliver\b/i.test(o.label))
+  const deny = options.find((o) => /^Deny\b/i.test(o.label))
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-1">
+        <p className={ink.eyebrow}>Message from {pending.sender ?? 'another session'}</p>
+        {pending.detail ? (
+          <div className={`${look.panel} ${ink.body} px-3 py-2 whitespace-pre-wrap`}>
+            <Clamp>{pending.detail}</Clamp>
+          </div>
+        ) : null}
+      </div>
+      {deliver && deny ? (
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" disabled={busy} onClick={() => pick(deliver.key)}>
+            <Send /> Deliver
+          </Button>
+          <Button variant="outline" disabled={busy} onClick={() => pick(deny.key)}>
+            <X /> Deny
+          </Button>
+        </div>
+      ) : (
+        <p className={ink.hint}>Waiting for the choices to appear on screen…</p>
+      )}
       {error ? <Banner tone="error">{error.message}</Banner> : null}
     </div>
   )

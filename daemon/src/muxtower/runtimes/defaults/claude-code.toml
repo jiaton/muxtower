@@ -24,6 +24,17 @@ prompt = '^─{8,}\n❯[^\n]*(?:\n[^─\n][^\n]*)*\n─{8,}|^>[^\n]*\n\s*\?\s+fo
 panel_rule = '^─{8,}\s*$'
 
 [[rules]]
+# A message from another Claude session (its SendMessage, or Remote Control from no app of the owner's)
+# held for the owner: delivered or denied by its own two choices, never by a default.
+name = "peer-message"
+state = "needs_permission"
+kind = "peer_message"
+# At the bottom: its last choice is the screen's last line (a reply quoting the dialog is none).
+last_lines = 40
+pattern = 'Another\s+Claude\s+session\s+sent\s+a\s+message:.*Deliver\s+this\s+message\s+to\s+Claude[^\n]*(?:\n[ \t]*)*\Z'
+sender = '^[ \t]*Another\s+Claude\s+session\s+sent\s+a\s+message:\s+from\s+([^\n]+?)[ \t]*$'
+
+[[rules]]
 name = "tool-permission"
 state = "needs_permission"
 pattern = 'Tab\s+to\s+amend.*ctrl\+e\s+to\s+explain'
@@ -129,6 +140,8 @@ top = '^─{8,}[ \t]*$'
 tool = '^[●⏺][ \t]+([^\n(]{1,80}?)\('
 tool_stop = '^[●⏺❯>]'
 detail = [
+  # A message from another session, held: its body.
+  '(?s)Message\s+body\s+\(this\s+is\s+what\s+will\s+be\s+delivered\):[ \t]*\n(.*?)\n[ \t]*❯',
   # A permission dialog: what sits between its title ("Bash command") and "Do you want to proceed?".
   '(?s)\A[^\n]*\n[^\n]*\n(.*?)\n[ \t]*Do\s+you\s+want\s+to',
   # Trusting a folder: which one.

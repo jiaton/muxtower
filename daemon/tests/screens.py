@@ -454,3 +454,29 @@ How should the open session stand out in the list?
 ────────────────────────────────────────────────────────────────────────────────
  Enter to select · ↑/↓ to navigate · n to add notes · Esc to cancel
 """
+
+# Claude Code 2.1.327 holding a message from another session (layout captured live, text made up).
+PEER_MESSAGE = """\
+❯ /rename lint fixer
+  ⎿  Session renamed to: lint fixer
+
+● Held peer message — from builder-7; preview: «Please rerun the lint step and tell me what fails.» — not
+  delivered to Claude (1 held). The sender did not attest its permission mode and this session bypasses
+  prompts. Review it below, or set "crossSessionInbound" to "accept".
+
+──────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Held message from another session
+
+ Another Claude session sent a message: from builder-7
+
+ The sender did not attest its permission mode, and this session bypasses permission prompts.
+
+ Message body (this is what will be delivered):
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ │ Please rerun the lint step
+ │ and tell me what fails.
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+ ❯ Deny — drop it and tell the sender it was declined
+   Deliver this message to Claude
+"""

@@ -24,6 +24,22 @@ class Step(BaseModel):
     key: str | None = None
 
 
+_FRAME = "╌─━│┃╎┆┊"
+
+
+def _text_of(block: str) -> list[str]:
+    """A dialog's lines as text: stripped, blank ones and lines that only frame it (╌╌╌) dropped, a frame's
+    left edge (│) taken off."""
+    out = []
+    for line in block.splitlines():
+        text = line.strip()
+        if text[:1] in ("│", "┃"):
+            text = text[1:].strip()
+        if text and text.strip(_FRAME):
+            out.append(text)
+    return out
+
+
 def _anchored(pattern: str) -> str:
     """A pattern that opens with a lookahead is tried at every position of the screen, and each try scans
     to its end (screens are matched with DOTALL): quadratic, tens of milliseconds a pane a second."""
@@ -42,6 +58,10 @@ class RuleConfig(BaseModel):
     # Look only at what is above the input box (`RuntimeConfig.prompt`), while it shows: the end of the
     # conversation, for a sign that only counts as the last thing said (an error the agent ended on).
     above_prompt: bool = False
+    # What kind of prompt it is, when the app shows it its own way (`peer_message`: a message from another
+    # agent session, held for the owner to deliver or deny), and who it is from: group 1 of `sender`.
+    kind: str | None = None
+    sender: str | None = None
 
     @field_validator("pattern")
     @classmethod
@@ -171,6 +191,8 @@ class Classification:
     # What a dialog asks about, read off it (`ContextConfig`): set only when a dialog's rule matched.
     tool_name: str | None = None
     detail: str | None = None
+    kind: str | None = None  # the rule's `kind`
+    sender: str | None = None
 
     @property
     def options(self) -> list[Option]:
@@ -221,6 +243,7 @@ class Runtime:
         self.config = config
         self.source = source
         self.rules = [(r, re.compile(r.pattern, re.DOTALL)) for r in config.rules]
+        self.senders = {r.name: re.compile(r.sender, re.MULTILINE) for r in config.rules if r.sender}
         self.prompt = re.compile(config.prompt, re.MULTILINE) if config.prompt else None
         self.panel_rule = re.compile(config.panel_rule) if config.panel_rule else None
         self.prefer = {state: [re.compile(p) for p in ps] for state, ps in config.approve.prefer.items()}
@@ -273,7 +296,10 @@ class Runtime:
                 menu = self.parse_menu(screen) if rule.state != AgentState.BUSY else None
                 if rule.state in APPROVABLE_STATES and dialog is not None:
                     tool, detail = self.context_of(dialog)
-                    return Classification(rule.state, rule.name, menu, slowest, tool, detail)
+                    sender = None
+                    if (said := self.senders.get(rule.name)) and (who := said.search("\n".join(dialog))):
+                        sender = who.group(1).strip() or None
+                    return Classification(rule.state, rule.name, menu, slowest, tool, detail, rule.kind, sender)
                 return Classification(rule.state, rule.name, menu, slowest)
         return Classification(self.config.default_state, None, None, slowest)
 
@@ -297,9 +323,7 @@ class Runtime:
         text = "\n".join(lines[top or 0 :])
         for pattern in self.context_detail:
             found = pattern.search(text)
-            detail = (
-                "\n".join(line.strip() for line in (found.group(1) or "").splitlines() if line.strip()) if found else ""
-            )
+            detail = "\n".join(_text_of(found.group(1) or "")) if found else ""
             if detail:
                 cut = (
                     detail if len(detail) <= context.detail_chars else detail[: context.detail_chars - 1].rstrip() + "…"

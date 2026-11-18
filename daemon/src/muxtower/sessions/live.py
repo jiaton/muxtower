@@ -106,12 +106,17 @@ def merge(hook: HookState | None, screen: ScreenState | None, now: float, busy_s
             or (screen_state not in APPROVABLE_STATES and now - max(hook.at, screen.since) > STALE_HOOK_SECONDS)
         )
         if not cleared:
+            shown = screen if screen is not None and screen_state in APPROVABLE_STATES else None
+            kind = shown.classification.kind if shown else None
             pending = PendingAction(
                 state=hook.state,
                 tool_name=hook.tool_name,
-                detail=hook.detail,
-                options=options if screen_state in APPROVABLE_STATES else [],
+                # A dialog of its own kind says more than the hook's notice ("A message … needs your approval").
+                detail=(shown.classification.detail or hook.detail) if shown and kind else hook.detail,
+                options=options if shown else [],
                 questions=hook.questions,
+                kind=kind,
+                sender=shown.classification.sender if shown else None,
             )
             return Effective(hook.state, StateSource.HOOK, rule, pending)
 
@@ -119,7 +124,9 @@ def merge(hook: HookState | None, screen: ScreenState | None, now: float, busy_s
     if screen is not None and screen_state in ATTENTION_STATES and not overruled:
         assert screen is not None
         c = screen.classification
-        pending = PendingAction(state=screen_state, tool_name=c.tool_name, detail=c.detail, options=options)
+        pending = PendingAction(
+            state=screen_state, tool_name=c.tool_name, detail=c.detail, options=options, kind=c.kind, sender=c.sender
+        )
         return Effective(screen_state, StateSource.SCREEN, rule, pending)
 
     if screen is not None and rule is not None and not overruled:

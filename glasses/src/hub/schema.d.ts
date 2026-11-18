@@ -1929,6 +1929,11 @@ export interface components {
         PendingAction: {
             /** Detail */
             detail?: string | null;
+            /**
+             * Kind
+             * @description peer_message: a message from another agent session, held for the owner (`detail` is the message, `sender` who sent it); approve with its Deliver or Deny option, there is no default
+             */
+            kind?: string | null;
             /** Options */
             options?: components["schemas"]["Option"][];
             /**
@@ -1941,6 +1946,11 @@ export interface components {
              * @description option key approve picks when none is given
              */
             recommended?: string | null;
+            /**
+             * Sender
+             * @description peer_message: who sent it, as the dialog says
+             */
+            sender?: string | null;
             state: components["schemas"]["AgentState"];
             /** Tool Name */
             tool_name?: string | null;
