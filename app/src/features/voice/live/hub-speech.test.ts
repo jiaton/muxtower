@@ -18,7 +18,10 @@ beforeEach(() => {
       onended: (() => void) | null = null
       onerror: (() => void) | null = null
       paused = false
-      constructor(public src: string) {}
+      src: string
+      constructor(src: string) {
+        this.src = src
+      }
       play() {
         played.push(this.src)
         finishAudio = () => this.onended?.()
