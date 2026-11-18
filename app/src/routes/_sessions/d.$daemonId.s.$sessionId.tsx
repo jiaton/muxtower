@@ -318,7 +318,9 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
                 {dictation.error}
               </Banner>
             ) : null}
-            {dictation.available ? <LiveBar daemonId={daemonId} sessionId={session.id} reply={session.last_message} /> : null}
+            {dictation.available ? (
+              <LiveBar daemonId={daemonId} sessionId={session.id} reply={session.last_message} name={session.name} />
+            ) : null}
             {dictionaryWord !== null ? (
               <DictionaryQuickAdd daemonId={daemonId} word={dictionaryWord} onClose={() => setDictionaryWord(null)} />
             ) : null}

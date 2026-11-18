@@ -31,4 +31,6 @@ export const composerColumns = {
   inset: 'pl-[13px]',
   /** The 40 px column of its last button (send): a row's trailing action (close, pause) centred in it. */
   trail: 'flex w-10 shrink-0 items-center justify-center -mr-px',
+  /** Its trailing actions when there are more than one (Read aloud, pause): as wide as they are, at its end. */
+  trails: 'flex shrink-0 items-center justify-end gap-1 -mr-px',
 } as const

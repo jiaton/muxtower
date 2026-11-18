@@ -1,7 +1,7 @@
 import { createDaemonClient, unwrap } from '@/lib/api/client'
 import { useDaemonsStore } from '@/lib/daemons/store'
 import { entryKey } from '@/features/sessions/model/facets'
-import { sayFound, speak } from './speech'
+import { readAll, sayFound, setMediaActions, speak, stopSpeaking, useSpeech } from './speech'
 
 /** Play: the summary of the latest reply of the session in front, said now: kept on the hub, or made there
  *  at once (one summarizer call) when that reply has none yet; the hub answers a kept one without a call. False when there is nothing to say; a reason
@@ -22,3 +22,18 @@ export async function play(target: { daemonId: string; sessionId: string } | nul
     return false
   }
 }
+
+/** The session in front, as Play needs it. */
+function frontTarget() {
+  const front = useSpeech.getState().front
+  return front?.daemonId && front.sessionId ? { daemonId: front.daemonId, sessionId: front.sessionId } : null
+}
+
+// The phone's media controls (lock screen, a car's steering wheel): play its summary, stop, read it all,
+// play it again.
+setMediaActions({
+  play: () => void play(frontTarget()),
+  stop: stopSpeaking,
+  next: () => void readAll(),
+  previous: () => void play(frontTarget()),
+})

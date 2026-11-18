@@ -48,6 +48,26 @@ export interface Said {
   reply: string | null
 }
 
+export interface Front {
+  key: string
+  daemonId?: string
+  sessionId?: string
+  name?: string
+  reply: string | null
+}
+
+export interface Caption {
+  /** Whose: the session's name. */
+  title: string
+  kind: 'summary' | 'reply'
+  pieces: string[]
+  /** The piece being said. */
+  at: number
+  done: boolean
+}
+
+const CAPTION_MS = 4000 // the caption stays this long after the speaking ends (unless kept)
+
 interface SpeechState {
   readAloud: boolean
   setReadAloud: (on: boolean) => void
@@ -56,8 +76,13 @@ interface SpeechState {
   /** Sessions (`entryKey`) with a summary that came while away (page hidden, another session in front):
    *  not said unasked later; Play shows it is new. */
   unheard: Record<string, true>
-  /** The session in front and its latest reply (Live's bar says), for Play and Read all. */
-  front: { key: string; reply: string | null } | null
+  /** The session in front: its key and ids, its name, and its latest reply (Live's bar says), for Play,
+   *  Read all, the caption and the phone's media controls. */
+  front: Front | null
+  /** What is being said, shown as it is said (`ReadAloudCaption`): until a few seconds after, or kept. */
+  caption: Caption | null
+  /** The caption kept open (tapped). */
+  captionKept: boolean
   /** Said once in Live's bar: why it speaks as it does ("using the phone's voice"). */
   note: string | null
 }
@@ -75,6 +100,8 @@ export const useSpeech = create<SpeechState>()(
       unheard: {},
       front: null,
       note: null,
+      caption: null,
+      captionKept: false,
     }),
     { name: 'muxtower.read-aloud', version: 1, merge: mergeWithDefaults, partialize: (s) => ({ readAloud: s.readAloud }) },
   ),
@@ -131,6 +158,71 @@ export function setHubVoice(voice: HubVoice | null) {
 
 let playing: HTMLAudioElement | null = null
 
+const media = () => (typeof navigator !== 'undefined' && 'mediaSession' in navigator ? navigator.mediaSession : null)
+
+/** The phone's media controls (lock screen, notification shade, a car's dash over Bluetooth) while the
+ *  hub's voice plays: what is said, by which session. Only for the hub's audio: the phone's own voice is no
+ *  media the system shows. */
+function showMedia(caption: Caption | null) {
+  const m = media()
+  if (!m) return
+  if (!caption) {
+    m.metadata = null
+    m.playbackState = 'none'
+    return
+  }
+  const first = caption.pieces[0] ?? ''
+  // A short one whole; a longer one its first sentence (a car's dash shows some 30 characters).
+  const sentence = first.length > 30 ? (first.match(/^.*?[。！？.!?]/)?.[0] ?? first.slice(0, 30)) : first
+  if (typeof MediaMetadata !== 'undefined') {
+    m.metadata = new MediaMetadata({ title: sentence, artist: caption.title, album: 'muxtower' })
+  }
+  m.playbackState = 'playing'
+}
+
+/** What the media controls do (`play.ts` sets them): play/pause, next (read all), previous (play again). */
+export function setMediaActions(actions: { play: () => void; stop: () => void; next: () => void; previous: () => void }) {
+  const m = media()
+  if (!m) return
+  const set = (action: MediaSessionAction, run: () => void) => {
+    try {
+      m.setActionHandler(action, run)
+    } catch {
+      // a browser without this action
+    }
+  }
+  set('play', actions.play)
+  set('pause', actions.stop)
+  set('stop', actions.stop)
+  set('nexttrack', actions.next)
+  set('previoustrack', actions.previous)
+}
+
+let captionTimer: ReturnType<typeof setTimeout> | undefined
+
+function captionDone() {
+  const caption = useSpeech.getState().caption
+  if (!caption) return
+  useSpeech.setState({ caption: { ...caption, done: true } })
+  clearTimeout(captionTimer)
+  captionTimer = setTimeout(() => {
+    const { caption: now, captionKept } = useSpeech.getState()
+    if (now?.done && !captionKept) useSpeech.setState({ caption: null })
+  }, CAPTION_MS)
+}
+
+/** The caption put away (×, a swipe). */
+export function dismissCaption() {
+  clearTimeout(captionTimer)
+  useSpeech.setState({ caption: null, captionKept: false })
+}
+
+/** The caption kept open, or let go again (a tap). */
+export function keepCaption(kept: boolean) {
+  useSpeech.setState({ captionKept: kept })
+  if (!kept && useSpeech.getState().caption?.done) captionDone()
+}
+
 function playAudio(blob: Blob): Promise<void> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(blob)
@@ -165,14 +257,16 @@ function sayLocally(piece: string): Promise<void> {
 /** Says the text (cutting off whatever was being said), in pieces: in the hub's voice when it has one, the
  *  next piece fetched while one plays; in the phone's own voice when it has none, or does not answer (said
  *  once: "using the phone's voice"). */
-export function speak(text: string) {
+export function speak(text: string, about: { title?: string; kind?: Caption['kind'] } = {}) {
   if (!text.trim() || (!hubVoice && !synth())) return
   synth()?.cancel()
   playing?.pause()
   const mine = ++run
   const queue = pieces(text)
   began()
-  useSpeech.setState({ speaking: true })
+  clearTimeout(captionTimer)
+  const caption: Caption = { title: about.title ?? '', kind: about.kind ?? 'summary', pieces: queue, at: 0, done: false }
+  useSpeech.setState({ speaking: true, caption })
   const fetchOf = (piece: string | undefined) => (piece && hubVoice ? hubVoice(piece).catch(() => null) : Promise.resolve(null))
   void (async () => {
     let next = fetchOf(queue[0])
@@ -180,12 +274,17 @@ export function speak(text: string) {
     for (let i = 0; i < queue.length; i++) {
       if (mine !== run) return
       const piece = queue[i]!
+      const shown = useSpeech.getState().caption
+      if (shown) useSpeech.setState({ caption: { ...shown, at: i } })
       const audio = local ? null : await next
       next = local ? Promise.resolve(null) : fetchOf(queue[i + 1]) // fetched while this one plays
       if (mine !== run) return
       try {
-        if (audio) await playAudio(audio)
-        else {
+        if (audio) {
+          if (i === 0) showMedia(caption)
+          await playAudio(audio)
+        } else {
+          showMedia(null) // the phone's own voice: nothing for the system to show
           if (!local && hubVoice) {
             local = true // the hub did not answer: the phone's voice from here on
             useSpeech.setState({ note: "using the phone's voice" })
@@ -199,7 +298,9 @@ export function speak(text: string) {
     }
     if (mine === run) {
       ended()
+      showMedia(null)
       useSpeech.setState({ speaking: false })
+      captionDone()
     }
   })()
 }
@@ -210,7 +311,9 @@ export function stopSpeaking() {
   playing?.pause()
   playing = null
   ended()
+  showMedia(null)
   useSpeech.setState({ speaking: false })
+  captionDone()
 }
 
 /** A spoken summary came (`spoken` stream frame): kept, and said when Read aloud is on and it is about the
@@ -225,8 +328,14 @@ export function heardSummary(said: Said & { error?: string | null }, inFront: st
     return
   }
   heardNow(said.key)
-  if (said.text) speak(said.text)
-  else if (said.error) speak(`${said.error}。${speakable(said.reply ?? '').slice(0, PIECE)}`)
+  const title = nameOf(said.key)
+  if (said.text) speak(said.text, { title })
+  else if (said.error) speak(`${said.error}。${speakable(said.reply ?? '').slice(0, PIECE)}`, { title })
+}
+
+const nameOf = (key: string) => {
+  const front = useSpeech.getState().front
+  return front?.key === key ? (front.name ?? '') : ''
 }
 
 function heardNow(key: string) {
@@ -238,7 +347,7 @@ function heardNow(key: string) {
 export function sayFound(key: string, text: string, reply: string) {
   useSpeech.setState({ last: { key, text, reply } })
   heardNow(key)
-  speak(text)
+  speak(text, { title: nameOf(key) })
 }
 
 /** "Read all": the latest reply of the session in front, whole (no code read out). */
@@ -247,6 +356,6 @@ export function readAll(): boolean {
   const reply = front?.reply ?? (last && last.key === front?.key ? last.reply : null)
   if (!reply) return false
   if (front) heardNow(front.key)
-  speak(speakable(reply))
+  speak(speakable(reply), { title: front?.name ?? '', kind: 'reply' })
   return true
 }

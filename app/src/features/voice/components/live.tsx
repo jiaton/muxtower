@@ -9,6 +9,7 @@ import { feedbackOf, liveDetails } from '../live/feedback'
 import { readAll, stopSpeaking, useSpeech } from '../live/speech'
 import { play } from '../live/play'
 import { chooseHubVoice } from '../live/hub-voice'
+import { ReadAloudCaption } from './read-aloud-caption'
 import type { Command } from '../live/commands'
 import { enabledPacks } from '../live/packs'
 import { composerColumns } from '@/components/ui/bar'
@@ -95,11 +96,14 @@ export function LiveBar({
   daemonId = '',
   sessionId = '',
   reply = null,
+  name = '',
 }: {
   daemonId?: string
   sessionId?: string
   /** The session's latest reply: Play and Read all have something to say. */
   reply?: string | null
+  /** The session's name: whose words the caption and the phone's media controls show. */
+  name?: string
 }) {
   const { phase, speaking, pending, then, error, commands, heard } = useLive()
   const readAloud = useSpeech((s) => s.readAloud)
@@ -114,11 +118,11 @@ export function LiveBar({
   }, [readAloud, daemonId])
   // The session in front and its latest reply: what Play and Read all are about.
   useEffect(() => {
-    useSpeech.setState({ front: { key, reply: reply ?? null } })
+    useSpeech.setState({ front: { key, daemonId, sessionId, name, reply: reply ?? null } })
     return () => {
       useSpeech.setState({ front: null })
     }
-  }, [key, reply])
+  }, [key, reply, daemonId, sessionId, name])
   const big = readAloud && phase !== 'starting'
   const [, tick] = useState(0)
   useEffect(() => {
@@ -205,61 +209,65 @@ export function LiveBar({
       {/* One row, its height set by its one line: nothing appears or disappears around it. Lined up with the
           message box (its + column, then where its text starts), its box the same in every state: its border
           only shows while paused. */}
-      <div role="status" aria-live="polite" className={liveRow({ paused })}>
-        <span aria-hidden className={cn(composerColumns.leadInBox, 'gap-1')}>
-          {paused ? (
-            commands.state === 'ready' ? (
-              <Ear className="size-4" />
+      {/* The caption floats above this row (out of the flow: nothing moves). */}
+      <div className="relative">
+        {readAloud ? <ReadAloudCaption /> : null}
+        <div role="status" aria-live="polite" className={liveRow({ paused })}>
+          <span aria-hidden className={cn(composerColumns.leadInBox, 'gap-1')}>
+            {paused ? (
+              commands.state === 'ready' ? (
+                <Ear className="size-4" />
+              ) : (
+                <Pause className="size-4" />
+              )
             ) : (
-              <Pause className="size-4" />
-            )
-          ) : (
-            <>
-              <Dot tone={phase === 'starting' ? 'idle' : 'accent'} pulse={speaking} />
-              <AudioLines className={cn('size-4', phase === 'starting' ? ink.quiet : ink.accent)} />
-            </>
-          )}
-        </span>
-        <span className={cn('flex min-w-0 flex-1 items-center gap-2', composerColumns.inset, paused && 'pr-1')}>
-          <span className={cn('shrink-0', paused ? ink.strong : phase === 'starting' ? ink.quiet : ink.highlight)}>{title}</span>
-          <span className={cn('min-w-0 flex-1 truncate', feedback ? ink.normal : ink.meta)} title={feedback ?? hint}>
-            {feedback ?? (hint ? `· ${hint}` : '')}
+              <>
+                <Dot tone={phase === 'starting' ? 'idle' : 'accent'} pulse={speaking} />
+                <AudioLines className={cn('size-4', phase === 'starting' ? ink.quiet : ink.accent)} />
+              </>
+            )}
           </span>
-          {paused ? (
-            <Button variant="secondary" size="sm" className="shrink-0" onClick={resumeLive}>
-              <Play /> {commands.state === 'ready' ? 'Write again' : 'Resume'}
-            </Button>
-          ) : null}
-        </span>
-        {/* Its pause in the send button's column, like a banner's close; Read aloud beside it. */}
-        {phase === 'listening' || paused ? (
-          <span className={cn(composerColumns.trail, 'flex items-center gap-1')}>
-            <Button
-              variant="ghost"
-              size={big ? 'icon' : 'icon-sm'}
-              aria-pressed={readAloud}
-              tone={readAloud ? 'accent' : undefined}
-              aria-label={readAloud ? 'Read aloud: on. Turn it off' : 'Read aloud: say each turn of this session when it ends'}
-              title={
-                readAloud ? 'Read aloud: on (停 / stop, 再说一遍 / say again, 读全文 / read all)' : 'Read aloud each turn when it ends'
-              }
-              onClick={() => setReadAloud(!readAloud)}
-            >
-              {readAloud ? <Volume2 /> : <VolumeX />}
-            </Button>
-            {!paused ? (
-              <Button
-                variant="ghost"
-                size={big ? 'icon' : 'icon-sm'}
-                aria-label="Stop writing (commands only)"
-                title="Stop writing: only commands are heard until you resume"
-                onClick={pauseLive}
-              >
-                <Pause />
+          <span className={cn('flex min-w-0 flex-1 items-center gap-2', composerColumns.inset, paused && 'pr-1')}>
+            <span className={cn('shrink-0', paused ? ink.strong : phase === 'starting' ? ink.quiet : ink.highlight)}>{title}</span>
+            <span className={cn('min-w-0 flex-1 truncate', feedback ? ink.normal : ink.meta)} title={feedback ?? hint}>
+              {feedback ?? (hint ? `· ${hint}` : '')}
+            </span>
+            {paused ? (
+              <Button variant="secondary" size="sm" className="shrink-0" onClick={resumeLive}>
+                <Play /> {commands.state === 'ready' ? 'Write again' : 'Resume'}
               </Button>
             ) : null}
           </span>
-        ) : null}
+          {/* Its pause in the send button's column, like a banner's close; Read aloud beside it. */}
+          {phase === 'listening' || paused ? (
+            <span className={composerColumns.trails}>
+              <Button
+                variant="ghost"
+                size={big ? 'icon' : 'icon-sm'}
+                aria-pressed={readAloud}
+                tone={readAloud ? 'accent' : undefined}
+                aria-label={readAloud ? 'Read aloud: on. Turn it off' : 'Read aloud: say each turn of this session when it ends'}
+                title={
+                  readAloud ? 'Read aloud: on (停 / stop, 再说一遍 / say again, 读全文 / read all)' : 'Read aloud each turn when it ends'
+                }
+                onClick={() => setReadAloud(!readAloud)}
+              >
+                {readAloud ? <Volume2 /> : <VolumeX />}
+              </Button>
+              {!paused ? (
+                <Button
+                  variant="ghost"
+                  size={big ? 'icon' : 'icon-sm'}
+                  aria-label="Stop writing (commands only)"
+                  title="Stop writing: only commands are heard until you resume"
+                  onClick={pauseLive}
+                >
+                  <Pause />
+                </Button>
+              ) : null}
+            </span>
+          ) : null}
+        </div>
       </div>
       {big ? (
         // Read aloud: what it can do, big enough to hit without looking long.
