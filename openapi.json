@@ -5997,6 +5997,9 @@
           "required": true
         },
         "responses": {
+          "202": {
+            "description": "held: the session shows a dialog; typed in once it has gone"
+          },
           "204": {
             "description": "Successful Response"
           },

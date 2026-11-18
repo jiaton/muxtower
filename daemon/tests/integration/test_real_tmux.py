@@ -17,6 +17,14 @@ from muxtower.config import load_settings
 pytestmark = pytest.mark.skipif(shutil.which("tmux") is None, reason="tmux not installed")
 
 
+def _drop(socket: str) -> None:
+    """The throwaway server ended and its socket file removed (kill-server can leave it behind): test runs
+    must not pile them up in the owner's tmux folder."""
+    subprocess.run(["tmux", "-L", socket, "kill-server"], capture_output=True)
+    tmpdir = Path(os.environ.get("TMUX_TMPDIR", "/tmp")) / f"tmux-{os.getuid()}"  # noqa: S108
+    (tmpdir / socket).unlink(missing_ok=True)
+
+
 def test_launch_type_capture_terminate(tmp_path: Path) -> None:
     socket = f"mxt-test-{uuid.uuid4().hex[:8]}"
     runtimes = tmp_path / "config" / "runtimes"
@@ -61,10 +69,7 @@ def test_launch_type_capture_terminate(tmp_path: Path) -> None:
         app.state.monitor.tick()
         assert [s["id"] for s in client.get("/v1/sessions", headers=auth).json() if not s["archived_at"]] == []
     finally:
-        subprocess.run(["tmux", "-L", socket, "kill-server"], capture_output=True)  # noqa: S603, S607
-        # kill-server can leave the socket file behind; remove it so test runs don't pile them up.
-        tmpdir = Path(os.environ.get("TMUX_TMPDIR", "/tmp")) / f"tmux-{os.getuid()}"  # noqa: S108
-        (tmpdir / socket).unlink(missing_ok=True)
+        _drop(socket)
 
 
 def test_resize_fits_the_pane_even_in_a_split_window() -> None:
@@ -83,7 +88,7 @@ def test_resize_fits_the_pane_even_in_a_split_window() -> None:
         ).stdout.strip()  # fmt: skip
         assert size == "48x30"
     finally:
-        subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)
+        _drop(socket)
 
 
 def test_release_gives_the_window_its_automatic_size_back() -> None:
@@ -102,7 +107,7 @@ def test_release_gives_the_window_its_automatic_size_back() -> None:
         ).stdout.strip()  # fmt: skip
         assert option == ""  # not pinned to manual: an attaching terminal sizes it again
     finally:
-        subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)
+        _drop(socket)
 
 
 def test_a_narrowed_pane_shows_no_line_wider_than_itself() -> None:
@@ -121,7 +126,7 @@ def test_a_narrowed_pane_shows_no_line_wider_than_itself() -> None:
         assert max(len(line) for line in shown.split("\n")) <= 50
         assert "x" * 80 in (tmux.capture(pane, history=20) or "")  # screen rules still see it whole
     finally:
-        subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)
+        _drop(socket)
 
 
 def test_an_agent_is_not_launched_as_another_claude_session_s_child(tmp_path: Path) -> None:
@@ -144,7 +149,7 @@ def test_an_agent_is_not_launched_as_another_claude_session_s_child(tmp_path: Pa
         assert "CLAUDE_CODE_CHILD_SESSION" not in seen and "CLAUDE_CODE_BRIDGE_SESSION_ID" not in seen
         assert "KEPT=1" in seen
     finally:
-        subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)
+        _drop(socket)
 
 
 def test_a_pasted_message_arrives_whole(tmp_path: Path) -> None:
@@ -165,7 +170,7 @@ def test_a_pasted_message_arrives_whole(tmp_path: Path) -> None:
             time.sleep(0.1)
         assert out.read_text().replace("\r", "\n") == text  # all ~4 KB, nothing dropped
     finally:
-        subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)
+        _drop(socket)
 
 
 def test_giving_the_size_back_with_no_terminal_attached_keeps_it(tmp_path: Path) -> None:
@@ -188,7 +193,7 @@ def test_giving_the_size_back_with_no_terminal_attached_keeps_it(tmp_path: Path)
         ).stdout.strip()  # fmt: skip
         assert size == "220x50" and window_size == ""  # kept, and no longer pinned
     finally:
-        subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)
+        _drop(socket)
 
 
 def test_an_agent_is_looked_up_on_the_path_the_tmux_server_runs_it_with(tmp_path: Path) -> None:
@@ -204,7 +209,7 @@ def test_an_agent_is_looked_up_on_the_path_the_tmux_server_runs_it_with(tmp_path
         subprocess.run(["tmux", "-L", socket, "set-environment", "-g", "PATH", f"{tmp_path}:/usr/bin:/bin"], check=True)
         assert tmux.finds(socket, "agent") and tmux.finds(socket, "sh")
     finally:
-        subprocess.run(["tmux", "-L", socket, "kill-server"], check=False)
+        _drop(socket)
 
 
 def test_a_long_first_prompt_arrives_whole_and_an_agent_that_exits_at_once_is_an_error(tmp_path: Path) -> None:
@@ -226,4 +231,4 @@ def test_a_long_first_prompt_arrives_whole_and_an_agent_that_exits_at_once_is_an
         assert tmux.started(pane) == "Error: Invalid MCP configuration"
         assert all(p.session_name != "fails" for p in tmux.list_panes(socket))  # closed
     finally:
-        subprocess.run(["tmux", "-L", socket, "kill-server"], capture_output=True)
+        _drop(socket)

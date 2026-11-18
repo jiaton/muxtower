@@ -132,7 +132,8 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
   // What was sent and is not in the conversation yet, shown at its end.
   // Working (or stopped on a prompt mid-turn): what is sent waits in the agent's queue.
   const active = session.state !== 'idle' && session.state !== 'error' && session.state !== 'unknown'
-  const outgoing = useOutgoing(daemonId, session.id, hasConversation ? conversation.data : undefined, active)
+  const atPrompt = session.runtime === 'claude-code' && DIALOG_STATES.has(session.state)
+  const outgoing = useOutgoing(daemonId, session.id, hasConversation ? conversation.data : undefined, active, atPrompt)
   const setFit = useTerminalPrefs((s) => s.setFit)
   const pullDrawer = useSessionDrawer((s) => s.pull)
   const both = screen && hasConversation
@@ -287,6 +288,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
               <>
                 {conversation.error ? <Banner tone="error">{conversation.error.message}</Banner> : null}
                 <ConversationView
+                  sessionName={session.name}
                   items={earlier.data && jump !== null && !inLatest ? earlier.data : (conversation.data ?? [])}
                   focus={jump ?? undefined}
                   earlier={earlier.data && jump !== null && !inLatest ? clearJump : undefined}

@@ -202,6 +202,7 @@ def create_app(
     push = PushService(
         SqliteSubscriptionRepository(db), sender, directory, daemon_name, tokens.exists, SqliteShownStore(db)
     )
+    monitor.after_tick = directory.deliver_held  # the owner's messages held for a dialog go in after it
 
     teams = TeamService(directory, SqliteTeamRepository(db), transcript_of=directory.local.transcript_of)
     writes = WriteTracker(lambda: settings.writes.window_minutes, teams.checkouts)

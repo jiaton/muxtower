@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { ConversationItem } from './api/types'
-import { CONFIRM_MS, GRACE_MS, confirmed, newestSeq, stateOf, type Outgoing } from './outbox'
+import { CONFIRM_MS, GRACE_MS, confirmed, newestSeq, stateOf, useOutbox, type Outgoing } from './outbox'
 
 const prompt = (seq: number, text: string): ConversationItem => ({ seq, kind: 'prompt', text })
 const reply = (seq: number): ConversationItem => ({ seq, kind: 'reply', text: 'ok' })
@@ -65,4 +65,22 @@ it('is sending, then waiting, then unconfirmed after a minute', () => {
   expect(stateOf(message('a', 'x', 0), CONFIRM_MS)).toBe('unconfirmed')
   expect(newestSeq(undefined)).toBe(-1)
   expect(newestSeq([prompt(4, 'a'), reply(9)])).toBe(9)
+})
+
+it('held for a dialog: waiting while it shows, however long; once gone, waited for from then (release)', () => {
+  const held: Outgoing = { ...message('a', 'x', 0), held: true }
+  expect(stateOf(held, GRACE_MS * 50, 0, true)).toBe('held') // never "not delivered" while the dialog shows
+  const released: Outgoing = { ...held, held: false, sentAt: 100_000 } // the dialog gone (`release`)
+  expect(stateOf(released, 100_000 + 1000, 100_000, false)).toBe('waiting') // typed in now
+  expect(stateOf(released, 100_000 + GRACE_MS, 100_000, false)).toBe('undelivered') // and not taken in
+  expect(stateOf(message('b', 'y', 0), GRACE_MS, 0, true)).toBe('undelivered') // not held: as before
+})
+
+it('release: what was held is waited for from now, the rest as it was', () => {
+  useOutbox.setState({ sent: { k: [{ ...message('a', 'x', 0), held: true }, message('b', 'y', 0)] } })
+  useOutbox.getState().release('k')
+  const [a, b] = useOutbox.getState().sent.k!
+  expect(a!.held).toBe(false)
+  expect(a!.sentAt).toBeGreaterThan(0)
+  expect(b!.sentAt).toBe(0)
 })

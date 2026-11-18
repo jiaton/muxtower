@@ -6,17 +6,17 @@ const NONE: Outgoing[] = []
 
 /** What a message box sends, told to the outbox: `sent` once its request went through, `failed` if it
  *  did not (it is then taken back out: its text goes back in the box). */
-export type Track = (text: string) => { sent: () => void; failed: () => void }
+export type Track = (text: string) => { sent: (result?: { held: boolean }) => void; failed: () => void }
 
 /** The messages sent to a session that its conversation does not have yet, to show at its end, and
  *  `track` for its message box. A message the conversation has is dropped. One sent while the agent works
  *  (`working`) is queued: the agent takes it in at its next step. One the conversation still lacks a
  *  moment after the session stopped working did not go in (kept, with its text, to send again or put
  *  away); one it lacks after `CONFIRM_MS` while the agent works is shown as unconfirmed. */
-export function useOutgoing(daemonId: string, sessionId: string, items: ConversationItem[] | undefined, working = false) {
+export function useOutgoing(daemonId: string, sessionId: string, items: ConversationItem[] | undefined, working = false, atPrompt = false) {
   const key = `${daemonId}/${sessionId}`
   const sent = useOutbox((s) => s.sent[key]) ?? NONE
-  const { add, settle, confirm, remove } = useOutbox.getState()
+  const { add, settle, confirm, remove, release } = useOutbox.getState()
   const done = useMemo(() => confirmed(sent, items ?? []), [sent, items])
   const open = sent.filter((m) => m.seq === undefined && !done.has(m.id))
   const [now, setNow] = useState(() => Date.now())
@@ -34,12 +34,17 @@ export function useOutgoing(daemonId: string, sessionId: string, items: Conversa
     setNow(Date.now())
   }, [working])
 
+  // The dialog has gone: the hub types in what it held for it now.
+  useEffect(() => {
+    if (!atPrompt) release(key)
+  }, [atPrompt, key, release])
+
   // Wake up when the next one is due to change: waited too long, or not gone in.
   const due = open
     .filter((m) => !m.sending)
     .flatMap((m) => {
-      const state = stateOf(m, now, idleSince)
-      if (state === 'undelivered') return []
+      const state = stateOf(m, now, idleSince, atPrompt)
+      if (state === 'undelivered' || state === 'held') return []
       const times = idleSince === null ? [] : [Math.max(idleSince, m.sentAt) + GRACE_MS]
       return state === 'waiting' ? [...times, m.sentAt + CONFIRM_MS] : times
     })
@@ -50,11 +55,11 @@ export function useOutgoing(daemonId: string, sessionId: string, items: Conversa
     return () => clearTimeout(timer)
   }, [next])
 
-  const pending: ShownOutgoing[] = open.map((m) => ({ ...m, state: stateOf(m, now, idleSince) }))
+  const pending: ShownOutgoing[] = open.map((m) => ({ ...m, state: stateOf(m, now, idleSince, atPrompt) }))
   const track = useCallback<Track>(
     (text) => {
       const id = add(key, text, newestSeq(items), busy.current)
-      return { sent: () => settle(key, id), failed: () => remove(key, [id]) }
+      return { sent: (result) => settle(key, id, result?.held), failed: () => remove(key, [id]) }
     },
     [add, key, items, remove, settle],
   )

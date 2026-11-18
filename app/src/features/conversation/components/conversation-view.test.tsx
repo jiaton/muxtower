@@ -80,3 +80,11 @@ it('shows the images items show under them, a tool run’s even while it is fold
   fireEvent.click(screen.getByRole('button', { name: /a\.png/ }))
   expect(await screen.findByRole('dialog', { name: 'a.png' })).toBeTruthy()
 })
+
+it('says a message held for a dialog goes in when the session is back at its prompt', () => {
+  render(<ConversationView items={[]} pending={[outgoing('a', 'also do X', 'held')]} sessionName="api-fix" onDismiss={vi.fn()} />)
+  expect(screen.getByRole('log', { name: 'Conversation' }).textContent).toMatch(
+    /also do X.*Waiting · goes in when api-fix is back at its prompt/,
+  )
+  expect(screen.queryByRole('button', { name: 'Dismiss' })).toBeNull() // the hub types it in anyway
+})

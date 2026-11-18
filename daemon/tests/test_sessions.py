@@ -179,19 +179,23 @@ def test_a_long_or_multi_line_message_is_pasted_not_typed(app: FastAPI, client: 
     assert pauses == [0.3, 0.3]  # the paste lands before the Enter that sends it
 
 
-def test_words_are_not_typed_into_a_claude_dialog(app: FastAPI, client: TestClient, auth: dict[str, str],
-                                                  tmux: FakeTmux) -> None:  # fmt: skip
+def test_words_sent_while_a_claude_dialog_shows_are_held_and_go_in_once_it_has_gone(
+    app: FastAPI, client: TestClient, auth: dict[str, str], tmux: FakeTmux
+) -> None:
     pane = tmux.add_pane("default", "work", "claude")
     pane.screen = screens.PERMISSION
     app.state.monitor.tick()
     sid = client.get("/v1/sessions", headers=auth).json()[0]["id"]
-    res = client.post(f"/v1/sessions/{sid}/input", json={"text": "also do X", "enter": True}, headers=auth)
-    assert res.status_code == 409 and "waiting on a prompt" in res.json()["detail"]
+    url = f"/v1/sessions/{sid}/input"
+    assert client.post(url, json={"text": "also do X", "enter": True}, headers=auth).status_code == 202
+    assert client.post(url, json={"text": "and Y", "enter": True}, headers=auth).status_code == 202
     assert pane.sent == []  # Enter would have picked its first choice
-    assert client.post(f"/v1/sessions/{sid}/input", json={"key": "Escape"}, headers=auth).status_code == 204
-    pane.screen = screens.IDLE
+    assert client.post(url, json={"key": "Escape"}, headers=auth).status_code == 204  # keys go at once
+    pane.sent.clear()
     app.state.monitor.tick()
-    assert (
-        client.post(f"/v1/sessions/{sid}/input", json={"text": "also do X", "enter": True}, headers=auth).status_code
-        == 204
-    )
+    assert pane.sent == []  # still showing: still held
+    pane.screen = screens.IDLE
+    app.state.monitor.tick()  # gone: in they go, in order
+    assert pane.sent == [("text", "also do X"), ("key", "Enter"), ("text", "and Y"), ("key", "Enter")]
+    assert app.state.directory.held(sid) == 0
+    assert client.post(url, json={"text": "now", "enter": True}, headers=auth).status_code == 204

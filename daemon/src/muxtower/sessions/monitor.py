@@ -7,6 +7,7 @@ import logging
 import os
 import time
 from collections import defaultdict, deque
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
@@ -69,6 +70,7 @@ class Monitor(Reconciler):
         self._seen_servers: dict[str, str] = {}  # socket -> the tmux server seen alive there this run
         self._loop: asyncio.AbstractEventLoop | None = None
         self._woken: asyncio.Event | None = None
+        self.after_tick: Callable[[], None] | None = None  # set by the app: messages held for a prompt go in
         self.screen_feed = ScreenFeed()  # shared with the hub's node screens (app.py)
 
     def wake(self) -> None:
@@ -186,6 +188,11 @@ class Monitor(Reconciler):
             if entered:
                 result.attention.append(record.id)
         self.timings.append(TickTiming(now, time.perf_counter() - started, slowest))
+        if self.after_tick is not None:
+            try:
+                self.after_tick()
+            except Exception:
+                logger.exception("delivering held messages failed")
         return result
 
     async def run_loop(self, bus: EventBus, interval: float) -> None:

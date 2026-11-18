@@ -120,6 +120,7 @@ const ItemView = memo(function ItemView({
 
 const OUTGOING_LABEL: Record<ShownOutgoing['state'], string> = {
   sending: 'Sending',
+  held: 'Waiting · goes in when the session is back at its prompt',
   queued: 'Queued · goes in at the agent’s next step',
   waiting: 'Sent',
   unconfirmed: 'Sent, not in the conversation yet',
@@ -133,8 +134,10 @@ function OutgoingView({
   message,
   onDismiss,
   onResend,
+  sessionName,
 }: {
   message: ShownOutgoing
+  sessionName?: string
   onDismiss?: (id: string) => void
   onResend?: (message: ShownOutgoing) => void
 }) {
@@ -146,7 +149,9 @@ function OutgoingView({
       </div>
       <p className={cn('flex items-center gap-1', message.state === 'undelivered' ? ink.noteWarning : ink.meta)}>
         {message.state === 'sending' ? <Spinner className="size-3" /> : null}
-        {OUTGOING_LABEL[message.state]}
+        {message.state === 'held' && sessionName
+          ? `Waiting · goes in when ${sessionName} is back at its prompt`
+          : OUTGOING_LABEL[message.state]}
         {message.state === 'undelivered' && onResend ? (
           <Button size="xs" variant="ghost" onClick={() => onResend(message)}>
             <RotateCw aria-hidden /> Resend
@@ -175,6 +180,7 @@ export function ConversationView({
   source,
   focus,
   earlier,
+  sessionName,
 }: {
   items: ConversationItem[]
   pending?: ShownOutgoing[]
@@ -186,6 +192,8 @@ export function ConversationView({
   focus?: number
   /** Showing an earlier part (from `focus` on), not the latest: what takes it back to the latest. */
   earlier?: () => void
+  /** Said of a message held while the session shows a dialog. */
+  sessionName?: string
 }) {
   const scroller = useRef<HTMLDivElement>(null)
   const [focused, setFocused] = useState<number | undefined>(undefined)
@@ -254,7 +262,7 @@ export function ConversationView({
           ),
         )}
         {pending.map((message) => (
-          <OutgoingView key={message.id} message={message} onDismiss={onDismiss} onResend={onResend} />
+          <OutgoingView key={message.id} message={message} onDismiss={onDismiss} onResend={onResend} sessionName={sessionName} />
         ))}
       </div>
       {behind ? (

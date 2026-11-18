@@ -4360,6 +4360,13 @@ export interface operations {
             };
         };
         responses: {
+            /** @description held: the session shows a dialog; typed in once it has gone */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Successful Response */
             204: {
                 headers: {

@@ -146,8 +146,8 @@ export function InputBar({
     send.mutate(
       { text: message, enter: true },
       {
-        onSuccess: () => {
-          if (tracked) return tracked.sent()
+        onSuccess: (result) => {
+          if (tracked) return tracked.sent(result)
           // Typed on (or quoted more) while it was sending: keep what is newer.
           const now = useDrafts.getState()
           if ((now.drafts[draftKey] ?? '') === sentText) setText('')

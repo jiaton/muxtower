@@ -6,12 +6,14 @@ gets a 409 instead of keys sent to the wrong place.
 """
 
 import logging
+import threading
 from collections.abc import Callable, Iterable, Sequence
 from typing import Literal
 
 from muxtower.approval.models import Answers, ApprovalResult
 from muxtower.approval.service import ApprovalService
 from muxtower.errors import Conflict, NotFound
+from muxtower.runtimes.models import AgentState
 from muxtower.sessions.anchors import ProjectAnchors
 from muxtower.sessions.archive import SessionArchive
 from muxtower.sessions.decorate import decorate
@@ -60,6 +62,11 @@ SOURCE_NAMES = {
 logger = logging.getLogger("muxtower.sessions")
 
 
+PROMPT_STATES = frozenset(
+    {AgentState.NEEDS_PERMISSION, AgentState.NEEDS_ANSWER, AgentState.NEEDS_TRUST, AgentState.PLAN_REVIEW}
+)
+
+
 class SessionDirectory(OwnerMarks):
     def __init__(
         self,
@@ -93,6 +100,8 @@ class SessionDirectory(OwnerMarks):
         self.team: Callable[[str], TeamRecord | None] | None = None  # set by the team service: a session's role
         self.checkout: Callable[[str], Checkout] | None = None  # set by the team service: git, per folder here
         self.writing: Callable[[str], list[AlsoWriting]] | None = None  # set by the app: `writes/`
+        self._held: dict[str, list[SendInput]] = {}  # the owner's messages waiting for a prompt to go (`hold`)
+        self._held_lock = threading.Lock()
 
     # --- reading ------------------------------------------------------------------------------
 
@@ -285,6 +294,54 @@ class SessionDirectory(OwnerMarks):
             source.send_text(session_id, body.text, body.images)  # a message is sent whole; `enter` is implied
         elif body.key is not None:
             source.send_key(session_id, body.key)
+
+    def at_prompt(self, session_id: str) -> bool:
+        """A Claude Code pane here showing a dialog (permission, question, trust, plan): typed into, the words
+        would go nowhere and Enter would pick its first choice."""
+        if self.source_of(session_id) is not None:
+            return False
+        session = self.get(session_id)
+        return session.runtime == "claude-code" and session.state in PROMPT_STATES
+
+    def send_or_hold(self, session_id: str, body: SendInput) -> bool:
+        """The owner's message: typed in now, or, while its session shows a dialog (`at_prompt`), held and
+        typed in once the dialog has gone (`deliver_held`), in the order sent. True when held."""
+        with self._held_lock:
+            if body.text is not None and (self._held.get(session_id) or self.at_prompt(session_id)):
+                if self.get(session_id).archived_at:
+                    raise Conflict("this session is archived")
+                self._held.setdefault(session_id, []).append(body)
+                return True
+        self.send_input(session_id, body)
+        return False
+
+    def deliver_held(self) -> None:
+        """Blocking, after each look at the panes: what was held for a dialog goes in once it has gone; a
+        session that ended drops what was held for it."""
+        with self._held_lock:
+            waiting = list(self._held)
+        for session_id in waiting:
+            session = self.find(session_id)
+            if session is None or session.archived_at:
+                with self._held_lock:
+                    self._held.pop(session_id, None)
+                continue
+            if self.at_prompt(session_id):
+                continue
+            with self._held_lock:
+                bodies = self._held.pop(session_id, [])
+            for i, body in enumerate(bodies):
+                try:
+                    self.send_input(session_id, body)
+                except Exception:  # noqa: BLE001 - kept, tried again at the next look
+                    logger.warning("a held message to %s did not go in yet", session_id)
+                    with self._held_lock:
+                        self._held[session_id] = bodies[i:] + self._held.get(session_id, [])
+                    break
+
+    def held(self, session_id: str) -> int:
+        with self._held_lock:
+            return len(self._held.get(session_id, []))
 
     def approve(self, session_id: str, option: str | None, answers: Answers | None = None) -> ApprovalResult:
         source = self.source_of(session_id)

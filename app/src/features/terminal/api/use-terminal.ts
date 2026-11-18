@@ -41,13 +41,15 @@ export function useScreen(daemonId: string, sessionId: string, history: number, 
 export function useSendInput(daemonId: string, sessionId: string) {
   const client = useDaemonClient(daemonId)
   return useMutation({
-    mutationFn: async (body: { text?: string; key?: string; enter?: boolean; images?: ImageInput[] }) =>
-      check(
-        await client!.POST('/v1/sessions/{session_id}/input', {
-          params: { path: { session_id: sessionId } },
-          body: { text: body.text ?? null, key: body.key ?? null, enter: body.enter ?? false, images: body.images ?? [] },
-        }),
-      ),
+    /** `held`: the session shows a dialog; the hub types it in once that has gone (202). */
+    mutationFn: async (body: { text?: string; key?: string; enter?: boolean; images?: ImageInput[] }) => {
+      const res = await client!.POST('/v1/sessions/{session_id}/input', {
+        params: { path: { session_id: sessionId } },
+        body: { text: body.text ?? null, key: body.key ?? null, enter: body.enter ?? false, images: body.images ?? [] },
+      })
+      check(res)
+      return { held: res.response.status === 202 }
+    },
   })
 }
 

@@ -21,11 +21,13 @@ export interface Outgoing {
   seq?: number
   /** Sent while the agent was working: it waits in the agent's queue, taken in at its next step. */
   queued?: boolean
+  /** Held by the hub while the session showed a dialog: typed in once it has gone. */
+  held?: boolean
 }
 
 /** What a waiting message looks like: on its way, in the agent's queue, sent and waiting for the
  *  conversation, waited for too long, or not taken in (the session stopped working without it). */
-export type OutgoingState = 'sending' | 'queued' | 'waiting' | 'unconfirmed' | 'undelivered'
+export type OutgoingState = 'sending' | 'held' | 'queued' | 'waiting' | 'unconfirmed' | 'undelivered'
 
 export interface ShownOutgoing extends Outgoing {
   state: OutgoingState
@@ -36,10 +38,12 @@ interface Outbox {
    *  reload shows the conversation as the daemon has it. */
   sent: Record<string, Outgoing[]>
   add: (key: string, text: string, afterSeq: number, queued?: boolean) => string
-  settle: (key: string, id: string) => void
+  settle: (key: string, id: string, held?: boolean) => void
   /** Marks messages confirmed (by the prompt that did); once every one is, the session's are dropped. */
   confirm: (key: string, seqs: Map<string, number>) => void
   remove: (key: string, ids: string[]) => void
+  /** The dialog has gone: what was held for it is typed in now, and waited for from now. */
+  release: (key: string) => void
 }
 
 export const useOutbox = create<Outbox>()((set) => ({
@@ -50,8 +54,13 @@ export const useOutbox = create<Outbox>()((set) => ({
     set((s) => ({ sent: { ...s.sent, [key]: [...(s.sent[key] ?? []), entry] } }))
     return id
   },
-  settle: (key, id) =>
-    set((s) => ({ sent: { ...s.sent, [key]: (s.sent[key] ?? []).map((m) => (m.id === id ? { ...m, sending: false } : m)) } })),
+  settle: (key, id, held) =>
+    set((s) => ({
+      sent: {
+        ...s.sent,
+        [key]: (s.sent[key] ?? []).map((m) => (m.id === id ? { ...m, sending: false, ...(held ? { held } : {}) } : m)),
+      },
+    })),
   confirm: (key, seqs) =>
     set((s) => {
       const list = (s.sent[key] ?? []).map((m) => (seqs.has(m.id) ? { ...m, seq: seqs.get(m.id) } : m))
@@ -59,6 +68,13 @@ export const useOutbox = create<Outbox>()((set) => ({
       // Nothing left waiting: a message sent from now on waits for a prompt after all of these anyway.
       if (list.every((m) => m.seq !== undefined)) delete sent[key]
       return { sent }
+    }),
+  release: (key) =>
+    set((s) => {
+      const list = s.sent[key]
+      if (!list?.some((m) => m.held)) return s
+      const now = Date.now()
+      return { sent: { ...s.sent, [key]: list.map((m) => (m.held ? { ...m, held: false, sentAt: now } : m)) } }
     }),
   remove: (key, ids) =>
     set((s) => {
@@ -106,9 +122,11 @@ export function confirmed(sent: Outgoing[], items: ConversationItem[]): Map<stri
   return done
 }
 
-/** `idleSince`: since when the session has not been working (null while it works). */
-export const stateOf = (message: Outgoing, now: number, idleSince: number | null = null): OutgoingState => {
+/** `idleSince`: since when the session has not been working (null while it works); `atPrompt`: it shows a
+ *  dialog now. Held for a dialog: waiting while it shows; once gone, it went in then (waited for from then). */
+export const stateOf = (message: Outgoing, now: number, idleSince: number | null = null, atPrompt = false): OutgoingState => {
   if (message.sending) return 'sending'
+  if (message.held && atPrompt) return 'held'
   if (idleSince !== null && now - Math.max(idleSince, message.sentAt) >= GRACE_MS) return 'undelivered'
   if (message.queued) return 'queued'
   return now - message.sentAt >= CONFIRM_MS ? 'unconfirmed' : 'waiting'
