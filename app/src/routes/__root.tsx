@@ -1,6 +1,6 @@
 import { Link, Outlet, createRootRoute } from '@tanstack/react-router'
 import { PanelLeftClose, PanelLeftOpen, Server } from 'lucide-react'
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { navItemClass } from '@/components/ui/nav'
 import { AppUpdateBanner } from '@/features/daemons/components/app-update-banner'
@@ -102,6 +102,10 @@ function RootLayout() {
   const closeSidebar = useBackCloses(sidebarOpen && !docked, setSidebarOpen)
   const content = useRef<HTMLDivElement>(null)
   const pushed = sidebarOpen && !docked
+  // Docked again while its drawer was open: the drawer is gone, and is not open when it next comes back.
+  useEffect(() => {
+    if (docked && useSidebarDrawer.getState().open) setSidebarOpen(false)
+  }, [docked, setSidebarOpen])
 
   return (
     <div className="flex h-dvh overflow-hidden pt-[env(safe-area-inset-top)]">

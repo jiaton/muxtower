@@ -53,6 +53,18 @@ export function Drawer({
     el.style.transform = target
   }, [push, drawer, shown])
 
+  // Gone (the sidebar docked: focus mode left, "Keep the sidebar open", the window widened) or no longer a
+  // drawer while open: the page it pushed aside is put back. Left translated, it kept a blank column.
+  useEffect(() => {
+    const el = push?.current
+    if (!el || !drawer) return
+    return () => {
+      el.style.transform = ''
+      el.style.transition = ''
+      el.style.willChange = ''
+    }
+  }, [push, drawer])
+
   // Shut and done sliding: not painted at all. Laid off-screen flush with its edge, a panel of a
   // fractional width (85vw) would otherwise show a sliver of its border at x=0 once a phone's compositor
   // snaps it to device pixels.
