@@ -43,7 +43,8 @@ METHODS = frozenset({
 })  # fmt: skip
 
 # What a node may ask of its hub (protocol 2): one of its sessions calls a team tool.
-HUB_METHODS = frozenset({"team_tool", "chip_groups", "playbook"})  # chip_groups: the app's groups (`chips/`)
+# chip_groups: the app's groups (`chips/`); triggers: their list and `muxtower trigger` (`triggers/`)
+HUB_METHODS = frozenset({"team_tool", "chip_groups", "playbook", "triggers"})
 TEAM_TOOLS = frozenset({"my_team", "set_role", "set_project", "send_task", "read_playbook"})
 # Tools that list or start sessions on every machine: a node asks its hub, which sees them all (`mcp/reach.py`).
 LISTING_TOOLS = frozenset({"list_sessions", "start_session", "list_events"})

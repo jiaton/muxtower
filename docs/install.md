@@ -26,8 +26,33 @@ Detach with the usual tmux keys (`Ctrl-b d`); the agent keeps running. Agents yo
 | `muxtower attach [NAME]` | open a session in this terminal (one a restart interrupted is started again first) |
 | `muxtower pair` | add a device with a one-time code (and a QR code when the address is known: `--url` or `public_url`). `--revoke NAME` removes one. `--join HUB --code CODE` joins this daemon to another as a node; `--leave` stops |
 | `muxtower expose tailscale` | serve the daemon over HTTPS on your tailnet (`tailscale serve`) and set `public_url` to that address; `--off` undoes it |
+| `muxtower trigger NAME` | fire one of your triggers from your own script: `--data FILE` (or `-` for stdin) for the event, `--key KEY` for its dedupe key; `--list` lists them. See [Triggers](#triggers) |
 | `muxtower forget-lineage SESSION_ID` | forget where a Remote Control session came from (a fork shown under the wrong session): it is worked out again when the daemon restarts; `--all` for every session |
 | `muxtower serve` | run the daemon in the foreground (systemd, Docker). `muxtower run` starts it for you otherwise |
+
+## Triggers
+
+A trigger turns an outside event into work for an agent: delivered to a session as a task, a new session started for it, or a push. Add them in the app. They are kept on the hub; on a node, `muxtower trigger` passes the event on to it.
+
+From a script on any of your machines (a watcher, a cron job):
+
+```sh
+muxtower trigger deal-watch --data event.json      # JSON, or plain text, sent as a string
+my-watcher | muxtower trigger deal-watch --data - --key item-42
+muxtower trigger --list                            # name, enabled, action, last outcome
+```
+
+It prints one line, such as `deal-watch: delivered → buyer (3f2a…)`, and exits 0 when the daemon took the event (delivered, started, notified, filtered, deduped, paused, rate_limited), 1 when its action failed, 2 for an unknown trigger or a daemon error. An event carries at most 64 KB.
+
+From another program, with the trigger's secret (shown once, when it is made or rotated), at the hub's LAN address (it must listen there: `host = "0.0.0.0"`):
+
+```sh
+curl -X POST "http://192.168.1.10:8731/v1/triggers/TRIGGER_ID/fire?key=item-42" \
+  -H "X-Muxtower-Trigger-Secret: $SECRET" -H "Content-Type: application/json" \
+  -d '{"deal": {"title": "Desk lamp", "price": 19.5}}'
+```
+
+Prefer the header: `/fire/SECRET` is there for senders that cannot set one, but the secret then shows in proxy logs. In v1, firing through the public hostname does not work; use the LAN address.
 
 ## Reach it from your phone over HTTPS
 

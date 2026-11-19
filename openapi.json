@@ -7722,6 +7722,7 @@
     },
     "/v1/triggers": {
       "get": {
+        "description": "Every trigger (on a node: its hub's).",
         "operationId": "list_triggers_v1_triggers_get",
         "responses": {
           "200": {
@@ -7787,7 +7788,7 @@
     },
     "/v1/triggers/fire-by-name": {
       "post": {
-        "description": "`muxtower trigger <name>`: the owner's own script (a device's token: this machine's CLI).",
+        "description": "`muxtower trigger <name>`: the owner's own script (a device's token: this machine's CLI). On a node,\nfired by its hub, which keeps the triggers.",
         "operationId": "fire_by_name_v1_triggers_fire_by_name_post",
         "requestBody": {
           "content": {

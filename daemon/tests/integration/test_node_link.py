@@ -289,3 +289,44 @@ def test_the_hub_starts_again_what_a_restart_interrupted_on_a_node(hub: tuple[Fa
         assert pane.info.session_name == f"mxt-{started.id[:8]}"
     finally:
         link.stop()
+
+
+def test_a_node_s_triggers_are_its_hub_s(hub: tuple[FastAPI, str], tmp_path: Path) -> None:
+    from fastapi.testclient import TestClient
+
+    from muxtower.triggers.models import NotifyAction, TriggerSpec
+
+    hub_app, hub_url = hub
+    trigger, _ = hub_app.state.triggers.create(TriggerSpec(name="price-drop", action=NotifyAction()))
+    node = create_app(_settings(tmp_path, "mac", _free_port()), tmux=FakeTmux(), run_loops=False)
+    _, token = node.state.tokens.create("cli")
+    cli = TestClient(node, headers={"Authorization": f"Bearer {token}"})
+    link = Running(node.state.hub.run_loop())
+    try:
+        assert node.state.hub.join(hub_url, hub_app.state.pairing.create_code("phone").code).name == "mac"
+        _until(lambda: node.state.hub.status().connected and node.state.hub.hub_protocol == 2)
+
+        # Kept on the hub: the node lists its triggers and fires them there.
+        assert [t["name"] for t in cli.get("/v1/triggers").json()] == ["price-drop"]
+        assert node.state.triggers.all() == []
+        event = {"name": "price-drop", "payload": {"sku": "A-1"}, "key": "k"}
+        fired = cli.post("/v1/triggers/fire-by-name", json=event)
+        assert fired.status_code == 200, fired.text
+        assert fired.json()["via"] == "cli" and fired.json()["key"] == "k"
+        assert [f.id for f in hub_app.state.triggers.firings(trigger.id)] == [fired.json()["id"]]
+        with hub_app.state.audit.db.connect() as conn:
+            actors = [r["actor"] for r in conn.execute("SELECT actor FROM audit_log WHERE action = 'trigger_fire'")]
+        assert actors == ["mac: cli"]
+
+        # The hub's refusals come back as they are.
+        assert cli.post("/v1/triggers/fire-by-name", json={"name": "unknown-one"}).status_code == 404
+        too_big = {"name": "price-drop", "payload": "x" * (64 * 1024 + 1)}
+        assert cli.post("/v1/triggers/fire-by-name", json=too_big).status_code == 400
+
+        # Without its link, the node says so, and fires nothing itself.
+        link.stop()
+        _until(lambda: not node.state.hub.status().connected)
+        down = cli.post("/v1/triggers/fire-by-name", json={"name": "price-drop"})
+        assert down.status_code >= 500 and "link to the hub is down" in down.json()["detail"]
+    finally:
+        link.stop()

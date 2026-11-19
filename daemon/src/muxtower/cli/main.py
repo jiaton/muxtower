@@ -5,6 +5,7 @@ muxtower run AGENT ...   start an agent in a managed tmux session (starts the da
 muxtower attach [NAME]   open a session in this terminal (one a restart interrupted is started again first)
 muxtower pair            add a device with a one-time code (--join HUB: join a hub as a node)
 muxtower expose tailscale HTTPS on your tailnet (tailscale serve), set as public_url
+muxtower trigger NAME    fire one of your triggers from a script (--data FILE|-, --key KEY; --list)
 muxtower serve           run the daemon in the foreground (for systemd, Docker)
 muxtower --version       this install's version, and the hub links it speaks
 """
@@ -21,6 +22,7 @@ from muxtower.cli.expose import add_expose_parser
 from muxtower.cli.pair import cmd_pair
 from muxtower.cli.recover import offer, start_again
 from muxtower.cli.serve import add_serve_parser
+from muxtower.cli.trigger import add_trigger_parser
 from muxtower.config import load_settings
 from muxtower.infra.db import Database
 from muxtower.nodes.protocol import OLDEST, PROTOCOL
@@ -161,6 +163,8 @@ def main(argv: list[str] | None = None) -> None:
     forget.set_defaults(func=cmd_forget_lineage)
 
     add_expose_parser(sub)
+
+    add_trigger_parser(sub)
 
     add_serve_parser(sub)
 

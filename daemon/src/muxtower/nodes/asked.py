@@ -4,6 +4,7 @@ speaks only for its own sessions."""
 
 import asyncio
 import logging
+from collections.abc import Callable
 from typing import Any
 
 from pydantic import ValidationError
@@ -48,9 +49,19 @@ def _playbook(store: PlaybookStore | None, node: str, params: dict[str, Any]) ->
     return playbook_routes.answer(store, params, f"a device through {node}")
 
 
+# The hub's triggers (`triggers/routes.py` answer): what a node asks, and its name.
+TriggerAnswer = Callable[[dict[str, Any], str], Any]
+
+
+def _triggers(triggers: TriggerAnswer | None, node: str, params: dict[str, Any]) -> Any:
+    if triggers is None:
+        raise Invalid("unknown method triggers")
+    return triggers(params, node)
+
+
 async def answer(
     tools: McpTools, node: str, frame: dict[str, Any], chips: ChipGroupStore | None = None,
-    playbook: PlaybookStore | None = None,
+    playbook: PlaybookStore | None = None, triggers: TriggerAnswer | None = None,
 ) -> str:  # fmt: skip
     """The reply frame to a node's request."""
     method, params = frame.get("method"), frame.get("params") or {}
@@ -59,6 +70,8 @@ async def answer(
             raise Invalid(f"unknown method {method}")
         if method == "playbook":
             return protocol.answer(frame["id"], await asyncio.to_thread(_playbook, playbook, node, params))
+        if method == "triggers":
+            return protocol.answer(frame["id"], await asyncio.to_thread(_triggers, triggers, node, params))
         if method == "chip_groups":
             return protocol.answer(frame["id"], await asyncio.to_thread(_chip_groups, chips, params))
         text = await asyncio.to_thread(_team_tool, tools, node, params)

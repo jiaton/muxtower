@@ -4,6 +4,7 @@ daemon joins a hub (`/hub`)."""
 
 import asyncio
 import logging
+from functools import partial
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Request, WebSocket, WebSocketDisconnect
@@ -19,6 +20,7 @@ from muxtower.nodes.direct import DirectNode
 from muxtower.nodes.hub import Nodes
 from muxtower.nodes.link import NodeLink, parse
 from muxtower.nodes.models import HubStatus, JoinHub, NodeClaim, NodeClaimResult, NodeInfo
+from muxtower.triggers import routes as trigger_routes
 
 logger = logging.getLogger("muxtower.nodes")
 router = APIRouter(prefix="/v1", tags=["nodes"])
@@ -82,8 +84,10 @@ def leave_hub(device: CurrentDevice, hub: HubDep, audit: Audit) -> None:
 
 
 async def _reply(ws: WebSocket, tools: McpTools, name: str, frame: dict[str, Any]) -> None:
+    state = ws.app.state
+    triggers = partial(trigger_routes.answer, state.triggers, state.trigger_service, state.audit)
     try:
-        await ws.send_text(await asked.answer(tools, name, frame, ws.app.state.chip_groups, ws.app.state.playbook))
+        await ws.send_text(await asked.answer(tools, name, frame, state.chip_groups, state.playbook, triggers))
     except (WebSocketDisconnect, RuntimeError):
         pass
 

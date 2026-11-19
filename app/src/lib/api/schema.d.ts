@@ -1150,7 +1150,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Triggers */
+        /**
+         * List Triggers
+         * @description Every trigger (on a node: its hub's).
+         */
         get: operations["list_triggers_v1_triggers_get"];
         put?: never;
         /**
@@ -1175,7 +1178,8 @@ export interface paths {
         put?: never;
         /**
          * Fire By Name
-         * @description `muxtower trigger <name>`: the owner's own script (a device's token: this machine's CLI).
+         * @description `muxtower trigger <name>`: the owner's own script (a device's token: this machine's CLI). On a node,
+         *     fired by its hub, which keeps the triggers.
          */
         post: operations["fire_by_name_v1_triggers_fire_by_name_post"];
         delete?: never;

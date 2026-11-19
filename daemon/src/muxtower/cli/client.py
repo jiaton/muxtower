@@ -14,7 +14,11 @@ from muxtower.config import Settings
 
 
 class DaemonError(Exception):
-    pass
+    """The daemon refused (`status`: its HTTP status), or could not be reached (`status` None)."""
+
+    def __init__(self, message: str, status: int | None = None) -> None:
+        super().__init__(message)
+        self.status = status
 
 
 class LocalDaemon:
@@ -34,8 +38,11 @@ class LocalDaemon:
             with urllib.request.urlopen(req, timeout=10) as res:  # noqa: S310
                 raw = res.read()
         except urllib.error.HTTPError as exc:
-            detail = json.loads(exc.read() or b"{}").get("detail", exc.reason)
-            raise DaemonError(str(detail)) from exc
+            try:
+                detail = json.loads(exc.read() or b"{}").get("detail", exc.reason)
+            except ValueError:
+                detail = exc.reason  # not the daemon's JSON (a proxy's page)
+            raise DaemonError(str(detail), exc.code) from exc
         except OSError as exc:
             raise DaemonError(f"cannot reach the daemon at {self.url}: {exc}") from exc
         return json.loads(raw) if raw else None
