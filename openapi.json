@@ -3395,7 +3395,8 @@
               "number",
               "text",
               "args",
-              "multiline"
+              "multiline",
+              "per_runtime"
             ],
             "title": "Kind",
             "type": "string"
@@ -3408,6 +3409,17 @@
             "description": "changed since the daemon started: applies when it restarts",
             "title": "Pending",
             "type": "boolean"
+          },
+          "runtime_choices": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "description": "per_runtime: each runtime's choices (its permission modes); value maps some",
+            "title": "Runtime Choices",
+            "type": "object"
           },
           "section": {
             "title": "Section",
@@ -3612,7 +3624,7 @@
         "type": "object"
       },
       "StartAction": {
-        "description": "A new session per event (at most 3 of a trigger's alive at once), never with more permissions than\na launch's default. `message` is the owner's text; {payload} and {a.b} in it are filled in as data, inside\nthe external-data block, never spliced into the instructions.",
+        "description": "A new session per event (at most 3 of a trigger's alive at once), in `triggers.start_mode` for its runtime,\nnever above a launch's default unless agents may escalate (`triggers/modes.py`). `message` is the owner's\ntext; {payload} and {a.b} in it are filled in as data, inside the external-data block, never spliced into\nthe instructions.",
         "properties": {
           "cwd": {
             "anyOf": [
@@ -3682,6 +3694,56 @@
           "message"
         ],
         "title": "StartAction",
+        "type": "object"
+      },
+      "StartMode": {
+        "properties": {
+          "configured": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "triggers.start_mode for this runtime; null: none, the launch default",
+            "title": "Configured"
+          },
+          "held": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "why the configured mode is not used: \"auto is above it\"; it starts in the default",
+            "title": "Held"
+          },
+          "label": {
+            "description": "the mode as the agent names it",
+            "title": "Label",
+            "type": "string"
+          },
+          "mode": {
+            "description": "what a trigger's session of this runtime starts in: a mode id, or \"agent\"",
+            "title": "Mode",
+            "type": "string"
+          },
+          "runtime": {
+            "title": "Runtime",
+            "type": "string"
+          }
+        },
+        "required": [
+          "runtime",
+          "mode",
+          "label",
+          "configured"
+        ],
+        "title": "StartMode",
         "type": "object"
       },
       "StateSource": {
@@ -7823,6 +7885,32 @@
           }
         },
         "summary": "Fire By Name",
+        "tags": [
+          "triggers"
+        ]
+      }
+    },
+    "/v1/triggers/start-modes": {
+      "get": {
+        "description": "The permission mode a start action's session runs in, per runtime (`triggers.start_mode`, held to the\nlaunch default unless agents may escalate); on a node: its hub's, where triggers fire.",
+        "operationId": "start_modes_v1_triggers_start_modes_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/StartMode"
+                  },
+                  "title": "Response Start Modes V1 Triggers Start Modes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Start Modes",
         "tags": [
           "triggers"
         ]

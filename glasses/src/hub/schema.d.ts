@@ -1188,6 +1188,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/triggers/start-modes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Start Modes
+         * @description The permission mode a start action's session runs in, per runtime (`triggers.start_mode`, held to the
+         *     launch default unless agents may escalate); on a node: its hub's, where triggers fire.
+         */
+        get: operations["start_modes_v1_triggers_start_modes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/triggers/{trigger_id}": {
         parameters: {
             query?: never;
@@ -2931,7 +2952,7 @@ export interface components {
              * Kind
              * @enum {string}
              */
-            kind: "choice" | "bool" | "number" | "text" | "args" | "multiline";
+            kind: "choice" | "bool" | "number" | "text" | "args" | "multiline" | "per_runtime";
             /** Label */
             label: string;
             /**
@@ -2939,6 +2960,13 @@ export interface components {
              * @description changed since the daemon started: applies when it restarts
              */
             pending: boolean;
+            /**
+             * Runtime Choices
+             * @description per_runtime: each runtime's choices (its permission modes); value maps some
+             */
+            runtime_choices?: {
+                [key: string]: string[];
+            };
             /** Section */
             section: string;
             /**
@@ -3044,9 +3072,10 @@ export interface components {
         };
         /**
          * StartAction
-         * @description A new session per event (at most 3 of a trigger's alive at once), never with more permissions than
-         *     a launch's default. `message` is the owner's text; {payload} and {a.b} in it are filled in as data, inside
-         *     the external-data block, never spliced into the instructions.
+         * @description A new session per event (at most 3 of a trigger's alive at once), in `triggers.start_mode` for its runtime,
+         *     never above a launch's default unless agents may escalate (`triggers/modes.py`). `message` is the owner's
+         *     text; {payload} and {a.b} in it are filled in as data, inside the external-data block, never spliced into
+         *     the instructions.
          */
         StartAction: {
             /** Cwd */
@@ -3068,6 +3097,31 @@ export interface components {
              * Runtime
              * @default claude-code
              */
+            runtime: string;
+        };
+        /** StartMode */
+        StartMode: {
+            /**
+             * Configured
+             * @description triggers.start_mode for this runtime; null: none, the launch default
+             */
+            configured: string | null;
+            /**
+             * Held
+             * @description why the configured mode is not used: "auto is above it"; it starts in the default
+             */
+            held?: string | null;
+            /**
+             * Label
+             * @description the mode as the agent names it
+             */
+            label: string;
+            /**
+             * Mode
+             * @description what a trigger's session of this runtime starts in: a mode id, or "agent"
+             */
+            mode: string;
+            /** Runtime */
             runtime: string;
         };
         /**
@@ -5606,6 +5660,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_modes_v1_triggers_start_modes_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StartMode"][];
                 };
             };
         };
