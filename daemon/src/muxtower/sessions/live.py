@@ -78,6 +78,8 @@ class LiveSession:
     alt_screen: bool = False  # draws full screen: tmux keeps no scrollback for it
     attached: bool = False  # a terminal is attached to its tmux session
     in_background: bool = False  # its agent moved the conversation to a background process (Claude Code)
+    suggestion: str | None = None  # the prompt its agent suggests in its empty input line (Claude Code)
+    suggestion_seen: str | None = None  # the input line's text it was read from (read in colour once per text)
     updated_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
 

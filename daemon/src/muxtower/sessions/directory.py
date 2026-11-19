@@ -14,6 +14,7 @@ from muxtower.approval.models import Answers, ApprovalResult
 from muxtower.approval.service import ApprovalService
 from muxtower.errors import Conflict, NotFound
 from muxtower.runtimes.models import AgentState
+from muxtower.runtimes.spec import ANSI
 from muxtower.sessions.anchors import ProjectAnchors
 from muxtower.sessions.archive import SessionArchive
 from muxtower.sessions.decorate import decorate
@@ -296,12 +297,39 @@ class SessionDirectory(OwnerMarks):
             source.send_key(session_id, body.key)
 
     def at_prompt(self, session_id: str) -> bool:
-        """A Claude Code pane here showing a dialog (permission, question, trust, plan): typed into, the words
-        would go nowhere and Enter would pick its first choice."""
-        if self.source_of(session_id) is not None:
-            return False
+        """A Claude Code pane (here or on a node) showing a dialog (permission, question, trust, plan): typed
+        into, the words would go nowhere and Enter would pick its first choice. Not one only on Remote
+        Control, whose messages go in structured."""
         session = self.get(session_id)
+        if session.source is SessionSource.REMOTE_CONTROL or not session.capabilities.screen:
+            return False
         return session.runtime == "claude-code" and session.state in PROMPT_STATES
+
+    def accept_suggestion(self, session_id: str, text: str) -> None:
+        """Send the prompt its agent suggests (`Session.suggestion`), as it is: read again from its screen
+        first, still that one, its input line still empty and no dialog up; else nothing is sent."""
+        if (source := self.source_of(session_id)) is not None:
+            if not hasattr(source, "accept_suggestion"):
+                raise Conflict("this session has no suggested prompt to send")
+            return source.accept_suggestion(session_id, text)  # type: ignore[no-any-return]
+        record = self.local.record(session_id)
+        runtime = self.local.runtime_of(record)
+        said = runtime.config.suggestion if runtime else None
+        if runtime is None or said is None:
+            raise Conflict("this agent suggests no prompts")
+        if self.get(session_id).state not in (AgentState.IDLE, AgentState.UNKNOWN):
+            raise Conflict("it is not waiting at its prompt")
+        ansi = self.local.tmux.capture(record.pane, ansi=True) or ""
+        if runtime.classify(ANSI.sub("", ansi)).state in PROMPT_STATES:
+            raise Conflict("it is showing a dialog")
+        if runtime.suggestion_of(ansi) != text.strip():
+            raise Conflict("that suggestion is no longer there")
+        for step in said.accept:
+            if step.key:
+                self.local.tmux.send_key(record.pane, step.key)
+            elif step.text:
+                self.local.tmux.send_text(record.pane, step.text)
+        self.terminal.monitor.wake()
 
     def send_or_hold(self, session_id: str, body: SendInput) -> bool:
         """The owner's message: typed in now, or, while its session shows a dialog (`at_prompt`), held and

@@ -10,6 +10,7 @@ from collections import defaultdict, deque
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any
 
 from muxtower.infra.bus import EventBus
 from muxtower.runtimes.models import AgentState
@@ -140,6 +141,8 @@ class Monitor(Reconciler):
                 if ansi is not None and (previous is None or previous.ansi != ansi):
                     result.screens[record.id] = ansi
             live.screen = ScreenState(classification, text, since, ansi)
+            if runtime is not None and self._suggest(record, live, runtime, classification, text, ansi):
+                result.sessions_changed = True
             pid = pane.pid if pane else 0
             remote_id = self.processes.remote_id(pid, text) if self.processes and pid else None
             named = self.processes.transcript(pid, text) if self.processes and pid else None
@@ -194,6 +197,23 @@ class Monitor(Reconciler):
             except Exception:
                 logger.exception("delivering held messages failed")
         return result
+
+    def _suggest(self, record: Any, live: Any, runtime: Any, c: Classification, text: str, ansi: str | None) -> bool:
+        """The prompt its agent suggests, while it waits at its prompt: the input line's text, read in colour
+        once per text (typed text is drawn plain). True when it changed."""
+        line = runtime.suggestion_line_of(text) if c.state in (AgentState.IDLE, AgentState.UNKNOWN) else None
+        if line is None:
+            changed = live.suggestion is not None
+            live.suggestion = live.suggestion_seen = None
+            return changed
+        if line == live.suggestion_seen:
+            return False
+        live.suggestion_seen = line
+        coloured = ansi if ansi is not None else self.service.tmux.capture(record.pane, ansi=True)
+        found = runtime.suggestion_of(coloured) if coloured else None
+        changed = found != live.suggestion
+        live.suggestion = found
+        return bool(changed)
 
     async def run_loop(self, bus: EventBus, interval: float) -> None:
         """A tick every `interval`, or soon after `wake`: keys typed in a row are taken together (after

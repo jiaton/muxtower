@@ -142,6 +142,12 @@ const SESSION_ROUTES: Record<string, Handler> = {
     world.input(id, typeof body.text === 'string' ? body.text : null, body.enter === true)
     return empty()
   },
+  // The suggested prompt taken (→ then Enter there): sent like one typed, and gone from the input line.
+  'POST suggestion': (world, id, body) => {
+    world.mark(id, { suggestion: null })
+    world.input(id, typeof body.text === 'string' ? body.text : null, true)
+    return empty()
+  },
   'POST read': marked((body) => ({ unread: body.read === false })),
   'POST hide': marked((body) => ({ hidden: body.hidden !== false })),
   'POST pin': marked((body) => ({ pinned: body.pinned !== false })),

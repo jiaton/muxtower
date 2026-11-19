@@ -332,6 +332,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
               keys={session.capabilities.keys}
               images={session.capabilities.images}
               track={outgoing.track}
+              suggestion={session.runtime === 'claude-code' && !DIALOG_STATES.has(session.state) ? session.suggestion : null}
               extra={
                 dictation.available ? (
                   <>

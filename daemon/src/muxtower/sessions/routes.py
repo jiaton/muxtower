@@ -237,6 +237,24 @@ def send_input(session_id: str, body: SendInput, device: CurrentDevice, director
     return Response(status_code=202 if held else 204)
 
 
+class AcceptSuggestion(BaseModel):
+    text: str = Field(description="the suggestion as the session showed it (`Session.suggestion`)")
+
+
+@router.post(
+    "/sessions/{session_id}/suggestion",
+    status_code=204,
+    responses={409: {"description": "no longer that suggestion, its input not empty, or a dialog up"}},
+)
+def accept_suggestion(
+    session_id: str, body: AcceptSuggestion, device: CurrentDevice, directory: Directory, audit: Audit
+) -> None:
+    """Send the prompt the agent suggests in its empty input line, as it is (Claude Code: → then Enter),
+    after reading its screen again."""
+    directory.accept_suggestion(session_id, body.text)
+    audit.record(device.name, "input", session_id, f"suggestion chars={len(body.text)}")
+
+
 @router.post("/sessions/{session_id}/resize", status_code=204)
 def resize(session_id: str, body: Resize, _: CurrentDevice, directory: Directory) -> None:
     directory.resize(session_id, body)

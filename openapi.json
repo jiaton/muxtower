@@ -1,6 +1,20 @@
 {
   "components": {
     "schemas": {
+      "AcceptSuggestion": {
+        "properties": {
+          "text": {
+            "description": "the suggestion as the session showed it (`Session.suggestion`)",
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "AcceptSuggestion",
+        "type": "object"
+      },
       "AgentState": {
         "enum": [
           "needs_permission",
@@ -2922,6 +2936,18 @@
           },
           "state_source": {
             "$ref": "#/components/schemas/StateSource"
+          },
+          "suggestion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the prompt its agent suggests in its empty input line after a turn (Claude Code's faint one): sent as it is with POST \u2026/suggestion; only while it waits at its prompt",
+            "title": "Suggestion"
           },
           "summary": {
             "anyOf": [
@@ -6621,6 +6647,55 @@
         "summary": "Speak Latest",
         "tags": [
           "listen"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/suggestion": {
+      "post": {
+        "description": "Send the prompt the agent suggests in its empty input line, as it is (Claude Code: \u2192 then Enter),\nafter reading its screen again.",
+        "operationId": "accept_suggestion_v1_sessions__session_id__suggestion_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcceptSuggestion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "no longer that suggestion, its input not empty, or a dialog up"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Accept Suggestion",
+        "tags": [
+          "sessions"
         ]
       }
     },

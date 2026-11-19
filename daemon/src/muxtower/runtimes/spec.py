@@ -24,6 +24,7 @@ class Step(BaseModel):
     key: str | None = None
 
 
+ANSI = re.compile(r"\x1b\[[0-9;:?]*[A-Za-z]|\x1b\][^\x07]*\x07")
 _FRAME = "╌─━│┃╎┆┊"
 
 
@@ -93,6 +94,17 @@ class ApproveConfig(BaseModel):
 
 class DenyConfig(BaseModel):
     send: list[Step] = Field(default_factory=lambda: [Step(key="Escape")])
+
+
+class SuggestionConfig(BaseModel):
+    """The prompt an agent suggests in its empty input line after a turn (Claude Code draws it faint), and
+    the keys that take and send it. Read from the input box's line (`prompt_line`, group 1, on the plain
+    screen), and believed only when that line is drawn in `style` (on the screen with its colours): text
+    typed there is not."""
+
+    prompt_line: str
+    style: str
+    accept: list[Step] = Field(default_factory=lambda: [Step(key="Right"), Step(key="Enter")])
 
 
 class ContextConfig(BaseModel):
@@ -169,6 +181,7 @@ class RuntimeConfig(BaseModel):
     panel_lines: int = Field(default=25, ge=1)  # the tallest such panel
     menu: MenuConfig = Field(default_factory=MenuConfig)
     context: ContextConfig = Field(default_factory=ContextConfig)
+    suggestion: SuggestionConfig | None = None
     approve: ApproveConfig = Field(default_factory=ApproveConfig)
     deny: DenyConfig = Field(default_factory=DenyConfig)
     # The permission modes it can be started in, least to most permissive (`sessions/launch.py`).
@@ -248,6 +261,9 @@ class Runtime:
         self.panel_rule = re.compile(config.panel_rule) if config.panel_rule else None
         self.prefer = {state: [re.compile(p) for p in ps] for state, ps in config.approve.prefer.items()}
         self.default = [re.compile(p) for p in config.approve.default]
+        said = config.suggestion
+        self.suggestion_line = re.compile(said.prompt_line) if said else None
+        self.suggestion_style = re.compile(said.style) if said else None
         context = config.context
         self.context_top = re.compile(context.top) if context.top else None
         self.context_tool = re.compile(context.tool) if context.tool else None
@@ -302,6 +318,34 @@ class Runtime:
                     return Classification(rule.state, rule.name, menu, slowest, tool, detail, rule.kind, sender)
                 return Classification(rule.state, rule.name, menu, slowest)
         return Classification(self.config.default_state, None, None, slowest)
+
+    def suggestion_line_of(self, screen: str) -> str | None:
+        """The text in the input box's line, when it could be a suggestion (to be checked in colour, by
+        `suggestion_of`): only while the box shows at the bottom."""
+        if self.suggestion_line is None:
+            return None
+        lines = screen.rstrip().splitlines()
+        box = self.box_at(lines)
+        if box is None:
+            return None
+        for line in lines[box : box + self.config.prompt_last_lines]:
+            if found := self.suggestion_line.match(line):
+                return found.group(1).strip() or None
+        return None
+
+    def suggestion_of(self, ansi: str) -> str | None:
+        """The suggestion on a screen with its colours: the input line's text, drawn in its style."""
+        if self.suggestion_line is None or self.suggestion_style is None:
+            return None
+        plain_lines = [ANSI.sub("", line) for line in ansi.rstrip().splitlines()]
+        box = self.box_at(plain_lines)
+        if box is None:
+            return None
+        raw = ansi.rstrip().splitlines()
+        for i in range(box, min(len(raw), box + self.config.prompt_last_lines)):
+            if (found := self.suggestion_line.match(plain_lines[i])) and self.suggestion_style.search(raw[i]):
+                return found.group(1).strip() or None
+        return None
 
     def context_of(self, dialog: list[str]) -> tuple[str | None, str | None]:
         """The tool a dialog is about and what it would do, from the dialog's own lines (`ContextConfig`)."""

@@ -6,7 +6,11 @@ import { InputBar } from './input-bar'
 import { draftBox } from '../draft-box'
 
 const mutate = vi.fn((_body: unknown, options?: { onSuccess?: () => void; onError?: () => void }) => options?.onSuccess?.())
-vi.mock('../api/use-terminal', () => ({ useSendInput: () => ({ mutate, isPending: false, isError: false }) }))
+const acceptSuggestion = vi.fn()
+vi.mock('../api/use-terminal', () => ({
+  useSendInput: () => ({ mutate, isPending: false, isError: false }),
+  useAcceptSuggestion: () => ({ mutate: acceptSuggestion, isPending: false, isError: false }),
+}))
 // jsdom draws no pictures: one that fits is sent as it is anyway. `hold` keeps the next one in the works.
 let hold: Promise<void> | null = null
 vi.mock('../images', async (actual) => ({
@@ -291,5 +295,50 @@ describe('InputBar', () => {
       expect(reply()).toHaveValue('cc @PM@p (pm1) ')
       expect(reply()).toHaveFocus()
     })
+  })
+})
+
+describe("the agent's suggested prompt", () => {
+  const ctrlEnter = { key: 'Enter', code: 'Enter', ctrlKey: true } // ⌘↵ off a Mac (jsdom is none)
+
+  it('shows in the empty box, and Ctrl+Enter sends it as it is', () => {
+    render(<InputBar daemonId="nas" sessionId="s1" suggestion="yes, open it" />)
+    const box = screen.getByRole('textbox', { name: 'Message the agent' })
+    expect(box).toHaveAttribute('placeholder', 'Ctrl+↵ or Send: yes, open it')
+    fireEvent.keyDown(box, ctrlEnter)
+    expect(acceptSuggestion).toHaveBeenCalledWith('yes, open it')
+    expect(mutate).not.toHaveBeenCalled()
+  })
+
+  it('with words in the box, Ctrl+Enter sends them, not the suggestion', () => {
+    render(<InputBar daemonId="nas" sessionId="s1" suggestion="yes, open it" />)
+    const box = screen.getByRole('textbox', { name: 'Message the agent' })
+    fireEvent.change(box, { target: { value: 'no, wait' } })
+    expect(box).toHaveAttribute('placeholder', 'Message the agent')
+    fireEvent.keyDown(box, ctrlEnter)
+    expect(acceptSuggestion).not.toHaveBeenCalled()
+    expect(mutate).toHaveBeenCalledWith(expect.objectContaining({ text: 'no, wait' }), expect.anything())
+  })
+
+  it('without one, Ctrl+Enter on the empty box sends nothing', () => {
+    render(<InputBar daemonId="nas" sessionId="s1" />)
+    fireEvent.keyDown(screen.getByRole('textbox', { name: 'Message the agent' }), ctrlEnter)
+    expect(acceptSuggestion).not.toHaveBeenCalled()
+    expect(mutate).not.toHaveBeenCalled()
+  })
+
+  it('the Send button takes it while the box is empty, a plain Send again once something is typed', () => {
+    render(<InputBar daemonId="nas" sessionId="s1" suggestion="yes, open it" />)
+    const button = screen.getByRole('button', { name: 'Send suggestion: yes, open it' })
+    expect(button).toBeEnabled()
+    fireEvent.click(button)
+    expect(acceptSuggestion).toHaveBeenCalledWith('yes, open it')
+    fireEvent.change(screen.getByRole('textbox', { name: 'Message the agent' }), { target: { value: 'no' } })
+    expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled()
+  })
+
+  it('with none, Send stays disabled on the empty box', () => {
+    render(<InputBar daemonId="nas" sessionId="s1" />)
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
   })
 })

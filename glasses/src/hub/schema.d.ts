@@ -982,6 +982,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_id}/suggestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accept Suggestion
+         * @description Send the prompt the agent suggests in its empty input line, as it is (Claude Code: → then Enter),
+         *     after reading its screen again.
+         */
+        post: operations["accept_suggestion_v1_sessions__session_id__suggestion_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_id}/summary": {
         parameters: {
             query?: never;
@@ -1172,6 +1193,14 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AcceptSuggestion */
+        AcceptSuggestion: {
+            /**
+             * Text
+             * @description the suggestion as the session showed it (`Session.suggestion`)
+             */
+            text: string;
+        };
         /**
          * AgentState
          * @enum {string}
@@ -2520,6 +2549,11 @@ export interface components {
             source: components["schemas"]["SessionSource"];
             state: components["schemas"]["AgentState"];
             state_source: components["schemas"]["StateSource"];
+            /**
+             * Suggestion
+             * @description the prompt its agent suggests in its empty input line after a turn (Claude Code's faint one): sent as it is with POST …/suggestion; only while it waits at its prompt
+             */
+            suggestion?: string | null;
             summary?: components["schemas"]["TurnSummary"] | null;
             /**
              * Team Note
@@ -4775,6 +4809,46 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Spoken"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    accept_suggestion_v1_sessions__session_id__suggestion_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptSuggestion"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description no longer that suggestion, its input not empty, or a dialog up */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

@@ -53,6 +53,21 @@ export function useSendInput(daemonId: string, sessionId: string) {
   })
 }
 
+/** Send the prompt the agent suggests, as it is (`Session.suggestion`): the hub reads its screen again
+ *  first and sends nothing if it has gone (409). */
+export function useAcceptSuggestion(daemonId: string, sessionId: string) {
+  const client = useDaemonClient(daemonId)
+  return useMutation({
+    mutationFn: async (text: string) =>
+      check(
+        await client!.POST('/v1/sessions/{session_id}/suggestion', {
+          params: { path: { session_id: sessionId } },
+          body: { text },
+        }),
+      ),
+  })
+}
+
 /** Fit the pane to this screen (`size`), or hand the size back to attached terminals (`null`). */
 export function usePaneSize(daemonId: string, sessionId: string) {
   const client = useDaemonClient(daemonId)

@@ -151,6 +151,12 @@ detail = [
 ]
 detail_chars = 500
 
+[suggestion]
+# The prompt Claude Code suggests after a turn, drawn faint in its empty input line ("❯ yes, create it"):
+# → takes it into the line, Enter sends it. Text typed there is drawn plain, so it is not one.
+prompt_line = '^❯[ \t\u00a0]+(\S.*?)[ \t\u00a0]*$'
+style = '\x1b\[2m'
+
 [menu]
 # The glyph that marks the highlighted choice. Change it if your theme draws something else.
 cursor = "❯"

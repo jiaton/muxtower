@@ -152,6 +152,11 @@ class Session(BaseModel):
         "an empty prompt): it runs on there, its Remote Control session and transcript with it; its terminal "
         "shows Claude Code's agents view, where Enter opens it again",
     )
+    suggestion: str | None = Field(
+        default=None,
+        description="the prompt its agent suggests in its empty input line after a turn (Claude Code's faint "
+        "one): sent as it is with POST …/suggestion; only while it waits at its prompt",
+    )
     role: SessionRole | None = None
     remote_id: str | None = Field(
         default=None,

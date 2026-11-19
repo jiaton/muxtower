@@ -30,6 +30,7 @@ def _json(value: Any) -> Any:
 # What changes something here: audited as done by the hub, like a device's actions.
 MUTATING = frozenset({
     "input", "approve", "deny", "update", "terminate", "archive", "create", "recover", "resume_archived",
+    "accept_suggestion",
 })  # fmt: skip
 # What changes the list here (as the same routes say for a device): the hub hears of it at once.
 CHANGES_LIST = MUTATING | {"mark_read"}
@@ -86,6 +87,8 @@ class NodeApi:
                 return _json(d.approve(sid, params.get("option"), params.get("answers")))
             case "deny":
                 return _json(d.deny(sid))
+            case "accept_suggestion":
+                d.accept_suggestion(sid, str(params.get("text", "")))
             case "resize":
                 d.resize(sid, Resize.model_validate(params.get("body")))
             case "release_size":

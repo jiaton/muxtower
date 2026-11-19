@@ -182,6 +182,9 @@ class NodeSource:
     def send_input(self, session_id: str, body: SendInput) -> None:
         self._call(session_id, "input", {"body": body.model_dump(mode="json")})
 
+    def accept_suggestion(self, session_id: str, text: str) -> None:
+        self._call(session_id, "accept_suggestion", {"text": text})
+
     def send_text(self, session_id: str, text: str, images: list[ImageInput] | None = None) -> None:
         self.send_input(session_id, SendInput(text=text, enter=True, images=images or []))
 

@@ -249,6 +249,7 @@ export function shopApiLaptop(): Scene {
       on_host: false,
       created_at: ago(90),
       updated_at: ago(15),
+      suggestion: 'add a test for the label', // Claude Code's suggested next prompt: Send (or ⌘↵) takes it
     }),
     history: [
       ...claudeWelcome('~/code/shop-api'),

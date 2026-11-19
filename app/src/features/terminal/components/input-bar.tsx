@@ -1,4 +1,4 @@
-import { ImagePlus, Plus, SendHorizontal } from 'lucide-react'
+import { CornerDownLeft, ImagePlus, Plus, SendHorizontal } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -6,7 +6,9 @@ import { Textarea } from '@/components/ui/input'
 import { cn } from '@/lib/cn'
 import { PHONE_QUERY, useMediaQuery } from '@/lib/use-media-query'
 import type { Track } from '@/lib/use-outbox'
-import { useSendInput } from '../api/use-terminal'
+import { MAC, SEND_KEYS } from '@/lib/send-keys'
+import { setSuggestionTaker } from '@/lib/suggestion-key'
+import { useAcceptSuggestion, useSendInput } from '../api/use-terminal'
 import { useAttachments } from '../hooks/use-attachments'
 import { useComposerPanel, usePanelSwipe } from '../hooks/use-composer-panel'
 import { useGuardedKeys } from '../hooks/use-guarded-keys'
@@ -48,6 +50,7 @@ export function InputBar({
   cover,
   mention,
   guard,
+  suggestion,
 }: {
   daemonId: string
   sessionId: string
@@ -60,8 +63,11 @@ export function InputBar({
   mention?: TokenSource
   /** Why a key of the pad should ask before it goes (a second tap sends it), or null: `useGuardedKeys`. */
   guard?: (key: string) => string | null
+  /** The prompt the agent suggests while it waits at its prompt: ⌘↵ on the empty box sends it. */
+  suggestion?: string | null
 }) {
   const send = useSendInput(daemonId, sessionId)
+  const accept = useAcceptSuggestion(daemonId, sessionId)
   const draftKey = keyOf(daemonId, sessionId)
   const draft = useDrafts((s) => s.drafts[draftKey] ?? '')
   const setDraft = useDrafts((s) => s.setDraft)
@@ -201,8 +207,28 @@ export function InputBar({
     return () => void submitters.delete(draftKey)
   }, [draftKey])
 
+  // Nothing in the box (no words, quotes or pictures): ⌘↵ sends the agent's suggestion, if one shows.
+  const empty = !draft.trim() && !quotes.length && !pictures.items.length
+  const offered = empty && suggestion ? suggestion : null
+  const takeRef = useRef<() => boolean>(() => false)
+  takeRef.current = () => {
+    if (!offered || accept.isPending) return false
+    accept.mutate(offered)
+    return true
+  }
+  useEffect(() => {
+    if (!offered) return
+    setSuggestionTaker(() => takeRef.current())
+    return () => setSuggestionTaker(null)
+  }, [offered])
+
   const keyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (mentions.onKeyDown(e)) return // the mention menu's: Up/Down, Enter/Tab to insert, Esc
+    const command = MAC ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey
+    if (e.key === 'Enter' && command && !e.shiftKey && !e.altKey && takeRef.current()) {
+      e.preventDefault()
+      return
+    }
     // Not the Enter that picks an input method's word (Safari ends the composition first: 229).
     const picking = e.nativeEvent.isComposing || e.keyCode === 229
     if (e.key !== 'Enter' || e.shiftKey || picking) return
@@ -226,6 +252,11 @@ export function InputBar({
       {send.isError ? (
         <Banner tone="error" aligned>
           {send.error.message}
+        </Banner>
+      ) : null}
+      {accept.isError ? (
+        <Banner tone="error" aligned>
+          Not sent: {accept.error.message}
         </Banner>
       ) : null}
       {pictures.error ? (
@@ -264,6 +295,7 @@ export function InputBar({
           className="flex items-end gap-1.5"
           onSubmit={(e) => {
             e.preventDefault()
+            if (takeRef.current()) return // the box empty: Send takes the agent's suggestion
             submit()
           }}
         >
@@ -312,7 +344,15 @@ export function InputBar({
               enterKeyHint={touch ? 'enter' : 'send'}
               value={draft}
               placeholder={
-                !quotes.length ? 'Message the agent' : armed && !touch ? 'Add a message, or Enter again to send' : 'Add a message'
+                offered
+                  ? touch
+                    ? `Send takes: ${offered}`
+                    : `${SEND_KEYS} or Send: ${offered}`
+                  : !quotes.length
+                    ? 'Message the agent'
+                    : armed && !touch
+                      ? 'Add a message, or Enter again to send'
+                      : 'Add a message'
               }
               aria-label="Message the agent"
               onChange={(e) => setText(e.target.value)}
@@ -360,10 +400,11 @@ export function InputBar({
             type="submit"
             size="icon"
             className="shrink-0"
-            aria-label="Send"
-            disabled={send.isPending || pictures.pending > 0 || (!message && !pictures.items.length)}
+            aria-label={offered ? `Send suggestion: ${offered}` : 'Send'}
+            title={offered ? `Send suggestion: ${offered}` : undefined}
+            disabled={offered ? accept.isPending : send.isPending || pictures.pending > 0 || (!message && !pictures.items.length)}
           >
-            <SendHorizontal />
+            {offered ? <CornerDownLeft /> : <SendHorizontal />}
           </Button>
         </form>
       </div>

@@ -480,3 +480,16 @@ PEER_MESSAGE = """\
  ❯ Deny — drop it and tell the sender it was declined
    Deliver this message to Claude
 """
+
+# Claude Code 2.1.327 at its prompt after a turn, with its suggested next prompt drawn faint in the input line
+# (layout and escapes captured live, text made up). The same screen without colours, as the monitor reads it.
+RULE = "─" * 60
+SUGGESTION_ANSI = (
+    "● The tests pass. Want me to open a pull request?\n"
+    "\x1b[38;5;246m✻\x1b[39m \x1b[38;5;246mBaked for 4s · done 9:12 AM\x1b[39m\n"
+    f"\x1b[38;5;244m{RULE}\n"
+    "\x1b[39m❯ \x1b[2myes, open it\x1b[0m\n"
+    f"\x1b[38;5;244m{RULE}\n"
+    "\x1b[39m  \x1b[38;5;211m⏵⏵ bypass permissions on\x1b[38;5;246m (shift+tab to cycle)\x1b[39m\n"
+)
+TYPED_ANSI = SUGGESTION_ANSI.replace("\x1b[2myes, open it\x1b[0m", "yes, open it")  # typed by someone: plain

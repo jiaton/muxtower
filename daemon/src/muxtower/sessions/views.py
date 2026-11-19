@@ -37,6 +37,7 @@ def session_view(svc: "SessionService", record: SessionRecord) -> Session:
         alt_screen=live.alt_screen,
         terminal_attached=live.attached,
         in_background=live.in_background,
+        suggestion=live.suggestion,
         capabilities=Capabilities(
             screen=True,
             conversation=live.transcript is not None,  # read from its transcript

@@ -4,6 +4,8 @@ import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/lib/use-media-query'
+import { SEND_KEYS, isSendShortcut } from '@/lib/send-keys'
+import { takeSuggestion } from '@/lib/suggestion-key'
 import { cancelArmedSend, pauseLive, resumeLive, sendFromKey, stopLive, toggleLive, useLive } from '../live/engine'
 import { feedbackOf, liveDetails } from '../live/feedback'
 import { readAll, stopSpeaking, useSpeech } from '../live/speech'
@@ -20,20 +22,21 @@ import { keepFocus } from '@/components/ui/gesture'
 const NOTE_KEY = 'muxtower.live.phone-note'
 const FEEDBACK_MS = 2000 // how long what became of the last thing heard stays in place of the hint
 const SHORTCUT = 'Alt+L'
-const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)
 /** Sends while Live is on, from anywhere on the page (`sendKey`). */
-export const SEND_KEYS = MAC ? '⌘↵' : 'Ctrl+↵'
+export { SEND_KEYS }
 
 /** ⌘↵ (Ctrl+Enter off a Mac), never with Shift or Alt, sends while Live is on, wherever focus is on the
  *  session page: in the message box, or nowhere in particular. Not in another field (a dialog's, a rename,
  *  a new session's first message, where it is that form's own), nor while a dialog is open. */
 export function sendKey(e: KeyboardEvent): boolean {
-  const command = MAC ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey
-  if (!command || e.shiftKey || e.altKey || (e.code !== 'Enter' && e.code !== 'NumpadEnter')) return false
+  if (!isSendShortcut(e)) return false
   if (document.querySelector('[role="dialog"], [role="alertdialog"]')) return false
   const at = document.activeElement as HTMLElement | null
   const editable = at && (at.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(at.tagName))
   if (editable && at.getAttribute('aria-label') !== 'Message the agent') return false
+  // The box empty and the agent suggesting a prompt: that is sent, unless speech is still on its way to it.
+  const { speaking, pending } = useLive.getState()
+  if (!speaking && !pending && takeSuggestion()) return true
   return sendFromKey()
 }
 

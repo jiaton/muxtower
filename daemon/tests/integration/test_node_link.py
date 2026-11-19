@@ -114,9 +114,15 @@ def test_a_node_s_session_is_driven_through_its_hub(hub: tuple[FastAPI, str], tm
 
         # Its screen, input and approval go to the node's pane.
         assert "rm -rf build/" in phone.get(f"/v1/sessions/{sid}/screen").json()["text"]
-        assert phone.post(f"/v1/sessions/{sid}/input", json={"text": "hi", "enter": True}).status_code == 204
+        # Words sent while its dialog shows are held by the hub (Enter would pick a choice), typed in after.
+        assert phone.post(f"/v1/sessions/{sid}/input", json={"text": "hi", "enter": True}).status_code == 202
         assert phone.post(f"/v1/sessions/{sid}/approve", json={"option": "1"}).json()["option"] == "1"
-        assert ("text", "hi") in pane.sent and ("key", "Enter") in pane.sent
+        assert ("text", "hi") not in pane.sent
+        pane.screen = screens.IDLE
+        node.state.monitor.tick()
+        _until(lambda: (s := listed()) and s["state"] != "needs_permission", seconds=5)
+        hub_app.state.monitor.tick()  # after it, what was held goes in
+        assert ("text", "hi") in pane.sent and pane.sent[-1] == ("key", "Enter")
         assert phone.post(f"/v1/sessions/{sid}/resize", json={"cols": 80, "rows": 40}).status_code == 204
         assert ("resize", "80x40") in pane.sent
 

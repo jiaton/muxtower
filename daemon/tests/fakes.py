@@ -9,6 +9,7 @@ class FakePane:
     argv: list[str]
     env: dict[str, str]
     screen: str = ""
+    ansi: str | None = None  # the screen with its colours, when a test gives one (else `screen`)
     sent: list[tuple[str, str]] = field(default_factory=list)  # ("text"|"key", value)
     exits_with: str | None = None  # what it says as it exits at once (`FakeTmux.exits_with`)
 
@@ -61,7 +62,9 @@ class FakeTmux:
 
     def capture(self, pane: PaneRef, ansi: bool = False, history: int = 0) -> str | None:
         found = self.panes.get((pane.socket, pane.pane_id))
-        return found.screen if found else None
+        if found is None:
+            return None
+        return found.ansi if ansi and found.ansi is not None else found.screen
 
     def send_text(self, pane: PaneRef, text: str) -> None:
         self.pane(pane).sent.append(("text", text))
