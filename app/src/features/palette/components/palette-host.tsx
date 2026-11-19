@@ -191,7 +191,7 @@ function HitItem({ hit, name }: { hit: SearchHit; name: string }) {
       <div className={`${ink.meta} line-clamp-2`}>
         {hit.snippet.map((part, i) =>
           part.match ? (
-            <mark key={i} className={ink.highlight}>
+            <mark key={i} className={ink.match}>
               {part.text}
             </mark>
           ) : (

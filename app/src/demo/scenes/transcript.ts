@@ -43,18 +43,22 @@ function codexLines(turn: ToolTurn): Line[] {
 export function transcript(agent: 'claude' | 'codex', turns: Turn[], seq = 1) {
   const history: Line[] = []
   const items: ConversationItem[] = []
+  // A reply, and the tools before it, come a moment after the prompt they answer (as a real one is stamped).
+  let asked: number | undefined
+  const after = (seconds: number) => (asked === undefined ? null : ago(Math.max(0, asked - seconds / 60)))
   for (const turn of turns) {
     const n = seq + items.length
     if ('you' in turn) {
       history.push(...(agent === 'codex' ? codexSaid(turn.you) : said(turn.you)))
+      asked = turn.minutesAgo
       items.push(prompt(n, { text: turn.you, at: turn.minutesAgo === undefined ? null : ago(turn.minutesAgo) }))
     } else if ('says' in turn) {
       history.push(...(agent === 'codex' ? codexAnswered(turn.says) : answered(turn.says)))
-      items.push(reply(n, { text: turn.says }))
+      items.push(reply(n, { text: turn.says, at: after(40) }))
     } else {
       const title = `${CLAUDE_TITLE[turn.tool] ?? turn.tool}(${turn.on})`
       history.push(...(agent === 'codex' ? codexLines(turn) : ran(title, ...turn.result)))
-      items.push(tool(n, { tool_name: turn.tool, text: turn.on, description: turn.description ?? null, status: 'done' }))
+      items.push(tool(n, { tool_name: turn.tool, text: turn.on, description: turn.description ?? null, status: 'done', at: after(10) }))
     }
   }
   return { history, items, next: seq + items.length }

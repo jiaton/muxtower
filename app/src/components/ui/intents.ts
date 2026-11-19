@@ -33,6 +33,8 @@ export const ink = {
   accent: text({ tone: 'accent' }),
   /** A title in the accent, at its weight (Live's state while it writes). */
   highlight: text({ tone: 'accent', weight: 'medium' }),
+  /** A search's match in running text (a <mark>): a soft accent ground, the text's own colour, in both themes. */
+  match: 'rounded-sm bg-accent-soft px-0.5 font-medium text-inherit',
   warning: text({ tone: 'warning' }),
   danger: text({ tone: 'danger' }),
   success: text({ tone: 'success' }),

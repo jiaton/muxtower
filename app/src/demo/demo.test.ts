@@ -342,3 +342,10 @@ describe('the demo stream', () => {
     expect(socket.readyState).toBe(DemoSocket.CLOSED)
   })
 })
+
+it('every reply in a made-up conversation has its time, as a real one does (search shows it)', async () => {
+  const { transcript } = await import('./scenes/transcript')
+  const { items } = transcript('claude', [{ you: 'Plan it.', minutesAgo: 60 }, { says: 'Planned.' }])
+  expect(items.every((i) => i.at)).toBe(true)
+  expect(new Date(items[1]!.at!).getTime()).toBeGreaterThan(new Date(items[0]!.at!).getTime())
+})
