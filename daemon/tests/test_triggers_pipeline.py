@@ -289,3 +289,11 @@ def test_an_event_over_the_rate_limit_keeps_its_key_free_for_when_it_comes_again
     with rig.app.state.triggers.db.connect() as conn:  # the hour gone by
         conn.execute("UPDATE trigger_firings SET at = '2000-01-01T00:00:00+00:00' WHERE trigger_id = ?", (tid,))
     assert rig.fire(tid, {"id": "b"})["outcome"] == "notified"  # b's key was never used up
+
+
+def test_an_event_whose_action_failed_keeps_its_key_free_to_be_sent_again(rig: Rig) -> None:
+    # Its target not there yet: the event failed, and sent again (once it is) it is no duplicate.
+    tid, _ = rig.make(
+        name="retry", action={"kind": "deliver", "to": "nobody@nowhere"}, dedupe={"field": "id", "days": 1}
+    )
+    assert rig.outcomes(tid, {"id": "a"}, {"id": "a"}) == ["failed", "failed"]

@@ -68,8 +68,12 @@ class TriggerService:
                 over = self.store.count_since(trigger.id, hour_ago, ("rate_limited",)) + 1
                 self._push_once(trigger, "rate", f"{trigger.name}: {over} events over the rate limit in the last hour")
                 return "rate_limited", None, f"rate limit {trigger.rate_per_hour}/h"
-        if dedupe_key is not None:
-            self.store.remember(trigger.id, dedupe_key)  # on to its action: a repeat is a duplicate now
+        done = self._act(trigger, payload)
+        if dedupe_key is not None and done[0] != "failed":
+            self.store.remember(trigger.id, dedupe_key)  # acted on: a repeat is a duplicate (a failed one may retry)
+        return done
+
+    def _act(self, trigger: Trigger, payload: Any) -> tuple[Outcome, str | None, str]:
         action = trigger.action
         if isinstance(action, DeliverAction):
             return self._deliver(trigger, action, payload)
