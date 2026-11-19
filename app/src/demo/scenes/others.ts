@@ -48,6 +48,7 @@ export function infra(): Scene {
       cwd: '/Users/dev/code/infra',
       team_role: 'ops',
       project: 'acme/infra',
+      permission_mode: 'bypassPermissions',
       project_auto: true,
       project_source: 'git remote',
       project_anchor: '/Users/dev/code/infra',

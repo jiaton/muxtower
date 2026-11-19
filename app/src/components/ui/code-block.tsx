@@ -1,7 +1,13 @@
 import { Check, Copy } from 'lucide-react'
 import { createContext, useContext, useEffect, useRef, useState, type ComponentProps, type ComponentType } from 'react'
 import { cn } from '@/lib/cn'
-import { focusRing } from './styles'
+import { box, focusRing, text } from './styles'
+
+/** A snippet shown on its own, to be copied (not inside Markdown): small machine text on a quiet ground,
+ *  every line wrapped wherever it must break (nothing hidden past the edge), and under it, at its right, a
+ *  Copy button that says so in words, always shown. */
+const SNIPPET = cn(box({ radius: 'sm', ground: 'muted' }), text({ mono: true, size: 'xs' }), 'p-2 pb-10 break-all whitespace-pre-wrap')
+const SNIPPET_BUTTON = `inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 text-xs font-medium text-fg hover:bg-surface-muted ${focusRing} [&_svg]:size-3.5`
 
 const COPIED_MS = 1500
 
@@ -48,7 +54,18 @@ async function copyText(text: string): Promise<boolean> {
 /** A code block with a Copy button in its corner (and the `CodeActionContext` action beside it): always
  *  shown on a touch screen, on hover or focus where there is a pointer. The buttons stay put while the
  *  code scrolls sideways under them. */
-export function CodeBlock({ node: _node, className, ...props }: ComponentProps<'pre'> & { node?: unknown }) {
+export function CodeBlock({
+  node: _node,
+  className,
+  snippet,
+  copyLabel = 'Copy code',
+  ...props
+}: ComponentProps<'pre'> & {
+  node?: unknown
+  snippet?: boolean
+  /** what Copy is called to a screen reader, where several blocks are shown ("Copy the secret") */
+  copyLabel?: string
+}) {
   const pre = useRef<HTMLPreElement>(null)
   const [copied, setCopied] = useState(false)
   const action = useContext(CodeActionContext)
@@ -64,6 +81,22 @@ export function CodeBlock({ node: _node, className, ...props }: ComponentProps<'
     const text = code()
     if (text && (await copyText(text))) setCopied(true)
   }
+
+  if (snippet)
+    return (
+      <div className="relative min-w-0">
+        <pre ref={pre} className={cn(SNIPPET, className)} {...props} />
+        <button
+          type="button"
+          onClick={() => void copy()}
+          aria-label={copied ? 'Copied' : copyLabel}
+          className={cn(SNIPPET_BUTTON, 'absolute right-1 bottom-1', copied && 'text-success')}
+        >
+          {copied ? <Check aria-hidden /> : <Copy aria-hidden />}
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+    )
 
   return (
     <div className="group relative min-w-0">
@@ -89,8 +122,8 @@ export function CodeBlock({ node: _node, className, ...props }: ComponentProps<'
         <button
           type="button"
           onClick={() => void copy()}
-          aria-label={copied ? 'Copied' : 'Copy code'}
-          title={copied ? 'Copied' : 'Copy code'}
+          aria-label={copied ? 'Copied' : copyLabel}
+          title={copied ? 'Copied' : copyLabel}
           className={cn(CORNER_BUTTON, copied && 'text-success')}
         >
           {copied ? <Check aria-hidden /> : <Copy aria-hidden />}

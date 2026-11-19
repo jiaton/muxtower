@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
+import { Badge } from './badge'
 import { Dialog, DialogContent } from './dialog'
 import { Drawer } from './drawer'
 import { axisOf, landing, landMs, Speed, type Pull } from './gesture'
@@ -170,6 +171,14 @@ describe('Markdown', () => {
 })
 
 describe('SuggestInput', () => {
+  it('matches its keywords too, and inserts the value', () => {
+    const onValueChange = vi.fn()
+    render(<SuggestInput aria-label="To" value="care" onValueChange={onValueChange} suggestions={[{ value: 's-1', hint: 'Careful', keywords: 'Careful' }]} />)
+    fireEvent.focus(screen.getByRole('combobox', { name: 'To' }))
+    fireEvent.click(screen.getByRole('option'))
+    expect(onValueChange).toHaveBeenLastCalledWith('s-1')
+  })
+
   it('offers matching values on focus and picks one by keyboard or tap', () => {
     const onValueChange = vi.fn()
     const suggestions = [{ value: '~/projects/web', hint: '3 sessions' }, { value: '~/projects/api' }, { value: '~/notes' }]
@@ -394,5 +403,12 @@ describe('gestures', () => {
     expect(landing(-60, 0.1, -60)).toBe(-40) // a slow one, a little ahead
     expect(landing(12, 2, 12)).toBe(12) // a twitch stays where it is, however quick
     expect([landMs(390, 0), landMs(240, 1.6), landMs(4, 3)]).toEqual([190, 150, 110]) // brief, never abrupt
+  })
+})
+
+describe('Badge', () => {
+  it('shows its words in its tone', () => {
+    render(<Badge tone="success">Delivered</Badge>)
+    expect(screen.getByText('Delivered')).toHaveClass('text-success')
   })
 })

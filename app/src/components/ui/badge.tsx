@@ -11,6 +11,8 @@ const badgeVariants = cva('inline-flex items-center gap-1 rounded-full px-2 py-0
       error: 'bg-state-error-soft text-state-error',
       busy: 'bg-state-busy-soft text-state-busy',
       idle: 'bg-surface-muted text-fg-muted',
+      /** Went as it should (a trigger's firing that reached its session). */
+      success: 'bg-success/15 text-success',
     },
   },
   defaultVariants: { tone: 'neutral' },

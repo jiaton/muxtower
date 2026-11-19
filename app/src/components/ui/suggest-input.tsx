@@ -7,6 +7,8 @@ export interface Suggestion {
   value: string
   /** Shown after the value, quieter (e.g. how many sessions use it). */
   hint?: ReactNode
+  /** Also matched against what is typed, besides the value (a session's name, where its id is the value). */
+  keywords?: string
 }
 
 const MAX_SHOWN = 6
@@ -29,7 +31,7 @@ export function SuggestInput({
   const [open, setOpen] = useState(false)
   const [active, setActive] = useState(-1)
   const typed = value.trim().toLowerCase()
-  const shown = suggestions.filter((s) => s.value !== value && s.value.toLowerCase().includes(typed)).slice(0, MAX_SHOWN)
+  const shown = suggestions.filter((s) => s.value !== value && `${s.value} ${s.keywords ?? ''}`.toLowerCase().includes(typed)).slice(0, MAX_SHOWN)
   const expanded = open && shown.length > 0
 
   const pick = (s: Suggestion) => {

@@ -6,6 +6,7 @@ import { SettingsForm } from '@/features/daemons/components/settings-form'
 import { DictionarySettings } from '@/features/voice/components/dictionary'
 import { PlaybookSettings } from '@/features/playbook/components/playbook-settings'
 import { SearchStatus } from '@/features/palette/components/search-status'
+import { TriggersSettings } from '@/features/triggers/components/triggers-settings'
 import { TtsSettings } from '@/features/voice/components/tts-settings'
 import { useDaemon } from '@/lib/daemons/store'
 import { ink } from '@/components/ui/intents'
@@ -56,6 +57,7 @@ function SettingsPage() {
                 }
               />
               {node || playbook ? null : <PlaybookSettings daemonId={daemonId} />}
+              {node || playbook ? null : <TriggersSettings daemonId={daemonId} />}
             </>
           ) : (
             <p className={ink.hint}>Unknown daemon.</p>

@@ -7,6 +7,7 @@ import { startedScene } from './scenes/started'
 import { plain } from './scenes/terminal'
 import { DemoSettings } from './settings'
 import { dictionary, saveDictionary } from './dictionary'
+import { triggers } from './triggers'
 import type { World } from './world'
 
 type Me = components['schemas']['Me']
@@ -300,6 +301,17 @@ export async function respond(world: World, request: Request): Promise<Response>
       const saved = save(world, scope, String(body.text ?? ''), body.mode === 'replace' ? 'replace' : 'add', Number(body.base_version))
       return saved ? json(saved) : refuse(409, 'the playbook was changed since: reload it and edit again')
     }
+  }
+  if (pathname.startsWith('/v1/triggers')) {
+    const sent = method === 'GET' || method === 'DELETE' ? '' : await request.text()
+    let body: Record<string, unknown> = {}
+    try {
+      body = sent ? (JSON.parse(sent) as Record<string, unknown>) : {}
+    } catch {
+      return refuse(422, 'not JSON')
+    }
+    const answer = triggers(world, method, pathname, body)
+    if (answer) return answer
   }
   const fixed = ROUTES[`${method} ${pathname}`]
   const match = /^\/v1\/sessions\/([^/]+)(?:\/(.+))?$/.exec(pathname)
