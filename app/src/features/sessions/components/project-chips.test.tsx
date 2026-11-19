@@ -153,13 +153,17 @@ it('a chip dragged with the mouse lands where it is let go, the order saved, and
 it('a click that hardly moves is no drag: the row leaves the click to the link', async () => {
   const put = watchPut()
   show(entries, three)
-  const one = await screen.findByRole('link', { name: /One/ })
-  let cancelled: boolean | null = null
-  one.addEventListener('click', (e) => (cancelled = e.defaultPrevented))
-  fireEvent.mouseDown(one, { button: 0, clientX: 40, clientY: 10 })
+  await screen.findByRole('link', { name: /One/ })
+  // Looked up again for each step: a render as the list settles may put a new link in its place (a CI
+  // runner did, three times: the old one, detached, never navigated).
+  const one = () => screen.getByRole('link', { name: /One/ })
+  fireEvent.mouseDown(one(), { button: 0, clientX: 40, clientY: 10 })
   fireEvent.mouseMove(document, { clientX: 43, clientY: 11 })
   fireEvent.mouseUp(document, { clientX: 43, clientY: 11 })
-  fireEvent.click(one)
+  const link = one()
+  let cancelled: boolean | null = null
+  link.addEventListener('click', (e) => (cancelled = e.defaultPrevented))
+  fireEvent.click(link)
   expect(cancelled).toBe(false)
   expect(document.body.textContent).not.toMatch(/Picked up/) // never lifted
   expect(put).toEqual([])

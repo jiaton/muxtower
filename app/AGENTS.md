@@ -155,6 +155,12 @@ A daemon can also be a hub: other computers' daemons join it as nodes (`docs/des
 - Client state (daemon list, UI prefs) in Zustand; local `useState` first.
 - Server data never goes into Zustand.
 
+## Interaction
+
+- Nothing acts as a pointer or finger goes down: a touch that starts a scroll would set it off. An action fires on a tap (on release, the finger still, no scroll), or after a hold; `scripts/check-styles.mjs` fails a feature with any other `onPointerDown`, an `onTouchStart`, or a pointerdown/touchstart listener that is not passive.
+- Presses go through `components/ui`: `Button` (a click, which browsers do not fire after a scroll); `ui/press.ts` on React Aria's `usePress` for a key that repeats while held (`useRepeatPress`: a tap sends once on release, held still 350 ms it repeats, a move or a scroll sends nothing), a hold (`useHold`) and a card that takes a tap or a swipe (`useTapOrSwipe`). Menu triggers (`DropdownMenuTrigger`) open on a tap for a finger or pen; a mouse keeps Radix's open-on-press.
+- On pointerdown a feature may only keep the focus (`keepFocus`: a phone's keyboard stays up); it never stops a scroll.
+
 ## Accessibility, loading, error states
 
 - Every interactive element has an accessible name; icon buttons get `aria-label`.

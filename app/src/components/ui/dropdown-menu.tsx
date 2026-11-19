@@ -1,6 +1,6 @@
 import * as Menu from '@radix-ui/react-dropdown-menu'
 import { Check, type LucideIcon } from 'lucide-react'
-import { useRef, type ComponentProps, type KeyboardEvent, type ReactNode } from 'react'
+import { createContext, useContext, useRef, useState, type ComponentProps, type KeyboardEvent, type ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { PHONE_QUERY, useMediaQuery } from '@/lib/use-media-query'
 import { look } from './intents'
@@ -12,10 +12,44 @@ const SWIPE_CLOSES_PX = 80
 
 /** Not modal: a modal menu locks the page while open, and a dialog opened from one of its items takes
  *  that lock for the page's own state and puts it back on closing, leaving the page unclickable. */
-export function DropdownMenu({ modal = false, ...props }: ComponentProps<typeof Menu.Root>) {
-  return <Menu.Root modal={modal} {...props} />
+/** Opens or shuts the menu: what a finger's tap on its trigger does (`DropdownMenuTrigger`). */
+const Toggle = createContext<(() => void) | null>(null)
+
+export function DropdownMenu({ modal = false, open, defaultOpen, onOpenChange, ...props }: ComponentProps<typeof Menu.Root>) {
+  const [own, setOwn] = useState(defaultOpen ?? false)
+  const shown = open ?? own
+  const change = (next: boolean) => {
+    if (open === undefined) setOwn(next)
+    onOpenChange?.(next)
+  }
+  return (
+    <Toggle.Provider value={() => change(!shown)}>
+      <Menu.Root modal={modal} open={shown} onOpenChange={change} {...props} />
+    </Toggle.Provider>
+  )
 }
-export const DropdownMenuTrigger = Menu.Trigger
+/** Radix opens a menu as the pointer goes down: a mouse's way, kept. A finger (or pen) opens it on a tap
+ *  instead, on release: touching the trigger as a scroll starts, or scrolling across it, opens nothing. */
+export function DropdownMenuTrigger({ onPointerDown, onClick, ...props }: ComponentProps<typeof Menu.Trigger>) {
+  const toggle = useContext(Toggle)
+  const touch = useRef(false)
+  return (
+    <Menu.Trigger
+      {...props}
+      onPointerDown={(e) => {
+        onPointerDown?.(e)
+        touch.current = e.pointerType === 'touch' || e.pointerType === 'pen'
+        if (touch.current) e.preventDefault() // Radix's own (open now) is skipped
+      }}
+      onClick={(e) => {
+        onClick?.(e)
+        if (!touch.current || e.defaultPrevented) return
+        touch.current = false
+        toggle?.()
+      }}
+    />
+  )
+}
 export const DropdownMenuGroup = Menu.Group
 export const DropdownMenuRadioGroup = Menu.RadioGroup
 

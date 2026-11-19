@@ -2,7 +2,7 @@ import { CornerDownLeft, Delete } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/cn'
-import { useKeyRepeat } from '../hooks/use-key-repeat'
+import { useRepeatPress } from '@/components/ui/press'
 
 interface KeyDef {
   key: string
@@ -46,10 +46,10 @@ export function KeyPad({
   guarded?: string[]
   className?: string
 }) {
-  const press = useKeyRepeat((key) => {
+  const fire = (key: string) => {
     navigator.vibrate?.(8)
     onKey(key)
-  })
+  }
   const shown = KEYS.filter((k) => !keys.length || keys.includes(k.key))
   // Only an interrupt key (Remote Control): one labelled key, not a pad.
   const sparse = shown.length < 3
@@ -64,18 +64,38 @@ export function KeyPad({
       )}
     >
       {shown.map((k) => (
-        <Button
+        <PadKey
           key={k.key}
-          variant="secondary"
-          size="key"
-          aria-label={k.name}
-          title={k.name}
+          name={k.name}
           className={cn('', !sparse && k.at, sparse && 'px-3')}
-          {...press(k.key, Boolean(k.repeat) && !guarded.includes(k.key))}
+          fire={() => fire(k.key)}
+          repeat={Boolean(k.repeat) && !guarded.includes(k.key)}
         >
           {sparse && k.key === 'Escape' ? 'esc · interrupt' : k.label}
-        </Button>
+        </PadKey>
       ))}
     </div>
+  )
+}
+
+/** One key: sent on a tap (on release), repeated while held still, nothing when a scroll starts on it. */
+function PadKey({
+  name,
+  className,
+  fire,
+  repeat,
+  children,
+}: {
+  name: string
+  className?: string
+  fire: () => void
+  repeat: boolean
+  children: ReactNode
+}) {
+  const press = useRepeatPress(fire, repeat)
+  return (
+    <Button variant="secondary" size="key" aria-label={name} title={name} className={cn('touch-manipulation', className)} {...press}>
+      {children}
+    </Button>
   )
 }

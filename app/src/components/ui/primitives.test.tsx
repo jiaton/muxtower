@@ -80,6 +80,26 @@ describe('Nav', () => {
 })
 
 describe('DropdownMenu', () => {
+  it('a finger opens it on a tap (on release), not on touching it as a scroll starts', () => {
+    render(
+      <DropdownMenu>
+        <DropdownMenuTrigger>More</DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem>Rename</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>,
+    )
+    const trigger = screen.getByRole('button', { name: 'More' })
+    fireEvent.pointerDown(trigger, { button: 0, pointerType: 'touch' })
+    expect(screen.queryByRole('menuitem')).toBeNull() // touched: nothing yet
+    fireEvent.pointerCancel(trigger, { pointerType: 'touch' }) // a scroll took it: no click follows
+    expect(screen.queryByRole('menuitem')).toBeNull()
+    fireEvent.pointerDown(trigger, { button: 0, pointerType: 'touch' })
+    fireEvent.pointerUp(trigger, { button: 0, pointerType: 'touch' })
+    fireEvent.click(trigger)
+    expect(screen.getByRole('menuitem', { name: 'Rename' })).toBeInTheDocument() // tapped: open
+  })
+
   it('opens on its trigger and runs an item', () => {
     const onSelect = vi.fn()
     render(

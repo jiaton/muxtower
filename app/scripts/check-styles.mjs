@@ -4,7 +4,8 @@
 // <a>); (4) the builders of looks (components/ui/styles) are not imported: features use the named intents
 // (`ink`, `look`, components/ui/intents) and components; (5) an element takes at most one `ink` and one
 // `look` (`ink.count` may join), whichever branch applies; (6) a components/ui component that has a look
-// of its own takes no intent (but `Button variant="plain"`, which exists to carry one).
+// of its own takes no intent (but `Button variant="plain"`, which exists to carry one); (7) nothing acts on
+// pointerdown or touchstart (app/AGENTS.md › Interaction).
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
@@ -38,6 +39,14 @@ for (const file of files) {
   const rel = relative(ROOT, file)
   if (rel.startsWith('components/ui/') || EXEMPT.has(rel) || /\.test\.tsx?$/.test(rel) || rel.endsWith('.gen.ts')) continue
   const text = readFileSync(file, 'utf8')
+  // (7) Presses: nothing acts as a pointer or finger goes down (a touch that starts a scroll would set it
+  // off). Features press through components/ui (Button, the press primitives in ui/press.ts); on pointerdown
+  // they may only keep the focus (`keepFocus`), and they watch touchstart/pointerdown only passively (a swipe
+  // being followed, never acted on there).
+  for (const m of text.matchAll(/onPointerDown=\{(?!keepFocus\})|onTouchStart=/g))
+    fail(rel, text, m.index, 'acts on pointerdown/touchstart: press through components/ui (ui/press.ts), see app/AGENTS.md › Interaction')
+  for (const m of text.matchAll(/addEventListener\(\s*'(?:pointerdown|touchstart)'[^)]*\)/g))
+    if (!/passive:\s*true/.test(m[0])) fail(rel, text, m.index, `a ${m[0].includes('touch') ? 'touchstart' : 'pointerdown'} listener that is not passive`)
   for (const m of text.matchAll(LITERAL)) {
     const attr = m[1]
     if (attr && attr !== 'className=') continue // another attribute's value (variant="outline"), not classes

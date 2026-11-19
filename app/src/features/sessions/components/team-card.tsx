@@ -1,3 +1,4 @@
+import { useHold } from '@/components/ui/press'
 import { useNavigate } from '@tanstack/react-router'
 import { useRef, useState, type MouseEvent, type PointerEvent, type ReactNode } from 'react'
 import {
@@ -44,8 +45,8 @@ export function TeamCard({
 }) {
   const [shown, setShown] = useState<Shown | null>(null)
   const timer = useRef<number | undefined>(undefined)
-  const press = useRef<{ x: number; y: number } | null>(null)
-  const held = useRef(false)
+  const pinAt = useRef<(x: number, y: number) => void>(() => {})
+  const hold = useHold(HOLD_MS, (x, y) => pinAt.current(x, y)) // a finger held still: the card, pinned
   const members = project ? teamOf(entries, project) : []
   if (!project || !members.length) return <>{children}</>
 
@@ -62,6 +63,7 @@ export function TeamCard({
     keep()
     setShown({ pinned: true, x, y })
   }
+  pinAt.current = pin
   return (
     <div
       className="relative [-webkit-touch-callout:none]"
@@ -73,32 +75,13 @@ export function TeamCard({
         e.preventDefault() // the browser's own menu is not this row's
         pin(e.clientX, e.clientY)
       }}
-      onPointerDown={(e: PointerEvent) => {
-        if (e.pointerType === 'mouse') return
-        held.current = false
-        press.current = { x: e.clientX, y: e.clientY }
-        const { clientX, clientY } = e
-        later(() => {
-          held.current = true
-          pin(clientX, clientY)
-        }, HOLD_MS)
-      }}
-      onPointerMove={(e: PointerEvent) => {
-        if (press.current && Math.hypot(e.clientX - press.current.x, e.clientY - press.current.y) > 8) {
-          keep() // scrolling
-          press.current = null
-        }
-      }}
-      onPointerUp={() => {
-        if (!held.current) keep()
-        press.current = null
-      }}
+      {...hold.props}
       onClickCapture={(e) => {
-        if (held.current) {
+        if (hold.held()) {
           e.preventDefault() // the press showed the card: no opening the row too
           e.stopPropagation()
         }
-        held.current = false
+        hold.release()
       }}
     >
       {children}
