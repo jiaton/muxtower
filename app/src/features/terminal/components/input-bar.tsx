@@ -7,7 +7,6 @@ import { cn } from '@/lib/cn'
 import { PHONE_QUERY, useMediaQuery } from '@/lib/use-media-query'
 import type { Track } from '@/lib/use-outbox'
 import { MAC, SEND_KEYS } from '@/lib/send-keys'
-import { setSuggestionTaker } from '@/lib/suggestion-key'
 import { useAcceptSuggestion, useSendInput } from '../api/use-terminal'
 import { useAttachments } from '../hooks/use-attachments'
 import { useComposerPanel, usePanelSwipe } from '../hooks/use-composer-panel'
@@ -51,6 +50,7 @@ export function InputBar({
   mention,
   guard,
   suggestion,
+  keySends = true,
 }: {
   daemonId: string
   sessionId: string
@@ -63,8 +63,10 @@ export function InputBar({
   mention?: TokenSource
   /** Why a key of the pad should ask before it goes (a second tap sends it), or null: `useGuardedKeys`. */
   guard?: (key: string) => string | null
-  /** The prompt the agent suggests while it waits at its prompt: ⌘↵ on the empty box sends it. */
+  /** The prompt the agent suggests while it waits at its prompt: Send on the empty box sends it, and ⌘↵
+   *  too unless `keySends` is false (Live on: there ⌘↵ sends what is being said). */
   suggestion?: string | null
+  keySends?: boolean
 }) {
   const send = useSendInput(daemonId, sessionId)
   const accept = useAcceptSuggestion(daemonId, sessionId)
@@ -216,16 +218,11 @@ export function InputBar({
     accept.mutate(offered)
     return true
   }
-  useEffect(() => {
-    if (!offered) return
-    setSuggestionTaker(() => takeRef.current())
-    return () => setSuggestionTaker(null)
-  }, [offered])
 
   const keyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (mentions.onKeyDown(e)) return // the mention menu's: Up/Down, Enter/Tab to insert, Esc
     const command = MAC ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey
-    if (e.key === 'Enter' && command && !e.shiftKey && !e.altKey && takeRef.current()) {
+    if (e.key === 'Enter' && command && !e.shiftKey && !e.altKey && keySends && takeRef.current()) {
       e.preventDefault()
       return
     }
@@ -345,7 +342,7 @@ export function InputBar({
               value={draft}
               placeholder={
                 offered
-                  ? touch
+                  ? touch || !keySends
                     ? `Send takes: ${offered}`
                     : `${SEND_KEYS} or Send: ${offered}`
                   : !quotes.length

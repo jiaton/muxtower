@@ -341,4 +341,14 @@ describe("the agent's suggested prompt", () => {
     render(<InputBar daemonId="nas" sessionId="s1" />)
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
   })
+
+  it('with Live on, Ctrl+Enter never takes it (it sends what is being said); Send still does', () => {
+    render(<InputBar daemonId="nas" sessionId="s1" suggestion="yes, open it" keySends={false} />)
+    const box = screen.getByRole('textbox', { name: 'Message the agent' })
+    expect(box).toHaveAttribute('placeholder', 'Send takes: yes, open it') // no ⌘↵ promised
+    fireEvent.keyDown(box, ctrlEnter) // as speech starts: the box still empty, the suggestion showing
+    expect(acceptSuggestion).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Send suggestion: yes, open it' }))
+    expect(acceptSuggestion).toHaveBeenCalledWith('yes, open it')
+  })
 })

@@ -6,7 +6,6 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from muxtower.notify import service as push_service
 from muxtower.notify.models import Subscribe
 from muxtower.notify.ports import StoredSubscription
 from muxtower.notify.service import PushService
@@ -75,40 +74,33 @@ def test_off_sends_nothing() -> None:
     assert sender.sent == []
 
 
-def test_needs_sends_prompts_and_only_the_turns_that_ask_for_the_owner() -> None:
+def test_needs_sends_prompts_and_never_a_finished_turn() -> None:
+    # Only real attention: a turn whose summary has a question (a teammate's report ends with one) is no prompt.
     asking = session(
         notify=NotifyLevel.NEEDS, state=AgentState.NEEDS_ANSWER, needs_attention=True,
         pending=PendingAction(state=AgentState.NEEDS_ANSWER, detail="Which branch?"),
     )  # fmt: skip
-    quiet_devices = Subscribe(**{**SUB, "done": False})  # take no other finished turns
-    service, sender, directory = push(asking, quiet_devices)
+    service, sender, directory = push(asking)
     assert service.notify("s1") == 1
-    directory.now = session(notify=NotifyLevel.NEEDS, summary=QUIET)
-    assert service.notify_done("s1") == 0
-    directory.now = session(notify=NotifyLevel.NEEDS)  # no summary: nothing says it needs anyone
-    assert service.notify_done("s1") == 0
-    directory.now = session(notify=NotifyLevel.NEEDS, summary=WAITING)
-    assert service.notify_done("s1") == 1
+    directory.now = session(
+        notify=NotifyLevel.NEEDS, state=AgentState.NEEDS_PERMISSION, needs_attention=True,
+        pending=PendingAction(state=AgentState.NEEDS_PERMISSION, tool_name="Bash", detail="npm test"),
+    )  # fmt: skip
+    assert service.notify("s1") == 1
+    for summary in (WAITING, QUIET, TurnSummary(status="need_input", needs="Shall I release it?"), None):
+        directory.now = session(notify=NotifyLevel.NEEDS, summary=summary)
+        assert service.notify_done("s1") == 0
+    assert len(sender.sent) == 2
+
+
+def test_all_sends_finished_turns_to_the_devices_that_take_them() -> None:
+    takes, skips = Subscribe(**SUB), Subscribe(**{**SUB, "endpoint": SUB["endpoint"] + "2", "done": False})
+    service, sender, _ = push(session(summary=WAITING), takes, skips)
+    assert service.notify_done("s1") == 1  # the one device that takes finished turns
     assert "Done, waiting for you: Fill in the contacts" in sender.sent[-1][1]
 
 
-def test_a_finished_turn_waits_for_its_summary_when_only_needs_notify(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(push_service, "SUMMARY_POLL_SECONDS", 0.01)
-    service, sender, directory = push(session(notify=NotifyLevel.NEEDS, summary=TurnSummary(status="working")))
-
-    async def run() -> None:
-        finished = asyncio.create_task(service._finished("s1"))
-        await asyncio.sleep(0.05)
-        assert sender.sent == []  # still waiting for what the turn left
-        directory.now = session(notify=NotifyLevel.NEEDS, summary=WAITING)
-        await asyncio.wait_for(finished, 1)
-
-    asyncio.run(run())
-    assert len(sender.sent) == 1
-
-
-def test_all_does_not_wait_for_a_summary(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(push_service, "SUMMARY_WAIT_SECONDS", 3600.0)
+def test_a_finished_turn_is_sent_at_once(monkeypatch: pytest.MonkeyPatch) -> None:
     service, sender, _ = push(session(summary=TurnSummary(status="working")))
     asyncio.run(asyncio.wait_for(service._finished("s1"), 1))
     assert len(sender.sent) == 1

@@ -1,8 +1,7 @@
-import { setSuggestionTaker } from '@/lib/suggestion-key'
 import { act, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { useLive } from '../live/engine'
-import { LiveBar, sendKey, LiveButton } from './live'
+import { LiveBar, LiveButton } from './live'
 
 beforeEach(() => vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener() {}, removeEventListener() {} })))
 afterEach(() => useLive.setState({ phase: 'off', speaking: false, pending: 0, error: null, commands: { state: 'off' }, heard: null }))
@@ -96,17 +95,4 @@ it('⌘↵ pressed while still speaking: the bar says it sends once that is writ
   useLive.setState({ phase: 'listening', speaking: true, then: 'send', commands: { state: 'ready' } })
   render(<LiveBar />)
   expect(screen.getByText('Live · hearing you… then sending')).toBeInTheDocument()
-})
-
-it('⌘↵ with Live on and the box empty sends the suggested prompt, unless speech is still on its way', () => {
-  const take = vi.fn(() => true)
-  setSuggestionTaker(take)
-  const press = () => sendKey(new KeyboardEvent('keydown', { code: 'Enter', ctrlKey: true }))
-  useLive.setState({ phase: 'listening', speaking: false, pending: 0 })
-  expect(press()).toBe(true)
-  expect(take).toHaveBeenCalledTimes(1)
-  useLive.setState({ speaking: true }) // still hearing: ⌘↵ waits for that speech, as before
-  press()
-  expect(take).toHaveBeenCalledTimes(1)
-  setSuggestionTaker(null)
 })

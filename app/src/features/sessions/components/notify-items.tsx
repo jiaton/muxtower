@@ -6,7 +6,7 @@ import { ink } from '@/components/ui/intents'
 
 export const NOTIFY_LEVELS: { level: NotifyLevel; label: string; hint: string; icon: LucideIcon }[] = [
   { level: 'all', label: 'All', hint: 'Prompts and every finished turn', icon: Bell },
-  { level: 'needs', label: 'Only when it needs me', hint: 'Prompts, and turns that leave you something', icon: BellDot },
+  { level: 'needs', label: 'Only when it needs me', hint: 'Prompts, approvals and questions only', icon: BellDot },
   { level: 'off', label: 'Off', hint: 'Nothing from this session', icon: BellOff },
 ]
 

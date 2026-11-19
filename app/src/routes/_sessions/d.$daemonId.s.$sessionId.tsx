@@ -333,6 +333,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
               images={session.capabilities.images}
               track={outgoing.track}
               suggestion={session.runtime === 'claude-code' && !DIALOG_STATES.has(session.state) ? session.suggestion : null}
+              keySends={!liveOn} // Live on: ⌘↵ sends what is being said, Send takes the suggestion
               extra={
                 dictation.available ? (
                   <>
