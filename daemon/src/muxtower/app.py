@@ -90,6 +90,8 @@ from muxtower.teams.tasks import TaskService
 from muxtower.terminal.images import ImageDrop
 from muxtower.terminal.ports import TmuxPort
 from muxtower.terminal.service import TerminalService
+from muxtower.triggers.service import TriggerService
+from muxtower.triggers.store import TriggerStore
 from muxtower.tts.service import TtsService
 from muxtower.usage.sampler import UsageSampler
 from muxtower.writes.tracker import WriteTracker, Writing
@@ -303,6 +305,8 @@ def create_app(
     node_api.search = search.local
     node_api.search_status = lambda: search.status().model_dump(mode="json")
     playbook = PlaybookStore(db)  # the owner's team playbook: kept here when this daemon is the hub
+    triggers = TriggerStore(db)  # outside events that reach an agent (`triggers/`): kept on the hub
+    trigger_service = TriggerService(triggers)
     if (team_tools := getattr(mcp, "team_tools", None)) is not None:
         team_tools.playbook = playbook
         team_tools.machines = lambda: [
@@ -317,6 +321,7 @@ def create_app(
         watches=watches,
         direct=DirectAccess(nodes, node_sessions.call), feature_settings=feature_settings,
         chip_groups=ChipGroupStore(db), playbook=playbook, search=search, indexer=indexer, listen=listen, tts=tts,
+        triggers=triggers, trigger_service=trigger_service,
         node_sessions=node_sessions, mcp=mcp, asr=asr, asr_dictionary=dictionary_store,
         diagnostics=DiagnosticsService(settings.state_dir / "diagnostics"),
         terminal=terminal, approvals=approvals, audit=audit, push=push,

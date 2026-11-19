@@ -333,6 +333,39 @@
         "title": "ClaimResult",
         "type": "object"
       },
+      "Condition": {
+        "description": "One test of the event's payload (JSON); a trigger's conditions all hold, or it is filtered out.",
+        "properties": {
+          "field": {
+            "description": "a dotted path into the payload: \"deal.price\"",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Field",
+            "type": "string"
+          },
+          "op": {
+            "enum": [
+              "equals",
+              "contains",
+              "regex"
+            ],
+            "title": "Op",
+            "type": "string"
+          },
+          "value": {
+            "maxLength": 500,
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "op",
+          "value"
+        ],
+        "title": "Condition",
+        "type": "object"
+      },
       "Conversation": {
         "properties": {
           "items": {
@@ -612,6 +645,55 @@
         "title": "CreateSession",
         "type": "object"
       },
+      "Dedupe": {
+        "description": "An event whose key was seen within `days` is dropped. The key: the payload's `field`, else the\nfiring's own (`?key=`, `--key`).",
+        "properties": {
+          "days": {
+            "default": 7,
+            "maximum": 365.0,
+            "minimum": 1.0,
+            "title": "Days",
+            "type": "integer"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          }
+        },
+        "title": "Dedupe",
+        "type": "object"
+      },
+      "DeliverAction": {
+        "description": "To a session that keeps its context across events: as a team task, queued while it works.",
+        "properties": {
+          "kind": {
+            "const": "deliver",
+            "default": "deliver",
+            "title": "Kind",
+            "type": "string"
+          },
+          "to": {
+            "description": "a session id, or \"role@project\"",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "To",
+            "type": "string"
+          }
+        },
+        "required": [
+          "to"
+        ],
+        "title": "DeliverAction",
+        "type": "object"
+      },
       "DetectedFolder": {
         "properties": {
           "folder": {
@@ -838,6 +920,124 @@
           "asr"
         ],
         "title": "Features",
+        "type": "object"
+      },
+      "FireByName": {
+        "description": "`muxtower trigger <name>`: the owner's own script, on this machine (a node passes it to its hub).",
+        "properties": {
+          "key": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "name": {
+            "pattern": "^[a-z0-9][a-z0-9_-]{0,47}$",
+            "title": "Name",
+            "type": "string"
+          },
+          "payload": {
+            "title": "Payload"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "FireByName",
+        "type": "object"
+      },
+      "Firing": {
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "bytes": {
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "detail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "outcome": {
+            "enum": [
+              "delivered",
+              "started",
+              "notified",
+              "filtered",
+              "deduped",
+              "rate_limited",
+              "paused",
+              "failed"
+            ],
+            "title": "Outcome",
+            "type": "string"
+          },
+          "target": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the session it went to, or was started",
+            "title": "Target"
+          },
+          "trigger_id": {
+            "title": "Trigger Id",
+            "type": "string"
+          },
+          "via": {
+            "enum": [
+              "webhook",
+              "cli",
+              "test"
+            ],
+            "title": "Via",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "trigger_id",
+          "at",
+          "via",
+          "outcome",
+          "bytes"
+        ],
+        "title": "Firing",
         "type": "object"
       },
       "GitPlace": {
@@ -1539,6 +1739,19 @@
           "sessions"
         ],
         "title": "NodeInfo",
+        "type": "object"
+      },
+      "NotifyAction": {
+        "description": "A push to the owner's devices.",
+        "properties": {
+          "kind": {
+            "const": "notify",
+            "default": "notify",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "title": "NotifyAction",
         "type": "object"
       },
       "NotifyLevel": {
@@ -3285,6 +3498,19 @@
         "title": "SnippetPart",
         "type": "object"
       },
+      "Source": {
+        "description": "Where its events come from. v1: its own fire endpoint (a webhook, or `muxtower trigger`).",
+        "properties": {
+          "kind": {
+            "const": "webhook",
+            "default": "webhook",
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "title": "Source",
+        "type": "object"
+      },
       "Spoken": {
         "description": "A spoken summary kept: of which reply (its hash), when, what was said, the reply itself, and the\nlanguage it is in (a tag: zh, en, \u2026).",
         "properties": {
@@ -3383,6 +3609,79 @@
           "session_id"
         ],
         "title": "SpokenFrame",
+        "type": "object"
+      },
+      "StartAction": {
+        "description": "A new session per event (at most 3 of a trigger's alive at once), never with more permissions than\na launch's default. `message` is the owner's text; {payload} and {a.b} in it are filled in as data, inside\nthe external-data block, never spliced into the instructions.",
+        "properties": {
+          "cwd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cwd"
+          },
+          "kind": {
+            "const": "start",
+            "default": "start",
+            "title": "Kind",
+            "type": "string"
+          },
+          "machine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Machine"
+          },
+          "message": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "runtime": {
+            "default": "claude-code",
+            "title": "Runtime",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "StartAction",
         "type": "object"
       },
       "StateSource": {
@@ -3831,6 +4130,27 @@
         "title": "TeamTask",
         "type": "object"
       },
+      "TestFire": {
+        "properties": {
+          "key": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Key"
+          },
+          "payload": {
+            "title": "Payload"
+          }
+        },
+        "title": "TestFire",
+        "type": "object"
+      },
       "TickUsage": {
         "description": "The capture loop: each tick reads and classifies every pane.",
         "properties": {
@@ -3894,6 +4214,352 @@
           "text"
         ],
         "title": "Transcript",
+        "type": "object"
+      },
+      "Trigger": {
+        "properties": {
+          "action": {
+            "discriminator": {
+              "mapping": {
+                "deliver": "#/components/schemas/DeliverAction",
+                "notify": "#/components/schemas/NotifyAction",
+                "start": "#/components/schemas/StartAction"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DeliverAction"
+              },
+              {
+                "$ref": "#/components/schemas/StartAction"
+              },
+              {
+                "$ref": "#/components/schemas/NotifyAction"
+              }
+            ],
+            "title": "Action"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "dedupe": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Dedupe"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "enabled": {
+            "default": true,
+            "description": "paused: its firings are still taken and logged, as paused",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "filter": {
+            "items": {
+              "$ref": "#/components/schemas/Condition"
+            },
+            "maxItems": 8,
+            "title": "Filter",
+            "type": "array"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "last_fired_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Fired At"
+          },
+          "last_outcome": {
+            "anyOf": [
+              {
+                "enum": [
+                  "delivered",
+                  "started",
+                  "notified",
+                  "filtered",
+                  "deduped",
+                  "rate_limited",
+                  "paused",
+                  "failed"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Outcome"
+          },
+          "name": {
+            "description": "lowercase letters, digits, - and _: what `muxtower trigger` takes",
+            "pattern": "^[a-z0-9][a-z0-9_-]{0,47}$",
+            "title": "Name",
+            "type": "string"
+          },
+          "rate_per_hour": {
+            "anyOf": [
+              {
+                "maximum": 10000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "more in an hour: rate_limited",
+            "title": "Rate Per Hour"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "action",
+          "id",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "Trigger",
+        "type": "object"
+      },
+      "TriggerCreated": {
+        "properties": {
+          "secret": {
+            "description": "shown once: sent as the X-Muxtower-Trigger-Secret header (or /fire/<secret>)",
+            "title": "Secret",
+            "type": "string"
+          },
+          "trigger": {
+            "$ref": "#/components/schemas/Trigger"
+          }
+        },
+        "required": [
+          "trigger",
+          "secret"
+        ],
+        "title": "TriggerCreated",
+        "type": "object"
+      },
+      "TriggerPatch": {
+        "properties": {
+          "action": {
+            "anyOf": [
+              {
+                "discriminator": {
+                  "mapping": {
+                    "deliver": "#/components/schemas/DeliverAction",
+                    "notify": "#/components/schemas/NotifyAction",
+                    "start": "#/components/schemas/StartAction"
+                  },
+                  "propertyName": "kind"
+                },
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/DeliverAction"
+                  },
+                  {
+                    "$ref": "#/components/schemas/StartAction"
+                  },
+                  {
+                    "$ref": "#/components/schemas/NotifyAction"
+                  }
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Action"
+          },
+          "clear_dedupe": {
+            "default": false,
+            "title": "Clear Dedupe",
+            "type": "boolean"
+          },
+          "clear_rate": {
+            "default": false,
+            "title": "Clear Rate",
+            "type": "boolean"
+          },
+          "dedupe": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Dedupe"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
+          "filter": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/Condition"
+                },
+                "maxItems": 8,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filter"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "pattern": "^[a-z0-9][a-z0-9_-]{0,47}$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "rate_per_hour": {
+            "anyOf": [
+              {
+                "maximum": 10000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate Per Hour"
+          }
+        },
+        "title": "TriggerPatch",
+        "type": "object"
+      },
+      "TriggerSecret": {
+        "properties": {
+          "secret": {
+            "description": "the new one, shown once; the old one no longer fires it",
+            "title": "Secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret"
+        ],
+        "title": "TriggerSecret",
+        "type": "object"
+      },
+      "TriggerSpec": {
+        "properties": {
+          "action": {
+            "discriminator": {
+              "mapping": {
+                "deliver": "#/components/schemas/DeliverAction",
+                "notify": "#/components/schemas/NotifyAction",
+                "start": "#/components/schemas/StartAction"
+              },
+              "propertyName": "kind"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DeliverAction"
+              },
+              {
+                "$ref": "#/components/schemas/StartAction"
+              },
+              {
+                "$ref": "#/components/schemas/NotifyAction"
+              }
+            ],
+            "title": "Action"
+          },
+          "dedupe": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Dedupe"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "enabled": {
+            "default": true,
+            "description": "paused: its firings are still taken and logged, as paused",
+            "title": "Enabled",
+            "type": "boolean"
+          },
+          "filter": {
+            "items": {
+              "$ref": "#/components/schemas/Condition"
+            },
+            "maxItems": 8,
+            "title": "Filter",
+            "type": "array"
+          },
+          "name": {
+            "description": "lowercase letters, digits, - and _: what `muxtower trigger` takes",
+            "pattern": "^[a-z0-9][a-z0-9_-]{0,47}$",
+            "title": "Name",
+            "type": "string"
+          },
+          "rate_per_hour": {
+            "anyOf": [
+              {
+                "maximum": 10000.0,
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "more in an hour: rate_limited",
+            "title": "Rate Per Hour"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          }
+        },
+        "required": [
+          "name",
+          "action"
+        ],
+        "title": "TriggerSpec",
         "type": "object"
       },
       "TtsStatus": {
@@ -7051,6 +7717,540 @@
         "summary": "Latest Tasks",
         "tags": [
           "teams"
+        ]
+      }
+    },
+    "/v1/triggers": {
+      "get": {
+        "operationId": "list_triggers_v1_triggers_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Trigger"
+                  },
+                  "title": "Response List Triggers V1 Triggers Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Triggers",
+        "tags": [
+          "triggers"
+        ]
+      },
+      "post": {
+        "description": "A new trigger, and its secret, shown this once.",
+        "operationId": "create_trigger_v1_triggers_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TriggerSpec"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerCreated"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Trigger",
+        "tags": [
+          "triggers"
+        ]
+      }
+    },
+    "/v1/triggers/fire-by-name": {
+      "post": {
+        "description": "`muxtower trigger <name>`: the owner's own script (a device's token: this machine's CLI).",
+        "operationId": "fire_by_name_v1_triggers_fire_by_name_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FireByName"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Firing"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Fire By Name",
+        "tags": [
+          "triggers"
+        ]
+      }
+    },
+    "/v1/triggers/{trigger_id}": {
+      "delete": {
+        "operationId": "delete_trigger_v1_triggers__trigger_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trigger_id",
+            "required": true,
+            "schema": {
+              "title": "Trigger Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Trigger",
+        "tags": [
+          "triggers"
+        ]
+      },
+      "get": {
+        "operationId": "get_trigger_v1_triggers__trigger_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trigger_id",
+            "required": true,
+            "schema": {
+              "title": "Trigger Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trigger"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Trigger",
+        "tags": [
+          "triggers"
+        ]
+      },
+      "patch": {
+        "operationId": "update_trigger_v1_triggers__trigger_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trigger_id",
+            "required": true,
+            "schema": {
+              "title": "Trigger Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TriggerPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Trigger"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Trigger",
+        "tags": [
+          "triggers"
+        ]
+      }
+    },
+    "/v1/triggers/{trigger_id}/fire": {
+      "post": {
+        "description": "An event from outside (a webhook): JSON or text, at most 64 KB; `?key=` for its dedupe key. Fired by\nthe trigger's secret (the header), never by a device's token.",
+        "operationId": "fire_v1_triggers__trigger_id__fire_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trigger_id",
+            "required": true,
+            "schema": {
+              "title": "Trigger Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Key"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Muxtower-Trigger-Secret",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Muxtower-Trigger-Secret"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {}
+            },
+            "text/plain": {
+              "schema": {}
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Firing"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "no such trigger, or not its secret"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Fire",
+        "tags": [
+          "triggers"
+        ]
+      }
+    },
+    "/v1/triggers/{trigger_id}/fire/{secret}": {
+      "post": {
+        "description": "For a sender that cannot set a header: the secret in the path (it shows in proxy logs; prefer the\nheader).",
+        "operationId": "fire_with_path_secret_v1_triggers__trigger_id__fire__secret__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trigger_id",
+            "required": true,
+            "schema": {
+              "title": "Trigger Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "secret",
+            "required": true,
+            "schema": {
+              "title": "Secret",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Firing"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "no such trigger, or not its secret"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Fire With Path Secret",
+        "tags": [
+          "triggers"
+        ]
+      }
+    },
+    "/v1/triggers/{trigger_id}/firings": {
+      "get": {
+        "description": "Its last firings, newest first, whatever became of each.",
+        "operationId": "trigger_firings_v1_triggers__trigger_id__firings_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trigger_id",
+            "required": true,
+            "schema": {
+              "title": "Trigger Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Firing"
+                  },
+                  "title": "Response Trigger Firings V1 Triggers  Trigger Id  Firings Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Trigger Firings",
+        "tags": [
+          "triggers"
+        ]
+      }
+    },
+    "/v1/triggers/{trigger_id}/secret": {
+      "post": {
+        "description": "A new secret, shown this once; the old one no longer fires it.",
+        "operationId": "rotate_secret_v1_triggers__trigger_id__secret_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trigger_id",
+            "required": true,
+            "schema": {
+              "title": "Trigger Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerSecret"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rotate Secret",
+        "tags": [
+          "triggers"
+        ]
+      }
+    },
+    "/v1/triggers/{trigger_id}/test": {
+      "post": {
+        "description": "Fires it with a sample payload, through all its rules and its action (logged as a test).",
+        "operationId": "test_trigger_v1_triggers__trigger_id__test_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "trigger_id",
+            "required": true,
+            "schema": {
+              "title": "Trigger Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TestFire"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Firing"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Test Trigger",
+        "tags": [
+          "triggers"
         ]
       }
     },

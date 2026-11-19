@@ -1143,6 +1143,168 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/triggers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Triggers */
+        get: operations["list_triggers_v1_triggers_get"];
+        put?: never;
+        /**
+         * Create Trigger
+         * @description A new trigger, and its secret, shown this once.
+         */
+        post: operations["create_trigger_v1_triggers_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/triggers/fire-by-name": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fire By Name
+         * @description `muxtower trigger <name>`: the owner's own script (a device's token: this machine's CLI).
+         */
+        post: operations["fire_by_name_v1_triggers_fire_by_name_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/triggers/{trigger_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Trigger */
+        get: operations["get_trigger_v1_triggers__trigger_id__get"];
+        put?: never;
+        post?: never;
+        /** Delete Trigger */
+        delete: operations["delete_trigger_v1_triggers__trigger_id__delete"];
+        options?: never;
+        head?: never;
+        /** Update Trigger */
+        patch: operations["update_trigger_v1_triggers__trigger_id__patch"];
+        trace?: never;
+    };
+    "/v1/triggers/{trigger_id}/fire": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fire
+         * @description An event from outside (a webhook): JSON or text, at most 64 KB; `?key=` for its dedupe key. Fired by
+         *     the trigger's secret (the header), never by a device's token.
+         */
+        post: operations["fire_v1_triggers__trigger_id__fire_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/triggers/{trigger_id}/fire/{secret}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fire With Path Secret
+         * @description For a sender that cannot set a header: the secret in the path (it shows in proxy logs; prefer the
+         *     header).
+         */
+        post: operations["fire_with_path_secret_v1_triggers__trigger_id__fire__secret__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/triggers/{trigger_id}/firings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Trigger Firings
+         * @description Its last firings, newest first, whatever became of each.
+         */
+        get: operations["trigger_firings_v1_triggers__trigger_id__firings_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/triggers/{trigger_id}/secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate Secret
+         * @description A new secret, shown this once; the old one no longer fires it.
+         */
+        post: operations["rotate_secret_v1_triggers__trigger_id__secret_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/triggers/{trigger_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test Trigger
+         * @description Fires it with a sample payload, through all its rules and its action (logged as a test).
+         */
+        post: operations["test_trigger_v1_triggers__trigger_id__test_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/tts": {
         parameters: {
             query?: never;
@@ -1360,6 +1522,24 @@ export interface components {
             /** Token */
             token: string;
         };
+        /**
+         * Condition
+         * @description One test of the event's payload (JSON); a trigger's conditions all hold, or it is filtered out.
+         */
+        Condition: {
+            /**
+             * Field
+             * @description a dotted path into the payload: "deal.price"
+             */
+            field: string;
+            /**
+             * Op
+             * @enum {string}
+             */
+            op: "equals" | "contains" | "regex";
+            /** Value */
+            value: string;
+        };
         /** Conversation */
         Conversation: {
             /** Items */
@@ -1476,6 +1656,36 @@ export interface components {
             prompt?: string | null;
             /** Runtime */
             runtime: string;
+        };
+        /**
+         * Dedupe
+         * @description An event whose key was seen within `days` is dropped. The key: the payload's `field`, else the
+         *     firing's own (`?key=`, `--key`).
+         */
+        Dedupe: {
+            /**
+             * Days
+             * @default 7
+             */
+            days: number;
+            /** Field */
+            field?: string | null;
+        };
+        /**
+         * DeliverAction
+         * @description To a session that keeps its context across events: as a team task, queued while it works.
+         */
+        DeliverAction: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "deliver";
+            /**
+             * To
+             * @description a session id, or "role@project"
+             */
+            to: string;
         };
         /** DetectedFolder */
         DetectedFolder: {
@@ -1594,6 +1804,51 @@ export interface components {
              * @description POST /v1/sessions/{id}/summary can make reply summaries
              */
             summaries: boolean;
+        };
+        /**
+         * FireByName
+         * @description `muxtower trigger <name>`: the owner's own script, on this machine (a node passes it to its hub).
+         */
+        FireByName: {
+            /** Key */
+            key?: string | null;
+            /** Name */
+            name: string;
+            /** Payload */
+            payload?: unknown;
+        };
+        /** Firing */
+        Firing: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Bytes */
+            bytes: number;
+            /** Detail */
+            detail?: string | null;
+            /** Id */
+            id: number;
+            /** Key */
+            key?: string | null;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "delivered" | "started" | "notified" | "filtered" | "deduped" | "rate_limited" | "paused" | "failed";
+            /**
+             * Target
+             * @description the session it went to, or was started
+             */
+            target?: string | null;
+            /** Trigger Id */
+            trigger_id: string;
+            /**
+             * Via
+             * @enum {string}
+             */
+            via: "webhook" | "cli" | "test";
         };
         /**
          * GitPlace
@@ -1921,6 +2176,17 @@ export interface components {
             update?: string | null;
             /** Version */
             version?: string | null;
+        };
+        /**
+         * NotifyAction
+         * @description A push to the owner's devices.
+         */
+        NotifyAction: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "notify";
         };
         /**
          * NotifyLevel
@@ -2709,6 +2975,18 @@ export interface components {
             text: string;
         };
         /**
+         * Source
+         * @description Where its events come from. v1: its own fire endpoint (a webhook, or `muxtower trigger`).
+         */
+        Source: {
+            /**
+             * Kind
+             * @default webhook
+             * @constant
+             */
+            kind: "webhook";
+        };
+        /**
          * Spoken
          * @description A spoken summary kept: of which reply (its hash), when, what was said, the reply itself, and the
          *     language it is in (a tag: zh, en, …).
@@ -2759,6 +3037,34 @@ export interface components {
              * @enum {string}
              */
             type: "spoken";
+        };
+        /**
+         * StartAction
+         * @description A new session per event (at most 3 of a trigger's alive at once), never with more permissions than
+         *     a launch's default. `message` is the owner's text; {payload} and {a.b} in it are filled in as data, inside
+         *     the external-data block, never spliced into the instructions.
+         */
+        StartAction: {
+            /** Cwd */
+            cwd?: string | null;
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            kind: "start";
+            /** Machine */
+            machine?: string | null;
+            /** Message */
+            message: string;
+            /** Project */
+            project?: string | null;
+            /** Role */
+            role?: string | null;
+            /**
+             * Runtime
+             * @default claude-code
+             */
+            runtime: string;
         };
         /**
          * StateSource
@@ -2950,6 +3256,13 @@ export interface components {
             /** To Id */
             to_id: string;
         };
+        /** TestFire */
+        TestFire: {
+            /** Key */
+            key?: string | null;
+            /** Payload */
+            payload?: unknown;
+        };
         /**
          * TickUsage
          * @description The capture loop: each tick reads and classifies every pane.
@@ -2973,6 +3286,113 @@ export interface components {
             language?: string | null;
             /** Text */
             text: string;
+        };
+        /** Trigger */
+        Trigger: {
+            /** Action */
+            action: components["schemas"]["DeliverAction"] | components["schemas"]["StartAction"] | components["schemas"]["NotifyAction"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            dedupe?: components["schemas"]["Dedupe"] | null;
+            /**
+             * Enabled
+             * @description paused: its firings are still taken and logged, as paused
+             * @default true
+             */
+            enabled: boolean;
+            /** Filter */
+            filter?: components["schemas"]["Condition"][];
+            /** Id */
+            id: string;
+            /** Last Fired At */
+            last_fired_at?: string | null;
+            /** Last Outcome */
+            last_outcome?: ("delivered" | "started" | "notified" | "filtered" | "deduped" | "rate_limited" | "paused" | "failed") | null;
+            /**
+             * Name
+             * @description lowercase letters, digits, - and _: what `muxtower trigger` takes
+             */
+            name: string;
+            /**
+             * Rate Per Hour
+             * @description more in an hour: rate_limited
+             */
+            rate_per_hour?: number | null;
+            source?: components["schemas"]["Source"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** TriggerCreated */
+        TriggerCreated: {
+            /**
+             * Secret
+             * @description shown once: sent as the X-Muxtower-Trigger-Secret header (or /fire/<secret>)
+             */
+            secret: string;
+            trigger: components["schemas"]["Trigger"];
+        };
+        /** TriggerPatch */
+        TriggerPatch: {
+            /** Action */
+            action?: (components["schemas"]["DeliverAction"] | components["schemas"]["StartAction"] | components["schemas"]["NotifyAction"]) | null;
+            /**
+             * Clear Dedupe
+             * @default false
+             */
+            clear_dedupe: boolean;
+            /**
+             * Clear Rate
+             * @default false
+             */
+            clear_rate: boolean;
+            dedupe?: components["schemas"]["Dedupe"] | null;
+            /** Enabled */
+            enabled?: boolean | null;
+            /** Filter */
+            filter?: components["schemas"]["Condition"][] | null;
+            /** Name */
+            name?: string | null;
+            /** Rate Per Hour */
+            rate_per_hour?: number | null;
+        };
+        /** TriggerSecret */
+        TriggerSecret: {
+            /**
+             * Secret
+             * @description the new one, shown once; the old one no longer fires it
+             */
+            secret: string;
+        };
+        /** TriggerSpec */
+        TriggerSpec: {
+            /** Action */
+            action: components["schemas"]["DeliverAction"] | components["schemas"]["StartAction"] | components["schemas"]["NotifyAction"];
+            dedupe?: components["schemas"]["Dedupe"] | null;
+            /**
+             * Enabled
+             * @description paused: its firings are still taken and logged, as paused
+             * @default true
+             */
+            enabled: boolean;
+            /** Filter */
+            filter?: components["schemas"]["Condition"][];
+            /**
+             * Name
+             * @description lowercase letters, digits, - and _: what `muxtower trigger` takes
+             */
+            name: string;
+            /**
+             * Rate Per Hour
+             * @description more in an hour: rate_limited
+             */
+            rate_per_hour?: number | null;
+            source?: components["schemas"]["Source"];
         };
         /** TtsStatus */
         TtsStatus: {
@@ -5087,6 +5507,372 @@ export interface operations {
                     "application/json": {
                         [key: string]: components["schemas"]["TeamTask"];
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_triggers_v1_triggers_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Trigger"][];
+                };
+            };
+        };
+    };
+    create_trigger_v1_triggers_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TriggerSpec"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TriggerCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fire_by_name_v1_triggers_fire_by_name_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FireByName"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Firing"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_trigger_v1_triggers__trigger_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Trigger"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_trigger_v1_triggers__trigger_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_trigger_v1_triggers__trigger_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TriggerPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Trigger"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fire_v1_triggers__trigger_id__fire_post: {
+        parameters: {
+            query?: {
+                key?: string | null;
+            };
+            header?: {
+                "X-Muxtower-Trigger-Secret"?: string | null;
+            };
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": unknown;
+                "text/plain": unknown;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Firing"];
+                };
+            };
+            /** @description no such trigger, or not its secret */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    fire_with_path_secret_v1_triggers__trigger_id__fire__secret__post: {
+        parameters: {
+            query?: {
+                key?: string | null;
+            };
+            header?: never;
+            path: {
+                trigger_id: string;
+                secret: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Firing"];
+                };
+            };
+            /** @description no such trigger, or not its secret */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    trigger_firings_v1_triggers__trigger_id__firings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Firing"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rotate_secret_v1_triggers__trigger_id__secret_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TriggerSecret"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    test_trigger_v1_triggers__trigger_id__test_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trigger_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TestFire"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Firing"];
                 };
             };
             /** @description Validation Error */
