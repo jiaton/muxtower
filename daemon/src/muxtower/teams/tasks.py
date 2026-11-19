@@ -156,7 +156,10 @@ class TaskService:
             return "undeliverable"
         if session.needs_attention and not _by_remote_control(session):
             return "waiting"  # typing now would answer its prompt
-        message = f"{PREFIX} {task.from_label}] {task.text}"
+        # A text that opens with its sender's own label (a trigger's "[trigger <name>] external event data …")
+        # says who it is from already: not said twice.
+        said = task.text.startswith(f"[{task.from_label}]")
+        message = task.text if said else f"{PREFIX} {task.from_label}] {task.text}"
         try:
             self.directory.send_input(session.id, SendInput(text=message, enter=True))
         except Exception as exc:  # noqa: BLE001 - held, and tried again: the loop must go on

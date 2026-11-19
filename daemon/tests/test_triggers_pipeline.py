@@ -163,7 +163,7 @@ def test_deliver_frames_the_payload_as_data_from_the_trigger(rig: Rig, tmp_path:
     assert task.from_label == "trigger deal-watch" and task.to_id == buyer.id
     assert task.text == f"{HEADER.format('deal-watch')}\n```\n{json.dumps(payload, indent=2)}\n```"
     rig.app.state.team_tasks.deliver()
-    assert rig.typed(buyer) == [f"[muxtower task from trigger deal-watch] {task.text}"]
+    assert rig.typed(buyer) == [task.text]  # its framing line names the trigger: no task prefix besides
 
 
 def test_deliver_caps_the_payload_at_8_kb_and_keeps_its_fence_closed(rig: Rig, tmp_path: Path) -> None:
