@@ -8,7 +8,7 @@ import { SettingsForm, sectionsOf } from './settings-form'
 
 const setting = (key: string, more: Partial<SettingView>): SettingView => ({
   key, section: 'After a restart', label: key, help: '', kind: 'choice', choices: [], value: null, default: null,
-  source: 'default', applies: 'now', pending: false, ...more,
+  source: 'default', applies: 'now', pending: false, hub_only: false, ...more,
 }) // prettier-ignore
 
 const LISTED: MachineSettings = {

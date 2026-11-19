@@ -2,7 +2,7 @@ import type { MachineSettings, SettingView } from '@/lib/api/types'
 
 type Row = Omit<SettingView, 'source' | 'pending' | 'value'> & { value?: unknown; file?: boolean }
 const row = (key: string, section: string, label: string, kind: SettingView['kind'], applies: SettingView['applies'],
-  fallback: unknown, more: Partial<Row> = {}): Row => ({ key, section, label, kind, applies, default: fallback, help: '', choices: [], ...more }) // prettier-ignore
+  fallback: unknown, more: Partial<Row> = {}): Row => ({ key, section, label, kind, applies, default: fallback, help: '', choices: [], hub_only: /^(triggers|listen|tts)\./.test(key), ...more }) // prettier-ignore
 
 /** A daemon's feature settings, as `GET /v1/settings` lists them (one set by its config file). */
 const ROWS: Row[] = [
