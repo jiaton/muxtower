@@ -5,8 +5,12 @@ import { ago } from './scenes/session'
 type Store = { triggers: Trigger[]; firings: Firing[]; next: number }
 const STORES = new WeakMap<object, Store>()
 
-const trigger = (id: string, action: TriggerAction, more: Partial<Trigger>): Trigger => ({
-  id, name: id, action, enabled: true, filter: [], dedupe: null, rate_per_hour: null, source: { kind: 'webhook' },
+/** A made-up id in the hub's shape (trg_ and 12 hex digits), the same for a name each time. */
+const idOf = (name: string) =>
+  'trg_' + [...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7).toString(16).padStart(12, '0').slice(-12)
+
+const trigger = (name: string, action: TriggerAction, more: Partial<Trigger>): Trigger => ({
+  id: idOf(name), name, action, enabled: true, filter: [], dedupe: null, rate_per_hour: null, source: { kind: 'webhook' },
   created_at: ago(9 * 1440), updated_at: ago(3 * 1440), last_fired_at: null, last_outcome: null, ...more,
 }) // prettier-ignore
 
@@ -15,7 +19,7 @@ type Seed = [number, Firing['outcome'], Firing['via'], string | null, string | n
 
 function seed(store: Store, id: string, rows: Seed[]) {
   for (const [minutes, outcome, via, target, detail] of rows)
-    store.firings.push({ id: store.next++, trigger_id: id, at: ago(minutes), outcome, via, target, detail, bytes: 212, key: null })
+    store.firings.push({ id: store.next++, trigger_id: idOf(id), at: ago(minutes), outcome, via, target, detail, bytes: 212, key: null })
 }
 
 function store(world: object): Store {
@@ -125,7 +129,7 @@ export function triggers(world: object, method: string, pathname: string, body: 
     const spec = body as unknown as TriggerSpec
     if (s.triggers.some((t) => t.name === spec.name)) return json({ detail: `a trigger named ${spec.name} exists` }, 409)
     const now = new Date().toISOString()
-    const made: Trigger = { ...trigger(spec.name, spec.action, {}), ...spec, id: spec.name, created_at: now, updated_at: now }
+    const made: Trigger = { ...trigger(spec.name, spec.action, {}), ...spec, id: idOf(spec.name), created_at: now, updated_at: now }
     s.triggers.push(made)
     return json({ trigger: made, secret: secret() }, 201)
   }
