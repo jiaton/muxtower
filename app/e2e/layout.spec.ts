@@ -54,11 +54,9 @@ const ways: Record<string, (page: Page) => Promise<void>> = {
 for (const [way, run] of Object.entries(ways)) {
   test(`no blank column after ${way}, then a filter that matches nothing`, async ({ browser }) => {
     const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage()
-    await page.goto(DEMO)
-    await page
-      .getByRole('link', { name: /web-app/ })
-      .first()
-      .click() // a session open: focus mode applies
+    // A session open (focus mode applies only then), by its URL: a name like "web-app" matches a project too.
+    await page.goto(`${DEMO}#/d/demo/s/web-app`)
+    await expect(page.getByPlaceholder('Message the agent')).toBeVisible({ timeout: 20_000 }) // a cold dev server's first page
     await run(page)
     await page.keyboard.press('Escape')
     await page.getByPlaceholder('Search sessions').first().fill('zzqqxx-nothing')
