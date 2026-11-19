@@ -3,6 +3,7 @@ import { unwrap } from '@/lib/api/client'
 import type { Session, UpdateTeam } from '@/lib/api/types'
 import { useDaemonClient } from '@/lib/daemons/use-daemon-client'
 import { daemonKey } from '@/lib/query'
+import { useDaemonSessions } from './use-sessions'
 
 /** A session's role and project in its team (only what is given changes); the list shows it at once. */
 export function useUpdateTeam(daemonId: string, sessionId: string) {
@@ -31,7 +32,7 @@ export function useSessionTasks(daemonId: string, sessionId: string) {
  *  asked again whenever the sessions change (a task sent or delivered says so), and every half minute. */
 export function useProjectActivity(daemonId: string, project: string | null | undefined, hours: number) {
   const client = useDaemonClient(daemonId)
-  const sessionsAt = useQuery({ queryKey: daemonKey(daemonId, 'sessions'), enabled: false }).dataUpdatedAt
+  const sessionsAt = useDaemonSessions(daemonId).dataUpdatedAt // the list's own query (a fetchless one warned)
   return useQuery({
     queryKey: daemonKey(daemonId, 'activity', project, hours, sessionsAt),
     queryFn: async () =>
