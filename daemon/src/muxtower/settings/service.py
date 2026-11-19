@@ -39,6 +39,7 @@ class SettingView(BaseModel):
     source: Source = Field(description="config_file: set there, and not changed from the app")
     applies: Literal["now", "restart"]
     pending: bool = Field(description="changed since the daemon started: applies when it restarts")
+    hub_only: bool = Field(default=False, description="acts only on the hub: a node's settings leave it out")
 
 
 def _get(settings: Settings, key: str) -> Any:
@@ -151,5 +152,5 @@ class SettingsService:
             key=key, section=field.section, label=field.label, help=field.help, kind=field.kind,
             choices=list(field.choices), runtime_choices=self.modes() if field.kind == "per_runtime" else {},
             value=value, default=default, source=source, applies=field.applies,
-            pending=field.applies == "restart" and value != self.running[key],
+            pending=field.applies == "restart" and value != self.running[key], hub_only=field.hub_only,
         )  # fmt: skip

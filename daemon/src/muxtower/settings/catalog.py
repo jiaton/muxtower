@@ -21,6 +21,14 @@ class Field:
     help: str = ""
     choices: tuple[str, ...] = ()  # per_runtime: each runtime's own (its permission modes), not listed here
 
+    @property
+    def hub_only(self) -> bool:
+        """It acts only on the hub (triggers fire there; Live's spoken summaries and voice are its): a node
+        neither shows nor takes it."""
+        return self.key.startswith(HUB_ONLY)
+
+
+HUB_ONLY = ("triggers.", "listen.", "tts.")
 
 FIELDS: tuple[Field, ...] = (
     Field("recovery.mode", "After a restart", "Interrupted sessions", "choice", "now",

@@ -108,6 +108,15 @@ def test_a_hub_reads_and_changes_a_nodes_settings_over_the_link(
     assert listed["machine"] == "laptop" and _by_key(listed)["recovery.mode"]["value"] == "auto"
     assert node.state.recovery.settings.mode == "auto" and hub.state.recovery.settings.mode == "ask"
     assert asked == [("laptop", "set_settings")]
+    # What acts only on the hub (triggers, Live's spoken summaries, its voice) is no node's: not listed, not taken.
+    on_node = client.get("/v1/settings", params={"node": "laptop"}, headers=auth).json()["settings"]
+    assert not [s["key"] for s in on_node if s["key"].startswith(("triggers.", "listen.", "tts."))]
+    on_hub = {s["key"]: s for s in client.get("/v1/settings", headers=auth).json()["settings"]}
+    assert on_hub["triggers.start_mode"]["hub_only"] is True and on_hub["recovery.mode"]["hub_only"] is False
+    refused = client.patch(
+        "/v1/settings", params={"node": "laptop"}, json={"values": {"listen.max_per_day": 3}}, headers=auth
+    )
+    assert refused.status_code == 400 and "set on the hub" in refused.json()["detail"]
 
     def old_node(*_: Any, **__: Any) -> Any:
         raise Invalid("unknown method settings")
