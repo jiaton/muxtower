@@ -3383,6 +3383,12 @@
             "title": "Help",
             "type": "string"
           },
+          "hub_only": {
+            "default": false,
+            "description": "acts only on the hub: a node's settings leave it out",
+            "title": "Hub Only",
+            "type": "boolean"
+          },
           "key": {
             "description": "dotted, as in the config file: `recovery.mode` is `[recovery] mode`",
             "title": "Key",

@@ -2944,6 +2944,12 @@ export interface components {
             /** Help */
             help: string;
             /**
+             * Hub Only
+             * @description acts only on the hub: a node's settings leave it out
+             * @default false
+             */
+            hub_only: boolean;
+            /**
              * Key
              * @description dotted, as in the config file: `recovery.mode` is `[recovery] mode`
              */
