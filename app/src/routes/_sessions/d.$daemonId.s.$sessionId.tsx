@@ -32,6 +32,7 @@ import { useSessionTerminal } from '@/features/terminal/hooks/use-session-termin
 import { draftKey, useDrafts, useTerminalPrefs } from '@/features/terminal/store'
 import { MicButton } from '@/features/voice/components/mic-button'
 import { LiveBar, LiveButton } from '@/features/voice/components/live'
+import { PlayButton, ReadAloudDock } from '@/features/voice/components/play-button'
 import { DictionaryQuickAdd } from '@/features/voice/components/dictionary'
 import { useLive } from '@/features/voice/live/engine'
 import { setLiveOps, setLiveTarget } from '@/features/voice/live/engine'
@@ -206,6 +207,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
         session={session}
         actions={
           <>
+            <PlayButton daemonId={daemonId} sessionId={session.id} reply={session.last_message} name={session.name} />
             {screen && hasConversation ? (
               <Segmented
                 aria-label="Show"
@@ -311,6 +313,9 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
           </Pager>
         </CodeActionContext.Provider>
       </div>
+
+      {/* What is read aloud (Play, Live's Read aloud) floats above the footer. */}
+      <ReadAloudDock />
 
       {writable ? (
         <>

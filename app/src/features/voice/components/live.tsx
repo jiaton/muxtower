@@ -10,7 +10,6 @@ import { feedbackOf, liveDetails } from '../live/feedback'
 import { readAll, stopSpeaking, useSpeech } from '../live/speech'
 import { play } from '../live/play'
 import { chooseHubVoice } from '../live/hub-voice'
-import { ReadAloudCaption } from './read-aloud-caption'
 import type { Command } from '../live/commands'
 import { enabledPacks } from '../live/packs'
 import { composerColumns } from '@/components/ui/bar'
@@ -215,9 +214,8 @@ export function LiveBar({
       {/* One row, its height set by its one line: nothing appears or disappears around it. Lined up with the
           message box (its + column, then where its text starts), its box the same in every state: its border
           only shows while paused. */}
-      {/* The caption floats above this row (out of the flow: nothing moves). */}
+      {/* The caption floats above the footer (`ReadAloudDock`, the session page's). */}
       <div className="relative">
-        {readAloud ? <ReadAloudCaption /> : null}
         <div role="status" aria-live="polite" className={liveRow({ paused })}>
           <span aria-hidden className={cn(composerColumns.leadInBox, 'gap-1')}>
             {paused ? (

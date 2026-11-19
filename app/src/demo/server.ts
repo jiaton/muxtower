@@ -8,6 +8,7 @@ import { plain } from './scenes/terminal'
 import { DemoSettings } from './settings'
 import { dictionary, saveDictionary } from './dictionary'
 import { triggers } from './triggers'
+import { keptSpoken, speakLatest } from './spoken'
 import type { World } from './world'
 
 type Me = components['schemas']['Me']
@@ -184,6 +185,13 @@ const SESSION_ROUTES: Record<string, Handler> = {
     if (text('note') !== undefined) patch.team_note = text('note')
     if (text('project')) patch.project = text('project')
     return world.mark(id, patch) ? json(world.session(id)) : refuse(404, 'no such session')
+  },
+  // Play: a made-up summary of the latest reply, kept per reply (`spoken.ts`).
+  'GET spoken': (world, id) => (world.session(id) ? json(keptSpoken(world, id)) : refuse(404, 'no such session')),
+  'POST spoken': (world, id) => {
+    if (!world.session(id)) return refuse(404, 'no such session')
+    const spoken = speakLatest(world, id)
+    return spoken ? json(spoken) : refuse(404, 'this session has no reply to say')
   },
   'GET tasks': (world, id) => (world.session(id) ? json(world.tasks(id)) : refuse(404, 'no such session')),
   'DELETE ': (world, id) => (world.remove(id) ? empty() : refuse(404, 'no such session')),

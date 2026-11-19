@@ -89,6 +89,8 @@ interface SpeechState {
   caption: Caption | null
   /** The caption kept open (tapped). */
   captionKept: boolean
+  /** The session (`entryKey`) whose summary Play is asking for, until it comes (or fails). */
+  asking: string | null
   /** Said once in Live's bar: why it speaks as it does ("using the phone's voice"). */
   note: string | null
 }
@@ -106,6 +108,7 @@ export const useSpeech = create<SpeechState>()(
       unheard: {},
       front: null,
       note: null,
+      asking: null,
       caption: null,
       captionKept: false,
     }),
