@@ -231,6 +231,10 @@ export function tidyUp(): Scene {
   }
 }
 
+const SUGGESTED = 'add a test for the label'
+const LABEL_TEST =
+  'This is the demo, so nothing ran. On your own machine I would add a test that the button reads "Pay $42.00" for a $42 cart, and that it changes when the cart does.'
+
 /** The same project on the other computer: a checkout of shop-api on the laptop, so grouping by project
  *  shows one project across devices (each row saying where it runs). */
 export function shopApiLaptop(): Scene {
@@ -240,7 +244,7 @@ export function shopApiLaptop(): Scene {
       name: 'checkout page',
       cwd: '/Users/dev/code/shop-api',
       git: { repo: '/Users/dev/code/shop-api', worktree: '/Users/dev/code/shop-api', branch: 'checkout-ui', remote: 'acme/shop-api' },
-      team_role: 'frontend',
+      team_role: 'worker — the checkout page',
       project: 'acme/shop-api',
       project_auto: true,
       project_source: 'git remote',
@@ -250,7 +254,7 @@ export function shopApiLaptop(): Scene {
       on_host: false,
       created_at: ago(90),
       updated_at: ago(15),
-      suggestion: 'add a test for the label', // Claude Code's suggested next prompt: Send (or ⌘↵) takes it
+      suggestion: SUGGESTED, // Claude Code's suggested next prompt: Send (or ⌘↵) takes it
     }),
     history: [
       ...claudeWelcome('~/code/shop-api'),
@@ -262,6 +266,6 @@ export function shopApiLaptop(): Scene {
       prompt(1, { text: 'Make the checkout button say what it charges.', at: ago(16) }),
       reply(2, { text: 'It now reads "Pay $42.00".', at: ago(15) }),
     ],
-    reply: talk('claude', 10),
+    reply: talk('claude', 10, { [SUGGESTED]: LABEL_TEST }),
   }
 }

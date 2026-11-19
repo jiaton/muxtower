@@ -36,18 +36,21 @@ export const rule = (paint = same): Line => ({ kind: 'rule', paint })
 export const box = (rows: string[], paint = same, max = Infinity): Line => ({ kind: 'box', rows, paint, max })
 
 /** `text` broken into lines of at most `width` columns (colors do not count), each painted after its
- *  prefix. */
+ *  prefix. Its own line breaks are kept, and each line's indent. */
 export function wrap(text: string, first: string, rest: string, width: number, paint = same): string[] {
   const lines: string[] = []
-  let line = ''
-  for (const word of text.trim().split(' ')) {
-    const prefix = lines.length ? rest : first
-    if (line && visible(prefix) + visible(line) + 1 + visible(word) > width) {
-      lines.push(prefix + paint(line))
-      line = word
-    } else line = line ? `${line} ${word}` : word
+  for (const own of text.trim().split('\n')) {
+    const indent = /^ */.exec(own)![0]
+    let line = indent
+    for (const word of own.trimStart().split(' ')) {
+      const prefix = lines.length ? rest : first
+      if (line.trim() && visible(prefix) + visible(line) + 1 + visible(word) > width) {
+        lines.push(prefix + paint(line))
+        line = indent + word
+      } else line = line.trim() ? `${line} ${word}` : line + word
+    }
+    lines.push((lines.length ? rest : first) + paint(line))
   }
-  lines.push((lines.length ? rest : first) + paint(line))
   return lines
 }
 

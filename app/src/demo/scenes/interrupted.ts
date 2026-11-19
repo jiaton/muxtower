@@ -40,12 +40,14 @@ export function migrations(): Scene {
   }
 }
 
+const LIVE = demoSession({ id: 'x', name: 'x', cwd: '/' }).capabilities
+
 const NOT_OURS = "muxtower never ran it: it ran in Claude's app or on Remote Control only, so start it there"
 
 /** Sessions ended and kept to read, under Archived: one from the laptop's desktop app (it cannot be
  *  resumed from here), two muxtower ran here (they can). */
 export function archived(): Scene[] {
-  const done = (id: string, name: string, cwd: string, days: number, node?: string): Scene => ({
+  const done = (id: string, name: string, cwd: string, days: number, node?: string, repo?: string): Scene => ({
     session: demoSession({
       id,
       name,
@@ -58,14 +60,18 @@ export function archived(): Scene[] {
       archived_at: ago(days * 24 * 60),
       updated_at: ago(days * 24 * 60),
       ...(node ? { node, machine: node, on_host: false } : {}),
-    }),
-    history: [],
-    footer: [],
+      ...(repo ? { git: { repo: cwd, worktree: cwd, branch: 'main', remote: repo }, project: repo, project_auto: true, project_source: 'git remote', project_anchor: cwd } : {}),
+    }), // prettier-ignore
+    history: [...claudeWelcome(cwd.replace(/^\/(home|Users)\/dev/, '~')), ...said(`${name}.`), ...answered('Done.')],
+    footer: claudeInput,
     items: [prompt(1, { text: `${name}.`, at: ago(days * 24 * 60 + 30) }), reply(2, { text: 'Done.' })],
+    reply: talk('claude', 10),
+    // Resumed (`POST …/resume`): its agent started again as itself, in a pane, where it left off.
+    resumed: { capabilities: { ...LIVE, resume: false }, tmux_pane: '%4', state: 'idle', state_source: 'hook' },
   })
   return [
-    done('old-1', 'Rename the billing tables', '/home/dev/code/shop-api', 3),
-    done('old-2', 'Bump the Node version', '/home/dev/code/web-app', 9),
+    done('old-1', 'Rename the billing tables', '/home/dev/code/shop-api', 3, undefined, 'acme/shop-api'),
+    done('old-2', 'Bump the Node version', '/home/dev/code/web-app', 9, undefined, 'acme/web-app'),
     done(`${NODE}~old-3`, 'Draft the launch post', '/Users/dev/notes', 12, NODE),
   ]
 }

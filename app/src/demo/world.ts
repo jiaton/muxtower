@@ -24,7 +24,8 @@ export interface Scene {
   reply?: (text: string) => Step[]
   /** Work teammates sent it, or it sent them (the Team dialog). */
   tasks?: TeamTask[]
-  /** What it is once started again, for one a restart interrupted (`session.interrupted_at`). */
+  /** What it is once started again: one a restart interrupted (`session.interrupted_at`), or one archived
+   *  and resumed. */
   resumed?: Partial<Session>
 }
 
@@ -122,6 +123,25 @@ export class World {
     if (scene && text?.trim() && enter) this.play(id, scene.reply?.(text.trim()) ?? [])
   }
 
+  /** A task arrives (from a trigger, `from_id` null): delivered as a prompt at once, or held while the
+   *  session waits on the owner or is at work, as the hub's task loop would. Its status. */
+  deliver(id: string, text: string, fromLabel: string): 'delivered' | 'held' | null {
+    const scene = this.scenes.get(id)
+    if (!scene || scene.session.archived_at) return null
+    const waiting = scene.session.needs_attention || scene.session.state === 'busy'
+    const at = new Date().toISOString()
+    const ids = this.sessions().flatMap((s) => this.tasks(s.id).map((t) => t.id))
+    scene.tasks = [
+      {
+        id: Math.max(1000, ...ids) + 1, at, from_id: null, from_label: fromLabel, to_id: id, text,
+        status: waiting ? 'held' : 'delivered', delivered_at: waiting ? null : at,
+      }, // prettier-ignore
+      ...(scene.tasks ?? []),
+    ]
+    if (!waiting) this.input(id, text, true)
+    return waiting ? 'held' : 'delivered'
+  }
+
   /** Marks set by the reader (read, hidden, pinned, archived, renamed). */
   mark(id: string, patch: Partial<Session>) {
     if (!this.scenes.has(id)) return false
@@ -134,6 +154,14 @@ export class World {
     const started = ids.filter((id) => this.scenes.get(id)?.session.interrupted_at)
     for (const id of started) this.apply(id, { after: 0, session: this.scenes.get(id)!.resumed ?? { interrupted_at: null } }, false)
     return started.map((id) => this.scenes.get(id)!.session)
+  }
+
+  /** Starts an archived session again as itself (`POST …/resume`): out of Archived, live, where it left off. */
+  resume(id: string) {
+    const scene = this.scenes.get(id)
+    if (!scene) return
+    const now = new Date().toISOString()
+    this.apply(id, { after: 0, session: { ...scene.resumed, archived_at: null, resume_blocked: null, updated_at: now } }, false)
   }
 
   /** A session more, as a scene with nothing played yet (the site's clip recorder stages its own cast). */

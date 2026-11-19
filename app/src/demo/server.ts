@@ -77,6 +77,7 @@ const CHIP_GROUPS = new WeakMap<World, ChipGroup[]>()
 const STARTING_GROUPS: ChipGroup[] = [
   { id: 'product', name: 'Product', projects: ['acme/shop-api', 'acme/web-app'], sessions: [] },
   { id: 'ops', name: 'Ops', projects: ['acme/infra', ':other'], sessions: [] },
+  { id: 'pms', name: 'PMs', projects: [], sessions: [], roles: ['pm'] },
 ]
 const chipGroups = (world: World) => CHIP_GROUPS.get(world) ?? STARTING_GROUPS
 
@@ -131,6 +132,8 @@ const SESSION_ROUTES: Record<string, Handler> = {
     return json({ session_id: id, items, latest_seq: items.at(-1)?.seq ?? 0 })
   },
   'POST approve': (world, id, body) => {
+    // A held message has no default: Deliver or Deny is picked.
+    if (world.session(id)?.pending?.kind === 'peer_message' && typeof body.option !== 'string') return refuse(422, 'pick Deliver or Deny')
     const done = world.approve(id, typeof body.option === 'string' ? body.option : null)
     if (!done) return refuse(409, 'the session is not waiting for an answer')
     return json({ session_id: id, state: done.pending.state, option: done.option })
@@ -153,10 +156,13 @@ const SESSION_ROUTES: Record<string, Handler> = {
   'POST hide': marked((body) => ({ hidden: body.hidden !== false })),
   'POST pin': marked((body) => ({ pinned: body.pinned !== false })),
   'POST archive': marked(() => ({ archived_at: new Date().toISOString() })),
-  'POST resume': (world, id) =>
-    world.mark(id, { archived_at: null, resume_blocked: null, state: 'idle', updated_at: new Date().toISOString() })
-      ? json(world.session(id))
-      : refuse(404, 'no such session'),
+  'POST resume': (world, id) => {
+    const session = world.session(id)
+    if (!session) return refuse(404, 'no such session')
+    if (!session.archived_at || !session.capabilities.resume) return refuse(409, session.resume_blocked?.reason ?? 'it cannot be resumed')
+    world.resume(id)
+    return json(world.session(id))
+  },
   'PUT notify': (world, id, body) =>
     world.mark(id, { notify: (body.level as Session['notify']) ?? 'all' }) ? json(world.session(id)) : refuse(404, 'no such session'),
   'GET names': (world, id) => {
@@ -224,7 +230,7 @@ const ROUTES: Record<string, (world: World, body: Record<string, unknown>, url: 
             at: i.at,
             role: i.kind === 'prompt' ? 'user' : 'agent',
             archived: Boolean(s.archived_at),
-            node: null,
+            node: s.node ?? null,
             snippet: [
               { text: (from ? '…' : '') + text.slice(from, at), match: false },
               { text: text.slice(at, at + q.length), match: true },
