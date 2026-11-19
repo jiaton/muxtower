@@ -167,15 +167,18 @@ class TriggerStore:
         return [r["target"] for r in rows]
 
     def seen(self, trigger_id: str, key: str, days: int) -> bool:
-        """Whether the key came within `days` (keys older than that are let go); if not, it is kept now."""
+        """Whether the key came within `days` (keys older than that are let go). Not kept by asking: an
+        event is remembered (`remember`) only once it goes on to its action."""
         now = _now()
         with self.db.connect() as conn:
             conn.execute("DELETE FROM trigger_keys WHERE trigger_id = ? AND at < ?",
                          (trigger_id, (now - timedelta(days=days)).isoformat()))  # fmt: skip
             found = conn.execute("SELECT 1 FROM trigger_keys WHERE trigger_id = ? AND key = ?", (trigger_id, key))
-            if found.fetchone():
-                return True
+            return found.fetchone() is not None
+
+    def remember(self, trigger_id: str, key: str) -> None:
+        with self.db.connect() as conn:
             conn.execute(
-                "INSERT INTO trigger_keys (trigger_id, key, at) VALUES (?, ?, ?)", (trigger_id, key, now.isoformat())
+                "INSERT OR REPLACE INTO trigger_keys (trigger_id, key, at) VALUES (?, ?, ?)",
+                (trigger_id, key, _now().isoformat()),
             )
-        return False

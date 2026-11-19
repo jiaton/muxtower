@@ -2,6 +2,7 @@
 the owner's own scripts through `muxtower trigger` (a device's token, this machine's CLI). Kept on the hub: on
 a node, the list and `muxtower trigger` are asked of it (`answer`, through `nodes/asked.py`)."""
 
+import asyncio
 import json
 from typing import Annotated, Any
 
@@ -154,7 +155,8 @@ async def _fire(request: Request, trigger_id: str, secret: str | None, key: str 
     except ValueError:
         payload = raw.decode(errors="replace")  # plain text: taken as it is
     trigger = store.get(trigger_id)
-    firing = _service(request).fire(trigger, payload, key, "webhook", len(raw))
+    # Off the event loop: an action may take a while (a session started on another machine).
+    firing = await asyncio.to_thread(_service(request).fire, trigger, payload, key, "webhook", len(raw))
     request.app.state.audit.record("webhook", "trigger_fire", trigger_id, f"webhook {firing.outcome}")
     return firing
 

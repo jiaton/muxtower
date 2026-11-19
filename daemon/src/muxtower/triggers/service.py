@@ -55,6 +55,7 @@ class TriggerService:
             return "paused", None, "paused"
         if (failed := failing_condition(trigger.filter, payload)) is not None:
             return "filtered", None, f"filtered: {failed.field} {failed.op} {failed.value}"
+        dedupe_key: str | None = None
         if trigger.dedupe is not None:
             dedupe_key = key
             if trigger.dedupe.field and (value := field(payload, trigger.dedupe.field)) is not MISSING:
@@ -67,6 +68,8 @@ class TriggerService:
                 over = self.store.count_since(trigger.id, hour_ago, ("rate_limited",)) + 1
                 self._push_once(trigger, "rate", f"{trigger.name}: {over} events over the rate limit in the last hour")
                 return "rate_limited", None, f"rate limit {trigger.rate_per_hour}/h"
+        if dedupe_key is not None:
+            self.store.remember(trigger.id, dedupe_key)  # on to its action: a repeat is a duplicate now
         action = trigger.action
         if isinstance(action, DeliverAction):
             return self._deliver(trigger, action, payload)

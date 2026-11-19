@@ -279,3 +279,13 @@ def test_notify_pushes_a_one_line_preview_to_every_device(rig: Rig) -> None:
     sent = json.loads(raw)
     assert sent["kind"] == "trigger" and sent["trigger"] == "deal-watch" and sent["session_id"] is None
     assert sent["body"] == 'deal-watch: {"deal": {"title": "Desk\\nlamp", "price": 9}}'
+
+
+def test_an_event_over_the_rate_limit_keeps_its_key_free_for_when_it_comes_again(rig: Rig) -> None:
+    # Dropped for the rate, an event was not acted on: sent again once the hour has room, it is no duplicate.
+    tid, _ = rig.make(name="burst", action=NOTIFY, rate_per_hour=1, dedupe={"field": "id", "days": 1})
+    assert rig.outcomes(tid, {"id": "a"}, {"id": "b"}) == ["notified", "rate_limited"]
+    assert rig.fire(tid, {"id": "a"})["outcome"] == "deduped"  # acted on: a repeat is a duplicate
+    with rig.app.state.triggers.db.connect() as conn:  # the hour gone by
+        conn.execute("UPDATE trigger_firings SET at = '2000-01-01T00:00:00+00:00' WHERE trigger_id = ?", (tid,))
+    assert rig.fire(tid, {"id": "b"})["outcome"] == "notified"  # b's key was never used up
