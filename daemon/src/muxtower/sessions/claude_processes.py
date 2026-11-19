@@ -38,7 +38,11 @@ RUNNING_TTL_SECONDS = 5.0
 TAIL_BYTES = 16_384  # the end of a transcript, where a `continued-in` line is
 MAX_HOPS = 8
 MXT_TMUX = re.compile(r"^mxt-([0-9a-f]{8})")  # muxtower's own tmux sessions: mxt-<its id's first 8>
-SAME_START_SECONDS = 10.0  # a process file's startedAt comes 1–3 s after its process started
+# A process file is its process's when written after that process started: its startedAt is not before
+# the start, but may come well after (12–14 s seen on a loaded machine; a slow start, a resume, a clear). A
+# file left by an earlier process whose pid is now another's was written before this one started. The
+# start is read to the second (`ps -o lstart`), so a little before still counts.
+START_SKEW_SECONDS = 2.0
 # What Claude Code's agents view says in the pane while the conversation is in the background.
 AGENTS_VIEW = "conversation moved to the background"
 
@@ -117,9 +121,9 @@ def _ticks(pid: int, proc: Path) -> str | None:
 def runs(pid: int, info: dict[str, object], proc: Path = Path("/proc"), listed: bool = False) -> bool:
     """Whether the process a file names still runs, and is the one that wrote it: after a restart, its pid
     may be another process's (a file left from before is no live Claude Code). Linux: the start Claude Code
-    wrote (`procStart`) is the process's own; else (macOS) the file's `startedAt` is within a few seconds of
-    the process's start. A file that says neither is taken as it is, if its pid is alive (`listed`: found
-    in a live process tree, so it is)."""
+    wrote (`procStart`) is the process's own; else (macOS) the file's `startedAt` is not before the process's
+    start (`START_SKEW_SECONDS`), however long after. A file that says neither is taken as it is, if its pid
+    is alive (`listed`: found in a live process tree, so it is)."""
     if not listed and not alive(pid):
         return False
     written = info.get("procStart")
@@ -127,7 +131,7 @@ def runs(pid: int, info: dict[str, object], proc: Path = Path("/proc"), listed: 
         return str(written) == ticks
     at = info.get("startedAt")
     if isinstance(at, int | float) and (start := started_at(pid, proc)) is not None:
-        return abs(at / 1000 - start) <= SAME_START_SECONDS
+        return at / 1000 >= start - START_SKEW_SECONDS
     return True
 
 

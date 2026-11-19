@@ -342,6 +342,13 @@ def test_without_proc_start_the_files_start_time_must_match_the_process(tmp_path
     assert ClaudeProcesses(tmp_path / "claude", proc=proc).remote_id(pid) == "cse_01MAC"  # 1.5 s after: its own
     file.write_text(json.dumps({"pid": pid, "bridgeSessionId": "session_01MAC", "startedAt": 900_000_000}))
     assert ClaudeProcesses(tmp_path / "claude", proc=proc).remote_id(pid) is None  # days before: another's
+    # The shape seen on a loaded Mac: written 14 s after its process started (slow start), or minutes after
+    # (a resume, a /clear rewrites it): still its own. A second before (the start is read to the second) too.
+    for at in (1_000_514_000, 1_000_900_000, 1_000_499_000):
+        file.write_text(json.dumps({"pid": pid, "bridgeSessionId": "session_01MAC", "startedAt": at}))
+        assert ClaudeProcesses(tmp_path / "claude", proc=proc).remote_id(pid) == "cse_01MAC", at
+    file.write_text(json.dumps({"pid": pid, "bridgeSessionId": "session_01MAC", "startedAt": 1_000_490_000}))
+    assert ClaudeProcesses(tmp_path / "claude", proc=proc).remote_id(pid) is None  # 10 s before it started: not its
 
 
 class RestartedProcesses(FakeProcesses):
