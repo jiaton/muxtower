@@ -146,15 +146,17 @@ it('a chip dragged with the mouse lands where it is let go, the order saved, and
   rect.mockRestore()
 })
 
-it('a click that hardly moves still chooses the chip', async () => {
+// A loaded CI runner took over 5 s for this one twice (never here): the router's first load, then the click.
+it('a click that hardly moves still chooses the chip', { timeout: 20_000 }, async () => {
   const put = watchPut()
   const router = show(entries, three)
   const one = await screen.findByRole('link', { name: /One/ })
+  await waitFor(() => expect(router.state.status).toBe('idle')) // loaded: a click now navigates
   fireEvent.mouseDown(one, { button: 0, clientX: 40, clientY: 10 })
   fireEvent.mouseMove(document, { clientX: 43, clientY: 11 })
   fireEvent.mouseUp(document, { clientX: 43, clientY: 11 })
   fireEvent.click(one)
-  await waitFor(() => expect(router.state.location.search).toMatchObject({ chip: 'one' }), { timeout: 5000 })
+  await waitFor(() => expect(router.state.location.search).toMatchObject({ chip: 'one' }), { timeout: 15_000 })
   expect(put).toEqual([])
 })
 
