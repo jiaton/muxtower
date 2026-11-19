@@ -93,9 +93,13 @@ class TaskService:
         known = f"roles there: {', '.join(roles)}" if roles else "nobody there has a role yet"
         raise NotFound(f"no session {to!r} and no role {role.strip()!r} in {where} ({known})")
 
-    def send(self, sender_id: str | None, device: str, to: str, text: str) -> tuple[Task, Member, str]:
+    def send(
+        self, sender_id: str | None, device: str, to: str, text: str, from_label: str | None = None, wait: bool = True
+    ) -> tuple[Task, Member, str]:
         """Blocking. Queues the task for the delivery loop and waits a moment for what became of it:
-        delivered, waiting (the receiver waits on the owner), undeliverable, or queued (not yet known)."""
+        delivered, waiting (the receiver waits on the owner), undeliverable, or queued (not yet known).
+        `from_label`: who it is from, said as given (a trigger), instead of the sender's or device's. `wait`
+        false: queued, without waiting (a caller that may be on the event loop the delivery loop runs on)."""
         body = text.strip()
         if not body:
             raise Invalid("a task needs some text")
@@ -105,14 +109,15 @@ class TaskService:
         receiver = self.receiver(to, sender)
         if sender and receiver.session.id == sender.session.id:
             raise Invalid("that is you")
-        task = Task(0, datetime.now(UTC), sender_id, label(sender, device), receiver.session.id, body, "held")
+        frm = from_label or label(sender, device)
+        task = Task(0, datetime.now(UTC), sender_id, frm, receiver.session.id, body, "held")
         answer: Future[str] = Future()
         with self._lock:
             self.repo.add(task)
             self._answers[task.id] = answer
         self.changed()
         try:
-            if not self.wake():
+            if not self.wake() or not wait:
                 return task, receiver, "queued"  # no loop runs (yet): it sends once one does
             return task, receiver, answer.result(self.answer_seconds)
         except FutureTimeout:

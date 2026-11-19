@@ -157,6 +157,20 @@ class SessionTools:
                 detail = f"machine={where} cwd={args.cwd or '-'} outcome={outcome} took={took:.1f}s"
                 self.audit.record(CALLER.get().actor, "mcp:start_session", session_id, detail)
 
+    def start_as(self, args: StartArgs, actor: str) -> str:
+        """Starts a session for someone not calling a tool (a trigger), the same way, never resuming one and
+        never asking for another permission mode than given; its id. Audited as that actor."""
+        args = args.model_copy(update={"resume": None})
+        outcome, session_id = "error", None
+        try:
+            _, session_id = self._start(args)
+            outcome = "started"
+            return session_id
+        finally:
+            if self.audit is not None:
+                detail = f"machine={args.machine or self.hub} cwd={args.cwd or '-'} outcome={outcome}"
+                self.audit.record(actor, "start_session", session_id, detail)
+
     def _archived(self, session_id: str) -> bool:
         try:
             return self.directory.get(session_id).archived_at is not None

@@ -6,7 +6,7 @@ import { clientsClaim } from 'workbox-core'
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { NOT_THE_APP } from './lib/sw-routes'
-import { alertsAgain, closeSessions, sessionTag } from './lib/sw-notifications'
+import { alertsAgain, closeSessions, pushTag } from './lib/sw-notifications'
 
 declare const self: ServiceWorkerGlobalScope
 
@@ -24,7 +24,8 @@ interface PushPayload {
   client_ref: string
   session_id?: string | null // none for news of the daemon itself (its Claude login expired)
   session_name?: string | null
-  kind?: 'attention' | 'done' | 'login' | 'recovery' | 'clear'
+  kind?: 'attention' | 'done' | 'login' | 'recovery' | 'trigger' | 'clear'
+  trigger?: string | null // the trigger a `trigger` push is about
   title: string
   body: string
   settled?: string[] // sessions notified about before, seen or answered since
@@ -50,7 +51,7 @@ self.addEventListener('push', (event) => {
       closeSessions(self.registration, data.client_ref, data.settled ?? []),
       self.registration.showNotification(data.title, {
         body: data.body,
-        tag: sessionTag(data.client_ref, data.session_id ?? data.kind ?? 'news'),
+        tag: pushTag(data.client_ref, data),
         renotify: alertsAgain(data.kind),
         requireInteraction: data.kind !== 'done',
         timestamp: Date.now(),

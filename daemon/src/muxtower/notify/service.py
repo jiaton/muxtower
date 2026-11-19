@@ -97,11 +97,22 @@ class PushService:
         title, body = interrupted_text(self.daemon_name, count)
         return self._to_all("recovery", title, body)
 
-    def _to_all(self, kind: Literal["login", "recovery"], title: str, body: str) -> int:
+    def notify_trigger(self, name: str, body: str) -> int:
+        """A trigger's news (its event, or trouble with it): to every device; its newest replaces its last."""
+        return self._to_all("trigger", f"Trigger {name}"[:80], body[:300], trigger=name)
+
+    def _to_all(
+        self, kind: Literal["login", "recovery", "trigger"], title: str, body: str, trigger: str | None = None
+    ) -> int:
         sent = 0
         for sub in self._paired():
             payload = PushPayload(
-                client_ref=sub.client_ref, daemon_name=self.daemon_name, kind=kind, title=title, body=body
+                client_ref=sub.client_ref,
+                daemon_name=self.daemon_name,
+                kind=kind,
+                title=title,
+                body=body,
+                trigger=trigger,
             )
             if self.sender.send(sub, payload.model_dump_json()):
                 sent += 1

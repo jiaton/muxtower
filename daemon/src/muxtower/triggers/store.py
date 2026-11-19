@@ -156,6 +156,16 @@ class TriggerStore:
             ).fetchone()
         return int(row["n"])
 
+    def targets(self, trigger_id: str, outcome: str) -> list[str]:
+        """The sessions its firings with this outcome went to (or started), newest first, each once."""
+        with self.db.connect() as conn:
+            rows = conn.execute(
+                "SELECT target FROM trigger_firings WHERE trigger_id = ? AND outcome = ? AND target IS NOT NULL"
+                " GROUP BY target ORDER BY MAX(id) DESC",
+                (trigger_id, outcome),
+            ).fetchall()
+        return [r["target"] for r in rows]
+
     def seen(self, trigger_id: str, key: str, days: int) -> bool:
         """Whether the key came within `days` (keys older than that are let go); if not, it is kept now."""
         now = _now()

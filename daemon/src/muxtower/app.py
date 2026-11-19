@@ -306,7 +306,10 @@ def create_app(
     node_api.search_status = lambda: search.status().model_dump(mode="json")
     playbook = PlaybookStore(db)  # the owner's team playbook: kept here when this daemon is the hub
     triggers = TriggerStore(db)  # outside events that reach an agent (`triggers/`): kept on the hub
-    trigger_service = TriggerService(triggers)
+    trigger_service = TriggerService(
+        triggers, team_tasks, mcp.session_tools.start_as,
+        lambda sid: (s := directory.find(sid)) is not None and s.archived_at is None, push.notify_trigger,
+    )  # fmt: skip
     if (team_tools := getattr(mcp, "team_tools", None)) is not None:
         team_tools.playbook = playbook
         team_tools.machines = lambda: [

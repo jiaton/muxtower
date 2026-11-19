@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { alertsAgain, closeSessions, sessionTag, type ShownNotification } from './sw-notifications'
+import { alertsAgain, closeSessions, pushTag, sessionTag, type ShownNotification } from './sw-notifications'
 
 function registration(...tags: string[]) {
   const closed: string[] = []
@@ -26,4 +26,13 @@ describe('closeSessions', () => {
 it('a replacement alerts again only when the owner is needed', () => {
   expect(alertsAgain('attention')).toBe(true)
   expect(alertsAgain('done')).toBe(false)
+})
+
+it("a trigger's push replaces its own last one, apart from other triggers and from sessions", () => {
+  const deal = pushTag('d1', { kind: 'trigger', trigger: 'deal-watch' })
+  expect(deal).toBe(pushTag('d1', { kind: 'trigger', trigger: 'deal-watch' }))
+  expect(deal).not.toBe(pushTag('d1', { kind: 'trigger', trigger: 'build-alerts' }))
+  expect(pushTag('d1', { session_id: 's1', kind: 'done' })).toBe(sessionTag('d1', 's1'))
+  expect(pushTag('d1', { kind: 'recovery' })).toBe(sessionTag('d1', 'recovery'))
+  expect(alertsAgain('trigger')).toBe(true)
 })
