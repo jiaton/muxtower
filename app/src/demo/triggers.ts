@@ -186,6 +186,12 @@ export function triggers(world: World, method: string, pathname: string, body: R
     s.triggers.push(made)
     return json({ trigger: made, secret: secret() }, 201)
   }
+  // What a trigger's started session runs in, per agent (made up, as the demo's settings say).
+  if (id === 'start-modes' && method === 'GET' && !m[2])
+    return json([
+      { runtime: 'claude-code', mode: 'auto', label: 'Auto', configured: 'auto', held: null },
+      { runtime: 'codex', mode: 'on-request', label: 'On request', configured: 'on-request', held: null },
+    ])
   const t = s.triggers.find((x) => x.id === id)
   if (!t) return json({ detail: 'no such trigger' }, 404)
   if (m[2] === 'firings' && method === 'GET') return json(s.firings.filter((f) => f.trigger_id === id).reverse())
