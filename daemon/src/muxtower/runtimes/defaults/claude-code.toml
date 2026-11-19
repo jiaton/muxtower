@@ -20,7 +20,7 @@ name_options = ["-n", "--name"]
 # Its input box between two rules (older versions: "> " over "? for shortcuts"). While it shows, a dialog
 # can only be the panel framed right above it (a tip like "Teach auto mode…"), whatever the conversation
 # above quotes.
-prompt = '^─{8,}\n❯[^\n]*(?:\n[^─\n][^\n]*)*\n─{8,}|^>[^\n]*\n\s*\?\s+for\s+shortcuts'
+prompt = '^─{8,}[^\n]*\n❯[^\n]*(?:\n[^─\n][^\n]*)*\n─{8,}|^>[^\n]*\n\s*\?\s+for\s+shortcuts'
 panel_rule = '^─{8,}\s*$'
 
 [[rules]]

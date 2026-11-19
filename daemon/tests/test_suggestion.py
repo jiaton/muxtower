@@ -47,3 +47,13 @@ def test_it_is_listed_and_sent_as_it_is_once_read_again(
     pane.screen, pane.ansi = screens.PERMISSION, screens.PERMISSION  # a dialog: none
     app.state.monitor.tick()
     assert client.get("/v1/sessions", headers=auth).json()[0]["suggestion"] is None
+
+
+def test_a_named_session_has_its_name_in_the_boxs_top_rule_and_still_its_suggestion() -> None:
+    # Claude Code draws a named session's name into the rule above its input line ("──── checkout ─").
+    claude: Runtime = load_runtimes(None)["claude-code"]
+    named = screens.SUGGESTION_ANSI.replace(
+        f"\x1b[38;5;244m{screens.RULE}\n", f"\x1b[38;5;244m{'─' * 40} checkout ─\n", 1
+    )
+    assert claude.box_at(PLAIN.sub("", named).rstrip().splitlines()) is not None
+    assert claude.suggestion_of(named) == "yes, open it"
