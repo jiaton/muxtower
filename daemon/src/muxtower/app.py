@@ -90,6 +90,7 @@ from muxtower.teams.tasks import TaskService
 from muxtower.terminal.images import ImageDrop
 from muxtower.terminal.ports import TmuxPort
 from muxtower.terminal.service import TerminalService
+from muxtower.triggers.modes import StartModes
 from muxtower.triggers.service import TriggerService
 from muxtower.triggers.store import TriggerStore
 from muxtower.tts.service import TtsService
@@ -123,13 +124,16 @@ def create_app(
 ) -> FastAPI:
     db = Database(settings.db_path)
     tokens = build_token_service(settings, db)  # migrates the database first
-    feature_settings = SettingsService(settings, db)  # the app's changes, before anything reads them
+    runtimes = load_runtimes(settings.config_dir / "runtimes")
+    modes = {name: [m.id for m in rt.config.permission_modes] for name, rt in runtimes.items()}
+    # The app's changes, before anything reads them.
+    feature_settings = SettingsService(settings, db, modes=lambda: modes)
     daemon_name = settings.name or socket.gethostname()
     bus = EventBus()
     sessions = SessionService(
         SqliteSessionRepository(db),
         tmux or TmuxCli(),
-        load_runtimes(settings.config_dir / "runtimes"),
+        runtimes,
         SessionConfig(settings.tmux_socket, settings.adopt_sockets, settings.local_url, settings.state_dir),
     )
     remote_control = remote_control or build_remote_control(settings)
@@ -310,6 +314,11 @@ def create_app(
         triggers, team_tasks, mcp.session_tools.start_as,
         lambda sid: (s := directory.find(sid)) is not None and s.archived_at is None, push.notify_trigger,
     )  # fmt: skip
+    start_modes = StartModes(
+        lambda: {name: rt.config for name, rt in sessions.runtimes.items()}, lambda: settings.triggers.start_mode,
+        lambda runtime: settings.launch.of(runtime)[0], lambda: settings.launch.agents_may_escalate,
+    )  # fmt: skip
+    trigger_service.modes = start_modes
     if (team_tools := getattr(mcp, "team_tools", None)) is not None:
         team_tools.playbook = playbook
         team_tools.machines = lambda: [

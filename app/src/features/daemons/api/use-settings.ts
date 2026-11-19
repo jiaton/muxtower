@@ -22,6 +22,10 @@ export function useChangeSettings(daemonId: string, node?: string) {
   return useMutation({
     mutationFn: async (values: Record<string, unknown>) =>
       unwrap(await client!.PATCH('/v1/settings', { params: { query: { node: node ?? null } }, body: { values } })),
-    onSuccess: (data: MachineSettings) => queryClient.setQueryData(daemonKey(daemonId, 'settings', node ?? ''), data),
+    onSuccess: (data: MachineSettings) => {
+      queryClient.setQueryData(daemonKey(daemonId, 'settings', node ?? ''), data)
+      // What other features read from the settings (a trigger's start mode) follows.
+      void queryClient.invalidateQueries({ queryKey: daemonKey(daemonId, 'settings'), predicate: (q) => q.queryKey[3] !== (node ?? '') })
+    },
   })
 }

@@ -10,6 +10,7 @@ import { useDaemon } from '@/lib/daemons/store'
 import { useNodeNames } from '@/lib/daemons/use-nodes'
 import { useSessionEntries } from '@/features/sessions/hooks/use-session-entries'
 import { useRuntimes } from '@/features/sessions/api/use-session-mutations'
+import { useStartModes } from '../api/use-triggers'
 import { problems, type Draft } from '../model/draft'
 import { DeliverFields, NotifyFields, StartFields } from './action-fields'
 import { FilterRows } from './filter-rows'
@@ -30,6 +31,7 @@ export function TriggerForm({
   error,
   onSubmit,
   footer,
+  onShowSetting,
 }: {
   daemonId: string
   initial: Draft
@@ -39,6 +41,8 @@ export function TriggerForm({
   onSubmit: (draft: Draft) => void
   /** more actions beside Save (Delete) */
   footer?: ReactNode
+  /** shows the setting a start action's mode comes from (the dialog closes first) */
+  onShowSetting?: () => void
 }) {
   const [draft, setDraft] = useState(initial)
   const [tried, setTried] = useState(false)
@@ -48,10 +52,11 @@ export function TriggerForm({
     .entries.filter((e) => e.daemon.id === daemonId)
     .map((e) => e.session)
   const runtimes = useRuntimes(daemonId).data ?? []
+  const modes = useStartModes(daemonId).data ?? []
   const machines = useNodeNames(daemonId)
   const found = problems(draft)
   const errors = tried ? found : {}
-  const fields = { draft, set, errors, sessions, runtimes, machines, hub: daemon?.name ?? 'hub' }
+  const fields = { draft, set, errors, sessions, runtimes, machines, hub: daemon?.name ?? 'hub', modes, onShowSetting }
 
   return (
     <form

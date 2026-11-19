@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { FileLock2, RotateCcw } from 'lucide-react'
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Input, Textarea } from '@/components/ui/input'
@@ -54,6 +54,15 @@ export function SettingsForm({ daemonId, node, extras }: { daemonId: string; nod
           {extras?.[section]}
         </section>
       ))}
+      {/* A daemon that lists no such section (an older one) still shows what goes in it. */}
+      {Object.entries(extras ?? {})
+        .filter(([section, extra]) => extra && !settings.some((s) => s.section === section))
+        .map(([section, extra]) => (
+          <section key={section} aria-label={section} className="flex flex-col gap-1">
+            <h2 className={ink.eyebrow}>{section}</h2>
+            {extra}
+          </section>
+        ))}
     </div>
   )
 }
@@ -61,7 +70,7 @@ export function SettingsForm({ daemonId, node, extras }: { daemonId: string; nod
 function SettingRow({ setting: s, busy, onChange }: { setting: SettingView; busy: boolean; onChange: (value: unknown) => void }) {
   const locked = s.source === 'config_file'
   return (
-    <li className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:gap-4">
+    <li id={`setting-${s.key}`} className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:gap-4">
       <div className="min-w-0 flex-1">
         <p className={ink.body}>{s.label}</p>
         <p className={ink.meta}>
@@ -94,6 +103,7 @@ function SettingRow({ setting: s, busy, onChange }: { setting: SettingView; busy
 
 function Control({ setting: s, disabled, onChange }: { setting: SettingView; disabled: boolean; onChange: (value: unknown) => void }) {
   if (s.kind === 'bool') return <Switch checked={Boolean(s.value)} disabled={disabled} onCheckedChange={onChange} aria-label={s.label} />
+  if (s.kind === 'per_runtime') return <PerRuntimeControl setting={s} disabled={disabled} onChange={onChange} />
   if (s.kind === 'multiline') return <LongTextControl key={String(s.value)} setting={s} disabled={disabled} onChange={onChange} />
   if (s.kind === 'choice' && !disabled && s.choices.length > 5)
     // Many to pick from (voices): a list, not a row of buttons.
@@ -118,6 +128,47 @@ function Control({ setting: s, disabled, onChange }: { setting: SettingView; dis
       />
     )
   return <TextControl key={String(s.value)} setting={s} disabled={disabled} onChange={onChange} />
+}
+
+/** A choice per runtime (its own permission modes); unset, it follows the New sessions default. Each pick
+ *  sends the whole mapping. */
+function PerRuntimeControl({
+  setting: s,
+  disabled,
+  onChange,
+}: {
+  setting: SettingView
+  disabled: boolean
+  onChange: (value: unknown) => void
+}) {
+  const value = (s.value ?? {}) as Record<string, string>
+  const pick = (runtime: string, mode: string) => {
+    const { [runtime]: _, ...rest } = value
+    onChange(mode ? { ...rest, [runtime]: mode } : rest)
+  }
+  return (
+    <div className="grid grid-cols-[auto_1fr] items-center gap-x-3 gap-y-1">
+      {Object.entries(s.runtime_choices ?? {}).map(([runtime, modes]) => (
+        <Fragment key={runtime}>
+          <span className={ink.meta}>{runtime}</span>
+          <Select
+            aria-label={`${s.label}: ${runtime}`}
+            value={value[runtime] ?? ''}
+            disabled={disabled}
+            onChange={(e) => pick(runtime, e.target.value)}
+            className="w-48"
+          >
+            <option value="">the default</option>
+            {modes.map((m) => (
+              <option key={m} value={m}>
+                {m}
+              </option>
+            ))}
+          </Select>
+        </Fragment>
+      ))}
+    </div>
+  )
 }
 
 /** A long text (a prompt), sent on leaving the box; empty, or Back to the default, gives the default. */

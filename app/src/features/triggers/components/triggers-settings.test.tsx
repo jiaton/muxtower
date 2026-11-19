@@ -2,8 +2,10 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { beforeEach, expect, it, vi } from 'vitest'
 import { addDaemon, wrapper } from '@/test/render'
 import { firing, serveTriggers, TRIGGER } from '../test-daemon'
+import { http, HttpResponse } from 'msw'
+import { DAEMON_URL, server } from '@/test/server'
 import { BYPASS_WARNING } from './action-fields'
-import { TriggersSettings } from './triggers-settings'
+import { START_MODE_SETTING, TriggersSettings } from './triggers-settings'
 
 function show() {
   const daemon = addDaemon()
@@ -143,4 +145,30 @@ it('deletes only after asking', async () => {
   const confirm = screen.getByRole('dialog', { name: 'Delete deals?' })
   fireEvent.click(within(confirm).getByRole('button', { name: 'Delete' }))
   await waitFor(() => expect(sent).toEqual([['DELETE deals', null]]))
+})
+
+it('the start form says the mode its sessions start in for the agent picked, and links to the setting', async () => {
+  serveTriggers([])
+  server.use(
+    http.get(`${DAEMON_URL}/v1/runtimes`, () =>
+      HttpResponse.json([
+        { name: 'claude-code', binary: 'claude', available: true, has_hooks: true },
+        { name: 'codex', binary: 'codex', available: true, has_hooks: true },
+      ]),
+    ),
+  )
+  const row = document.createElement('li')
+  row.id = START_MODE_SETTING
+  row.scrollIntoView = vi.fn()
+  document.body.append(row)
+  show()
+  fireEvent.click(await screen.findByRole('button', { name: 'New trigger' }))
+  fireEvent.click(within(dialog()).getByRole('radio', { name: 'Start a session' }))
+  expect(await within(dialog()).findByText(/Starts in:/)).toHaveTextContent('Starts in: Ask before acting (the default: auto is above it)')
+  fireEvent.change(within(dialog()).getByRole('combobox', { name: 'Agent' }), { target: { value: 'codex' } })
+  expect(within(dialog()).getByText(/Starts in:/)).toHaveTextContent('Starts in: Ask when it wants to · Settings › Triggers')
+  fireEvent.click(within(dialog()).getByRole('button', { name: 'Settings › Triggers' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  await waitFor(() => expect(row.scrollIntoView).toHaveBeenCalled())
+  row.remove()
 })

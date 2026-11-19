@@ -217,8 +217,8 @@ def test_a_target_gone_fails_with_one_push_an_hour(rig: Rig, tmp_path: Path) -> 
 
 
 def _start_app(make_app: Callable[..., FastAPI], tmux: FakeTmux) -> Rig:
-    # Agents may escalate here, and still a trigger's session starts in the launch's default mode.
-    return Rig(make_app(launch={"claude_code_mode": "default", "agents_may_escalate": True}), tmux)
+    # Agents may not escalate here: a trigger's session starts in the launch's default, its auto above it.
+    return Rig(make_app(launch={"claude_code_mode": "default"}), tmux)
 
 
 def test_start_never_escalates_and_keeps_payload_values_in_the_data_block(

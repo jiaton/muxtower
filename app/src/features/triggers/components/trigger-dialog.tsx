@@ -49,8 +49,17 @@ function Confirm({
   )
 }
 
-/** A new trigger: its settings, then (made) its secret, this once. */
-export function NewTriggerDialog({ daemonId, onClose }: { daemonId: string; onClose: () => void }) {
+/** A new trigger: its settings, then (made) its secret, this once. `onShowSetting`: closes it and shows the
+ *  setting a start action's mode comes from. */
+export function NewTriggerDialog({
+  daemonId,
+  onClose,
+  onShowSetting,
+}: {
+  daemonId: string
+  onClose: () => void
+  onShowSetting?: () => void
+}) {
   const create = useCreateTrigger(daemonId)
   const made = create.data
   return (
@@ -70,6 +79,7 @@ export function NewTriggerDialog({ daemonId, onClose }: { daemonId: string; onCl
             pending={create.isPending}
             error={create.error}
             onSubmit={(draft) => create.mutate(specOf(draft))}
+            onShowSetting={onShowSetting}
           />
         )}
       </DialogContent>
@@ -80,7 +90,17 @@ export function NewTriggerDialog({ daemonId, onClose }: { daemonId: string; onCl
 type Tab = 'settings' | 'test' | 'log'
 
 /** One trigger: its settings (and Rotate secret, Delete), a test firing, and its log. */
-export function TriggerDialog({ daemonId, trigger, onClose }: { daemonId: string; trigger: Trigger; onClose: () => void }) {
+export function TriggerDialog({
+  daemonId,
+  trigger,
+  onClose,
+  onShowSetting,
+}: {
+  daemonId: string
+  trigger: Trigger
+  onClose: () => void
+  onShowSetting?: () => void
+}) {
   const [tab, setTab] = useState<Tab>('settings')
   const [asking, setAsking] = useState<'delete' | 'rotate' | null>(null)
   const update = useUpdateTrigger(daemonId)
@@ -89,7 +109,11 @@ export function TriggerDialog({ daemonId, trigger, onClose }: { daemonId: string
   const secret = rotate.data
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent title={trigger.name} description={trigger.enabled ? undefined : 'Paused: its firings are logged, not acted on.'} className={WIDE}>
+      <DialogContent
+        title={trigger.name}
+        description={trigger.enabled ? undefined : 'Paused: its firings are logged, not acted on.'}
+        className={WIDE}
+      >
         {secret ? (
           <SecretPanel daemonId={daemonId} trigger={trigger} secret={secret} onDone={() => rotate.reset()} />
         ) : (
@@ -113,6 +137,7 @@ export function TriggerDialog({ daemonId, trigger, onClose }: { daemonId: string
                 pending={update.isPending}
                 error={update.error}
                 onSubmit={(draft) => update.mutate({ id: trigger.id, patch: patchOf(draft) }, { onSuccess: onClose })}
+                onShowSetting={onShowSetting}
                 footer={
                   <>
                     <Button variant="ghost" tone="danger" onClick={() => setAsking('delete')}>

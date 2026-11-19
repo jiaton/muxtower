@@ -5,7 +5,8 @@ import { ink } from '@/components/ui/intents'
 import { Label, LabelNote } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { SuggestInput } from '@/components/ui/suggest-input'
-import type { RuntimeInfo, Session } from '@/lib/api/types'
+import { Button } from '@/components/ui/button'
+import type { RuntimeInfo, Session, StartMode } from '@/lib/api/types'
 import type { Draft } from '../model/draft'
 import { resolvedText, runsUnguarded, sessionsFor, targetsOf } from '../model/targets'
 
@@ -21,6 +22,10 @@ interface Props {
   runtimes: RuntimeInfo[]
   machines: string[]
   hub: string
+  /** the mode a started session runs in, per runtime (`useStartModes`) */
+  modes?: StartMode[]
+  /** shows the setting that decides it (Settings › Triggers) */
+  onShowSetting?: () => void
 }
 
 /** Deliver: which session gets each firing, and a warning when it acts without asking. */
@@ -51,8 +56,9 @@ export function DeliverFields({ draft, set, errors, sessions, runtimes }: Props)
 }
 
 /** Start: a new session per firing, where and as what, and what it is told. */
-export function StartFields({ draft, set, errors, sessions, runtimes, machines, hub }: Props) {
+export function StartFields({ draft, set, errors, sessions, runtimes, machines, hub, modes = [], onShowSetting }: Props) {
   const usable = runtimes.filter((r) => r.available && !r.headless)
+  const mode = modes.find((m) => m.runtime === draft.runtime)
   return (
     <>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -111,7 +117,21 @@ export function StartFields({ draft, set, errors, sessions, runtimes, machines, 
         </span>
         {errors.message ? <span className={ink.noteDanger}>{errors.message}</span> : null}
       </Label>
-      <p className={ink.meta}>At most 3 of its sessions run at once, never with more permissions than a launch's default.</p>
+      {mode ? (
+        <p className={ink.meta}>
+          Starts in: <span className={ink.strong}>{mode.label}</span>
+          {mode.held ? ` (the default: ${mode.held})` : null}
+          {onShowSetting ? (
+            <>
+              {' · '}
+              <Button variant="link" size="xs" onClick={onShowSetting}>
+                Settings › Triggers
+              </Button>
+            </>
+          ) : null}
+        </p>
+      ) : null}
+      <p className={ink.meta}>At most 3 of its sessions run at once, never above the default mode unless agents may start them so.</p>
     </>
   )
 }

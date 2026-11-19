@@ -8,6 +8,7 @@ a `restart` setting waits for the next start and says so (`pending`)."""
 
 import json
 import shlex
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any, Literal
 
@@ -28,8 +29,11 @@ class SettingView(BaseModel):
     section: str
     label: str
     help: str
-    kind: Literal["choice", "bool", "number", "text", "args", "multiline"]
+    kind: Literal["choice", "bool", "number", "text", "args", "multiline", "per_runtime"]
     choices: list[str]
+    runtime_choices: dict[str, list[str]] = Field(
+        default_factory=dict, description="per_runtime: each runtime's choices (its permission modes); value maps some"
+    )
     value: Any = Field(description="what applies: once the daemon restarts, where `pending`")
     default: Any
     source: Source = Field(description="config_file: set there, and not changed from the app")
@@ -48,8 +52,12 @@ def _put(settings: Settings, key: str, value: Any) -> None:
 
 
 class SettingsService:
-    def __init__(self, settings: Settings, db: Database, audit: AuditLog | None = None) -> None:
+    def __init__(
+        self, settings: Settings, db: Database, audit: AuditLog | None = None,
+        modes: Callable[[], dict[str, list[str]]] = dict,
+    ) -> None:  # fmt: skip
         self.settings = settings
+        self.modes = modes  # each runtime's permission mode ids, least to most permissive: a per_runtime's choices
         self.db = db
         self.audit = audit or AuditLog(db)
         self.defaults = Settings()
@@ -114,6 +122,14 @@ class SettingsService:
         except ValidationError as exc:
             raise Invalid(f"{key}: {exc.errors()[0]['msg']}") from exc
         result = getattr(checked, name)
+        if BY_KEY[key].kind == "per_runtime":
+            modes = self.modes()
+            for runtime, mode in result.items():
+                if runtime not in modes:
+                    raise Invalid(f"{key}: no runtime {runtime!r} here (there are: {', '.join(sorted(modes))})")
+                if mode not in modes[runtime]:
+                    known = ", ".join(modes[runtime]) or "none"
+                    raise Invalid(f"{key}: {runtime} has no permission mode {mode!r} (it has: {known})")
         return result.value if hasattr(result, "value") else result
 
     def _stored(self) -> dict[str, Any]:
@@ -133,6 +149,7 @@ class SettingsService:
             source, value = "default", default
         return SettingView(
             key=key, section=field.section, label=field.label, help=field.help, kind=field.kind,
-            choices=list(field.choices), value=value, default=default, source=source, applies=field.applies,
+            choices=list(field.choices), runtime_choices=self.modes() if field.kind == "per_runtime" else {},
+            value=value, default=default, source=source, applies=field.applies,
             pending=field.applies == "restart" and value != self.running[key],
         )  # fmt: skip

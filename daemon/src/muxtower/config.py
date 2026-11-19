@@ -196,6 +196,20 @@ class LaunchSettings(BaseModel):
         return str(getattr(self, f"{key}_mode", "agent")), list(getattr(self, f"{key}_args", []))
 
 
+def _trigger_start_modes() -> dict[str, str]:
+    # Claude Code's auto: it acts, a classifier holding back what is risky. Codex has no such mode; its
+    # on-request is the nearest: sandboxed to the folder, asking when it wants out, never fully unguarded.
+    return {"claude-code": "auto", "codex": "on-request"}
+
+
+class TriggerSettings(BaseModel):
+    """`[triggers]`: how a trigger's start action starts a session (`triggers/modes.py`). `start_mode`: per
+    runtime, one of its `permission_modes` ids (checked when changed from the app); a runtime not named
+    starts in the launch's default. Never above that default unless `launch.agents_may_escalate`."""
+
+    start_mode: dict[str, str] = Field(default_factory=_trigger_start_modes)
+
+
 class SessionSettings(BaseModel):
     """`[sessions]`: where a new session starts when it is given no folder (`default_cwd`, ~ for the home
     folder): the app's New session, and an agent's start_session without cwd. Unset, or not a folder
@@ -258,6 +272,7 @@ class Settings(BaseModel):
     tts: TtsSettings = Field(default_factory=TtsSettings)
     writes: WritesSettings = Field(default_factory=WritesSettings)
     launch: LaunchSettings = Field(default_factory=LaunchSettings)
+    triggers: TriggerSettings = Field(default_factory=TriggerSettings)
     sessions: SessionSettings = Field(default_factory=SessionSettings)
     hub: HubSettings = Field(default_factory=HubSettings)
     # What the config file, the environment or an override set (dotted keys): the settings page shows

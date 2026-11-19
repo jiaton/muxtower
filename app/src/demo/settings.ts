@@ -27,6 +27,13 @@ const ROWS: Row[] = [
   row('asr.language', 'Voice input', 'Language', 'text', 'restart', '', { help: 'e.g. zh; empty: detected per recording' }),
   row('usage.cpu_percent', 'Usage alerts', 'CPU above (% of one core, 1 min)', 'number', 'now', 20),
   row('usage.rss_mb', 'Usage alerts', 'Memory above (MB)', 'number', 'now', 500),
+  row('triggers.start_mode', 'Triggers', 'Sessions a trigger starts: permission mode', 'per_runtime', 'now', { 'claude-code': 'auto', codex: 'on-request' }, {
+    help: 'per agent; never above its New sessions default unless agents may start sessions above it',
+    runtime_choices: {
+      'claude-code': ['plan', 'default', 'acceptEdits', 'auto', 'bypassPermissions'],
+      codex: ['untrusted', 'on-request', 'full-auto', 'full-access'],
+    },
+  }),
 ]
 
 /** What the demo daemon keeps: changes from the page, over the defaults; the file's stay. */

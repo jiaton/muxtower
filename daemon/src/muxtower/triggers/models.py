@@ -48,9 +48,10 @@ class DeliverAction(BaseModel):
 
 
 class StartAction(BaseModel):
-    """A new session per event (at most 3 of a trigger's alive at once), never with more permissions than
-    a launch's default. `message` is the owner's text; {payload} and {a.b} in it are filled in as data, inside
-    the external-data block, never spliced into the instructions."""
+    """A new session per event (at most 3 of a trigger's alive at once), in `triggers.start_mode` for its runtime,
+    never above a launch's default unless agents may escalate (`triggers/modes.py`). `message` is the owner's
+    text; {payload} and {a.b} in it are filled in as data, inside the external-data block, never spliced into
+    the instructions."""
 
     kind: Literal["start"] = "start"
     machine: str | None = None

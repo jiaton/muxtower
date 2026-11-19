@@ -12,9 +12,11 @@ from typing import Any
 
 from muxtower.errors import Conflict, Invalid, NotFound
 from muxtower.mcp.session_tools import StartArgs
+from muxtower.sessions.launch import AGENTS_OWN
 from muxtower.teams.tasks import TaskService
 from muxtower.triggers import framing
 from muxtower.triggers.models import DeliverAction, Firing, NotifyAction, Outcome, StartAction, Trigger, Via
+from muxtower.triggers.modes import StartModes
 from muxtower.triggers.rules import MISSING, field, text_of
 from muxtower.triggers.rules import failing as failing_condition
 from muxtower.triggers.store import TriggerStore
@@ -31,12 +33,14 @@ class TriggerService:
         self, store: TriggerStore, tasks: TaskService | None = None,
         start: Callable[[StartArgs, str], str] | None = None, alive: Callable[[str], bool] = lambda _: False,
         push: Callable[[str, str], int] = lambda _name, _body: 0,
+        modes: StartModes | None = None,
     ) -> None:  # fmt: skip
         self.store = store
         self.tasks = tasks  # a deliver goes as a team task
         self.start = start  # starts a session as MCP start_session does; returns its id
         self.alive = alive  # whether a session still runs (not archived, not gone)
         self.push = push  # (trigger name, text) to the owner's devices; how many it reached
+        self.modes = modes  # the mode a started session runs in (`modes.py`); None: the launch default
         self.now: Callable[[], datetime] = lambda: datetime.now(UTC)
         self._pushed: dict[tuple[str, str], datetime] = {}  # (trigger id, kind) → when last pushed
         self._lock = threading.Lock()
@@ -105,17 +109,19 @@ class TriggerService:
         running = [t for t in self.store.targets(trigger.id, "started") if self.alive(t)]
         if len(running) >= MAX_STARTED:
             return "failed", None, f"{MAX_STARTED} started sessions still running"
+        mode = self.modes.of(action.runtime) if self.modes else None
         args = StartArgs(
             cwd=action.cwd, machine=action.machine, role=action.role, project=action.project,
             runtime=action.runtime, prompt=framing.instruction(trigger.name, action.message, payload),
-            permission_mode=None,  # the launch's default: a trigger never asks for more
+            permission_mode=None if mode is None or mode.mode == AGENTS_OWN else mode.mode,
         )  # fmt: skip
         try:
             session_id = self.start(args, f"trigger {trigger.name}")
         except Exception as exc:  # noqa: BLE001 - logged as the firing's outcome, and here
             logger.warning("trigger %s could not start a session: %s", trigger.name, exc)
             return "failed", None, f"could not start: {exc}"
-        return "started", session_id, f"started {session_id}"
+        held = f" in default: {mode.held}" if mode is not None and mode.held else ""
+        return "started", session_id, f"started {session_id}{held}"
 
     def _push_once(self, trigger: Trigger, kind: str, text: str) -> None:
         """At most one push of this kind about this trigger an hour."""

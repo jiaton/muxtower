@@ -8,7 +8,7 @@ that use it are built when the daemon starts, so a change applies then."""
 from dataclasses import dataclass
 from typing import Literal
 
-Kind = Literal["choice", "bool", "number", "text", "args", "multiline"]
+Kind = Literal["choice", "bool", "number", "text", "args", "multiline", "per_runtime"]
 
 
 @dataclass(frozen=True)
@@ -19,7 +19,7 @@ class Field:
     kind: Kind
     applies: Literal["now", "restart"]
     help: str = ""
-    choices: tuple[str, ...] = ()
+    choices: tuple[str, ...] = ()  # per_runtime: each runtime's own (its permission modes), not listed here
 
 
 FIELDS: tuple[Field, ...] = (
@@ -95,6 +95,8 @@ FIELDS: tuple[Field, ...] = (
     Field("usage.cpu_percent", "Usage alerts", "CPU above (% of one core, 1 min)", "number", "now"),
     Field("usage.tick_ms", "Usage alerts", "Screen capture slower than (ms)", "number", "now"),
     Field("usage.rss_mb", "Usage alerts", "Memory above (MB)", "number", "now"),
+    Field("triggers.start_mode", "Triggers", "Sessions a trigger starts: permission mode", "per_runtime", "now",
+          "per agent; never above its New sessions default unless agents may start sessions above it"),
 )  # fmt: skip
 
 BY_KEY = {f.key: f for f in FIELDS}

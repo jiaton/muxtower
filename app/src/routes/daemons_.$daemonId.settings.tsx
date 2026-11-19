@@ -53,11 +53,12 @@ function SettingsPage() {
                         'Voice input': <DictionarySettings daemonId={daemonId} />,
                         Search: <SearchStatus daemonId={daemonId} />,
                         'Read aloud voice': <TtsSettings daemonId={daemonId} />,
+                        // The hub's triggers, under the mode their sessions start in.
+                        Triggers: playbook ? undefined : <TriggersSettings daemonId={daemonId} titled={false} />,
                       }
                 }
               />
               {node || playbook ? null : <PlaybookSettings daemonId={daemonId} />}
-              {node || playbook ? null : <TriggersSettings daemonId={daemonId} />}
             </>
           ) : (
             <p className={ink.hint}>Unknown daemon.</p>

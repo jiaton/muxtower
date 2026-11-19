@@ -35,4 +35,13 @@ claude_code_mode = "acceptEdits"   # or "agent": its own settings decide
 claude_code_args = ["--model", "opus"]
 ```
 
-The mode is kept when a session is started again after a restart. An agent starting a session over MCP (`start_session`) can ask for a mode only up to that default, and never bypass or full access, unless you turn `launch.agents_may_escalate` on. In an asking mode, team members stop at every permission prompt and tasks sent to them wait meanwhile: turn on auto-approve for such a session, or start it in auto or accept-edits mode.
+The mode is kept when a session is started again after a restart. An agent starting a session over MCP (`start_session`) can ask for a mode only up to that default, and never bypass or full access, unless you turn `launch.agents_may_escalate` on.
+
+A session a trigger starts uses its own mode per runtime (Settings › *Triggers*, or the config file), held to the same rule: one above the default starts in the default, and the firing's log says so.
+
+```toml
+[triggers]
+start_mode = { claude-code = "auto", codex = "on-request" }   # the defaults
+```
+
+In an asking mode, team members stop at every permission prompt and tasks sent to them wait meanwhile: turn on auto-approve for such a session, or start it in auto or accept-edits mode.

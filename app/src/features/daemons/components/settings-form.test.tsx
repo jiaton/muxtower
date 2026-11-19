@@ -105,4 +105,53 @@ describe('SettingsForm', () => {
       ]),
     )
   })
+
+  it('a mode per runtime: each from its own list, unset following the default, sent as the whole mapping', async () => {
+    const sent: unknown[] = []
+    const listed: MachineSettings = {
+      machine: 'hub',
+      settings: [
+        setting('triggers.start_mode', {
+          section: 'Triggers', label: 'Start mode', kind: 'per_runtime', value: { 'claude-code': 'auto' },
+          default: { 'claude-code': 'auto', codex: 'on-request' }, source: 'app',
+          runtime_choices: { 'claude-code': ['default', 'auto'], codex: ['untrusted', 'on-request'] },
+        }),
+      ],
+    } // prettier-ignore
+    server.use(
+      http.get(`${DAEMON_URL}/v1/settings`, () => HttpResponse.json(listed)),
+      http.patch(`${DAEMON_URL}/v1/settings`, async ({ request }) => {
+        sent.push(await request.json())
+        return HttpResponse.json(listed)
+      }),
+    )
+    renderForm()
+    const claude = await screen.findByRole('combobox', { name: 'Start mode: claude-code' })
+    const codex = screen.getByRole('combobox', { name: 'Start mode: codex' })
+    expect(claude).toHaveValue('auto')
+    expect(codex).toHaveValue('') // not set: the default
+    expect([...codex.querySelectorAll('option')].map((o) => o.value)).toEqual(['', 'untrusted', 'on-request'])
+    expect(document.getElementById('setting-triggers.start_mode')).toContainElement(claude) // what the trigger editor links to
+    fireEvent.change(codex, { target: { value: 'untrusted' } })
+    fireEvent.change(claude, { target: { value: '' } })
+    await waitFor(() =>
+      expect(sent).toEqual([
+        { values: { 'triggers.start_mode': { 'claude-code': 'auto', codex: 'untrusted' } } },
+        { values: { 'triggers.start_mode': {} } },
+      ]),
+    )
+  })
+
+  it('what goes in a section the daemon does not list still shows, under its own heading', async () => {
+    server.use(http.get(`${DAEMON_URL}/v1/settings`, () => HttpResponse.json(LISTED)))
+    const daemon = addDaemon()
+    const Wrapper = wrapper()
+    render(
+      <Wrapper>
+        <SettingsForm daemonId={daemon.id} extras={{ Triggers: <p>the triggers</p> }} />
+      </Wrapper>,
+    )
+    const section = await screen.findByRole('region', { name: 'Triggers' })
+    expect(section).toHaveTextContent('the triggers')
+  })
 })

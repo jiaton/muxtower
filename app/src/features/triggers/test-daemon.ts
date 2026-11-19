@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw'
-import type { Firing, Session, Trigger } from '@/lib/api/types'
+import type { Firing, Session, StartMode, Trigger } from '@/lib/api/types'
 import { DAEMON_URL, server } from '@/test/server'
 
 /** Made-up triggers for the tests. */
@@ -20,7 +20,13 @@ export const SESSIONS = [
 ] as unknown as Session[]
 
 /** A hub with `triggers`; what the app sent is recorded, `[method path, body]`. */
-export function serveTriggers(given: Trigger[] = [TRIGGER], firings: Firing[] = []) {
+/** The hub's start modes: claude-code held to its default, codex as set. */
+export const START_MODES: StartMode[] = [
+  { runtime: 'claude-code', mode: 'default', label: 'Ask before acting', configured: 'auto', held: 'auto is above it' },
+  { runtime: 'codex', mode: 'on-request', label: 'Ask when it wants to', configured: 'on-request', held: null },
+]
+
+export function serveTriggers(given: Trigger[] = [TRIGGER], firings: Firing[] = [], modes: StartMode[] = START_MODES) {
   const triggers = given.map((t) => structuredClone(t))
   const sent: [string, unknown][] = []
   const record = async (label: string, request: Request) => sent.push([label, request.body ? await request.json() : null])
@@ -29,6 +35,7 @@ export function serveTriggers(given: Trigger[] = [TRIGGER], firings: Firing[] = 
     http.get(`${DAEMON_URL}/v1/runtimes`, () => HttpResponse.json([])),
     http.get(`${DAEMON_URL}/v1/nodes`, () => HttpResponse.json([])),
     http.get(`${DAEMON_URL}/v1/triggers`, () => HttpResponse.json(triggers)),
+    http.get(`${DAEMON_URL}/v1/triggers/start-modes`, () => HttpResponse.json(modes)),
     http.post(`${DAEMON_URL}/v1/triggers`, async ({ request }) => {
       await record('POST /v1/triggers', request)
       const spec = sent.at(-1)![1] as Trigger

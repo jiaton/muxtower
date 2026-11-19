@@ -24,6 +24,7 @@ from muxtower.triggers.models import (
     TriggerSecret,
     TriggerSpec,
 )  # fmt: skip
+from muxtower.triggers.modes import StartMode
 from muxtower.triggers.service import TriggerService
 from muxtower.triggers.store import TriggerStore
 
@@ -62,11 +63,27 @@ def answer(store: TriggerStore, service: TriggerService, audit: AuditLog, params
     op = params.get("op")
     if op == "list":
         return [t.model_dump(mode="json") for t in store.all()]
+    if op == "start_modes":
+        return [m.model_dump(mode="json") for m in _modes(service)]
     if op == "fire":
         trigger, firing = _fire_by_name(store, service, FireByName.model_validate(params.get("body")))
         audit.record(f"{node}: cli", "trigger_fire", trigger.id, f"cli {firing.outcome}")
         return firing.model_dump(mode="json")
     raise Invalid(f"unknown triggers request {op}")
+
+
+def _modes(service: TriggerService) -> list[StartMode]:
+    return service.modes.all() if service.modes else []
+
+
+@router.get("/triggers/start-modes")
+def start_modes(request: Request, _: CurrentDevice) -> list[StartMode]:
+    """The permission mode a start action's session runs in, per runtime (`triggers.start_mode`, held to the
+    launch default unless agents may escalate); on a node: its hub's, where triggers fire."""
+    answered = _hubs(request, {"op": "start_modes"})
+    if answered is not None:
+        return [StartMode.model_validate(m) for m in answered]
+    return _modes(_service(request))
 
 
 @router.get("/triggers")

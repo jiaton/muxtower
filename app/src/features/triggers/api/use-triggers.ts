@@ -21,6 +21,23 @@ export function useTriggers(daemonId: string) {
   })
 }
 
+/** The mode a start action's session runs in, per runtime (the hub's `triggers.start_mode`, held to its
+ *  launch default unless agents may start sessions above it). Empty from a hub older than the setting. */
+export function useStartModes(daemonId: string) {
+  const client = useDaemonClient(daemonId)
+  return useQuery({
+    // Under the settings' key: a change there shows here at once.
+    queryKey: daemonKey(daemonId, 'settings', 'trigger-start-modes'),
+    enabled: client !== null,
+    retry: false,
+    queryFn: async () => {
+      const result = await client!.GET('/v1/triggers/start-modes')
+      if (result.response.status === 404) return [] // a hub from before it: its path reads as a trigger id
+      return unwrap(result)
+    },
+  })
+}
+
 /** A trigger's last firings, newest first (at most `LOG_SIZE`), polled while shown. */
 export function useFirings(daemonId: string, triggerId: string) {
   const client = useDaemonClient(daemonId)
