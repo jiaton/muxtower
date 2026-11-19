@@ -84,10 +84,18 @@ function SessionPage() {
           <SessionView key={`${daemonId}/${sessionId}`} daemonId={daemonId} session={query.session} />
         ) : (
           <div className="flex flex-1 items-center justify-center p-6">
-            <EmptyState title="This session has ended">
-              <Link to="/" search={true} className={ink.link}>
-                Back to sessions
-              </Link>
+            // Its hub's list came and it is not there: ended, or archived on another device (a notification // can outlive both). Said at
+            once, with where to look.
+            <EmptyState title="This session is not here any more">
+              <p className={ink.hint}>It ended, or was archived.</p>
+              <span className="flex gap-4">
+                <Link to="/" search={{ view: 'archived' }} className={ink.link}>
+                  Archived sessions
+                </Link>
+                <Link to="/" search={true} className={ink.link}>
+                  All sessions
+                </Link>
+              </span>
             </EmptyState>
           </div>
         )

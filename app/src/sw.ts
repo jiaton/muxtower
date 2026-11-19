@@ -6,7 +6,7 @@ import { clientsClaim } from 'workbox-core'
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { NOT_THE_APP } from './lib/sw-routes'
-import { alertsAgain, closeSessions, pushTag } from './lib/sw-notifications'
+import { alertsAgain, closeSessions, openFromNotification, pushTag } from './lib/sw-notifications'
 
 declare const self: ServiceWorkerGlobalScope
 
@@ -74,19 +74,8 @@ async function appWindows(): Promise<WindowClient[]> {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const url = (event.notification.data as { url: string }).url
-  event.waitUntil(
-    (async () => {
-      // Brought to the front first, while the tap still allows it, then told where to go: the app goes
-      // there itself (`useNotificationClicks`). This registration (a daemon's, for its push subscription)
-      // does not control the app's pages, so it cannot navigate them, and a navigation would reload the app.
-      for (const client of await appWindows()) {
-        const focused = await client.focus().catch(() => null)
-        if (focused) {
-          focused.postMessage({ type: 'navigate', url })
-          return
-        }
-      }
-      await self.clients.openWindow(url)
-    })(),
-  )
+  // At once, no network: the best app window is told where to go and brought forward (the app goes there
+  // itself, `useNotificationClicks`: this registration, a daemon's, does not control the app's pages, and a
+  // navigation would reload the app), or a new window opens on it. Anything else is the app's, after.
+  event.waitUntil((async () => openFromNotification(url, await appWindows(), (to) => self.clients.openWindow(to)))())
 })

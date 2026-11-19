@@ -46,3 +46,31 @@ export async function closeSessions(
 /** Whether a notification that replaces one of the same session alerts again: only when the owner is
  *  needed (a finished turn after a finished turn updates it quietly). */
 export const alertsAgain = (kind: string | undefined) => kind === 'attention' || kind === 'trigger'
+
+/** How long a window may take to come to the front before a tapped notification opens a new one instead
+ *  (a frozen or discarded tab can keep focus() waiting, and Chrome shows "processing" all the while). */
+export const FOCUS_MS = 1500
+
+export interface AppWindow {
+  focus(): Promise<unknown>
+  postMessage(message: unknown): void
+}
+
+/** A tapped notification: no network, nothing awaited but bringing a window forward. The best window
+ *  (`windows`, best first) is told where to go at once, then brought forward; if none comes within
+ *  FOCUS_MS, a new window opens on the URL. */
+export async function openFromNotification(
+  url: string,
+  windows: AppWindow[],
+  openWindow: (url: string) => Promise<unknown>,
+  focusMs = FOCUS_MS,
+): Promise<void> {
+  const best = windows[0]
+  if (best) {
+    best.postMessage({ type: 'navigate', url }) // it goes there as it comes forward
+    const late = new Promise<null>((resolve) => setTimeout(() => resolve(null), focusMs))
+    const focused = await Promise.race([best.focus().catch(() => null), late])
+    if (focused) return
+  }
+  await openWindow(url)
+}
