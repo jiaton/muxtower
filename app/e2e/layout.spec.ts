@@ -125,6 +125,8 @@ test('desktop 1440: three layouts, panel-left with the needs-you count, one draw
   await page.keyboard.press('Escape')
   await expect(page.locator('[aria-modal="true"]')).toHaveCount(0)
   await showSessions.click()
+  // Settled before a row is picked (it slides in): a CI runner under load once saw the row move for 30 s.
+  await expect(open).toHaveCSS('translate', 'none')
   const row = open.locator('a[data-row-link]:not([aria-current])').first()
   await row.click()
   await expect(page.locator('[aria-modal="true"]')).toHaveCount(0)
