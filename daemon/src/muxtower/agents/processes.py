@@ -59,5 +59,10 @@ class AgentProcesses:
                 found |= ask()
         return found
 
+    def carries(self, transcript: str, first: str) -> bool:
+        """Whether a transcript is written for the conversation that starts with message `first`
+        (`ClaudeProcesses.carries`)."""
+        return any((ask := getattr(p, "carries", None)) and ask(transcript, first) for p in self.plugins)
+
     def running(self) -> dict[str, ClaudeProcess]:
         return {k: v for p in self.plugins for k, v in p.running().items()}

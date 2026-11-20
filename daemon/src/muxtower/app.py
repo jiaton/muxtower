@@ -66,6 +66,7 @@ from muxtower.sessions.archive_repository import SqliteArchiveRepository
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.claude_processes import ClaudeProcesses
 from muxtower.sessions.ended_bridges import EndedBridges
+from muxtower.sessions.former_bridges import FormerBridges
 from muxtower.sessions.launcher import Launcher
 from muxtower.sessions.marks import SessionMarks, SqliteMarksRepository
 from muxtower.sessions.monitor import Monitor
@@ -263,6 +264,9 @@ def create_app(
                     directory, archiver, processes.ended_bridges, node_sessions.ended_bridges,
                     lambda: {name for name, node in nodes.all().items() if node.online},
                 ).run_loop()  # fmt: skip
+                loops["former-bridges"] = FormerBridges(
+                    directory, remote_control.firsts, processes.carries, lambda: bus.publish("sessions", None)
+                ).run_loop()
             if codex is not None:
                 loops["codex"] = codex.run_loop(bus)
             if codex_shared is not None:

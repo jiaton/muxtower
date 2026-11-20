@@ -22,6 +22,7 @@ one of the live process whose `sessionId` is where the transcript went on, so it
 import json
 import os
 import re
+import threading
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -95,6 +96,28 @@ def continuations(path: Path, projects_dir: Path) -> list[str]:
     return ids
 
 
+HEAD_LINES = 200  # a transcript's first message is looked for in its first lines (before it: snapshots, a summary)
+UUID = re.compile(r"[0-9a-f-]{36}")
+
+
+def first_message(path: Path) -> str | None:
+    """The id (`uuid`) of a transcript's first message (a user's or the agent's): the same id the message
+    has in the Remote Control session that carried the conversation (`lineage.Lineage.first`)."""
+    try:
+        with path.open("rb") as f:
+            for _, line in zip(range(HEAD_LINES), f, strict=False):
+                try:
+                    entry = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(entry, dict) and entry.get("type") in ("user", "assistant"):
+                    uuid = entry.get("uuid")
+                    return uuid if isinstance(uuid, str) and UUID.fullmatch(uuid) else None
+    except OSError:
+        return None
+    return None
+
+
 @dataclass(frozen=True)
 class ClaudeProcess:
     pid: int
@@ -149,6 +172,8 @@ class ClaudeProcesses:
         self.sessions_dir = home / "sessions"
         self.projects_dir = home / "projects"
         self._running: tuple[float, dict[str, ClaudeProcess]] = (0.0, {})
+        self._firsts: dict[Path, str] = {}  # each transcript's first message (never changes once written)
+        self._firsts_lock = threading.Lock()
 
     def _info(self, pane_pid: int) -> dict[str, object] | None:
         """The process file of the pane's Claude Code, if it runs one."""
@@ -274,6 +299,30 @@ class ClaudeProcesses:
             if _remote_id(info) == remote_id and isinstance(agent, str) and re.fullmatch(r"[0-9a-f-]{36}", agent):
                 return agent
         return None
+
+    def _first_of(self, path: Path) -> str | None:
+        with self._firsts_lock:
+            known = self._firsts.get(path)
+        if known is None and (known := first_message(path)) is not None:
+            with self._firsts_lock:
+                self._firsts[path] = known  # one with no message yet is read again
+        return known
+
+    def starting_with(self, first: str) -> list[Path]:
+        """Blocking (files). The transcripts whose first message is `first`: its conversation's own, and the
+        copies a fork or a resume made of it."""
+        return [p for p in self.projects_dir.glob("*/*.jsonl") if self._first_of(p) == first]
+
+    def carries(self, transcript: str, first: str) -> bool:
+        """Blocking (files). Whether the conversation whose first message is `first` (a Remote Control
+        session's, `Lineage.first`) is the one this transcript is written for: it starts with that message
+        (the conversation itself, or a resume of it), or a transcript that does went on into this one
+        (`continued-in`: a move to the background, another folder). A fork starts with it too: the caller
+        leaves forks out."""
+        current = Path(transcript)
+        if self._first_of(current) == first:
+            return True
+        return any(current.stem in continuations(p, self.projects_dir) for p in self.starting_with(first))
 
     def ended_bridges(self) -> dict[str, str]:
         """Remote Control sessions of muxtower's own tmux sessions whose Claude Code has ended (its process

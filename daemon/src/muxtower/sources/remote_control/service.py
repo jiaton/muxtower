@@ -70,6 +70,16 @@ class RemoteControlSource(RcActions):
             forks = lineage.forks(self.sessions)
             return [lineage.placed(s, forks) for s in self.sessions.values() if s.view is not None]
 
+    def firsts(self) -> dict[str, str]:
+        """Each listed session's first message id (`Lineage.first`), which names its conversation, but for
+        forks and side chats (whose first message is another conversation's)."""
+        with self._lock:
+            return {
+                sid: rc.lineage.first
+                for sid, rc in self.sessions.items()
+                if rc.lineage.first and not rc.lineage.parent and not rc.lineage.side_chat
+            }
+
     def _session(self, session_id: str) -> RcSession:
         found = self.sessions.get(session_id)
         if found is None or found.view is None:
