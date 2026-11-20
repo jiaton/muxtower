@@ -112,7 +112,9 @@ function SessionsLayout() {
   return (
     <div className="flex min-w-0 flex-1">
       <Drawer drawer={asDrawer} open={drawerOpen} onOpenChange={setDrawer} onPull={setPull} label="Sessions">
-        <Pane ref={listPane} ruled className="flex w-full md:w-80 md:shrink-0 xl:w-96" aria-label="Sessions">
+        {/* Beside a session: the list's own widths. In its drawer: the drawer's whole width (the drawer is
+            min(85vw, 24rem); a 20rem list left an empty strip in it between md and xl, as on a car's screen). */}
+        <Pane ref={listPane} ruled className={asDrawer ? 'flex w-full' : 'flex w-full md:w-80 md:shrink-0 xl:w-96'} aria-label="Sessions">
           <PaneHeader
             leading={
               docked ? null : (

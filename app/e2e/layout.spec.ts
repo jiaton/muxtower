@@ -69,3 +69,19 @@ for (const [way, run] of Object.entries(ways)) {
     expect(Math.round(box.x + box.width)).toBe(1440) // and to the window's edge
   })
 }
+
+// A car's screen (between md and xl): the list in its drawer (focus mode) fills the drawer, no empty strip.
+test('the Sessions drawer is filled by its list at a car-like width', async ({ browser }) => {
+  const page = await (await browser.newContext({ viewport: { width: 1100, height: 650 }, hasTouch: true })).newPage()
+  await page.goto(`${DEMO}#/d/demo/s/web-app`)
+  await expect(page.getByPlaceholder('Message the agent')).toBeVisible({ timeout: 20_000 })
+  await focus(page)
+  await page.getByRole('button', { name: 'Sessions' }).first().click()
+  const list = page.getByRole('region', { name: 'Sessions' }).or(page.locator('section[aria-label="Sessions"]')).first()
+  await expect(list).toBeInViewport()
+  const widths = await list.evaluate((el) => ({
+    list: el.getBoundingClientRect().width,
+    drawer: el.parentElement!.getBoundingClientRect().width,
+  }))
+  expect(Math.round(widths.list)).toBe(Math.round(widths.drawer))
+})
