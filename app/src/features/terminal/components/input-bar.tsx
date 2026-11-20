@@ -1,4 +1,4 @@
-import { CornerDownLeft, ImagePlus, Plus, SendHorizontal } from 'lucide-react'
+import { CornerDownLeft, ImagePlus, Plus, SendHorizontal, X } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -211,13 +211,26 @@ export function InputBar({
 
   // Nothing in the box (no words, quotes or pictures): ⌘↵ sends the agent's suggestion, if one shows.
   const empty = !draft.trim() && !quotes.length && !pictures.items.length
-  const offered = empty && suggestion ? suggestion : null
+  // Taken: gone from here at once, and not taken again until the screen shows a suggestion anew (a second
+  // ⌘↵ would only be refused: the agent is at work on the first).
+  const [taken, setTaken] = useState<string | null>(null)
+  useEffect(() => {
+    if (suggestion !== taken) setTaken(null)
+  }, [suggestion, taken])
+  const offered = empty && suggestion && suggestion !== taken ? suggestion : null
   const takeRef = useRef<() => boolean>(() => false)
   takeRef.current = () => {
     if (!offered || accept.isPending) return false
+    setTaken(offered)
     accept.mutate(offered)
     return true
   }
+  // A suggestion not taken (the screen changed under it) says so for a moment, then goes.
+  useEffect(() => {
+    if (!accept.isError) return
+    const timer = setTimeout(() => accept.reset(), BANNER_MS)
+    return () => clearTimeout(timer)
+  }, [accept.isError, accept])
 
   const keyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (mentions.onKeyDown(e)) return // the mention menu's: Up/Down, Enter/Tab to insert, Esc
@@ -247,17 +260,17 @@ export function InputBar({
   return (
     <div ref={composer} className="flex flex-col gap-2">
       {send.isError ? (
-        <Banner tone="error" aligned>
+        <Banner tone="error" aligned action={<Dismiss onClick={() => send.reset()} />}>
           {send.error.message}
         </Banner>
       ) : null}
       {accept.isError ? (
-        <Banner tone="error" aligned>
+        <Banner tone="error" aligned action={<Dismiss onClick={() => accept.reset()} />}>
           Not sent: {accept.error.message}
         </Banner>
       ) : null}
       {pictures.error ? (
-        <Banner tone="error" aligned>
+        <Banner tone="error" aligned action={<Dismiss onClick={pictures.dismissError} />}>
           {pictures.error}
         </Banner>
       ) : null}
@@ -406,5 +419,17 @@ export function InputBar({
         </form>
       </div>
     </div>
+  )
+}
+
+/** How long a passing error (a suggestion the screen no longer had) stays. */
+const BANNER_MS = 6000
+
+/** A composer banner's ×: it goes now (each also goes by itself when what it said passes). */
+function Dismiss({ onClick }: { onClick: () => void }) {
+  return (
+    <Button variant="ghost" size="icon-xs" aria-label="Dismiss" onClick={onClick}>
+      <X aria-hidden />
+    </Button>
   )
 }

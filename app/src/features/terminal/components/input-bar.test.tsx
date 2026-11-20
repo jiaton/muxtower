@@ -7,9 +7,12 @@ import { draftBox } from '../draft-box'
 
 const mutate = vi.fn((_body: unknown, options?: { onSuccess?: () => void; onError?: () => void }) => options?.onSuccess?.())
 const acceptSuggestion = vi.fn()
+const acceptReset = vi.fn()
+// What the suggestion's request did, as a test sets it: a refusal shows its banner.
+const acceptState: { isError: boolean; error: Error | null } = { isError: false, error: null }
 vi.mock('../api/use-terminal', () => ({
   useSendInput: () => ({ mutate, isPending: false, isError: false }),
-  useAcceptSuggestion: () => ({ mutate: acceptSuggestion, isPending: false, isError: false }),
+  useAcceptSuggestion: () => ({ mutate: acceptSuggestion, isPending: false, reset: acceptReset, ...acceptState }),
 }))
 // jsdom draws no pictures: one that fits is sent as it is anyway. `hold` keeps the next one in the works.
 let hold: Promise<void> | null = null
@@ -350,5 +353,34 @@ describe("the agent's suggested prompt", () => {
     expect(acceptSuggestion).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Send suggestion: yes, open it' }))
     expect(acceptSuggestion).toHaveBeenCalledWith('yes, open it')
+  })
+
+  it('taken once: a second Ctrl+Enter sends nothing more, and the box is plain again until a new suggestion', () => {
+    const { rerender } = render(<InputBar daemonId="nas" sessionId="s1" suggestion="yes, open it" />)
+    const box = screen.getByRole('textbox', { name: 'Message the agent' })
+    fireEvent.keyDown(box, ctrlEnter)
+    fireEvent.keyDown(box, ctrlEnter)
+    expect(acceptSuggestion).toHaveBeenCalledTimes(1)
+    expect(box).toHaveAttribute('placeholder', 'Message the agent')
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+    rerender(<InputBar daemonId="nas" sessionId="s1" suggestion={null} />) // the agent at work: none on screen
+    rerender(<InputBar daemonId="nas" sessionId="s1" suggestion="yes, open it" />) // a new turn's, read anew
+    fireEvent.keyDown(box, ctrlEnter)
+    expect(acceptSuggestion).toHaveBeenCalledTimes(2)
+  })
+
+  it('a suggestion not taken says so with a ×, and goes by itself after a few seconds', () => {
+    vi.useFakeTimers()
+    acceptState.isError = true
+    acceptState.error = new Error('it is not waiting at its prompt')
+    render(<InputBar daemonId="nas" sessionId="s1" suggestion="yes, open it" />)
+    expect(screen.getByText(/Not sent: it is not waiting at its prompt/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(acceptReset).toHaveBeenCalledTimes(1)
+    act(() => void vi.advanceTimersByTime(6000))
+    expect(acceptReset).toHaveBeenCalledTimes(2) // and by itself
+    acceptState.isError = false
+    acceptState.error = null
+    vi.useRealTimers()
   })
 })

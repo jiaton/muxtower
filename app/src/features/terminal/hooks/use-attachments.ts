@@ -58,5 +58,6 @@ export function useAttachments() {
     setItems((now) => [...back.map((a) => ({ ...a, preview: URL.createObjectURL(a.blob) })), ...now].slice(0, MAX_IMAGES))
   }, [])
 
-  return { items, pending, error, add, remove, take, restore }
+  const dismissError = () => setError(null)
+  return { items, pending, error, dismissError, add, remove, take, restore }
 }
