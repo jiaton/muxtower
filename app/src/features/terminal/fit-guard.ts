@@ -1,11 +1,20 @@
+import { useLayoutDrawer } from '@/lib/layout-drawer'
+import { useLayoutPrefs } from '@/lib/layout-prefs'
+
 /**
  * The sizes a fitted pane was given, to keep a fit from fighting itself: a size equal to the last one
  * (or a few rows off) is not sent again, and one that only goes back to the size before it (A, B, A)
  * within BOUNCE_MS is not sent at all, since it is the page and the agent bouncing off each other (the
  * agent redraws for B, which changes the page, which measures A again…), not the view being resized.
+ * That bounce is only ever content's doing (a scrollbar coming and going): a fit for a frame change
+ * (`watchFrame`: the window, full screen, the layout…) forgets the sizes before, so full screen and back
+ * within BOUNCE_MS fits both ways.
  */
 export const BOUNCE_MS = 10_000
 export const SMALL_ROWS = 2
+
+/** Why a fit was measured: the frame around the view changed (`watchFrame`), or only what is in it. */
+export type FitCause = 'frame' | 'content'
 
 export interface Size {
   cols: number
@@ -15,8 +24,10 @@ export interface Size {
 export class FitGuard {
   private sent: { size: Size; at: number }[] = []
 
-  /** Whether to send `size` now; if so, it is counted as sent. */
-  allow(size: Size, now = Date.now()): boolean {
+  /** Whether to send `size` now; if so, it is counted as sent. `cause` 'frame': the view was resized on
+   *  purpose, so going back to the size before is no bounce. */
+  allow(size: Size, now = Date.now(), cause: FitCause = 'content'): boolean {
+    if (cause === 'frame') this.sent = this.sent.slice(-1)
     const last = this.sent.at(-1)
     if (last && last.size.cols === size.cols && Math.abs(last.size.rows - size.rows) <= SMALL_ROWS) return false
     const before = this.sent.at(-2)
@@ -48,8 +59,45 @@ export class StableHeight {
 
 /** What a pane's fitted height is kept for: the view's width, and on a screen with a mouse the window's
  *  size too (resizing the window is a real change; on a phone the keyboard resizes it, which is not). */
-export const frameOf = (width: number, touch: boolean, window: { innerWidth: number; innerHeight: number }) =>
-  touch ? `${width}` : `${width} ${window.innerWidth}x${window.innerHeight}`
+/** `epoch` counts full screens entered and left (`watchFrame`): on a touch screen that changes only the
+ *  height, which the keyboard changes too, so the frame is told by it. */
+export const frameOf = (width: number, touch: boolean, window: { innerWidth: number; innerHeight: number }, epoch = 0) =>
+  touch ? `${width} #${epoch}` : `${width} ${window.innerWidth}x${window.innerHeight} #${epoch}`
+
+/** A deliberate change of the frame around a terminal view. */
+export type FrameChange = 'resize' | 'fullscreen' | 'rotation' | 'layout' | 'drawer'
+
+/**
+ * Calls `onChange` on every deliberate change of the frame a view sits in: the window or viewport
+ * resized, full screen entered or left, the device rotated, the layout switched (`useLayoutPrefs`) or the
+ * drawer opened or closed (`useLayoutDrawer`). The view refits once things settle, whatever its size was
+ * before. Returns the unsubscribe.
+ */
+export function watchFrame(onChange: (change: FrameChange) => void): () => void {
+  const resize = () => onChange('resize')
+  const fullscreen = () => onChange('fullscreen')
+  const rotation = () => onChange('rotation')
+  window.addEventListener('resize', resize)
+  window.visualViewport?.addEventListener('resize', resize)
+  document.addEventListener('fullscreenchange', fullscreen)
+  document.addEventListener('webkitfullscreenchange', fullscreen)
+  screen.orientation?.addEventListener?.('change', rotation)
+  const layout = useLayoutPrefs.subscribe((s, prev) => s.layout !== prev.layout && onChange('layout'))
+  const drawer = useLayoutDrawer.subscribe((s, prev) => s.open !== prev.open && onChange('drawer'))
+  return () => {
+    window.removeEventListener('resize', resize)
+    window.visualViewport?.removeEventListener('resize', resize)
+    document.removeEventListener('fullscreenchange', fullscreen)
+    document.removeEventListener('webkitfullscreenchange', fullscreen)
+    screen.orientation?.removeEventListener?.('change', rotation)
+    layout()
+    drawer()
+  }
+}
+
+/** The diagnostic line a fit logs: its size and why. */
+export const fitLine = (size: Size, cause: FitCause, change?: FrameChange) =>
+  `fitted to ${size.cols}x${size.rows} (${cause === 'frame' ? `frame: ${change ?? 'resize'}` : 'content'})`
 
 /** Shown after a fit, until the agent has redrawn: the screen before it, while the new one is mostly
  *  blank (the agent clears before it paints), for at most HOLD_MS. */

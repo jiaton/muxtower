@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest'
-import { BOUNCE_MS, FitGuard, StableHeight, frameOf, heldScreen, visibleChars } from './fit-guard'
+import { describe, expect, it, vi } from 'vitest'
+import { useLayoutDrawer } from '@/lib/layout-drawer'
+import { useLayoutPrefs } from '@/lib/layout-prefs'
+import { BOUNCE_MS, FitGuard, StableHeight, fitLine, frameOf, heldScreen, visibleChars, watchFrame } from './fit-guard'
 
 describe('FitGuard', () => {
   it('sends a new size, never the same one again, nor one a couple of rows off', () => {
@@ -16,6 +18,13 @@ describe('FitGuard', () => {
     expect(g.allow({ cols: 117, rows: 126 }, 1000)).toBe(false) // and went: not again
     expect(g.allow({ cols: 117, rows: 126 }, 1000 + BOUNCE_MS)).toBe(true) // much later: a real change
   })
+  it('a frame change (full screen in and out) goes back to the size before at once', () => {
+    const g = new FitGuard()
+    expect(g.allow({ cols: 117, rows: 40 }, 0)).toBe(true)
+    expect(g.allow({ cols: 160, rows: 50 }, 500, 'frame')).toBe(true) // full screen
+    expect(g.allow({ cols: 117, rows: 40 }, 2000, 'frame')).toBe(true) // and out: fitted back
+    expect(g.allow({ cols: 117, rows: 40 }, 2100, 'frame')).toBe(false) // the same size is still never sent twice
+  })
 })
 
 describe('StableHeight', () => {
@@ -26,6 +35,8 @@ describe('StableHeight', () => {
     expect(k.height(frameOf(390, true, win(390, 480)), 380)).toBe(700) // keyboard up (the window shrank too)
     expect(k.height(frameOf(390, true, win(390, 844)), 700)).toBe(700) // and down: nothing new to send
     expect(k.height(frameOf(844, true, win(844, 390)), 300)).toBe(300) // rotated: fitted once
+    expect(k.height(frameOf(844, true, win(844, 390), 1), 340)).toBe(340) // full screen: taller
+    expect(k.height(frameOf(844, true, win(844, 390), 2), 300)).toBe(300) // and out: shorter again
   })
   it('with a mouse: the Live row, quotes, the + panel or a long draft never change it; the window does', () => {
     const k = new StableHeight()
@@ -52,5 +63,26 @@ describe('heldScreen', () => {
   it('counts what a reader would see, not escape codes', () => {
     expect(visibleChars('\x1b[31m\x1b[1m   \x1b[0m\n')).toBe(0)
     expect(visibleChars('\x1b[32mok\x1b[0m done')).toBe(6)
+  })
+})
+
+describe('watchFrame', () => {
+  it('reports the window, full screen, the layout and the drawer; stops when unwatched', () => {
+    const seen = vi.fn()
+    const unwatch = watchFrame(seen)
+    window.dispatchEvent(new Event('resize'))
+    document.dispatchEvent(new Event('fullscreenchange'))
+    useLayoutPrefs.getState().setLayout('session')
+    useLayoutDrawer.getState().setOpen(true)
+    useLayoutDrawer.getState().setOpen(false)
+    expect(seen.mock.calls.map(([c]) => c)).toEqual(['resize', 'fullscreen', 'layout', 'drawer', 'drawer'])
+    unwatch()
+    useLayoutPrefs.getState().setLayout('full')
+    document.dispatchEvent(new Event('fullscreenchange'))
+    expect(seen).toHaveBeenCalledTimes(5)
+  })
+  it('says why a fit was made', () => {
+    expect(fitLine({ cols: 80, rows: 24 }, 'frame', 'fullscreen')).toBe('fitted to 80x24 (frame: fullscreen)')
+    expect(fitLine({ cols: 80, rows: 24 }, 'content')).toBe('fitted to 80x24 (content)')
   })
 })

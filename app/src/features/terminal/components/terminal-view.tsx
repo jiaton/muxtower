@@ -9,7 +9,7 @@ import { align, collapseGap } from '../lines'
 import { useTerminalPrefs } from '../store'
 import { Spinner } from '@/components/ui/indicators'
 import { look } from '@/components/ui/intents'
-import { FitGuard, StableHeight, frameOf } from '../fit-guard'
+import { FitGuard, StableHeight, fitLine, frameOf, watchFrame, type FrameChange } from '../fit-guard'
 import { rowPx } from '../geometry'
 import { useDevicePixelRatio } from '../hooks/use-device-pixel-ratio'
 
@@ -138,6 +138,8 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
     const guard = new FitGuard() // never the same size twice, never bouncing between two
     const stable = new StableHeight() // what comes and goes around the view never resizes the pane
     const touch = window.matchMedia?.('(pointer: coarse)').matches ?? false
+    let change: FrameChange | undefined // a deliberate frame change since the last fit (`watchFrame`)
+    let epoch = 0 // full screens entered and left: a new frame for StableHeight
     const measure = () => {
       // At the bottom, it stays there through the change at once (not a moment later, its last lines hidden).
       if (atBottom.current) scrollBox.scrollTop = scrollBox.scrollHeight
@@ -150,9 +152,13 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
         const width = scrollBox.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
         const height = scrollBox.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
         const cols = Math.max(20, Math.floor((width - 1) / (line.width / 10)))
-        const fitted = stable.height(frameOf(Math.round(width), touch, window), height)
+        const fitted = stable.height(frameOf(Math.round(width), touch, window, epoch), height)
         const rows = Math.min(200, Math.max(5, Math.floor(fitted / line.height)))
-        if (!guard.allow({ cols, rows })) return
+        const cause = change ? 'frame' : 'content'
+        const why = change
+        change = undefined
+        if (!guard.allow({ cols, rows }, Date.now(), cause)) return
+        console.info('[terminal]', fitLine({ cols, rows }, cause, why))
         setViewRows(rows)
         onFit({ cols, rows })
       }, 250)
@@ -161,8 +167,15 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
     const observer = new ResizeObserver(measure)
     observer.observe(scrollBox)
     document.fonts?.addEventListener('loadingdone', measure)
+    // The frame changed on purpose: fit once it settles (the debounce above), never taken for a bounce.
+    const unwatch = watchFrame((c) => {
+      if (c === 'fullscreen') epoch++
+      change = c
+      measure()
+    })
     return () => {
       clearTimeout(timer)
+      unwatch()
       observer.disconnect()
       document.fonts?.removeEventListener('loadingdone', measure)
     }
