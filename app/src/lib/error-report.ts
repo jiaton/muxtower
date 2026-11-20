@@ -1,7 +1,7 @@
 import { createDaemonClient } from './api/client'
 import { APP_VERSION } from './app-update'
 import { useDaemonsStore } from './daemons/store'
-import { routePattern } from './web-analytics'
+import { routePattern } from './route-pattern'
 
 /**
  * What goes wrong in the app, told to the daemon it is paired with (POST /v1/diagnostics, source

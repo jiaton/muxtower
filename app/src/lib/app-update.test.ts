@@ -14,7 +14,11 @@ it('tells versions apart by number, not as text', () => {
 
 it('says a new version is there while the app is in front, and looks for one when it comes back', async () => {
   const update = vi.fn(async () => {})
-  const workers = Object.assign(new EventTarget(), { controller: {}, getRegistration: async () => ({ update }) })
+  const pushUpdate = vi.fn(async () => {}) // a daemon's push registration handles tapped notifications
+  const workers = Object.assign(new EventTarget(), {
+    controller: {},
+    getRegistrations: async () => [{ update }, { update: pushUpdate }],
+  })
   Object.defineProperty(navigator, 'serviceWorker', { value: workers, configurable: true })
   const reload = vi.fn()
   vi.stubGlobal('location', { ...location, reload })
@@ -24,5 +28,6 @@ it('says a new version is there while the app is in front, and looks for one whe
   expect(reload).not.toHaveBeenCalled() // never under the owner's hands
   document.dispatchEvent(new Event('visibilitychange'))
   await vi.waitFor(() => expect(update).toHaveBeenCalled()) // visible again: asks for a newer worker
+  expect(pushUpdate).toHaveBeenCalled() // for every registration
   vi.unstubAllGlobals()
 })

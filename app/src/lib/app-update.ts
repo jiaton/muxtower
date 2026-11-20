@@ -17,9 +17,11 @@ export const useAppUpdate = create<{ ready: boolean }>()(() => ({ ready: false }
 
 export function lookForUpdate() {
   if (!('serviceWorker' in navigator)) return
+  // Every registration: the app's, and each daemon's push one (`sw.ts`), which runs the same script and
+  // handles tapped notifications, and which the browser would otherwise check only after a push a day on.
   void navigator.serviceWorker
-    .getRegistration()
-    .then((registration) => registration?.update())
+    .getRegistrations()
+    .then((registrations) => Promise.all(registrations.map((r) => r.update().catch(() => {}))))
     .catch(() => {}) // offline, or the daemon down: next time
 }
 

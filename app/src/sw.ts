@@ -6,7 +6,9 @@ import { clientsClaim } from 'workbox-core'
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { NOT_THE_APP } from './lib/sw-routes'
-import { alertsAgain, closeSessions, openFromNotification, pushTag } from './lib/sw-notifications'
+import { alertsAgain, closeSessions, pushTag } from './lib/sw-notifications'
+import { appBaseOf, openFromNotification } from './lib/push-click'
+import { savePushClick } from './lib/push-click-store'
 
 declare const self: ServiceWorkerGlobalScope
 
@@ -31,10 +33,8 @@ interface PushPayload {
   settled?: string[] // sessions notified about before, seen or answered since
 }
 
-const appBase = () => {
-  const scope = new URL(self.registration.scope)
-  return scope.pathname.replace(/push\/[^/]+\/$/, '')
-}
+/** The app's base path, as this registration's scope gives it. */
+const appBase = () => new URL(appBaseOf(self.registration.scope)).pathname
 
 self.addEventListener('push', (event) => {
   const data = event.data?.json() as PushPayload | undefined
@@ -63,19 +63,20 @@ self.addEventListener('push', (event) => {
   )
 })
 
-/** The app's own windows (not the glasses page or anything else on this origin), the one in front first. */
-async function appWindows(): Promise<WindowClient[]> {
-  const base = new URL(appBase(), self.location.origin).href
-  const rank = (c: WindowClient) => (c.focused ? 2 : c.visibilityState === 'visible' ? 1 : 0)
-  const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-  return windows.filter((c) => c.url.startsWith(base) && !c.url.startsWith(`${base}g2/`)).sort((a, b) => rank(b) - rank(a))
-}
-
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const url = (event.notification.data as { url: string }).url
-  // At once, no network: the best app window is told where to go and brought forward (the app goes there
-  // itself, `useNotificationClicks`: this registration, a daemon's, does not control the app's pages, and a
-  // navigation would reload the app), or a new window opens on it. Anything else is the app's, after.
-  event.waitUntil((async () => openFromNotification(url, await appWindows(), (to) => self.clients.openWindow(to)))())
+  // At once, no network: the app's best window is told where to go and, once it says it went, brought
+  // forward; else it is navigated (if this worker controls it) or a new window opens (`lib/push-click.ts`).
+  // What happened is kept for the app to post (`push-click` diagnostics).
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      const record = await openFromNotification(url, all, appBaseOf(self.registration.scope), {
+        openWindow: (to) => self.clients.openWindow(to),
+      })
+      console.info('[push-click]', JSON.stringify(record))
+      await savePushClick(record)
+    })(),
+  )
 })

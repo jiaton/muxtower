@@ -5,6 +5,13 @@ import { useCloseSettledNotifications, useNotificationClicks, settledIn } from '
 
 const push = vi.fn()
 vi.mock('@tanstack/react-router', () => ({ useRouter: () => ({ history: { push } }) }))
+const posted = vi.hoisted(() => [] as { records: unknown[]; url?: string }[])
+const kept = vi.hoisted(() => ({ records: [] as unknown[] }))
+vi.mock('../api/report-clicks', async (actual) => ({
+  ...(await actual<typeof import('../api/report-clicks')>()),
+  postClicks: async (records: unknown[], url?: string) => void posted.push({ records, url }),
+}))
+vi.mock('@/lib/push-click-store', () => ({ takePushClicks: async () => kept.records.splice(0) }))
 
 /** This browser as one that can push, its service workers showing `shown`. */
 function browser(shown: { tag: string; at: number; close: () => void }[]) {
@@ -24,12 +31,43 @@ afterEach(() => {
 })
 
 describe('useNotificationClicks', () => {
-  it('goes where a notification tapped while the app is open points', () => {
+  const navigate = (data: unknown, port?: { postMessage: (m: unknown) => void }) => {
+    const e = new MessageEvent('message', { data })
+    Object.defineProperty(e, 'ports', { value: port ? [port] : [] })
+    return e
+  }
+
+  it('goes where a notification tapped while the app is open points, and says so on its port', () => {
+    const container = browser([])
+    container.startMessages = vi.fn()
+    renderHook(() => useNotificationClicks())
+    expect(container.startMessages).toHaveBeenCalled() // the queue is not left shut until the page has loaded
+    const port = { postMessage: vi.fn() }
+    container.dispatchEvent(navigate({ type: 'navigate', url: '/d/nas/s/s2' }, port))
+    container.dispatchEvent(navigate({ type: 'other' }))
+    expect(push.mock.calls).toEqual([['/d/nas/s/s2']])
+    expect(port.postMessage).toHaveBeenCalledWith({ type: 'navigated' })
+    expect(push.mock.invocationCallOrder[0]).toBeLessThan(port.postMessage.mock.invocationCallOrder[0]!)
+  })
+
+  it("posts the worker's record with its own part, and the records kept from earlier clicks", async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    posted.length = 0
+    kept.records.push({ id: 'old', stage: 'sw' })
     const container = browser([])
     renderHook(() => useNotificationClicks())
-    container.dispatchEvent(new MessageEvent('message', { data: { type: 'navigate', url: '/d/nas/s/s2' } }))
-    container.dispatchEvent(new MessageEvent('message', { data: { type: 'other' } }))
-    expect(push.mock.calls).toEqual([['/d/nas/s/s2']])
+    await vi.waitFor(() => expect(posted).toEqual([{ records: [{ id: 'old', stage: 'sw' }], url: undefined }])) // at start
+    const at = new Date(Date.now() - 120).toISOString()
+    const click = { id: 'c1', at, stage: 'sw', base: '/', target: '/d/:daemon/s/:session', windows: [], others: [], chosen: 0, message: 'sent', ack: null, ackMs: null, focus: null, fallback: 'none', ms: 3 }
+    container.dispatchEvent(navigate({ type: 'navigate', url: '/d/nas/s/s2', click }, { postMessage: () => {} }))
+    expect(posted[1]).toEqual({
+      records: [{ ...click, stage: 'app', app: { ms: 120, from: '/' } }],
+      url: '/d/nas/s/s2',
+    })
+    kept.records.push({ id: 'c1', stage: 'sw', ack: true })
+    await vi.advanceTimersByTimeAsync(3000) // the worker's whole record, by then kept
+    expect(posted[2]?.records).toEqual([{ id: 'c1', stage: 'sw', ack: true }])
+    vi.useRealTimers()
   })
 })
 

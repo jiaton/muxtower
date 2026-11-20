@@ -1,21 +1,51 @@
 import { useRouter } from '@tanstack/react-router'
 import { useEffect, useRef } from 'react'
 import type { Session } from '@/lib/api/types'
+import type { PushClickRecord } from '@/lib/push-click'
+import { takePushClicks } from '@/lib/push-click-store'
+import { appRecord, postClicks } from '../api/report-clicks'
 import { pushSupport } from '../api/use-push'
 
+/** How long after a click the app posts the service worker's own record of it (kept in IndexedDB), by
+ *  then complete (`ACK_MS` plus `FOCUS_MS`, and some). */
+const KEPT_AFTER_MS = 3000
+
+interface NavigateMessage {
+  type?: string
+  url?: unknown
+  click?: PushClickRecord
+}
+
 /** A notification tapped while the app is open: the service worker asks the app to go there (it cannot
- *  navigate a page it does not control), and the app goes, without reloading. */
+ *  navigate a page it does not control), and the app goes, without reloading, and says so on the port the
+ *  message came with (else the worker falls back: `lib/push-click.ts`). Both sides' records of the click
+ *  are posted to the daemon: the worker's from IndexedDB, at start and after a click. */
 export function useNotificationClicks() {
   const router = useRouter()
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return
     const workers = navigator.serviceWorker
+    let later: ReturnType<typeof setTimeout> | undefined
+    const postKept = () => void takePushClicks().then((records) => postClicks(records))
     const message = (e: MessageEvent) => {
-      const data = e.data as { type?: string; url?: unknown } | null
-      if (data?.type === 'navigate' && typeof data.url === 'string') router.history.push(data.url)
+      const data = e.data as NavigateMessage | null
+      if (data?.type !== 'navigate' || typeof data.url !== 'string') return
+      const from = location.pathname
+      router.history.push(data.url)
+      e.ports[0]?.postMessage({ type: 'navigated' })
+      if (data.click) void postClicks([appRecord(data.click, from, import.meta.env.BASE_URL)], data.url)
+      clearTimeout(later)
+      later = setTimeout(postKept, KEPT_AFTER_MS)
     }
     workers.addEventListener('message', message)
-    return () => workers.removeEventListener('message', message)
+    // Messages from a service worker wait in a queue that addEventListener does not open (onmessage or
+    // the document's load does); opened here, a tap that starts the app is not held until then.
+    workers.startMessages?.()
+    postKept() // clicks no window answered, kept since the last start
+    return () => {
+      clearTimeout(later)
+      workers.removeEventListener('message', message)
+    }
   }, [router])
 }
 
