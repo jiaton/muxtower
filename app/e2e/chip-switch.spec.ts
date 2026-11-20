@@ -10,6 +10,22 @@ const chips = (page: Page) => page.getByRole('navigation', { name: 'Projects' })
 const current = (page: Page) => chips(page).locator('a[data-current="true"]')
 const list = (page: Page) => page.locator('section[aria-label="Sessions"]')
 
+/** `n` wheel events of `dx` each over the list's first row, 16 ms apart, dispatched in the page. */
+async function swipe(page: Page, n: number, dx: number) {
+  await list(page)
+    .locator('[data-row-link]')
+    .first()
+    .evaluate(
+      async (row, [count, delta]) => {
+        for (let i = 0; i < count; i++) {
+          row.dispatchEvent(new WheelEvent('wheel', { deltaX: delta, deltaY: 0, bubbles: true, cancelable: true }))
+          await new Promise((r) => setTimeout(r, 16))
+        }
+      },
+      [n, dx] as const,
+    )
+}
+
 async function start(page: Page, width: number, height: number) {
   await page.setViewportSize({ width, height })
   await page.goto(`${DEMO}#/`)
@@ -25,8 +41,10 @@ test('a sideways wheel over the list steps through the chips, once per gesture, 
   await page.mouse.wheel(120, 0)
   await expect(current(page)).toHaveText(/^Product/)
   await page.waitForTimeout(IDLE)
-  // A trackpad's long swipe: a quick series, one step only.
-  for (let i = 0; i < 12; i++) await page.mouse.wheel(30, 0)
+  // A trackpad's long swipe: a quick series, 16 ms apart as a trackpad sends them, one step only. Sent from in
+  // the page: one page.mouse.wheel at a time waits for a round trip, which a loaded CI runner stretched past
+  // the 300 ms rest (two gestures, rightly two steps).
+  await swipe(page, 12, 30)
   await expect(current(page)).toHaveText(/^Ops/)
   await page.waitForTimeout(IDLE)
   await expect(current(page)).toHaveText(/^Ops/)
@@ -88,7 +106,9 @@ test('each chip opens the session last opened under it again', async ({ page }) 
   const open = () => page.evaluate(() => decodeURIComponent(location.hash.split('?')[0]!))
   const rows = list(page).locator('[data-row-link]')
   const session = /^#\/d\/demo\/s\//
-  await chips(page).getByRole('link', { name: /^Product/ }).click()
+  await chips(page)
+    .getByRole('link', { name: /^Product/ })
+    .click()
   await expect(current(page)).toHaveText(/^Product/)
   await expect.poll(open).toMatch(session) // nothing remembered yet: its first
   const first = await open()
@@ -102,7 +122,9 @@ test('each chip opens the session last opened under it again', async ({ page }) 
   await rows.last().click()
   await expect.poll(open).not.toBe(opsFirst)
   const ops = await open()
-  await chips(page).getByRole('link', { name: /^Product/ }).click()
+  await chips(page)
+    .getByRole('link', { name: /^Product/ })
+    .click()
   await expect(current(page)).toHaveText(/^Product/)
   await expect.poll(open).toBe(product)
   // And by the wheel, back to Ops' session.
