@@ -56,3 +56,19 @@ it('a preset fills the folder; the first message is focused, and Enter starts it
   await waitFor(() => expect(sent).toHaveLength(1))
   expect(sent[0]).toMatchObject({ cwd: '/home/me/code/shop', prompt: 'Fix the flaky test' })
 })
+
+it("started from a session, the new one is set to that session's project", async () => {
+  const teams: Record<string, unknown>[] = []
+  server.use(
+    http.put(`${DAEMON_URL}/v1/sessions/new1/team`, async ({ request }) => {
+      teams.push((await request.json()) as Record<string, unknown>)
+      return HttpResponse.json({})
+    }),
+  )
+  const sent = show((daemonId) => ({ daemonId, node: null, cwd: '/home/me/code/shop', project: 'acme/shop' }))
+  expect(await screen.findByText(/Role in acme\/shop/)).toBeInTheDocument()
+  fireEvent.click(await screen.findByRole('button', { name: 'Start' }))
+  await waitFor(() => expect(teams).toHaveLength(1))
+  expect(sent).toHaveLength(1)
+  expect(teams[0]).toEqual({ project: 'acme/shop', rename_project: false })
+})

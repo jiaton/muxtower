@@ -24,12 +24,14 @@ export function computerOf(session: Session, nodes: readonly string[]): string |
 /** The folder a session runs in, as a place to start another: its worktree or folder as it is. */
 const folderOfSession = (s: Session) => s.git?.worktree ?? s.cwd ?? ''
 
-/** "New session here", on a session: its machine, its folder, and its team project if it is in one;
- *  null where its computer cannot start one. */
+/** "New session here", on a session: its machine, its folder, and its project (set, or from git), which the
+ *  new one is set to; none for one whose project is only its folder's name (no project). Null where its
+ *  computer cannot start one. */
 export function presetForSession(daemonId: string, session: Session, nodes: readonly string[]): NewSessionPreset | null {
   const node = computerOf(session, nodes)
   if (node === undefined) return null
-  return { daemonId, node, cwd: folderOfSession(session), ...(session.project ? { project: session.project } : {}) }
+  const project = session.project && session.project_source !== 'folder' ? session.project : null
+  return { daemonId, node, cwd: folderOfSession(session), ...(project ? { project } : {}) }
 }
 
 /** The first of `entries` whose computer can start a session, with that computer. */

@@ -105,7 +105,7 @@ export function SessionRow({
               {session.name}
             </span>
             {context.projectTag ? (
-              <span className={`${look.tag} max-w-40 shrink-0 self-center truncate`}>{placeGroupOf(session, entry.team).name}</span>
+              <span className={`${look.tag} max-w-40 shrink-0 self-center truncate`}>{placeGroupOf(session).name}</span>
             ) : null}
             {context.deviceTag ? <span className={`${look.tag} shrink-0 self-center`}>{deviceOf(session) ?? NO_ENVIRONMENT}</span> : null}
             {writing ? (

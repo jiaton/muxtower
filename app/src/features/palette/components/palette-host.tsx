@@ -132,7 +132,7 @@ function Palette({ entries, current, actions = [] }: { entries: SessionEntry[]; 
       items: sessions.map((e): PaletteItem => ({
         id: e.key,
         label: e.session.name,
-        children: <SessionItem session={e.session} team={e.team} />,
+        children: <SessionItem session={e.session} />,
         onSelect: () => openSession(e),
       })),
     },
@@ -213,8 +213,8 @@ function HitItem({ hit, name }: { hit: SearchHit; name: string }) {
 }
 
 /** A session as the list shows it, in one line and a half: its state, name, time; role · project, device. */
-function SessionItem({ session, team }: { session: Session; team?: string }) {
-  const where = [roleNameOf(session), placeGroupOf(session, team).name].filter(Boolean).join(' · ')
+function SessionItem({ session }: { session: Session }) {
+  const where = [roleNameOf(session), placeGroupOf(session).name].filter(Boolean).join(' · ')
   return (
     <div className="flex min-w-0 items-start gap-2">
       <StatusIcon state={session.state} assistant={isAssistant(session)} unread={session.unread} className="mt-0.5" />

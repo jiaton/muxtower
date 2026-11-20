@@ -1,14 +1,14 @@
 /** A project's team, as a card shows it: every known session of the project (team project, `my_team`'s),
  *  on every device, not only the one whose row it is shown on. */
 import { OTHER, projectIn, type ChipGroup } from './chip-groups'
-import { placeOf, teamOfEntry, type SessionEntry } from './facets'
+import { placeOf, type SessionEntry } from './facets'
 import { compareEntries } from './query'
 import { workspacesOf } from './workspaces'
 
 /** The team project of the sessions a row lists, when they all have the same one (not a workspace, whose
  *  row holds several). */
 export function projectOfRow(rowEntries: SessionEntry[]): string | null {
-  const projects = new Set(rowEntries.map(teamOfEntry))
+  const projects = new Set(rowEntries.map((e) => e.session.project ?? null))
   const [only] = projects
   return projects.size === 1 ? only : null
 }
@@ -17,7 +17,7 @@ export function projectOfRow(rowEntries: SessionEntry[]): string | null {
  *  and interrupted ones are no team members. */
 export function teamOf(entries: SessionEntry[], project: string): SessionEntry[] {
   return entries
-    .filter((e) => teamOfEntry(e) === project && (placeOf(e.session) === 'listed' || placeOf(e.session) === 'hidden'))
+    .filter((e) => e.session.project === project && (placeOf(e.session) === 'listed' || placeOf(e.session) === 'hidden'))
     .sort(compareEntries)
 }
 
@@ -34,7 +34,7 @@ export function folderToStart(members: SessionEntry[], device?: string): { entry
 export function teamProject(entries: SessionEntry[], project: string): string | null {
   if (project === OTHER) return null
   const workspaces = workspacesOf(entries)
-  const projects = new Set(entries.filter((e) => projectIn(e, workspaces) === project).map(teamOfEntry))
+  const projects = new Set(entries.filter((e) => projectIn(e, workspaces) === project).map((e) => e.session.project ?? null))
   const [only] = projects
   return projects.size === 1 ? only : null
 }
@@ -43,9 +43,6 @@ export function teamProject(entries: SessionEntry[], project: string): string | 
  *  single sessions it holds; each once, and only a project some known session is in. */
 export function teamsOfGroup(group: ChipGroup, entries: SessionEntry[]): string[] {
   const fromProjects = group.projects.map((p) => teamProject(entries, p))
-  const fromSessions = group.sessions.map((id) => {
-    const entry = entries.find((e) => e.session.id === id)
-    return entry ? teamOfEntry(entry) : null
-  })
+  const fromSessions = group.sessions.map((id) => entries.find((e) => e.session.id === id)?.session.project ?? null)
   return [...new Set([...fromProjects, ...fromSessions])].filter((p): p is string => Boolean(p) && teamOf(entries, p!).length > 0)
 }

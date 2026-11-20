@@ -52,6 +52,11 @@ describe('presets for a new session', () => {
     })
     expect(presetForSession('d1', cloud(), NODES)).toBeNull()
   })
+  it("takes the session's project, set or from git, but never a folder's name", () => {
+    expect(presetForSession('d1', hub({ project: 'acme/shop', project_source: 'git remote' }), NODES)?.project).toBe('acme/shop')
+    expect(presetForSession('d1', hub({ project: 'Shop', project_source: 'set' }), NODES)?.project).toBe('Shop')
+    expect(presetForSession('d1', hub({ project: 'shop', project_source: 'folder' }), NODES)).not.toHaveProperty('project')
+  })
   it('in a git worktree: the worktree, not the main folder', () => {
     const s = hub({ cwd: '/w/feature/src', git: { repo: '/code/shop', worktree: '/w/feature' } as Session['git'] })
     expect(presetForSession('d1', s, NODES)?.cwd).toBe('/w/feature')

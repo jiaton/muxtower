@@ -54,8 +54,8 @@ class StartArgs(BaseModel):
     project: str | None = Field(
         default=None,
         description=(
-            "its project; to start a teammate, copy your project's exact name from my_team (e.g. owner/repo); "
-            "any other spelling makes a new project; default: worked out from its folder"
+            "its project: defaults to yours (the calling session's); give one to start in another (its exact "
+            "name, as list_sessions shows it: any other spelling makes a new project)"
         ),
     )
     permission_mode: str | None = Field(
@@ -152,7 +152,7 @@ class SessionTools:
                 if (earlier := self._started.get(key)) is not None and (again := self._already(earlier[1])):
                     outcome, session_id = "already started", earlier[1]
                     return again
-                text, session_id = self._start(args)
+                text, session_id = self._start(self._in_callers_project(args))
                 self._started[key] = (self.clock(), session_id)
                 outcome = "started"
                 return text
@@ -162,6 +162,20 @@ class SessionTools:
                 took = self.clock() - started
                 detail = f"machine={where} cwd={args.cwd or '-'} outcome={outcome} took={took:.1f}s"
                 self.audit.record(CALLER.get().actor, "mcp:start_session", session_id, detail)
+
+    def _in_callers_project(self, args: StartArgs) -> StartArgs:
+        """No project given: the calling session's, kept as set. Not for one resumed (it keeps its own), nor
+        for a caller that is no session (a device), nor when the caller has none (only its folder's name)."""
+        caller = CALLER.get().session_id
+        if args.project or args.resume or caller is None or self.teams is None:
+            return args
+        try:
+            mine = self.teams.find(caller)
+        except Exception:  # noqa: BLE001 - no default then: its git or folder, as for a device
+            return args
+        if mine.project_source == "folder":
+            return args
+        return args.model_copy(update={"project": mine.project})
 
     def start_as(self, args: StartArgs, actor: str) -> str:
         """Starts a session for someone not calling a tool (a trigger), the same way, never resuming one and

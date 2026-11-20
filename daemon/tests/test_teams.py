@@ -190,9 +190,9 @@ def test_a_session_on_another_machine_goes_by_its_folder_until_set() -> None:
     assert teams.find("mac~1").project == "shop" and saved[-1].project == "shop" and not saved[-1].project_auto
 
 
-def test_a_folder_named_like_a_team_is_in_that_team() -> None:
-    """One session in the project "Shop" (set), another whose project is only its folder "shop": one team, as
-    my_team, the team view and tasks see it. A folder named like no team stays its own."""
+def test_a_folder_named_like_a_team_is_not_in_it() -> None:
+    """One session in the project "Shop" (set), another whose project is only its folder "shop": the folder
+    is no project, so the second is not in the team (my_team, the team view, tasks), only its folder's."""
     from datetime import UTC, datetime
     from types import SimpleNamespace
 
@@ -227,7 +227,7 @@ def test_a_folder_named_like_a_team_is_in_that_team() -> None:
         lambda cwd: Checkout("x", "git root"),
     )
     found = {m.session.id: (m.project, m.project_source) for m in teams.members()}
-    assert found == {"mac~1": ("Shop", "set"), "mac~2": ("Shop", "folder"), "mac~3": ("notes", "folder")}
+    assert found == {"mac~1": ("Shop", "set"), "mac~2": ("shop", "folder"), "mac~3": ("notes", "folder")}
 
 
 def test_a_task_goes_to_a_role_now_or_once_the_receiver_stops_waiting(
@@ -489,3 +489,38 @@ def test_one_loop_sends_each_task_once_and_goes_on_after_a_restart(
     with delivering(app):
         until(lambda: tasks.repo.held() == [])
     assert [t.split("] ", 1)[1] for t in sent] == ["Build it.", "Then the docs."]
+
+
+def test_a_session_starts_a_teammate_in_its_own_project_unless_told_another(
+    make_app: Callable[..., FastAPI], tmux: FakeTmux, tmp_path: Path
+) -> None:
+    app = make_app()
+    client = TestClient(app)
+    work = tmp_path / "shop"
+    work.mkdir()
+
+    def token_of(session_id: str) -> str:
+        session = app.state.directory.get(session_id)
+        pane = next(p for p in tmux.panes.values() if p.info.session_name == session.tmux_session)
+        config = json.load(open(pane.argv[pane.argv.index("--mcp-config") + 1]))["mcpServers"]["muxtower"]
+        return str(config["headers"]["Authorization"].removeprefix("Bearer "))
+
+    def started(text: str) -> Any:
+        return app.state.teams.find(text.split("(", 1)[1].split(")", 1)[0])
+
+    lead = app.state.sessions.create(CreateSession(runtime="claude", cwd=str(work), name="lead"))
+    me = token_of(lead.id)
+    # Its project only its folder's name: that is no project, so a teammate gets none from it.
+    loose = started(_tool(client, me, "start_session", cwd=str(tmp_path), name="loose"))
+    assert loose.project_source == "folder"
+
+    _tool(client, me, "set_project", project="acme/shop")
+    mate = started(_tool(client, me, "start_session", cwd=str(tmp_path), name="mate"))
+    assert (mate.project, mate.project_source) == ("acme/shop", "set")  # the caller's, kept as set
+    assert app.state.teams.kept(mate.session.id).project_auto is False
+    other = started(_tool(client, me, "start_session", cwd=str(tmp_path), name="other", project="acme/blog"))
+    assert (other.project, other.project_source) == ("acme/blog", "set")  # one given wins
+
+    _, device = app.state.tokens.create("phone")
+    fresh = started(_tool(client, device, "start_session", cwd=str(tmp_path), name="fresh"))
+    assert fresh.project_source == "folder"  # a device is no session: no default

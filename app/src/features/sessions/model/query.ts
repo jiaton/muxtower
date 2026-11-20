@@ -89,7 +89,7 @@ export const folderLabel = (entry: SessionEntry) => homeOf(entry.session) ?? UNK
 export const agentLabel = (entry: SessionEntry) => agentOf(entry.session)
 export const sourceLabel = (entry: SessionEntry) => sourceOf(entry.session)
 export const accountLabel = (entry: SessionEntry) => accountOf(entry.session)
-export const projectLabel = (entry: SessionEntry) => projectGroupOf(entry.session, entry.team)
+export const projectLabel = (entry: SessionEntry) => projectGroupOf(entry.session)
 
 /** The groups of the list by project: each entry's group key and label, and each folder group's paths.
  *  A folder is grouped by its name, the same name on several machines one group; where one machine has two
@@ -105,7 +105,7 @@ export function placeGroups(entries: SessionEntry[]): {
   const kind = new Map<string, 'project' | 'folder' | 'other'>()
   const paths = new Map<string, string[]>()
   const folders = entries.flatMap((e) => {
-    const place = placeGroupOf(e.session, e.team)
+    const place = placeGroupOf(e.session)
     return place.kind === 'folder' ? [{ e, path: place.name, machine: deviceLabel(e), name: folderName(place.name) }] : []
   })
   // A name two folders of one machine share: those folders get longer names.
@@ -118,7 +118,7 @@ export function placeGroups(entries: SessionEntry[]): {
   }
   const longer = shortFolderNames([...new Set(folders.filter((f) => clash.has(f.name)).map((f) => f.path))])
   for (const e of entries) {
-    const place = placeGroupOf(e.session, e.team)
+    const place = placeGroupOf(e.session)
     const name =
       place.kind === 'folder'
         ? clash.has(folderName(place.name))

@@ -26,7 +26,7 @@ export function PlaybookSettings({ daemonId, project: asked }: { daemonId: strin
   const [project, setProject] = useState<string | null>(asked ?? null)
   const data = playbook.data
   const projects = useMemo(() => {
-    const known = new Set(entries.map((e) => projectGroupOf(e.session, e.team)).filter((p): p is string => !!p))
+    const known = new Set(entries.map((e) => projectGroupOf(e.session)).filter((p): p is string => !!p))
     for (const p of data?.projects ?? []) known.add(projectOf(p.scope)!)
     return [...known].sort((a, b) => a.localeCompare(b))
   }, [entries, data])
