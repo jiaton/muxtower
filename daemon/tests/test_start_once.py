@@ -99,7 +99,51 @@ def test_what_fails_after_it_runs_is_said_not_raised() -> None:
     teams = SimpleNamespace(set_role=broken, set_project=broken, member=broken, resumed=broken)
     hub = Hub()
     text = hub.tools(teams).start_session(ASKED.model_copy(update={"role": "dev", "project": "x/y"}))
-    assert text.startswith("Started crawler 迁移 (s1)") and "NOTE: its role or project was not set" in text
+    assert text.startswith("Started crawler 迁移 (s1)")
+    assert "NOTE: its role was not set (team store busy)" in text and "NOTE: its project was not set" in text
+
+
+class Teams:
+    """A team store that keeps what it is told, refusing a role as the real one does when told to."""
+
+    def __init__(self, refuse_role: bool = False) -> None:
+        self.refuse_role = refuse_role
+        self.role: tuple[str, str | None] | None = None
+        self.project: str | None = None
+
+    def set_role(self, _id: str, role: str, note: str | None) -> None:
+        if self.refuse_role:
+            raise RuntimeError("a role is longer than 200 characters")
+        self.role = (role, note)
+
+    def set_project(self, _id: str, project: str) -> None:
+        self.project = project
+
+    def member(self, _: Any) -> SimpleNamespace:
+        return SimpleNamespace(role=self.role[0] if self.role else None, project=self.project or "crawler")
+
+
+def test_a_role_that_cannot_be_set_costs_the_project_nothing() -> None:
+    teams = Teams(refuse_role=True)
+    text = Hub().tools(teams).start_session(ASKED.model_copy(update={"role": "dev", "project": "acme/crawler"}))
+    assert teams.project == "acme/crawler" and "project acme/crawler" in text
+    assert "NOTE: its role was not set" in text and "project was not set" not in text
+
+
+def test_a_role_too_long_for_one_is_the_role_and_its_note() -> None:
+    from muxtower.teams.service import NOTE_CHARS, ROLE_CHARS
+
+    teams = Teams()
+    long = "crawler worker — " + "moves the crawler to the new queue, keeps its tests green, reports to the lead " * 4
+    text = Hub().tools(teams).start_session(ASKED.model_copy(update={"role": long, "project": "acme/crawler"}))
+    assert teams.role is not None
+    role, note = teams.role
+    assert role == "crawler worker" and note is not None and note.startswith("moves the crawler")
+    assert len(note) <= NOTE_CHARS and teams.project == "acme/crawler"
+    assert f"its role was longer than {ROLE_CHARS} characters: its role is 'crawler worker'" in text
+    short = Teams()
+    Hub().tools(short).start_session(ASKED.model_copy(update={"role": "x " * 90 + "end"}))
+    assert short.role == (("x " * 90 + "end"), None)  # 183 characters: a role as it is
 
 
 def test_a_node_asks_again_when_the_hubs_answer_is_lost_and_gets_the_same_session(

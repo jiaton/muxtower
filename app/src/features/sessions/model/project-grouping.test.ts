@@ -1,7 +1,8 @@
 import { expect, it } from 'vitest'
 import type { Session } from '@/lib/api/types'
 import type { Daemon } from '@/lib/daemons/types'
-import { placeGroupOf, projectGroupOf, type SessionEntry } from './facets'
+import { joinTeams, placeGroupOf, projectGroupOf, type SessionEntry } from './facets'
+import { teamOf } from './team'
 import { filterEntries, groupEntries } from './query'
 import { presetForProject } from './new-here'
 
@@ -101,4 +102,20 @@ it('starts a session in a folder group on its machine and in its folder, in no t
     node: null,
     cwd: '/home/me/sandbox-notes',
   })
+})
+
+it('joins a session whose project is only its folder name to the team of that name, whatever its case', () => {
+  at = 0
+  const entries = joinTeams([
+    e('lead', { project: 'Acme-Shop', project_source: 'set', cwd: '/home/me/acme-shop' }),
+    e('worker', { project: 'acme-shop', project_source: 'folder', project_auto: true, cwd: '/home/me/x/acme-shop', machine: 'mac' }),
+    e('notes', { project: 'notes', project_source: 'folder', project_auto: true, cwd: '/home/me/notes' }),
+  ])
+  expect(entries.find((x) => x.session.id === 'worker')!.team).toBe('Acme-Shop')
+  expect(entries.find((x) => x.session.id === 'notes')!.team).toBeUndefined() // no team of that name: its folder
+  const groups = groupEntries(entries, 'project')
+  expect(groups.map((g) => g.label)).toEqual(['Acme-Shop', 'notes'])
+  expect(groups[0]!.entries.map((x) => x.session.id).sort()).toEqual(['lead', 'worker'])
+  expect(filterEntries(entries, { view: 'all', group: 'project', project: 'Acme-Shop' })).toHaveLength(2)
+  expect(teamOf(entries, 'Acme-Shop').map((x) => x.session.id).sort()).toEqual(['lead', 'worker'])
 })

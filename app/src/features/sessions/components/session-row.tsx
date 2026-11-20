@@ -11,6 +11,7 @@ import {
   folderOf,
   isAssistant,
   placeGroupOf,
+  roleShown,
   sourceOf,
   type SessionEntry,
 } from '../model/facets'
@@ -74,7 +75,7 @@ export function SessionRow({
   const { daemon, session } = entry
   const folder = folderOf(session)
   const where = [
-    session.team_role,
+    roleShown(session),
     session.fork_of && !context.nested ? (session.side_chat ? 'Side chat' : 'Fork') : null,
     context.showDaemon ? daemon.name : null,
     context.hideDevice || context.deviceTag ? null : (deviceOf(session) ?? NO_ENVIRONMENT),
@@ -104,7 +105,7 @@ export function SessionRow({
               {session.name}
             </span>
             {context.projectTag ? (
-              <span className={`${look.tag} max-w-40 shrink-0 self-center truncate`}>{placeGroupOf(session).name}</span>
+              <span className={`${look.tag} max-w-40 shrink-0 self-center truncate`}>{placeGroupOf(session, entry.team).name}</span>
             ) : null}
             {context.deviceTag ? <span className={`${look.tag} shrink-0 self-center`}>{deviceOf(session) ?? NO_ENVIRONMENT}</span> : null}
             {writing ? (

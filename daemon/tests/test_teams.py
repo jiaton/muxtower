@@ -190,6 +190,46 @@ def test_a_session_on_another_machine_goes_by_its_folder_until_set() -> None:
     assert teams.find("mac~1").project == "shop" and saved[-1].project == "shop" and not saved[-1].project_auto
 
 
+def test_a_folder_named_like_a_team_is_in_that_team() -> None:
+    """One session in the project "Shop" (set), another whose project is only its folder "shop": one team, as
+    my_team, the team view and tasks see it. A folder named like no team stays its own."""
+    from datetime import UTC, datetime
+    from types import SimpleNamespace
+
+    from muxtower.runtimes.models import AgentState
+    from muxtower.sessions.models import Capabilities, Session, StateSource
+    from muxtower.sessions.ports import SessionSource
+    from muxtower.teams.ports import Checkout, TeamRecord
+    from muxtower.teams.service import TeamService
+
+    caps = Capabilities(screen=False, conversation=True, keys=[], resize=False, terminate=False, rename=False)
+    now = datetime.now(UTC)
+
+    def session(sid: str, cwd: str) -> Session:
+        return Session(
+            id=sid, name=sid, runtime="claude-code", cwd=cwd, source=SessionSource.LAUNCHED, capabilities=caps,
+            state=AgentState.IDLE, state_source=StateSource.HOOK, matched_rule=None, needs_attention=False,
+            pending=None, last_message=None, auto_approve=False, can_auto_approve=False, created_at=now,
+            updated_at=now, on_host=False, node="mac",
+        )  # fmt: skip
+
+    lead, worker, other = (
+        session("mac~1", "/Users/dev/lead"),
+        session("mac~2", "/Users/dev/shop"),
+        session("mac~3", "/Users/dev/notes"),
+    )
+    records = {"mac~1": TeamRecord("mac~1", project="Shop")}
+    repo = SimpleNamespace(load=lambda: records, save=lambda r: None, rename_project=lambda old, new: 0)
+    sessions = [lead, worker, other]
+    teams = TeamService(
+        SimpleNamespace(list=lambda: sessions, get=lambda sid: next(s for s in sessions if s.id == sid)),  # type: ignore[arg-type]
+        repo,  # type: ignore[arg-type]
+        lambda cwd: Checkout("x", "git root"),
+    )
+    found = {m.session.id: (m.project, m.project_source) for m in teams.members()}
+    assert found == {"mac~1": ("Shop", "set"), "mac~2": ("Shop", "folder"), "mac~3": ("notes", "folder")}
+
+
 def test_a_task_goes_to_a_role_now_or_once_the_receiver_stops_waiting(
     make_app: Callable[..., FastAPI], tmux: FakeTmux, tmp_path: Path
 ) -> None:

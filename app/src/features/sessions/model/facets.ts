@@ -11,6 +11,9 @@ export interface SessionEntry {
   key: string
   daemon: Daemon
   session: Session
+  /** The team it is joined to by the list: its project, worked out only from its folder's name, is the name
+   *  of a team project some other session has (`joinTeams`). */
+  team?: string
 }
 
 export const entryKey = (daemonId: string, sessionId: string) => `${daemonId}/${sessionId}`
@@ -96,19 +99,40 @@ export const OTHER_PLACE = 'Other'
  *  agent or the owner, or worked out from git), else its git repository (its remote's owner/repo, else
  *  its main folder's name: a worktree is its repository's); null when it has neither (`placeGroupOf`). A
  *  project worked out only from a folder's name says no more than the folder: none. */
-export function projectGroupOf(session: Session): string | null {
+export function projectGroupOf(session: Session, team?: string): string | null {
+  if (team) return team
   if (session.project && session.project_source !== 'folder') return session.project
   const git = session.git
   if (git) return git.remote || folderName(git.repo)
   return null
 }
 
+/** The team project of an entry: the one it is joined to, else its own. */
+export const teamOfEntry = (entry: SessionEntry): string | null => entry.team ?? entry.session.project ?? null
+
+/** Joins each session whose project is only its folder's name to the team project of that name (any
+ *  case) another session has explicitly (set, or from git), so one team is one group: a folder named like
+ *  a team is that team. Done once, where the entries are made (`useSessionEntries`). */
+export function joinTeams(entries: SessionEntry[]): SessionEntry[] {
+  const teams = new Map<string, string>()
+  for (const { session } of entries) {
+    if (!session.project || session.project_source === 'folder') continue
+    const key = session.project.toLowerCase()
+    if (!teams.has(key) || session.project_source === 'set') teams.set(key, session.project)
+  }
+  return entries.map((entry) => {
+    const { project, project_source } = entry.session
+    const team = project && project_source === 'folder' ? teams.get(project.toLowerCase()) : undefined
+    return team ? { ...entry, team } : entry
+  })
+}
+
 const TEMP = /^\/(?:private\/)?(?:tmp|var\/folders)(?:\/|$)/
 
 /** Where a session is grouped when listed by project: its project; else its folder (`folderOf`, kind
  *  "folder"); else, in a home, temp or root folder or none, Other. */
-export function placeGroupOf(session: Session): { kind: 'project' | 'folder' | 'other'; name: string } {
-  const project = projectGroupOf(session)
+export function placeGroupOf(session: Session, team?: string): { kind: 'project' | 'folder' | 'other'; name: string } {
+  const project = projectGroupOf(session, team)
   if (project) return { kind: 'project', name: project }
   const folder = folderOf(session)
   if (!folder || folder === '~' || folder === '/' || TEMP.test(session.cwd ?? '')) return { kind: 'other', name: OTHER_PLACE }
@@ -121,6 +145,20 @@ export function placeGroupOf(session: Session): { kind: 'project' | 'folder' | '
  *  "worker - …"), a colon ("g2 worker: glasses"), an opening bracket ("PM（只读）"). A dash inside a
  *  word ("g2-worker") is part of the name. */
 const ROLE_END = /\s*[—–]\s*|\s+-\s+|\s*[:：（(]/
+
+/** How long a role is shown where it shares a line (a row's meta line, a header's subtitle). */
+export const ROLE_SHOWN = 60
+
+/** A role as a line shows it: whole up to `ROLE_SHOWN` characters, else cut at a word with an ellipsis (the
+ *  Team dialog shows it all). Null for no role. */
+export function roleShown(session: Session): string | null {
+  const role = session.team_role?.trim()
+  if (!role) return null
+  if (role.length <= ROLE_SHOWN) return role
+  const cut = role.slice(0, ROLE_SHOWN - 1)
+  const space = cut.lastIndexOf(' ')
+  return `${(space > ROLE_SHOWN / 2 ? cut.slice(0, space) : cut).trimEnd()}…`
+}
 
 /** The leading name of a role as written ("PM — 只读：…" → "PM"); null for no role. */
 export function roleNameOf(session: Session): string | null {

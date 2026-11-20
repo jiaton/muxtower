@@ -75,7 +75,7 @@ export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; s
           placeholder="worker"
           value={role}
           onValueChange={setRole}
-          maxLength={60}
+          maxLength={200}
           suggestions={tally(sessions.map((s) => s.team_role))}
         />
       </Label>

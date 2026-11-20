@@ -35,7 +35,7 @@ function fields(entry: SessionEntry): [string | null | undefined, number][] {
   return [
     [session.name, 3],
     [session.team_role, 2],
-    [placeGroupOf(session).name, 2],
+    [placeGroupOf(session, entry.team).name, 2],
     [session.project, 2],
     [folderOf(session), 1],
     [deviceOf(session), 1],
@@ -51,7 +51,7 @@ function fields(entry: SessionEntry): [string | null | undefined, number][] {
 /** Whether a session has what the terms narrow to (its role, its project). */
 export function inTerms(entry: SessionEntry, terms: SearchTerms): boolean {
   if (terms.roles.length && !terms.roles.includes(roleKeyOf(entry.session) ?? '')) return false
-  const project = placeGroupOf(entry.session).name.toLowerCase()
+  const project = placeGroupOf(entry.session, entry.team).name.toLowerCase()
   return !terms.projects.length || terms.projects.some((p) => project === p || project.endsWith(`/${p}`))
 }
 

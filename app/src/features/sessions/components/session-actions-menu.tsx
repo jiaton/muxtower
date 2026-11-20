@@ -13,6 +13,7 @@ import {
 import type { Session } from '@/lib/api/types'
 import { useUpdateSession } from '../api/use-session-mutations'
 import { NotifyItems } from './notify-items'
+import { roleShown } from '../model/facets'
 import { ACTION_KEYS, SessionActions, type SessionAction } from './session-actions'
 
 const MENU_LABEL: Record<SessionAction['id'], (session: Session) => string> = {
@@ -31,7 +32,7 @@ const MENU_LABEL: Record<SessionAction['id'], (session: Session) => string> = {
 
 /** What an action's item says under its label: the session's role, for Team (the label stays short). */
 const DETAIL: Partial<Record<SessionAction['id'], (session: Session) => string>> = {
-  team: (s) => s.team_role || 'No role yet',
+  team: (s) => roleShown(s) ?? 'No role yet',
   archive: () => 'Ends the agent, keeps the history',
   resume: (s) => (s.archived_at ? 'Starts it again, its conversation where it left off' : ''),
 }

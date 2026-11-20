@@ -5,7 +5,7 @@ import { PaneHeader } from '@/components/ui/pane'
 import { projectLabel, workingIn } from '../model/places'
 import type { Session } from '@/lib/api/types'
 import { useSession } from '../api/use-sessions'
-import { NO_ENVIRONMENT, agentOf, deviceOf, folderOf, sourceOf } from '../model/facets'
+import { NO_ENVIRONMENT, agentOf, deviceOf, folderOf, roleShown, sourceOf } from '../model/facets'
 import { agentIcon } from './agent-mark'
 import { StateBadge } from './state-badge'
 import { StreamMark } from './stream-mark'
@@ -29,7 +29,8 @@ export function SessionHeader({
   const agent = agentOf(session)
   const AgentIcon = agentIcon(agent)
   const project = projectLabel(session)
-  const team = session.team_role ? `${session.team_role}${project ? ` in ${project}` : ''}` : project
+  const role = roleShown(session)
+  const team = role ? `${role}${project ? ` in ${project}` : ''}` : project
   const where = [
     team,
     agent,

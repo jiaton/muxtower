@@ -52,6 +52,7 @@ export function isNoPlace(cwd: string | null | undefined): boolean {
 /** The project a session counts under in the chips; `workspaces` (`workspacesOf` the known sessions) say
  *  which folders hold repositories, where a session with nothing else to place it is in Other. */
 export function chipProject(session: Session, workspaces?: Set<string>, entry?: SessionEntry): string {
+  if (entry?.team) return entry.team
   if (session.project && session.project_source === 'set') return session.project
   if (session.git) return session.project && session.project_source !== 'folder' ? session.project : folderName(session.git.repo)
   if (isNoPlace(session.cwd)) return OTHER

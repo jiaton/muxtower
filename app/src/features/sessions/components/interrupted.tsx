@@ -11,7 +11,7 @@ import { createDaemonClient, unwrap } from '@/lib/api/client'
 import type { Session } from '@/lib/api/types'
 import { daemonKey } from '@/lib/query'
 import { useRecoverSessions } from '../api/use-recovery'
-import { deviceOf, folderOf, placeOf, type SessionEntry } from '../model/facets'
+import { deviceOf, folderOf, placeOf, roleShown, type SessionEntry } from '../model/facets'
 import { ink, look } from '@/components/ui/intents'
 
 /** The sessions a restart interrupted, by machine (its daemon's name where the session names none). */
@@ -77,7 +77,7 @@ export function RecoveryDialog({ entries, onClose }: { entries: SessionEntry[]; 
                   <span className="min-w-0 flex-1">
                     <span className={`${ink.body} block truncate`}>{session.name}</span>
                     <span className={`${ink.meta} block truncate`}>
-                      {[session.team_role, folderOf(session), session.source === 'adopted' ? 'not started by muxtower' : null]
+                      {[roleShown(session), folderOf(session), session.source === 'adopted' ? 'not started by muxtower' : null]
                         .filter(Boolean)
                         .join(' · ')}
                     </span>

@@ -4854,7 +4854,7 @@
           "role": {
             "anyOf": [
               {
-                "maxLength": 60,
+                "maxLength": 200,
                 "type": "string"
               },
               {

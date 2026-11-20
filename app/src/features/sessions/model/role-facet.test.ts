@@ -3,7 +3,7 @@ import type { Session } from '@/lib/api/types'
 import type { Daemon } from '@/lib/daemons/types'
 import { inChip } from './chip-groups'
 import { groupPicks } from './chip-picks'
-import { roleKeyOf, roleLabels, roleNameOf, type SessionEntry } from './facets'
+import { ROLE_SHOWN, roleKeyOf, roleLabels, roleNameOf, roleShown, type SessionEntry } from './facets'
 import { searchTerms } from './filter'
 import { NO_ROLE, filterEntries, groupEntries } from './query'
 
@@ -94,4 +94,14 @@ it('groups by role key, the most held first, no role last; each group says rows 
   expect(ids(groups[0].entries)).toEqual(['a1', 'b1'])
   expect(groups[0].implies.role).toBe(true)
   expect(groups.at(-1)!.implies.role).toBe(false)
+})
+
+it('shows a long role cut at a word, with an ellipsis; a short one whole', () => {
+  const long = 'worker — implements the checkout flow for the shop, writes its tests, and reports to the lead when done'
+  const shown = roleShown(e('a', long, 'acme/shop').session)!
+  expect(shown.endsWith('…')).toBe(true)
+  expect(shown.length).toBeLessThanOrEqual(ROLE_SHOWN)
+  expect(long.startsWith(shown.slice(0, -1))).toBe(true)
+  expect(roleShown(e('b', 'worker', 'acme/shop').session)).toBe('worker')
+  expect(roleShown(e('c', null, 'acme/shop').session)).toBeNull()
 })

@@ -19,7 +19,7 @@ from muxtower.sessions.endable import where_it_runs
 from muxtower.sessions.launch import agent_may_ask
 from muxtower.sessions.launcher import Launcher
 from muxtower.sessions.models import CreateSession, Session, UpdateSession
-from muxtower.teams.service import TeamService
+from muxtower.teams.service import ROLE_CHARS, TeamService, fit_role
 
 RESUME_ARGS = {"claude-code": ["--resume"], "codex": ["resume"]}  # then the agent's own id for the conversation
 SAME_START_SECONDS = 120.0  # the same start asked again within this gets the session already started
@@ -44,7 +44,13 @@ class StartArgs(BaseModel):
         "muxtower session's id: started again on its machine as that session) instead of a new one; it keeps "
         "the role and project it had",
     )
-    role: str | None = Field(default=None, description="its role in its team (free text)")
+    role: str | None = Field(
+        default=None,
+        description=(
+            "its role in its team (free text, up to 200 characters; a longer one: its first part the role, "
+            "the rest its note)"
+        ),
+    )
     project: str | None = Field(
         default=None,
         description=(
@@ -225,21 +231,45 @@ class SessionTools:
                 notes.append(f"its name was not set ({exc}): rename_session")
         team = ""
         if self.teams is not None:
-            try:
-                if args.resume:
-                    self.teams.resumed(created.id, args.resume)
-                if args.role:
-                    self.teams.set_role(created.id, args.role, None)
-                if args.project:
-                    self.teams.set_project(created.id, args.project)
-                m = self.teams.member(created)
-                team = f" Role: {m.role or 'none yet'}; project {m.project}."
-            except Exception as exc:  # noqa: BLE001 - said in the answer, the session stays
-                notes.append(f"its role or project was not set ({exc}): set_role, set_project")
+            team, team_notes = self._join_team(created, args)
+            notes += team_notes
         default = "" if args.cwd else " (the machine's default folder)"
         note = "".join(f" NOTE: {n}." for n in notes)
         text = f"Started {created.name} ({created.id}) on {node or self.hub} in {created.cwd}{default}.{team}{note}"
         return text, created.id
+
+    def _join_team(self, created: Session, args: StartArgs) -> tuple[str, list[str]]:
+        """Its role and project, each on its own: one that cannot be set costs the other nothing. A role too
+        long for one is cut: its first part the role, the rest its note (`fit_role`)."""
+        teams = self.teams
+        assert teams is not None
+        notes: list[str] = []
+        if args.resume:
+            try:
+                teams.resumed(created.id, args.resume)
+            except Exception as exc:  # noqa: BLE001 - said in the answer, the session stays
+                notes.append(f"its earlier role and project were not taken over ({exc}): set_role, set_project")
+        if args.role:
+            role, note = fit_role(args.role)
+            try:
+                teams.set_role(created.id, role, note)
+                if note:
+                    notes.append(
+                        f"its role was longer than {ROLE_CHARS} characters: its role is {role!r}, the rest its note"
+                    )
+            except Exception as exc:  # noqa: BLE001 - said in the answer, the session stays
+                notes.append(f"its role was not set ({exc}): set_role")
+        if args.project:
+            try:
+                teams.set_project(created.id, args.project)
+            except Exception as exc:  # noqa: BLE001 - said in the answer, the session stays
+                notes.append(f"its project was not set ({exc}): set_project")
+        try:
+            m = teams.member(created)
+        except Exception as exc:  # noqa: BLE001 - said in the answer, the session stays
+            notes.append(f"its team could not be read ({exc}): my_team")
+            return "", notes
+        return f" Role: {m.role or 'none yet'}; project {m.project}.", notes
 
     def rename_session(self, args: RenameArgs) -> str:
         session = self.directory.update(args.session_id, UpdateSession(name=args.name))

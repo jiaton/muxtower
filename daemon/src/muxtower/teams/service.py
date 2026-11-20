@@ -17,7 +17,7 @@ from muxtower.sessions.models import Session
 from muxtower.teams.checkout import CheckoutCache, checkout
 from muxtower.teams.ports import Checkout, TeamRecord, TeamRepository
 
-ROLE_CHARS = 60
+ROLE_CHARS = 200
 NOTE_CHARS = 300
 PROJECT_CHARS = 120
 
@@ -37,6 +37,42 @@ def _text(value: str | None, limit: int, what: str) -> str | None:
     if len(text) > limit:
         raise Invalid(f"{what} is longer than {limit} characters")
     return text or None
+
+
+def joined(members: list[Member]) -> list[Member]:
+    """A session whose project is only its folder's name is in the team project of that name (any case) that
+    another session has explicitly (set, or from git): one team, however its sessions came by the name. The
+    app's list joins them the same way (`joinTeams`)."""
+    teams: dict[str, str] = {}
+    for m in members:
+        if m.project_source != "folder" and (m.project.lower() not in teams or m.project_source == "set"):
+            teams[m.project.lower()] = m.project
+    return [
+        replace(m, project=teams[m.project.lower()])
+        if m.project_source == "folder" and m.project.lower() in teams
+        else m
+        for m in members
+    ]
+
+
+def fit_role(role: str) -> tuple[str, str | None]:
+    """A role longer than ROLE_CHARS as a role and its note: the role up to where its name ends (the first
+    " — " or ": "), else its last clause or word that fits, the rest the note (cut to NOTE_CHARS with an
+    ellipsis). A role that fits is as it is."""
+    text = " ".join(role.split())
+    if len(text) <= ROLE_CHARS:
+        return text, None
+    head = text[:ROLE_CHARS]
+    ends = [i for i in (head.find(sep) for sep in (" — ", " – ", " - ", ": ")) if i > 0]
+    cut = min(ends) if ends else max(head.rfind(sep) for sep in ("; ", ". ", ", "))
+    if cut < 1:
+        cut = head.rfind(" ")
+    if cut < 1:
+        cut = ROLE_CHARS
+    first, rest = text[:cut].rstrip(" —–-:;.,"), text[cut:].lstrip(" —–-:;.,")
+    if len(rest) > NOTE_CHARS:
+        rest = rest[: NOTE_CHARS - 1].rstrip() + "…"
+    return first, rest or None
 
 
 class TeamService:
@@ -128,8 +164,8 @@ class TeamService:
             self.changed()
 
     def members(self) -> list[Member]:
-        """Blocking. Every session that is not archived, as a team member."""
-        return [self.member(s) for s in self.directory.list() if not s.archived_at]
+        """Blocking. Every session that is not archived, as a team member (`joined`)."""
+        return joined([self.member(s) for s in self.directory.list() if not s.archived_at])
 
     def set_role(self, session_id: str, role: str | None, note: str | None) -> Member:
         session = self.directory.get(session_id)
