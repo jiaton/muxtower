@@ -20,6 +20,7 @@ import { SessionList } from '@/features/sessions/components/session-list'
 import { ListSkeleton } from '@/features/sessions/components/list-skeleton'
 import { Loading, Skeleton } from '@/components/ui/skeleton'
 import { useOpenedHere } from '@/features/sessions/hooks/use-opened-here'
+import { useChipSwitch } from '@/features/sessions/hooks/use-chip-switch'
 import { useScrollMemory } from '@/features/sessions/hooks/use-scroll-memory'
 import { useSessionEntries } from '@/features/sessions/hooks/use-session-entries'
 import { agentsDiffer, entryKey, folderName, isAssistant } from '@/features/sessions/model/facets'
@@ -75,6 +76,7 @@ function SessionsLayout() {
   const setSidebarSlot = useLayoutDrawer((s) => s.setSidebarSlot)
   const withSidebar = asDrawer && panes.split // the sidebar beside the list in the drawer, as they dock
   useScrollMemory(listRef, listKey, !asDrawer || drawerOpen, !loading)
+  useChipSwitch(listRef, { search, entries, groups: chipGroups, projectOrder })
   useEffect(() => useListMemory.setState({ lastSearch: search }), [search])
 
   const visible = filterEntries(entries, query)

@@ -108,3 +108,20 @@ export const useNewSessionRequest = create<NewSessionRequest>()((set) => ({
   start: (preset) => set((s) => ({ preset, n: s.n + 1 })),
   close: () => set({ preset: null }),
 }))
+
+interface ChipSwitchPrefs {
+  /** A sideways wheel over the list (a mouse's thumb wheel, Shift and the wheel) switches the chip of the
+   *  second row (Daemons page › Session list, this browser). */
+  wheel: boolean
+  setWheel: (on: boolean) => void
+}
+
+export const useChipSwitchPrefs = create<ChipSwitchPrefs>()(
+  persist(
+    (set) => ({
+      wheel: true,
+      setWheel: (wheel) => set({ wheel }),
+    }),
+    { name: 'muxtower.chip-switch', version: 1, merge: mergeWithDefaults, partialize: (s) => ({ wheel: s.wheel }) },
+  ),
+)

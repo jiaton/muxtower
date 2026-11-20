@@ -203,6 +203,7 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
         role="log"
         aria-label="Session output"
         tabIndex={0}
+        data-own-keys // the app's own key shortcuts (the chip row's [ ]) leave it alone
       >
         <div ref={probe} aria-hidden className="pointer-events-none invisible absolute w-max">
           {/* An inline run: its height is the glyphs' own (ascent to descent), the row's is the div's. */}

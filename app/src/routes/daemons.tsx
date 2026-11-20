@@ -10,6 +10,7 @@ import { DaemonCard } from '@/features/daemons/components/daemon-card'
 import { Diagnostics } from '@/features/daemons/components/diagnostics'
 import { VoiceCommandsSettings } from '@/features/voice/components/voice-commands-settings'
 import { LiveAudioSettings } from '@/features/voice/components/live-audio-settings'
+import { ListSettings } from '@/features/sessions/components/list-settings'
 import { PresetWarning } from '@/features/daemons/components/preset-warning'
 import { InstallApp } from '@/features/install/components/install-app'
 import { AddDaemonDialog } from '@/features/pairing/components/add-daemon-dialog'
@@ -66,6 +67,7 @@ function DaemonsPage() {
           )}
           <InstallApp />
           <Diagnostics />
+          <ListSettings />
           <VoiceCommandsSettings />
           <LiveAudioSettings />
           {paired.length ? (
