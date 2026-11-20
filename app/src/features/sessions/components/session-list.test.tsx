@@ -166,3 +166,17 @@ it('moves between rows with the up and down keys, from a focused row only', () =
   fireEvent.keyDown(links[2]!, { key: 'ArrowUp' })
   expect(document.activeElement).toBe(links[1])
 })
+
+it('a folder group says it is a folder, so one named like a project is never taken for it', () => {
+  const group = (kind: 'project' | 'folder', id: string): Group => ({
+    key: `${kind}:acme`,
+    label: 'acme',
+    kind,
+    implies: { ...implies, device: false },
+    entries: [entry(id)],
+  })
+  render(<SessionList groups={[group('project', 'p1'), group('folder', 'f1')]} foldScope="project" />, { wrapper: wrapper() })
+  const [project, folder] = screen.getAllByRole('heading', { level: 3 })
+  expect(project!.textContent).not.toMatch(/folder/)
+  expect(folder!.textContent).toMatch(/^acme\/folder/)
+})

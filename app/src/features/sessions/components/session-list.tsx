@@ -153,7 +153,12 @@ const GroupHeader = memo(
           ) : null}
           <span className="truncate" title={node.title}>
             {node.label}
+            {node.placeKind === 'folder' ? '/' : null}
           </span>
+          {node.placeKind === 'folder' ? (
+            // A folder no project claims: said, so one named like a project is never taken for it.
+            <span className="shrink-0 font-normal normal-case text-fg-muted">folder</span>
+          ) : null}
           <HeaderCount count={node.count} needs={node.needs} className="normal-case" />
         </FoldButton>
         {sort ? <DragHandle {...sort.handle} /> : null}
