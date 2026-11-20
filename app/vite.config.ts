@@ -114,5 +114,7 @@ export default defineConfig(({ mode }) => ({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'], // e2e/ is Playwright's (npm run e2e:glyphs)
+    // 5 s (the default) was not enough on a loaded machine or CI runner: whole files timed out at random.
+    testTimeout: 15_000,
   },
 }))
