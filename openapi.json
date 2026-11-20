@@ -127,6 +127,57 @@
         "title": "Approve",
         "type": "object"
       },
+      "Attachment": {
+        "properties": {
+          "id": {
+            "description": "what a message names it by (`SendInput.attachments`)",
+            "title": "Id",
+            "type": "string"
+          },
+          "media_type": {
+            "title": "Media Type",
+            "type": "string"
+          },
+          "name": {
+            "description": "its file name as saved: the original, made safe and unique",
+            "title": "Name",
+            "type": "string"
+          },
+          "path": {
+            "description": "where it lies on the session's machine: what the agent is given",
+            "title": "Path",
+            "type": "string"
+          },
+          "size": {
+            "description": "bytes",
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "size",
+          "media_type",
+          "path"
+        ],
+        "title": "Attachment",
+        "type": "object"
+      },
+      "AutoRead": {
+        "properties": {
+          "auto_read": {
+            "description": "mark its finished turns read as they end",
+            "title": "Auto Read",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "auto_read"
+        ],
+        "title": "AutoRead",
+        "type": "object"
+      },
       "Capabilities": {
         "description": "What a client may offer for this session (sources differ).",
         "properties": {
@@ -2725,6 +2776,15 @@
       "SendInput": {
         "description": "Either literal `text` (optionally followed by Enter) or one tmux `key` name. A message (`text`) may\ncarry `images` where the session takes them (`capabilities.images`).",
         "properties": {
+          "attachments": {
+            "description": "files uploaded for this message (POST \u2026/attachments), by id: each pasted as its path, ahead of the words, after any images",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 4,
+            "title": "Attachments",
+            "type": "array"
+          },
           "enter": {
             "default": false,
             "title": "Enter",
@@ -2820,6 +2880,12 @@
           },
           "auto_approve": {
             "title": "Auto Approve",
+            "type": "boolean"
+          },
+          "auto_read": {
+            "default": false,
+            "description": "its finished turns never make it unread: marked read as each ends (what needs the owner still shows)",
+            "title": "Auto Read",
             "type": "boolean"
           },
           "can_auto_approve": {
@@ -6536,6 +6602,125 @@
           }
         },
         "summary": "Archive Session",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/attachments": {
+      "post": {
+        "description": "A file for a message, its bytes as the body and its name in the header (any type; the Content-Type\nheader its type): saved on the session's machine, 0600, kept 7 days. Named in the message by its id.",
+        "operationId": "upload_attachment_v1_sessions__session_id__attachments_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Muxtower-Filename",
+            "required": true,
+            "schema": {
+              "title": "X-Muxtower-Filename",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/octet-stream": {
+              "schema": {}
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attachment"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "this session takes no files (Remote Control only: pictures only)"
+          },
+          "413": {
+            "description": "larger than attachments.max_mb"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Attachment",
+        "tags": [
+          "attachments"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/auto-read": {
+      "put": {
+        "description": "Mark its finished turns read as they end (for a chatty worker), or stop; the same on every device.\nWhat needs the owner (a prompt, a question, a plan) still shows.",
+        "operationId": "set_auto_read_v1_sessions__session_id__auto_read_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutoRead"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Auto Read",
         "tags": [
           "sessions"
         ]

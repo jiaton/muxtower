@@ -663,6 +663,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_id}/attachments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Upload Attachment
+         * @description A file for a message, its bytes as the body and its name in the header (any type; the Content-Type
+         *     header its type): saved on the session's machine, 0600, kept 7 days. Named in the message by its id.
+         */
+        post: operations["upload_attachment_v1_sessions__session_id__attachments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sessions/{session_id}/auto-read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set Auto Read
+         * @description Mark its finished turns read as they end (for a chatty worker), or stop; the same on every device.
+         *     What needs the owner (a prompt, a question, a plan) still shows.
+         */
+        put: operations["set_auto_read_v1_sessions__session_id__auto_read_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_id}/conversation": {
         parameters: {
             query?: never;
@@ -1430,6 +1472,39 @@ export interface components {
              * @description option key to pick; default per runtime rules
              */
             option?: string | null;
+        };
+        /** Attachment */
+        Attachment: {
+            /**
+             * Id
+             * @description what a message names it by (`SendInput.attachments`)
+             */
+            id: string;
+            /** Media Type */
+            media_type: string;
+            /**
+             * Name
+             * @description its file name as saved: the original, made safe and unique
+             */
+            name: string;
+            /**
+             * Path
+             * @description where it lies on the session's machine: what the agent is given
+             */
+            path: string;
+            /**
+             * Size
+             * @description bytes
+             */
+            size: number;
+        };
+        /** AutoRead */
+        AutoRead: {
+            /**
+             * Auto Read
+             * @description mark its finished turns read as they end
+             */
+            auto_read: boolean;
         };
         /**
          * Capabilities
@@ -2654,6 +2729,11 @@ export interface components {
          */
         SendInput: {
             /**
+             * Attachments
+             * @description files uploaded for this message (POST …/attachments), by id: each pasted as its path, ahead of the words, after any images
+             */
+            attachments?: string[];
+            /**
              * Enter
              * @default false
              */
@@ -2695,6 +2775,12 @@ export interface components {
             archived_at?: string | null;
             /** Auto Approve */
             auto_approve: boolean;
+            /**
+             * Auto Read
+             * @description its finished turns never make it unread: marked read as each ends (what needs the owner still shows)
+             * @default false
+             */
+            auto_read: boolean;
             /** Can Auto Approve */
             can_auto_approve: boolean;
             capabilities: components["schemas"]["Capabilities"];
@@ -4729,6 +4815,92 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    upload_attachment_v1_sessions__session_id__attachments_post: {
+        parameters: {
+            query?: never;
+            header: {
+                "X-Muxtower-Filename": string;
+            };
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/octet-stream": unknown;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attachment"];
+                };
+            };
+            /** @description this session takes no files (Remote Control only: pictures only) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description larger than attachments.max_mb */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_auto_read_v1_sessions__session_id__auto_read_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutoRead"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Session"];
+                };
             };
             /** @description Validation Error */
             422: {
