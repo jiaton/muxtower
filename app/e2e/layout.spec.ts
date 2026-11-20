@@ -3,7 +3,7 @@
 // page back: left pushed, the page kept a blank column, seen once a filter matched nothing.
 import { expect, test, type Page } from '@playwright/test'
 
-const DEMO = 'http://127.0.0.1:4418/'
+const DEMO = process.env.MUXTOWER_E2E_DEMO ?? 'http://127.0.0.1:4418/'
 
 async function openSidebar(page: Page) {
   let open = page.getByRole('button', { name: /^Open sidebar/ })
