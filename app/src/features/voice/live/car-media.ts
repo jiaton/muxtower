@@ -2,7 +2,7 @@ import type { StoreApi, UseBoundStore } from 'zustand'
 import { useLiveAudio } from './audio-prefs'
 import { holdMedia, reassertMedia, runMediaAction, setMediaKeeper } from './media'
 import { errorFields, logMedia, logTo, startMediaLog, stopMediaLog } from './media-log'
-import { useSpeech } from './speech'
+import { phoneVoiceSpeaking, useSpeech } from './speech'
 import { useAudioStatus } from './status'
 
 /**
@@ -12,9 +12,13 @@ import { useAudioStatus } from './status'
  *
  * Chrome keeps a page's media session, and routes the buttons to it, only while a media element of the
  * page plays, and only one of five seconds or more (a shorter one is a passing sound, given no controls).
- * So a silent loop plays meanwhile: ten seconds of near-silence, made here (no asset), looped. Near-silent
- * by its samples (16-bit noise of ±1, some -90 dBFS: inaudible), not by volume 0 or muted, nor exact zeros,
- * which Chrome or Android may treat as not playing anything. The controls are held only once it plays
+ * So a near-silent loop plays meanwhile: ten seconds, made here (no asset), looped. Chromium gives a page a
+ * media session only for an element that plays audibly: not muted, not volume 0, and its level above the
+ * tab audio monitor's threshold (-72.25 dBFS, 2^-12 of full scale), which exact zeros or a 1–2 LSB dither
+ * are not. So it is a 25 Hz tone at -60 dBFS (RMS): audible to Chrome's meter, not to a person in a car
+ * (some 60 dB under the threshold of hearing at that pitch, and under any road noise). Whether Chrome
+ * counts the page as audible is not observable from the page; the log has the level played. A whole number
+ * of cycles in ten seconds, so the loop has no click. The controls are held only once it plays
  * (its play() resolved), so Chrome has a playing session to give them to. It keeps playing
  * under the hub's voice (the same page's media; a gap would hand the controls back to the phone for a
  * moment), and stops, with the metadata and every handler, as soon as Live or Read aloud is off: the
@@ -31,9 +35,13 @@ const RATE = 8000
 const RESUMES = 5 // a loop paused unasked is played again at most this often…
 const RESUME_WINDOW_MS = 30_000 // …in this long: past that, the system has it (a call), and it is left
 
-/** A WAV of near-silence: 8 kHz mono 16-bit, `seconds` long, each sample -1, 0 or 1 (inaudible noise, not
- *  exact zeros). */
-export function silentWav(seconds = SILENCE_S): Blob {
+/** The loop's level (RMS, dBFS) and pitch: over Chromium's audible threshold (`AudioStreamMonitor`,
+ *  -72.25 dBFS), far under hearing at 25 Hz. */
+export const LOOP_DBFS = -60
+const LOOP_HZ = 25
+
+/** A WAV of near-silence: 8 kHz mono 16-bit, `seconds` long, a `hz` tone at `dbfs` (RMS). */
+export function silentWav(seconds = SILENCE_S, dbfs = LOOP_DBFS, hz = LOOP_HZ): Blob {
   const n = seconds * RATE
   const data = new DataView(new ArrayBuffer(44 + n * 2))
   const text = (at: number, s: string) => [...s].forEach((c, i) => data.setUint8(at + i, c.charCodeAt(0)))
@@ -50,11 +58,8 @@ export function silentWav(seconds = SILENCE_S): Blob {
   data.setUint16(34, 16, true)
   text(36, 'data')
   data.setUint32(40, n * 2, true)
-  let seed = 1
-  for (let i = 0; i < n; i++) {
-    seed = (seed * 1103515245 + 12345) & 0x7fffffff
-    data.setInt16(44 + i * 2, (seed >> 16) % 3 - 1, true)
-  }
+  const peak = 32767 * 10 ** (dbfs / 20) * Math.SQRT2
+  for (let i = 0; i < n; i++) data.setInt16(44 + i * 2, Math.round(peak * Math.sin((2 * Math.PI * hz * i) / RATE)), true)
   return new Blob([data], { type: 'audio/wav' })
 }
 
@@ -92,7 +97,7 @@ function startLoop() {
   loop = mine
   for (const ev of EVENTS) audio.addEventListener(ev, () => onLoopEvent(mine, ev))
   useAudioStatus.setState({ loop: 'playing' })
-  logMedia('loop-start', snapshot(audio))
+  logMedia('loop-start', { levelDbfs: LOOP_DBFS, hz: LOOP_HZ, ...snapshot(audio) })
   // Turned on by a tap (Live, Read aloud), so the browser lets it play; if it does not, the controls show
   // only while the hub's voice plays, as before.
   audio.play().then(
@@ -121,6 +126,12 @@ function onLoopEvent(of: Loop, ev: (typeof EVENTS)[number]) {
 /** The loop paused, not by this page: the car's or the phone's pause, taken as the user's (what is said
  *  stops), then the loop played again so the controls stay. */
 function pausedUnasked(of: Loop) {
+  if (phoneVoiceSpeaking()) {
+    // Android may pause it while the phone's own voice has the audio: not the user's pause. Played again
+    // once that voice is done (`afterOwnAudio`).
+    logMedia('loop-paused-unasked', { during: 'phone voice', ...snapshot(of.audio) })
+    return
+  }
   logMedia('loop-paused-unasked', snapshot(of.audio))
   runMediaAction('stop', 'loop paused')
   setTimeout(() => keepLoop('paused unasked'), 300)

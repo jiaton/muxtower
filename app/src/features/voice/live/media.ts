@@ -77,6 +77,13 @@ export function reassertMedia(why: string) {
   apply()
 }
 
+/** The hub's mp3 or the phone's own voice finished: the loop played again if something paused it meanwhile
+ *  (Android may pause it while the phone's voice has the audio), and the handlers and state set again. */
+export function afterOwnAudio(why: string) {
+  keeper?.(why)
+  reassertMedia(why)
+}
+
 /** An action as if the phone sent it (`car-media.ts`: a pause of its loop it did not ask for). */
 export function runMediaAction(action: MediaSessionAction, via: string) {
   const does = ACTIONS.find(([a]) => a === action)?.[1]
@@ -115,7 +122,9 @@ const ACTIONS: [MediaSessionAction, keyof MediaActions][] = [
 
 async function handle(action: MediaSessionAction, does: keyof MediaActions, via = 'system') {
   const started = performance.now()
-  logMedia('action', { action, via })
+  // Whether the browser counts this as the user's doing (a media button may not): play() may need it.
+  const activation = (navigator as Navigator & { userActivation?: { isActive: boolean; hasBeenActive: boolean } }).userActivation
+  logMedia('action', { action, via, activeNow: activation?.isActive, activeEver: activation?.hasBeenActive })
   keeper?.(action)
   const run = does === 'next' && held?.next ? held.next : actions?.[does]
   try {

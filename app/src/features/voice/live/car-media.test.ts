@@ -71,6 +71,7 @@ const loops = () => audios.filter((a) => a.loop)
 let logged: Record<string, unknown>[] = []
 let posts: string[] = []
 const said: string[] = []
+const utterances: { text: string; onend?: () => void }[] = []
 
 beforeEach(() => {
   Object.defineProperty(navigator, 'mediaSession', { value: session, configurable: true })
@@ -87,7 +88,14 @@ beforeEach(() => {
   vi.stubGlobal('SpeechSynthesisUtterance', function (this: { text: string }, text: string) {
     this.text = text
   })
-  vi.stubGlobal('speechSynthesis', { getVoices: () => [], cancel: vi.fn(), speak: (u: { text: string }) => said.push(u.text) })
+  vi.stubGlobal('speechSynthesis', {
+    getVoices: () => [],
+    cancel: vi.fn(),
+    speak: (u: { text: string; onend?: () => void }) => {
+      said.push(u.text)
+      utterances.push(u)
+    },
+  })
   server.use(
     http.post(`${DAEMON_URL}/v1/diagnostics`, async ({ request }) => {
       const body = await request.text()
@@ -119,7 +127,8 @@ const events = async () => {
 }
 
 afterEach(async () => {
-  const { useLive, useSpeech, useLiveAudio, setHubVoice, resetMediaLog } = await load()
+  const { useLive, useSpeech, useLiveAudio, setHubVoice, resetMediaLog, flushMediaLog } = await load()
+  ;(await import('./speech')).stopSpeaking() // a phone voice left speaking: cancelled, as Chrome does
   holdPlays = false
   refusePlays = false
   release()
@@ -127,11 +136,13 @@ afterEach(async () => {
   useSpeech.setState({ readAloud: false, speaking: false, front: null, caption: null })
   useLiveAudio.setState({ nextTrack: 'read' })
   setHubVoice(null)
+  await flushMediaLog() // what this test logged lands here, not in the next one's
   resetMediaLog()
   audios = []
   logged = []
   posts = []
   said.length = 0
+  utterances.length = 0
   vi.unstubAllGlobals()
 })
 
@@ -311,7 +322,29 @@ it('tells the hub no content: no session names, summaries or replies', async () 
   for (const body of posts) expect(body).not.toMatch(/secret-project|Private reply|private summary|Tests pass/i)
 })
 
-it('makes ten seconds of near-silence: 16-bit samples of -1, 0 or 1, not all zero', async () => {
+it("while the phone's own voice speaks (no media element), a pause of the loop does not stop it; the loop plays again after", async () => {
+  const { useLive, useSpeech, speak } = await load()
+  useSpeech.setState({ readAloud: true, front: { key: 'd/s', name: 'api', reply: null } })
+  useLive.setState({ phase: 'listening' })
+  await vi.waitFor(() => expect(handlers.play).toBeTypeOf('function'))
+  speak('Tests pass.') // no hub voice: the phone's
+  await vi.waitFor(() => expect(utterances).toHaveLength(1))
+  expect(audios.filter((a) => !a.loop)).toHaveLength(0) // nothing but the loop carries the session
+  const loop = loops()[0]!
+  expect(loop.paused).toBe(false)
+  loop.pause() // Android giving the phone's voice the audio
+  expect(useSpeech.getState().speaking).toBe(true) // not taken for the user's pause
+  utterances[0]!.onend!()
+  await vi.waitFor(() => expect(loop.paused).toBe(false))
+  await vi.waitFor(() => expect(useSpeech.getState().speaking).toBe(false))
+  await events()
+  expect(logged.find((e) => e.e === 'loop-paused-unasked')).toMatchObject({ during: 'phone voice' })
+  expect(logged.find((e) => e.e === 'loop-resume')).toMatchObject({ why: 'phone voice ended' })
+  expect(logged.filter((e) => e.e === 'local-voice').map((e) => e.ev)).toEqual(['start', 'end'])
+  expect(logged.find((e) => e.e === 'action')).toBeUndefined()
+})
+
+it("makes ten seconds of a 25 Hz tone at -60 dBFS: over Chrome's audible threshold (-72.25), no click at the loop", async () => {
   const { silentWav } = await load()
   const blob = silentWav()
   expect(blob.type).toBe('audio/wav')
@@ -319,6 +352,11 @@ it('makes ten seconds of near-silence: 16-bit samples of -1, 0 or 1, not all zer
   const view = new DataView(await blob.arrayBuffer())
   expect(view.getUint16(34, true)).toBe(16)
   const samples = Array.from({ length: 80_000 }, (_, i) => view.getInt16(44 + i * 2, true))
-  expect(samples.every((s) => s >= -1 && s <= 1)).toBe(true)
-  expect(new Set(samples)).toEqual(new Set([-1, 0, 1]))
+  const rms = Math.sqrt(samples.reduce((sum, x) => sum + x * x, 0) / samples.length)
+  const dbfs = 20 * Math.log10(rms / 32768)
+  expect(dbfs).toBeGreaterThan(-61)
+  expect(dbfs).toBeLessThan(-59)
+  expect(Math.max(...samples.map(Math.abs))).toBeLessThan(50) // a whisper of full scale
+  expect(samples[0]).toBe(0)
+  expect(Math.abs(samples.at(-1)! - samples[0]!)).toBeLessThan(2) // whole cycles: the loop joins smoothly
 })

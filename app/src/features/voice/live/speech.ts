@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { mergeWithDefaults } from '@/lib/persist-merge'
-import { reassertMedia, showSaying } from './media'
+import { afterOwnAudio, showSaying } from './media'
 import { errorFields, logMedia } from './media-log'
 import { languageOf, spokenIn } from './packs'
 
@@ -222,7 +222,7 @@ function playAudio(blob: Blob): Promise<void> {
     audio.onended = () => {
       logMedia('mp3', { ev: 'ended', ...at() })
       done(true)()
-      reassertMedia('mp3 ended')
+      afterOwnAudio('mp3 ended')
     }
     audio.onerror = () => {
       logMedia('mp3', { ev: 'error', code: audio.error?.code ?? null, ...at() })
@@ -235,6 +235,21 @@ function playAudio(blob: Blob): Promise<void> {
   })
 }
 
+let phoneVoice = false
+
+/** Whether the phone's own voice (speechSynthesis) is speaking: it has no media element, so while it does
+ *  only the hold's silent loop keeps this page the phone's media (`car-media.ts`). */
+export function phoneVoiceSpeaking(): boolean {
+  return phoneVoice
+}
+
+function phoneVoiceDone(ev: string, fields: Record<string, string> = {}) {
+  if (!phoneVoice) return
+  phoneVoice = false
+  logMedia('local-voice', { ev, ...fields })
+  afterOwnAudio('phone voice ended')
+}
+
 function sayLocally(piece: string, language: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const s = synth()
@@ -244,11 +259,16 @@ function sayLocally(piece: string, language: string): Promise<void> {
     const voice = voiceFor(tag)
     if (voice) u.voice = voice
     u.lang = voice?.lang ?? tag
-    u.onend = () => resolve()
+    u.onend = () => {
+      phoneVoiceDone('end')
+      resolve()
+    }
     u.onerror = (e) => {
-      logMedia('local-voice', { ev: 'error', error: (e as SpeechSynthesisErrorEvent | undefined)?.error ?? 'unknown' })
+      phoneVoiceDone('error', { error: (e as SpeechSynthesisErrorEvent | undefined)?.error ?? 'unknown' })
       reject(new Error('could not say'))
     }
+    phoneVoice = true
+    logMedia('local-voice', { ev: 'start' })
     s.speak(u)
   })
 }
@@ -308,6 +328,7 @@ export function speak(text: string, about: { title?: string; kind?: Caption['kin
 export function stopSpeaking() {
   run += 1
   synth()?.cancel()
+  phoneVoiceDone('cancelled')
   playing?.pause()
   playing = null
   ended()
