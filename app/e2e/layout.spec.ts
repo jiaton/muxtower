@@ -1,6 +1,6 @@
 // The layout (sidebar, list and session · list and session · session only), its switch always at the top-left
 // of the leftmost pane showing (the sidebar's, the list's or the session's header), the panel-left that opens the one drawer, Alt+F, on the demo's made-up hub.
-import { expect, test, type Browser, type Page } from '@playwright/test'
+import { expect, test, type Browser, type Locator, type Page } from '@playwright/test'
 
 const DEMO = process.env.MUXTOWER_E2E_DEMO ?? 'http://127.0.0.1:4418/'
 
@@ -23,12 +23,13 @@ async function pick(page: Page, layout: string) {
   await expect(page.locator('[aria-modal="true"]')).toHaveCount(0)
 }
 
-/** Alt+F, once the page has taken it (pressed until the layout changes). */
-async function altF(page: Page, then: () => Promise<void>) {
+/** Alt+F until `shown` is: pressed again only while the layout has not changed. Alt+F toggles, so a press
+ *  that landed but showed late must not be repeated (that flipped it back, on and on, on a loaded machine). */
+async function altF(page: Page, shown: Locator) {
   await expect(async () => {
-    await page.keyboard.press('Alt+KeyF')
-    await then()
-  }).toPass({ timeout: 10_000 })
+    if (!(await shown.isVisible())) await page.keyboard.press('Alt+KeyF')
+    await expect(shown).toBeVisible({ timeout: 2000 })
+  }).toPass({ timeout: 15_000 })
 }
 
 /** The page beside the docked sidebar: no blank column left by a drawer that pushed it aside. */
@@ -55,8 +56,8 @@ const ways: Record<string, (page: Page) => Promise<void>> = {
   'Alt+F there and back with the drawer open': async (page) => {
     await pick(page, 'List and session')
     await panelLeft(page, 'Show the sidebar').click()
-    await altF(page, () => expect(panelLeft(page, 'Show sessions')).toBeVisible({ timeout: 1000 }))
-    await altF(page, () => expect(panelLeft(page, 'Show the sidebar')).toBeVisible({ timeout: 1000 }))
+    await altF(page, panelLeft(page, 'Show sessions'))
+    await altF(page, panelLeft(page, 'Show the sidebar'))
     await panelLeft(page, 'Show the sidebar').click()
     await pick(page, 'Sidebar, list and session')
   },
@@ -78,13 +79,19 @@ for (const [way, run] of Object.entries(ways)) {
 }
 
 test('desktop 1440: three layouts, panel-left with the needs-you count, one drawer, Alt+F', async ({ browser }) => {
+  test.setTimeout(60_000) // a long walk through every layout: near 30 s on a busy machine
   const page = await start(browser, 1440, 900)
   // Sidebar, list and session: the switch, three segments, no panel-left, nothing to hide a pane with.
   await expect(switchOf(page).getByRole('radio')).toHaveCount(3)
   await expect(segment(page, 'Sidebar, list and session')).toHaveAttribute('aria-checked', 'true')
   await expect(page.getByRole('button', { name: /^Show (the sidebar|sessions)/ })).toHaveCount(0)
   await expect(page.getByRole('button', { name: /^(Hide the|Focus|Sessions$|Open sidebar)/ })).toHaveCount(0)
-  const needs = Number(await page.getByRole('link', { name: /^Needs you/ }).innerText().then((t) => /\d+/.exec(t)?.[0] ?? 0))
+  const needs = Number(
+    await page
+      .getByRole('link', { name: /^Needs you/ })
+      .innerText()
+      .then((t) => /\d+/.exec(t)?.[0] ?? 0),
+  )
 
   // List and session: the compact switch and panel-left at the list's top-left, "Show the sidebar", with the count.
   await pick(page, 'List and session')
@@ -141,8 +148,8 @@ test('desktop 1440: three layouts, panel-left with the needs-you count, one draw
 
   // Alt+F: back to the layout before Session only, and to it again.
   await page.keyboard.press('Escape')
-  await altF(page, () => expect(panelLeft(page, 'Show the sidebar')).toBeVisible({ timeout: 1000 })) // list and session
-  await altF(page, () => expect(panelLeft(page, 'Show sessions')).toBeVisible({ timeout: 1000 }))
+  await altF(page, panelLeft(page, 'Show the sidebar')) // list and session
+  await altF(page, panelLeft(page, 'Show sessions'))
 })
 
 test('Fold 900: two segments, the saved layout kept for when it unfolds', async ({ browser }) => {
@@ -160,7 +167,7 @@ test('Fold 900: two segments, the saved layout kept for when it unfolds', async 
   await page.setViewportSize({ width: 900, height: 800 })
 
   // Session only on the Fold: one drawer, the sidebar and the list side by side, 576 px of 900.
-  await altF(page, () => expect(panelLeft(page, 'Show sessions')).toBeVisible({ timeout: 1000 }))
+  await altF(page, panelLeft(page, 'Show sessions'))
   await panelLeft(page, 'Show sessions').click()
   const open = page.getByRole('dialog', { name: 'Sessions' })
   await expect(open).toBeInViewport()
@@ -171,7 +178,7 @@ test('Fold 900: two segments, the saved layout kept for when it unfolds', async 
 // A car's screen (between lg and xl, touch): in Session only, the list fills the drawer beside the sidebar.
 test('car 1100: the list fills its drawer beside the sidebar', async ({ browser }) => {
   const page = await start(browser, 1100, 650, true)
-  await altF(page, () => expect(panelLeft(page, 'Show sessions')).toBeVisible({ timeout: 1000 }))
+  await altF(page, panelLeft(page, 'Show sessions'))
   await panelLeft(page, 'Show sessions').click()
   const open = page.getByRole('dialog', { name: 'Sessions' })
   const list = open.locator('section[aria-label="Sessions"]')
