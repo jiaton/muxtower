@@ -41,6 +41,7 @@ export const zh: CommandPack = {
     limit: '今天的语音总结已到上限',
     failed: '总结失败',
     code: '一段代码',
+    nothing: '还没有可读的内容',
     phoneVoice: '正在用手机的声音',
   },
 }

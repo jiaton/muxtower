@@ -56,6 +56,7 @@ export const en: CommandPack = {
     limit: "Today's spoken summaries are used up",
     failed: 'The summary could not be made',
     code: 'a block of code',
+    nothing: 'Nothing to read yet',
     phoneVoice: "using the phone's voice",
   },
 }

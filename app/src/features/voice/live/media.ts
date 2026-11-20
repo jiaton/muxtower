@@ -1,3 +1,4 @@
+import { errorFields, logMedia } from './media-log'
 import { useAudioStatus } from './status'
 
 /**
@@ -6,16 +7,22 @@ import { useAudioStatus } from './status'
  * phone's media:
  * - the hub's voice playing (`speech.ts`): what is said, by which session;
  * - Live and Read aloud both on (`car-media.ts`): held all along, "muxtower · <session> · listening",
- *   paused while nothing is said, playing while something is.
+ *   once its silent loop plays.
  * While either is, every action handler is set (`play.ts` says what they do; ⏭ may be Live's send while
- * held); while neither is, none is, and the metadata is cleared, so the phone's other media keeps its own.
+ * held) and the state is "playing" the whole time (Chrome on Android offers ⏮ ⏭, to the notification and
+ * over Bluetooth to a car, only for a session that plays; a paused one may show them greyed); while
+ * neither is, none is, and the metadata is cleared, so the phone's other media keeps its own. Every
+ * handler set, action received and what it did goes to the media log (`media-log.ts`).
  */
 
+/** What a button did, for the log ("played", "nothing", "failed: …"). */
+export type Outcome = string | void
 export interface MediaActions {
-  play: () => void
-  stop: () => void
-  next: () => void
-  previous: () => void
+  /** Play/pause, whichever the car sends: stops what is said, else plays the latest. */
+  toggle: () => Outcome | Promise<Outcome>
+  stop: () => Outcome | Promise<Outcome>
+  next: () => Outcome | Promise<Outcome>
+  previous: () => Outcome | Promise<Outcome>
 }
 
 export interface Saying {
@@ -27,15 +34,15 @@ export interface Saying {
 
 export interface Held {
   title: string
-  /** Something is being said (in any voice). */
-  playing: boolean
   /** ⏭ while held, when not Read all. */
-  next?: () => void
+  next?: () => Outcome | Promise<Outcome>
 }
 
 let actions: MediaActions | null = null
 let saying: Saying | null = null
 let held: Held | null = null
+/** Called before each action: the hold's silent loop started again if the system paused it. */
+let keeper: ((why: string) => void) | null = null
 
 const session = () => (typeof navigator !== 'undefined' && 'mediaSession' in navigator ? navigator.mediaSession : null)
 
@@ -57,13 +64,33 @@ export function holdMedia(next: Held | null) {
   apply()
 }
 
+/** Run before every action (`car-media.ts`: its loop played again if the system paused it). */
+export function setMediaKeeper(keep: ((why: string) => void) | null) {
+  keeper = keep
+}
+
+/** A piece of the hub's voice ended: the handlers and the state set again, as Chrome may have handed the
+ *  session's buttons to that element and taken them back with it. */
+export function reassertMedia(why: string) {
+  if (!saying && !held) return
+  logMedia('reassert', { why })
+  apply()
+}
+
+/** An action as if the phone sent it (`car-media.ts`: a pause of its loop it did not ask for). */
+export function runMediaAction(action: MediaSessionAction, via: string) {
+  const does = ACTIONS.find(([a]) => a === action)?.[1]
+  if (does && actions && (saying || held)) void handle(action, does, via)
+}
+
 function apply() {
   const m = session()
   if (!m) return
   if (!saying && !held) {
+    if (m.metadata !== null || m.playbackState !== 'none') logMedia('state', { playback: 'none', meta: 'none' })
     m.metadata = null
     m.playbackState = 'none'
-    setHandlers(m, null)
+    setHandlers(m, false)
     useAudioStatus.setState({ handlers: false })
     return
   }
@@ -72,25 +99,44 @@ function apply() {
       ? new MediaMetadata({ title: saying.title, artist: saying.artist, album: 'muxtower' })
       : new MediaMetadata({ title: held!.title, album: 'muxtower' })
   }
-  m.playbackState = saying || held?.playing ? 'playing' : 'paused'
-  setHandlers(m, actions && { ...actions, next: held?.next ?? actions.next })
+  m.playbackState = 'playing'
+  logMedia('state', { playback: 'playing', meta: saying ? 'sentence' : 'listening' })
+  setHandlers(m, !!actions)
   useAudioStatus.setState({ handlers: !!actions })
 }
 
 const ACTIONS: [MediaSessionAction, keyof MediaActions][] = [
-  ['play', 'play'],
-  ['pause', 'stop'],
+  ['play', 'toggle'],
+  ['pause', 'toggle'],
   ['stop', 'stop'],
   ['nexttrack', 'next'],
   ['previoustrack', 'previous'],
 ]
 
-function setHandlers(m: MediaSession, to: MediaActions | null) {
-  for (const [action, does] of ACTIONS) {
+async function handle(action: MediaSessionAction, does: keyof MediaActions, via = 'system') {
+  const started = performance.now()
+  logMedia('action', { action, via })
+  keeper?.(action)
+  const run = does === 'next' && held?.next ? held.next : actions?.[does]
+  try {
+    const did = await run?.()
+    logMedia('action-done', { action, did: did ?? 'done', ms: performance.now() - started })
+  } catch (error) {
+    logMedia('action-failed', { action, ms: performance.now() - started, ...errorFields(error) })
+  }
+}
+
+const handlers = new Map(ACTIONS.map(([action, does]) => [action, () => void handle(action, does)]))
+
+function setHandlers(m: MediaSession, on: boolean) {
+  const set: string[] = []
+  for (const [action] of ACTIONS) {
     try {
-      m.setActionHandler(action, to ? to[does] : null)
-    } catch {
-      // a browser without this action
+      m.setActionHandler(action, on ? handlers.get(action)! : null)
+      set.push(action)
+    } catch (error) {
+      logMedia('handler-failed', { action, on, ...errorFields(error) })
     }
   }
+  logMedia('handlers', { on, set: set.join(',') })
 }

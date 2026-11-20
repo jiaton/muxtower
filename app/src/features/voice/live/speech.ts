@@ -1,7 +1,8 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { mergeWithDefaults } from '@/lib/persist-merge'
-import { showSaying } from './media'
+import { reassertMedia, showSaying } from './media'
+import { errorFields, logMedia } from './media-log'
 import { languageOf, spokenIn } from './packs'
 
 /**
@@ -206,15 +207,31 @@ function playAudio(blob: Blob): Promise<void> {
     const url = URL.createObjectURL(blob)
     const audio = new Audio(url)
     playing = audio
+    const started = performance.now()
+    const at = () => ({ ms: performance.now() - started })
     const done = (ok: boolean) => () => {
       URL.revokeObjectURL(url)
       if (playing === audio) playing = null
       if (ok) resolve()
       else reject(new Error('could not play'))
     }
-    audio.onended = done(true)
-    audio.onerror = done(false)
-    audio.play().catch(done(false))
+    // The media log: the hub's mp3 as it plays, pauses, ends or fails; Chrome may hand the buttons to it
+    // and take them along when it ends, so the handlers are set again then.
+    audio.onplay = () => logMedia('mp3', { ev: 'play', ...at() })
+    audio.onpause = () => logMedia('mp3', { ev: 'pause', ...at() })
+    audio.onended = () => {
+      logMedia('mp3', { ev: 'ended', ...at() })
+      done(true)()
+      reassertMedia('mp3 ended')
+    }
+    audio.onerror = () => {
+      logMedia('mp3', { ev: 'error', code: audio.error?.code ?? null, ...at() })
+      done(false)()
+    }
+    audio.play().catch((error: unknown) => {
+      logMedia('mp3', { ev: 'play-rejected', ...errorFields(error), ...at() })
+      done(false)()
+    })
   })
 }
 
@@ -228,7 +245,10 @@ function sayLocally(piece: string, language: string): Promise<void> {
     if (voice) u.voice = voice
     u.lang = voice?.lang ?? tag
     u.onend = () => resolve()
-    u.onerror = () => reject(new Error('could not say'))
+    u.onerror = (e) => {
+      logMedia('local-voice', { ev: 'error', error: (e as SpeechSynthesisErrorEvent | undefined)?.error ?? 'unknown' })
+      reject(new Error('could not say'))
+    }
     s.speak(u)
   })
 }
@@ -313,6 +333,11 @@ export function heardSummary(said: Said & { error?: Problem | null }, inFront: s
   if (said.text) speak(said.text, { title, language })
   else if (said.error)
     speak(`${problemSaid(said.error, language)}. ${speakable(said.reply ?? '', language).slice(0, PIECE)}`, { title, language })
+}
+
+/** There is nothing to read yet, said in the language of `about` (what is in front, if anything). */
+export function nothingSaid(about: string): string {
+  return spokenIn(languageOf(about)).nothing
 }
 
 /** Why nothing could be said, in the language spoken. */

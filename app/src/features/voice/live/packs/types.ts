@@ -42,6 +42,8 @@ export interface SpokenWords {
   failed: string
   /** Said in place of a block of code when a reply is read whole. */
   code: string
+  /** A media button asked for something to read, and there is nothing yet. */
+  nothing: string
   /** The hub's voice did not answer: the phone speaks itself. */
   phoneVoice: string
 }

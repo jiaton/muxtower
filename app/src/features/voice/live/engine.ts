@@ -403,7 +403,7 @@ export function sendFromKey(): boolean {
 }
 
 // While Live and Read aloud are on, the phone's media controls stay with this page (a car's steering wheel).
-wireCarMedia({ live: useLive, send: () => void sendFromKey() })
+wireCarMedia({ live: useLive, send: sendFromKey })
 
 export function resumeLive() {
   pipeline.resume()
