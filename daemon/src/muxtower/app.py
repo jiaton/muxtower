@@ -265,8 +265,9 @@ def create_app(
                     lambda: {name for name, node in nodes.all().items() if node.online},
                 ).run_loop()  # fmt: skip
                 loops["former-bridges"] = FormerBridges(
-                    directory, remote_control.firsts, processes.carries, lambda: bus.publish("sessions", None)
-                ).run_loop()
+                    directory, remote_control.firsts, processes.carries, lambda: bus.publish("sessions", None),
+                    node_sessions.carrying,
+                ).run_loop()  # fmt: skip
             if codex is not None:
                 loops["codex"] = codex.run_loop(bus)
             if codex_shared is not None:

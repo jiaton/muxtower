@@ -8,11 +8,15 @@ first message (`Lineage.first`) is its transcript's first message, under the sam
 whose first message starts a live session's transcript, or one that went on into it (`continued-in`), is
 that session's (`ClaudeProcesses.carries`). Forks are left out on both sides (a fork starts with its
 parent's first message): a tagged fork or side chat has no `first` here (`firsts`), a fork made in Claude
-desktop is titled "… (fork)", and a muxtower session that is a fork (`fork_of`) takes no bridge this way."""
+desktop is titled "… (fork)", and a muxtower session that is a fork (`fork_of`) takes no bridge this way.
+
+A node's sessions write their transcripts on the node: the hub asks each node online which of its live
+sessions carry the orphans' first messages (`carrying`, the node method `carries`, `NodeSource.carrying`),
+and judges them with its own: one session in all, on any machine, or none."""
 
 import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.models import Session
@@ -34,31 +38,42 @@ def on_their_own(listed: list[Session], owners: dict[str, str]) -> list[Session]
     ]  # fmt: skip
 
 
-def owners_of(
-    orphans: list[Session],
-    firsts: dict[str, str],
-    transcripts: dict[str, str],
-    carries: Callable[[str, str], bool],
-) -> dict[str, str]:
+def carrying(
+    directory: SessionDirectory, firsts: Iterable[str], carries: Callable[[str, str], bool]
+) -> dict[str, list[str]]:
+    """Blocking (files). Each first message to the live sessions here (no fork) whose transcript carries it;
+    one no session carries is left out. A node answers its hub's `carries` with it."""
+    forks = {s.id for s in directory.list() if s.fork_of}
+    transcripts = {sid: p for sid, p in directory.transcript_paths().items() if sid not in forks}
+    found: dict[str, list[str]] = {}
+    for first in dict.fromkeys(firsts):
+        if owners := [sid for sid, path in transcripts.items() if carries(path, first)]:
+            found[first] = owners
+    return found
+
+
+def owners_of(orphans: list[Session], firsts: dict[str, str], *carried: dict[str, list[str]]) -> dict[str, str]:
     """Each orphan bridge (`on_their_own`) to the live session whose conversation it carried: the one
-    session whose transcript `carries` its first message (two: neither, it cannot be told)."""
+    session, here or on any node (`carried`: first message → sessions), that carries its first message (two:
+    neither, it cannot be told)."""
     found: dict[str, str] = {}
     for bridge in orphans:
         first = firsts.get(bridge.id)
         if not first:
             continue
-        owners = [sid for sid, path in transcripts.items() if carries(path, first)]
+        owners = {sid for where in carried for sid in where.get(first, [])}
         if len(owners) == 1:
-            found[bridge.id] = owners[0]
+            found[bridge.id] = owners.pop()
     return found
 
 
 class FormerBridges:
     def __init__(
         self, directory: SessionDirectory, firsts: Callable[[], dict[str, str]], carries: Callable[[str, str], bool],
-        changed: Callable[[], None] = lambda: None,
+        changed: Callable[[], None] = lambda: None, nodes: Callable[[list[str]], dict[str, list[str]]] | None = None,
     ) -> None:  # fmt: skip
         self.directory, self.firsts, self.carries, self.changed = directory, firsts, carries, changed
+        self.nodes = nodes  # first message → the node sessions carrying it (`NodeSource.carrying`), on a hub
 
     def tick(self) -> dict[str, str]:
         """Blocking (files). Folds the orphan bridges whose conversation a live session runs; returns them."""
@@ -67,9 +82,12 @@ class FormerBridges:
         orphans = on_their_own(listed, repo.remote_ids())
         if not orphans:
             return {}
-        forks = {s.id for s in listed if s.fork_of}
-        transcripts = {sid: p for sid, p in self.directory.transcript_paths().items() if sid not in forks}
-        found = owners_of(orphans, self.firsts(), transcripts, self.carries)
+        firsts = self.firsts()
+        wanted = sorted({first for s in orphans if (first := firsts.get(s.id))})
+        if not wanted:
+            return {}
+        here = carrying(self.directory, wanted, self.carries)
+        found = owners_of(orphans, firsts, here, self.nodes(wanted) if self.nodes else {})
         for bridge, owner in found.items():
             repo.note_remote_ids(owner, [bridge])
             logger.info("folded %s into %s: an earlier Remote Control session of its conversation", bridge, owner)

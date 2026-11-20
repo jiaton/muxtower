@@ -31,6 +31,7 @@ logger = logging.getLogger("muxtower.nodes")
 SEPARATOR = "~"
 CALL_SECONDS = 20.0
 CREATE_SECONDS = 45.0
+CARRIES_SECONDS = 30.0  # a node reads its transcripts' first lines (cached after the first time)
 OFFLINE = Capabilities(screen=False, conversation=False, keys=[], resize=False, terminate=False, rename=False)
 
 
@@ -144,6 +145,26 @@ class NodeSource:
                 continue
             if isinstance(answer, dict):
                 found[name] = {str(k): str(v) for k, v in answer.items()}
+        return found
+
+    def carrying(self, firsts: list[str]) -> dict[str, list[str]]:
+        """Each of these first messages to the sessions, on the nodes online, whose transcript there carries
+        it (`former_bridges.carrying`), by their ids here: one call per node, the firsts in one batch. A node
+        too old to tell, or not answering in time, tells nothing."""
+        found: dict[str, list[str]] = {}
+        for name, node in self.nodes.all().items():
+            if not node.online:
+                continue
+            try:
+                answer = self.call(name, "carries", {"firsts": firsts}, CARRIES_SECONDS)
+            except Exception as exc:  # noqa: BLE001 - an older node, or one gone a moment
+                logger.info("%s did not say which sessions carry earlier bridges: %s", name, exc)
+                continue
+            if not isinstance(answer, dict):
+                continue
+            for first, owners in answer.items():
+                if isinstance(owners, list):  # its tmux sessions, never a Remote Control one: "<node>~<id>"
+                    found.setdefault(str(first), []).extend(f"{name}{SEPARATOR}{o}" for o in owners)
         return found
 
     def names(self, session_id: str) -> list[NameSeen]:

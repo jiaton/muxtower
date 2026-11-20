@@ -14,6 +14,7 @@ from muxtower.nodes.direct import TOKEN_PREFIX
 from muxtower.nodes.processes import report
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.directory import SessionDirectory
+from muxtower.sessions.former_bridges import carrying
 from muxtower.sessions.launcher import Launcher
 from muxtower.sessions.models import CreateSession, Session, UpdateSession
 from muxtower.sessions.placement import Placements
@@ -34,6 +35,7 @@ MUTATING = frozenset({
 })  # fmt: skip
 # What changes the list here (as the same routes say for a device): the hub hears of it at once.
 CHANGES_LIST = MUTATING | {"mark_read"}
+MAX_FIRSTS = 1000  # first messages the hub asks after in one `carries`
 
 
 class NodeApi:
@@ -146,6 +148,12 @@ class NodeApi:
             case "ended_bridges":  # the hub archives them (`sessions/ended_bridges.py`)
                 ask = getattr(self.processes, "ended_bridges", None)
                 return ask() if ask else {}
+            case "carries":  # the hub folds a bridge on its own into the one session carrying it (`former_bridges.py`)
+                firsts = params.get("firsts")
+                carries = getattr(self.processes, "carries", None)
+                if not isinstance(firsts, list) or len(firsts) > MAX_FIRSTS or carries is None:
+                    raise Invalid("firsts: a list of first message ids")
+                return carrying(d, [str(f) for f in firsts], carries)
             case "create":
                 return _json(self.launcher.create(CreateSession.model_validate(params.get("request"))))
             case _:

@@ -145,8 +145,10 @@ class SessionDirectory(OwnerMarks):
         ended = self.archive_store.ended() if self.archive_store else set()
         locals_ = [s for s in self._locals() if s.id not in ended]
         remotes = [(source, v) for source, v in listed if v.id not in ended]
-        # Remote Control sessions a live session's agent ran before (`note_remote_ids`) are folded into it.
-        formers = {r: sid for r, sid in self.local.repo.remote_ids().items() if sid in {s.id for s in locals_}}
+        # Remote Control sessions a live session's agent ran before (`note_remote_ids`) are folded into it,
+        # here or on a node.
+        owners = {s.id for s in locals_} | {v.id for _, v in remotes if v.node is not None}
+        formers = {r: sid for r, sid in self.local.repo.remote_ids().items() if sid in owners}
         merged_into = {s.remote_id for s in locals_ if s.remote_id} | {v.remote_id for _, v in remotes if v.remote_id}
         merged_into |= set(formers)
         kept = [v for source, v in remotes if v.id not in merged_into and self.source_of(v.id) is source]
@@ -184,6 +186,13 @@ class SessionDirectory(OwnerMarks):
         # A remote id whose agent also runs in tmux here answers with the one merged entry.
         owner = self.local.repo.remote_ids().get(session_id)  # one its agent ran before: that session now
         merged = next((s for s in self._locals() if s.remote_id == session_id or s.id == owner), None)
+        if merged is None and owner is not None and owner != session_id:  # a node's session: that one
+            home = self.source_of(owner)
+            if home is not None and home is not source:
+                try:
+                    merged = home.get(owner)
+                except NotFound:
+                    merged = None  # gone from its node: the bridge on its own
         return self._decorate(merged or source.get(session_id))
 
     def find(self, session_id: str) -> Session | None:

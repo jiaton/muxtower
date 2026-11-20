@@ -132,5 +132,51 @@ def test_two_panes_of_one_conversation_take_none_of_its_bridges() -> None:
     from muxtower.sessions.former_bridges import owners_of
 
     orphan = type("S", (), {"id": "cse_ORPHAN"})()
-    both = owners_of([orphan], {"cse_ORPHAN": FIRST}, {"a": "/t/a.jsonl", "b": "/t/b.jsonl"}, lambda p, f: True)  # type: ignore[list-item]
+    both = owners_of([orphan], {"cse_ORPHAN": FIRST}, {FIRST: ["a", "b"]})  # type: ignore[list-item]
     assert both == {}
+
+
+def test_two_sessions_on_two_machines_take_none_of_its_bridges() -> None:
+    from muxtower.sessions.former_bridges import owners_of
+
+    orphan = type("S", (), {"id": "cse_ORPHAN"})()
+    firsts = {"cse_ORPHAN": FIRST}
+    assert owners_of([orphan], firsts, {FIRST: ["a"]}, {FIRST: ["mac~b"]}) == {}  # type: ignore[list-item]
+    assert owners_of([orphan], firsts, {}, {FIRST: ["mac~b", "box~c"]}) == {}  # type: ignore[list-item]
+    assert owners_of([orphan], firsts, {}, {FIRST: ["mac~b"]}) == {"cse_ORPHAN": "mac~b"}  # type: ignore[list-item]
+
+
+def test_a_bridge_a_node_s_session_carried_is_folded_into_it_and_the_nodes_are_asked_once(tmp_path: Path) -> None:
+    """Nothing here carries it; a node's session does (`NodeSource.carrying`): the bridge is that one's."""
+    app, source, _ = _setup(tmp_path, tmp_path / "nowhere.jsonl")
+    asked: list[list[str]] = []
+
+    def nodes(firsts: list[str]) -> dict[str, list[str]]:
+        asked.append(firsts)
+        return {FIRST: ["mac~5ca1ab1e"]}
+
+    carries = ClaudeProcesses(tmp_path / "claude").carries
+    assert FormerBridges(app.state.directory, source.firsts, carries, nodes=nodes).tick() == {
+        "cse_ORPHAN": "mac~5ca1ab1e"
+    }
+    assert asked == [sorted({FIRST, ELSE})]  # one batch: the orphans' firsts (a fork has none)
+    assert app.state.sessions.repo.remote_ids()["cse_ORPHAN"] == "mac~5ca1ab1e"
+
+
+def test_a_node_says_which_of_its_sessions_carry_a_first_message(tmp_path: Path) -> None:
+    """The node method `carries`: its live sessions here whose transcript carries each first message."""
+    import pytest
+
+    from muxtower.errors import Invalid
+
+    folder = tmp_path / "claude" / "projects" / "-home-dev-shop"
+    folder.mkdir(parents=True)
+    now = folder / f"{NOW}.jsonl"
+    now.write_text(_line(type="user", uuid=FIRST, sessionId=NOW))
+    app, _, _ = _setup(tmp_path, now)
+    (pane,) = (s for s in app.state.directory.list() if s.source != "remote_control")
+    api = app.state.hub.api
+    api.processes = ClaudeProcesses(tmp_path / "claude")
+    assert api.handle("carries", {"firsts": [FIRST, ELSE]}) == {FIRST: [pane.id]}
+    with pytest.raises(Invalid):
+        api.handle("carries", {"firsts": "not a list"})
