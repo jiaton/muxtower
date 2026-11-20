@@ -230,6 +230,22 @@ def test_a_node_s_sessions_see_the_whole_team_through_the_hub(hub: tuple[FastAPI
         _until(lambda: any("[muxtower event" in text and "research" in text for _, text in node_pane.sent))
         assert "research" in tool(node_mcp, token, "list_events", after=0)
 
+        # Started on its own machine with no project named: in the caller's project as the hub keeps it (a node
+        # knows no projects), started through the hub, which audits it.
+        assert not tool(node_mcp, token, "set_project", project="acme/shop").startswith("ERROR")
+        mate = tool(node_mcp, token, "start_session", cwd=str(work), name="mate")
+        assert mate.startswith("Started mate") and "on mac" in mate, mate
+        made = next(s for s in hub_app.state.directory.list() if s.name == "mate")
+        assert made.id.startswith("mac~")  # on the node itself
+        joined = hub_app.state.teams.find(made.id)
+        assert (joined.project, joined.project_source) == ("acme/shop", "set")
+        with hub_app.state.audit.db.connect() as conn:
+            starts = [
+                (r["actor"], r["session_id"])
+                for r in conn.execute("SELECT actor, session_id FROM audit_log WHERE action = 'mcp:start_session'")
+            ]
+        assert starts == [("node mac", made.id)]
+
         # Started on another machine, renamed and archived there: through the hub too.
         started = tool(node_mcp, token, "start_session", cwd=str(work), machine="@nas", name="helper")
         assert started.startswith("Started helper") and not started.startswith("ERROR"), started

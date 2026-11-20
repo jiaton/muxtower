@@ -75,26 +75,36 @@ def listing_everywhere(name: str, run: Callable[[Any], str], forward: Forward | 
 
 
 def starting_anywhere(run: Callable[[Any], str], forward: Forward | None, here: str) -> Callable[[Any], str]:
-    """start_session on a node: here when it names no machine or this one; on another, through the hub.
-    An answer lost on the way back (the link dropped, the hub slow) is asked for again once: the hub knows
-    the same start (the same caller and arguments, or key) and returns the session it made, not a second."""
+    """start_session on a node: through the hub, wherever it starts (this machine too, named): the hub applies
+    what every start gets there (the caller's project as the hub keeps it, the audit, the same start asked
+    twice making one session). Without a link to the hub (or a hub too old to start here), this machine starts
+    one itself, only here. An answer lost on the way back (the link dropped, the hub slow) is asked for again
+    once: the hub knows the same start (the same caller and arguments, or key) and returns the session it
+    made, not a second."""
 
     def wrapped(args: BaseModel) -> str:
         machine = (getattr(args, "machine", None) or "").strip().removeprefix("@").lower()
-        if forward is None or not machine or machine == here.lower():
+        mine = not machine or machine == here.lower()
+        if forward is None:
             return run(args)
+        asked = args.model_copy(update={"machine": here}) if mine else args
         try:
-            answered = _asked("start_session", args, forward)
+            answered = _asked("start_session", asked, forward)
         except NotSent as exc:
+            if mine:
+                return run(args)  # no hub to ask: started here, as a machine alone would
             raise Unavailable(f"{machine} is not this machine, and {exc}; nothing was started") from exc
         except Unavailable as first:
+            if mine and str(first) == OLDER_HUB:
+                return run(args)
             time.sleep(RETRY_SECONDS)
             try:
-                answered = _asked("start_session", args, forward)
+                answered = _asked("start_session", asked, forward)
             except Unavailable as exc:
+                where = "this machine's hub" if mine else f"{machine} is not this machine, and its hub"
                 raise Unavailable(
-                    f"{machine} is not this machine, and its hub did not answer ({first}; then {exc}). It may have "
-                    "started it all the same: check list_sessions before trying again"
+                    f"{where} did not answer ({first}; then {exc}). It may have started it all the same: check "
+                    "list_sessions before trying again"
                 ) from exc
         return run(args) if answered is None else answered
 
