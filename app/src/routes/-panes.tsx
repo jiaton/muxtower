@@ -21,9 +21,11 @@ export function ShowPanes({ list }: { list: boolean }) {
   return <ShowPanesButton label={label} count={needs} alert={Boolean(look)} expanded={open} onClick={() => setOpen(true)} />
 }
 
-/** The layout switch, at the sidebar's top-left: the layouts this screen can show, the one shown filled.
- *  Picked from the drawer, the drawer closes (what it held may dock now). */
-export function SidebarSwitch() {
+/** The layout switch: the layouts this screen can show, the one shown filled; none on a phone. At the
+ *  top-left of the leftmost pane showing, in every layout: the sidebar's (full size), else the list's or
+ *  the session's header (`compact`, beside the panel-left). Picked from the drawer, the drawer closes
+ *  (what it held may dock now). */
+export function PanesSwitch({ compact = false }: { compact?: boolean }) {
   const { dock, split, shown } = usePanes(false)
   const setLayout = useLayoutPrefs((s) => s.setLayout)
   const close = useLayoutDrawer((s) => s.setOpen)
@@ -31,11 +33,23 @@ export function SidebarSwitch() {
   return (
     <LayoutSwitch
       value={shown}
+      compact={compact}
       options={layoutsFor({ dock, split }).map((l) => ({ value: l, label: LAYOUT_LABEL[l], panes: PANES[l] }))}
       onChange={(l) => {
         setLayout(l)
         close(false)
       }}
     />
+  )
+}
+
+/** The top-left of a pane's header while the layout hides panes to its left: the switch (always in the
+ *  same spot, so a hidden pane is never out of reach), then the panel-left that peeks at them. */
+export function PanesLead({ list }: { list: boolean }) {
+  return (
+    <>
+      <PanesSwitch compact />
+      <ShowPanes list={list} />
+    </>
   )
 }

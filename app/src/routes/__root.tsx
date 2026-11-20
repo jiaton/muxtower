@@ -22,7 +22,7 @@ import { useColorScheme } from '@/lib/use-color-scheme'
 import { Drawer } from '@/components/ui/drawer'
 import { useDrawerHistory, useLayoutDrawer } from '@/lib/layout-drawer'
 import { useLayoutShortcut, usePanes } from '@/lib/layout-prefs'
-import { SidebarSwitch } from './-panes'
+import { PanesSwitch } from './-panes'
 import { ink, look } from '@/components/ui/intents'
 
 export const Route = createRootRoute({ component: RootLayout })
@@ -35,7 +35,7 @@ function Sidebar({ inDrawer = false }: { inDrawer?: boolean }) {
   return (
     <>
       <div className="flex h-14 shrink-0 items-center gap-2 px-4">
-        <SidebarSwitch />
+        <PanesSwitch />
         {/* In a drawer the switch is enough: no wordmark cut to "muxto…" beside it. */}
         {inDrawer ? null : (
           <Link to="/" className={`${ink.brand} truncate`}>

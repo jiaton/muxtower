@@ -36,16 +36,19 @@ export interface LayoutOption<T extends string> {
 }
 
 /** Which panes stand side by side: a segment per layout, each drawn as the layout it gives, the current
- *  one filled. Picking the current one again does nothing. */
+ *  one filled (in both themes, not just outlined), each named and with its name as a tooltip. Picking the
+ *  current one again does nothing. `compact`: its size in a pane's header, beside the panel-left. */
 export function LayoutSwitch<T extends string>({
   value,
   options,
   onChange,
+  compact = false,
   className,
 }: {
   value: T
   options: LayoutOption<T>[]
   onChange: (value: T) => void
+  compact?: boolean
   className?: string
 }) {
   return (
@@ -56,13 +59,15 @@ export function LayoutSwitch<T extends string>({
           type="button"
           role="radio"
           aria-checked={o.value === value}
+          aria-label={o.label}
+          title={o.label}
           onClick={() => o.value !== value && onChange(o.value)}
           className={cn(
-            `flex h-6 w-7 items-center justify-center rounded-sm transition-colors select-none ${focusRing}`,
+            `flex h-6 ${compact ? 'w-6' : 'w-7'} items-center justify-center rounded-sm transition-colors select-none ${focusRing}`,
             o.value === value ? 'bg-fg text-bg' : 'text-fg-muted hover:bg-surface-muted hover:text-fg',
           )}
         >
-          <LayoutGlyph panes={o.panes} label={o.label} className="size-3.5" />
+          <LayoutGlyph panes={o.panes} className="size-3.5" />
         </button>
       ))}
     </div>

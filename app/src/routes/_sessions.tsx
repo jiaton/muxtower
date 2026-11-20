@@ -38,7 +38,7 @@ import { cn } from '@/lib/cn'
 import { useUnpairedDaemons } from '@/lib/daemons/store'
 import { usePanes } from '@/lib/layout-prefs'
 import { ink, look } from '@/components/ui/intents'
-import { ShowPanes } from './-panes'
+import { PanesLead } from './-panes'
 
 export const Route = createFileRoute('/_sessions')({ validateSearch: parseListSearch, component: SessionsLayout })
 
@@ -111,7 +111,7 @@ function SessionsLayout() {
             left an empty strip in it between md and xl, as on a car's screen). */}
         <Pane ref={listPane} ruled className={asDrawer ? 'flex min-w-0 flex-1' : 'flex w-full md:w-80 md:shrink-0 xl:w-96'} aria-label="Sessions">
           <PaneHeader
-            leading={panes.sidebarAlone ? <ShowPanes list={false} /> : null}
+            leading={panes.sidebarAlone ? <PanesLead list={false} /> : null}
             title={
               <h1 className="truncate" title={title}>
                 {query.folder ? folderName(title) : title}

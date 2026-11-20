@@ -1,6 +1,6 @@
-import { renderHook } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { layoutsFor, migrateLayout, shownLayout, useLayoutPrefs, useLayoutShortcut, type Layout } from './layout-prefs'
+import { layoutsFor, migrateLayout, shownLayout, useLayoutPrefs, useFullScreen, useLayoutShortcut, type Layout } from './layout-prefs'
 
 afterEach(() => useLayoutPrefs.setState({ layout: 'full', previous: 'full' }))
 
@@ -116,5 +116,19 @@ describe('the panes when the screen changes (a phone rotated, a Fold opened)', (
     at(390)
     expect(useLayoutPrefs.getState().layout).toBe('session')
     vi.unstubAllGlobals()
+  })
+})
+
+describe('the browser full screen', () => {
+  it('follows fullscreenchange, however it was left (Esc is the browser\'s)', () => {
+    const { result } = renderHook(() => useFullScreen())
+    expect(result.current).toBe(false)
+    const element = document.documentElement
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => element })
+    act(() => void document.dispatchEvent(new Event('fullscreenchange')))
+    expect(result.current).toBe(true)
+    Object.defineProperty(document, 'fullscreenElement', { configurable: true, get: () => null })
+    act(() => void document.dispatchEvent(new Event('fullscreenchange')))
+    expect(result.current).toBe(false)
   })
 })

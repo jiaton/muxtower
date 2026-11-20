@@ -1,5 +1,5 @@
-// The layout (sidebar, list and session · list and session · session only), its switch at the sidebar's
-// top-left, the panel-left that opens the one drawer, Alt+F, on the demo's made-up hub.
+// The layout (sidebar, list and session · list and session · session only), its switch always at the top-left
+// of the leftmost pane showing (the sidebar's, the list's or the session's header), the panel-left that opens the one drawer, Alt+F, on the demo's made-up hub.
 import { expect, test, type Browser, type Page } from '@playwright/test'
 
 const DEMO = process.env.MUXTOWER_E2E_DEMO ?? 'http://127.0.0.1:4418/'
@@ -86,14 +86,15 @@ test('desktop 1440: three layouts, panel-left with the needs-you count, one draw
   await expect(page.getByRole('button', { name: /^(Hide the|Focus|Sessions$|Open sidebar)/ })).toHaveCount(0)
   const needs = Number(await page.getByRole('link', { name: /^Needs you/ }).innerText().then((t) => /\d+/.exec(t)?.[0] ?? 0))
 
-  // List and session: panel-left at the list's top-left, "Show the sidebar", with the count.
+  // List and session: the compact switch and panel-left at the list's top-left, "Show the sidebar", with the count.
   await pick(page, 'List and session')
   const showSidebar = panelLeft(page, 'Show the sidebar')
   await expect(showSidebar).toHaveAccessibleName(needs ? new RegExp(`\\(${needs} needs? you\\)`) : 'Show the sidebar')
   if (needs) await expect(showSidebar).toHaveText(String(needs))
   const list = page.getByRole('region', { name: 'Sessions' }).or(page.locator('section[aria-label="Sessions"]')).first()
-  const [button, pane] = [await showSidebar.boundingBox(), await list.boundingBox()]
-  expect(button!.x - pane!.x).toBeLessThan(24) // at the leftmost pane's top-left
+  const [at, button, pane] = [await switchOf(page).boundingBox(), await showSidebar.boundingBox(), await list.boundingBox()]
+  expect(at!.x - pane!.x).toBeLessThan(24) // the switch at the leftmost pane's top-left
+  expect(button!.x - (at!.x + at!.width)).toBeLessThan(12) // and the panel-left right beside it
   await showSidebar.click()
   await expect(drawer(page)).toBeInViewport()
   await expect(drawer(page).getByRole('radiogroup', { name: 'Layout' })).toBeVisible() // the switch, at its top-left
@@ -194,3 +195,47 @@ test('phone 390: one pane at a time, panel-left one level up, no switch', async 
   await expect(page.getByRole('link', { name: 'Daemons' })).toBeInViewport()
   await expect(switchOf(page)).toHaveCount(0)
 })
+
+// The switch is never out of reach: in every layout, at the top-left of the leftmost pane showing, the shown one
+// filled, every segment working from where it sits; the header keeps its controls (the title gives way).
+const LEFTMOST: Record<string, string> = {
+  'Sidebar, list and session': 'aside[aria-label="Navigation"]',
+  'List and session': 'section[aria-label="Sessions"]',
+  'Session only': 'section:has([placeholder="Message the agent"])',
+}
+for (const [width, height, layouts] of [
+  [1440, 900, ['Sidebar, list and session', 'List and session', 'Session only']],
+  [1100, 650, ['Sidebar, list and session', 'List and session', 'Session only']],
+  [900, 800, ['List and session', 'Session only']],
+] as const) {
+  test(`${width}: the switch at the leftmost pane's top-left in every layout, each segment working there`, async ({ browser }) => {
+    test.setTimeout(90_000) // every pair of layouts, each a re-layout of the whole app
+    const page = await start(browser, width, height)
+    for (const from of layouts) {
+      for (const to of layouts) {
+        if (to === from) continue
+        if (!(await segment(page, from).getAttribute('aria-checked'))?.includes('true')) await pick(page, from)
+        await expect(switchOf(page)).toHaveCount(1)
+        await expect(switchOf(page)).toBeInViewport()
+        await expect(switchOf(page).getByRole('radio')).toHaveCount(layouts.length)
+        await expect(segment(page, from)).toHaveAttribute('aria-checked', 'true')
+        await expect(segment(page, from)).toHaveAttribute('title', from)
+        const pane = (await page.locator(LEFTMOST[from]).first().boundingBox())!
+        const at = (await switchOf(page).boundingBox())!
+        expect(at.x - pane.x).toBeLessThan(24) // the top-left of the leftmost pane
+        expect(at.y - pane.y).toBeLessThan(32)
+        if (from !== 'Sidebar, list and session') {
+          // Beside the panel-left, and the header's controls still all there: the title truncates first.
+          const header = page.locator(LEFTMOST[from]).first().locator('header').first()
+          await expect(header.getByRole('button', { name: /^Show (the sidebar|sessions)/ })).toBeInViewport()
+          const actions = header.getByRole('button', { name: from === 'Session only' ? 'More actions' : 'New session' }).first()
+          await expect(actions).toBeInViewport()
+          expect((await actions.boundingBox())!.x + 32).toBeLessThanOrEqual(pane.x + pane.width + 1)
+        }
+        await pick(page, to)
+        await expect(segment(page, to)).toHaveAttribute('aria-checked', 'true')
+        await expect(page.getByRole('complementary', { name: 'Navigation' })).toHaveCount(to === 'Sidebar, list and session' ? 1 : 0)
+      }
+    }
+  })
+}

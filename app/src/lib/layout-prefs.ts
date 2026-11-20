@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { SIDEBAR_QUERY, SPLIT_QUERY, useMediaQuery } from './use-media-query'
@@ -128,4 +128,19 @@ export const canFullScreen = () => typeof document !== 'undefined' && document.f
 export function toggleFullScreen() {
   if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
   else void document.documentElement.requestFullscreen().catch(() => {})
+}
+
+const onFullScreenChange = (notify: () => void) => {
+  document.addEventListener('fullscreenchange', notify)
+  return () => document.removeEventListener('fullscreenchange', notify)
+}
+
+/** Whether the browser is in full screen now, kept right by `fullscreenchange` (it is left by Esc, the
+ *  browser's own way out, which the page never intercepts). */
+export function useFullScreen(): boolean {
+  return useSyncExternalStore(
+    onFullScreenChange,
+    () => Boolean(document.fullscreenElement),
+    () => false,
+  )
 }

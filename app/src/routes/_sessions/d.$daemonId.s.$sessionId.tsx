@@ -20,7 +20,7 @@ import { SessionSkeleton } from '@/features/sessions/components/session-skeleton
 import { FullScreenItem } from '@/features/sessions/components/full-screen-item'
 import { canFullScreen, usePanes } from '@/lib/layout-prefs'
 import { useLayoutDrawer } from '@/lib/layout-drawer'
-import { ShowPanes } from '../-panes'
+import { PanesLead } from '../-panes'
 import { SessionHeader } from '@/features/sessions/components/session-header'
 import { InterruptedState } from '@/features/sessions/components/interrupted'
 import { useSeenWhileOpen } from '@/features/sessions/hooks/use-seen-while-open'
@@ -207,7 +207,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
       <SessionHeader
         daemonId={daemonId}
         session={session}
-        leading={listInDrawer ? <ShowPanes list /> : null}
+        leading={listInDrawer ? <PanesLead list /> : null}
         actions={
           <>
             <PlayButton daemonId={daemonId} sessionId={session.id} reply={session.last_message} name={session.name} />

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Pane, PaneBody, PaneHeader } from '@/components/ui/pane'
 import { usePanes } from '@/lib/layout-prefs'
-import { ShowPanes } from './-panes'
+import { PanesLead } from './-panes'
 import { DaemonCard } from '@/features/daemons/components/daemon-card'
 import { Diagnostics } from '@/features/daemons/components/diagnostics'
 import { VoiceCommandsSettings } from '@/features/voice/components/voice-commands-settings'
@@ -29,7 +29,7 @@ function DaemonsPage() {
   return (
     <Pane className="flex-1" aria-label="Daemons">
       <PaneHeader
-        leading={sidebarAlone ? <ShowPanes list={false} /> : null}
+        leading={sidebarAlone ? <PanesLead list={false} /> : null}
         title={<h1>Daemons</h1>}
         subtitle="The machines whose agents this device sees"
         actions={
