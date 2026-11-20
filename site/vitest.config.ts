@@ -16,5 +16,8 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     css: false,
     include: ['src/**/*.test.{ts,tsx}', 'scripts/**/*.test.{ts,mjs}'],
+    // A shared machine or a CI runner: 15 s per test (5 s timed whole files out under load), at most 3 workers.
+    testTimeout: 15_000,
+    maxWorkers: 3,
   },
 })

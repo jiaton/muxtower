@@ -14,5 +14,5 @@ export default defineConfig(({ command }) => ({
   },
   // Dev server only: a device token for the simulator, whose panel cannot be typed into. Builds get ''.
   define: { __DEV_TOKEN__: JSON.stringify(command === 'serve' ? (process.env.MUXTOWER_G2_DEV_TOKEN ?? '') : '') },
-  test: { environment: 'jsdom' },
+  test: { environment: 'jsdom', testTimeout: 15_000, maxWorkers: 3 },
 }))
