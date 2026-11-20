@@ -44,6 +44,12 @@ Adding `"token"` to an entry skips pairing entirely, but anyone who can load the
 
 **Moving to another device.** On a paired phone, *Daemons → Add another device* shows one QR code that pairs the other device with every daemon at once. It carries one-time codes, not tokens: each device gets its own token, and the QR stops working after one use or five minutes.
 
+**Live in the car.** Live (hands-free voice into the message box) with Read aloud works with a phone on a car's Bluetooth, but a car can take an open microphone for a call: its media screen turns into a call or a spinner, and its buttons stop working. *Daemons → Live in the car* (per browser) has what to try, and a line saying what is in use now (the microphone, voice processing, whether the car's buttons are held):
+
+- **Voice processing off** first. With it on, Chrome on Android puts the phone in call mode whichever microphone listens; off, the car may stay on media. More of the car's own sound is picked up (Read aloud is never heard: Live does not listen while it speaks).
+- **Microphone**: *Phone microphone* keeps the car's microphone (and its call profile) out of it; *Bluetooth / car microphone* uses the car's. When the one chosen is not there, Live uses the default and says so.
+- While Live and Read aloud are both on, the phone's media controls stay with muxtower: play says the latest summary, pause stops, ⏮ says it again, ⏭ reads the whole reply (or, if chosen, sends what you said). Turning either off gives the controls back to the car's own music.
+
 ## On Even Realities G2 glasses
 
 The daemon also serves a glasses app at `/g2/` (`glasses/`, an Even Hub app): what needs you first, then each machine's sessions; approve with two taps; long replies as a short summary first (`summaries.provider`); answer by voice, holding or tap-to-tap with the text appearing as you speak (`asr.provider`). Open it with the Even App's developer mode (`npx -p @evenrealities/evenhub-cli evenhub qr --url https://<daemon>/g2/`) and pair it with a code from `muxtower pair`. Details: `glasses/AGENTS.md`, [g2.md](g2.md).

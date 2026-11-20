@@ -7,6 +7,7 @@ import { Pane, PaneBody, PaneHeader } from '@/components/ui/pane'
 import { DaemonCard } from '@/features/daemons/components/daemon-card'
 import { Diagnostics } from '@/features/daemons/components/diagnostics'
 import { VoiceCommandsSettings } from '@/features/voice/components/voice-commands-settings'
+import { LiveAudioSettings } from '@/features/voice/components/live-audio-settings'
 import { PresetWarning } from '@/features/daemons/components/preset-warning'
 import { InstallApp } from '@/features/install/components/install-app'
 import { AddDaemonDialog } from '@/features/pairing/components/add-daemon-dialog'
@@ -62,6 +63,7 @@ function DaemonsPage() {
           <InstallApp />
           <Diagnostics />
           <VoiceCommandsSettings />
+          <LiveAudioSettings />
           {paired.length ? (
             <section className="flex flex-col gap-2">
               <h2 className={ink.label}>Other devices</h2>

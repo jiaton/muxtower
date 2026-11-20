@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { mergeWithDefaults } from '@/lib/persist-merge'
+import { showSaying } from './media'
 import { languageOf, spokenIn } from './packs'
 
 /**
@@ -165,44 +166,14 @@ export function setHubVoice(voice: HubVoice | null) {
 
 let playing: HTMLAudioElement | null = null
 
-const media = () => (typeof navigator !== 'undefined' && 'mediaSession' in navigator ? navigator.mediaSession : null)
-
-/** The phone's media controls (lock screen, notification shade, a car's dash over Bluetooth) while the
- *  hub's voice plays: what is said, by which session. Only for the hub's audio: the phone's own voice is no
- *  media the system shows. */
+/** The phone's media controls while the hub's voice plays (`media.ts`): what is said, by which session.
+ *  Only for the hub's audio: the phone's own voice is no media the system shows. */
 function showMedia(caption: Caption | null) {
-  const m = media()
-  if (!m) return
-  if (!caption) {
-    m.metadata = null
-    m.playbackState = 'none'
-    return
-  }
+  if (!caption) return showSaying(null)
   const first = caption.pieces[0] ?? ''
   // A short one whole; a longer one its first sentence (a car's dash shows some 30 characters).
   const sentence = first.length > 30 ? (first.match(/^.*?[。！？.!?]/)?.[0] ?? first.slice(0, 30)) : first
-  if (typeof MediaMetadata !== 'undefined') {
-    m.metadata = new MediaMetadata({ title: sentence, artist: caption.title, album: 'muxtower' })
-  }
-  m.playbackState = 'playing'
-}
-
-/** What the media controls do (`play.ts` sets them): play/pause, next (read all), previous (play again). */
-export function setMediaActions(actions: { play: () => void; stop: () => void; next: () => void; previous: () => void }) {
-  const m = media()
-  if (!m) return
-  const set = (action: MediaSessionAction, run: () => void) => {
-    try {
-      m.setActionHandler(action, run)
-    } catch {
-      // a browser without this action
-    }
-  }
-  set('play', actions.play)
-  set('pause', actions.stop)
-  set('stop', actions.stop)
-  set('nexttrack', actions.next)
-  set('previoustrack', actions.previous)
+  showSaying({ title: sentence, artist: caption.title })
 }
 
 let captionTimer: ReturnType<typeof setTimeout> | undefined

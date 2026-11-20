@@ -2,8 +2,8 @@ import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { dismissCaption, keepCaption, readAll, setHubVoice, speak, stopSpeaking, useSpeech } from './speech'
 
 let finishAudio: (() => void) | null = null
-const handlers: Record<string, () => void> = {}
-const session = { metadata: null as unknown, playbackState: 'none', setActionHandler: (a: string, f: () => void) => (handlers[a] = f) }
+const handlers: Record<string, (() => void) | null> = {}
+const session = { metadata: null as unknown, playbackState: 'none', setActionHandler: (a: string, f: (() => void) | null) => (handlers[a] = f) }
 
 beforeEach(() => {
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} }))
@@ -104,10 +104,13 @@ it('a reply read whole is a caption of pieces, counted', async () => {
   stopSpeaking()
 })
 
-it('maps the media buttons: play, pause → stop, next → read all, previous → play again', async () => {
+it('maps the media buttons while the hub speaks (play, pause → stop, next → read all, previous → play again), none after', async () => {
   await import('./play')
-  expect(Object.keys(handlers)).toEqual(expect.arrayContaining(['play', 'pause', 'stop', 'nexttrack', 'previoustrack']))
-  useSpeech.setState({ speaking: true })
+  setHubVoice(async () => new Blob(['mp3']))
+  speak('部署好了。', { title: 'api' })
+  await settle()
+  for (const a of ['play', 'pause', 'stop', 'nexttrack', 'previoustrack']) expect(handlers[a], a).toBeTypeOf('function')
   handlers.pause!()
   expect(useSpeech.getState().speaking).toBe(false)
+  for (const a of ['play', 'pause', 'stop', 'nexttrack', 'previoustrack']) expect(handlers[a], a).toBeNull()
 })

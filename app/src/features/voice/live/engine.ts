@@ -6,6 +6,8 @@ import { chosenLanguages, startSpotter, type Spotter } from './kws'
 import { enabledPacks } from './packs'
 import { heardSummary, overlapsSpeech, quiet, readAll, stopSpeaking, TAIL_MS, useSpeech } from './speech'
 import { play } from './play'
+import { wireCarMedia } from './car-media'
+import { micClosed, openMic } from './mic'
 import { spokenListeners } from '@/lib/api/streams'
 import { entryKey } from '@/features/sessions/model/facets'
 import { LivePipeline, SHORT_MS, type Ask, type BoxOps, type Cue, type Heard, type Target } from './pipeline'
@@ -173,6 +175,10 @@ export async function toggleLive() {
         ort.env.logLevel = 'error'
         ort.env.wasm.numThreads = 1
       },
+      // The microphone chosen, with voice processing on or off (`mic.ts`): opened again each time Read
+      // aloud has spoken (the VAD lets it go while it speaks).
+      getStream: openMic,
+      resumeStream: openMic,
       redemptionMs: PAUSE_MS,
       minSpeechMs: MIN_SPEECH_MS,
       preSpeechPadMs: LEAD_MS,
@@ -263,6 +269,7 @@ export async function stopLive() {
   useLive.setState({ commands: { state: 'off' } })
   await wakeLock?.release().catch(() => undefined)
   wakeLock = null
+  micClosed()
   useLive.setState({ phase: 'off', speaking: false })
 }
 
@@ -394,6 +401,9 @@ export function sendFromKey(): boolean {
   void pipeline.keyed('send', target)
   return true
 }
+
+// While Live and Read aloud are on, the phone's media controls stay with this page (a car's steering wheel).
+wireCarMedia({ live: useLive, send: () => void sendFromKey() })
 
 export function resumeLive() {
   pipeline.resume()
