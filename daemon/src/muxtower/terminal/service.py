@@ -1,5 +1,6 @@
 import time
 
+from muxtower.attachments.store import AttachmentStore
 from muxtower.errors import NotFound
 from muxtower.sessions.monitor import Monitor
 from muxtower.sessions.service import SessionService
@@ -17,10 +18,13 @@ TYPE_UP_TO = 200  # characters of a single line typed as keys; longer, or severa
 
 
 class TerminalService:
-    def __init__(self, sessions: SessionService, monitor: Monitor, images: ImageDrop) -> None:
+    def __init__(
+        self, sessions: SessionService, monitor: Monitor, images: ImageDrop, attachments: AttachmentStore
+    ) -> None:
         self.sessions = sessions
         self.monitor = monitor
         self.images = images
+        self.attachments = attachments
 
     def screen(self, session_id: str, history: int) -> Screen:
         record = self.sessions.record(session_id)
@@ -34,8 +38,12 @@ class TerminalService:
     def send(self, session_id: str, body: SendInput) -> None:
         record = self.sessions.record(session_id)
         tmux = self.sessions.tmux
+        files = self.attachments.paths(session_id, body.attachments)  # each one there, before anything is typed
         for image in body.images:  # each becomes [Image #n] in the prompt, ahead of the words
             tmux.paste(record.pane, str(self.images.save(image)))
+            time.sleep(PASTE_SECONDS)
+        for path in files:  # then each file's path, one per line
+            tmux.paste(record.pane, f"{path}\n")
             time.sleep(PASTE_SECONDS)
         if body.text is not None:
             # Typed, a newline is a key press (Claude Code kept only the last lines of a long message);

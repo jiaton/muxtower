@@ -10,6 +10,7 @@ from pydantic import BaseModel
 from muxtower.auth.service import TokenService
 from muxtower.errors import Invalid
 from muxtower.infra.audit import AuditLog
+from muxtower.nodes.attachments import NodeUploads
 from muxtower.nodes.direct import TOKEN_PREFIX
 from muxtower.nodes.processes import report
 from muxtower.sessions.archiving import Archiver
@@ -52,6 +53,7 @@ class NodeApi:
         self.settings: SettingsService | None = None  # its feature settings, which the hub may change
         self.tokens: TokenService | None = None  # its device tokens: the hub's devices get one here (`direct.py`)
         self.directory = directory
+        self.uploads = NodeUploads(lambda *args: directory.upload(*args))  # files the hub passes on for a message
         self.launcher = launcher
         self.archiver = archiver
         self.placements = placements
@@ -89,6 +91,11 @@ class NodeApi:
                 return _json(d.approve(sid, params.get("option"), params.get("answers")))
             case "deny":
                 return _json(d.deny(sid))
+            case "attachment":
+                result = self.uploads.handle(sid, params)
+                if params.get("step") == "finish":  # its name and size; never what is in it
+                    self.audit.record("hub", "attachment", sid, f"name={result['name']} size={result['size']}")
+                return result
             case "accept_suggestion":
                 d.accept_suggestion(sid, str(params.get("text", "")))
             case "resize":

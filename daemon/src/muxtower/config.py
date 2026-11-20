@@ -8,6 +8,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from muxtower.attachments.models import DEFAULT_MAX_MB
+
 
 def _xdg(var: str, fallback: str) -> Path:
     return Path(os.environ.get(var) or Path.home() / fallback) / "muxtower"
@@ -230,6 +232,12 @@ class WritesSettings(BaseModel):
     window_minutes: float = Field(default=30, gt=0)  # writes older than this no longer count
 
 
+class AttachmentSettings(BaseModel):
+    """`[attachments]`: files attached to a message (`attachments/`), saved on the session's machine."""
+
+    max_mb: int = Field(default=DEFAULT_MAX_MB, ge=1, le=1024)  # each; a node's own setting applies there
+
+
 class UsageSettings(BaseModel):
     """When what the daemon uses is worth showing (an alert by the machine's name in the app)."""
 
@@ -271,6 +279,7 @@ class Settings(BaseModel):
     listen: ListenSettings = Field(default_factory=ListenSettings)
     tts: TtsSettings = Field(default_factory=TtsSettings)
     writes: WritesSettings = Field(default_factory=WritesSettings)
+    attachments: AttachmentSettings = Field(default_factory=AttachmentSettings)
     launch: LaunchSettings = Field(default_factory=LaunchSettings)
     triggers: TriggerSettings = Field(default_factory=TriggerSettings)
     sessions: SessionSettings = Field(default_factory=SessionSettings)

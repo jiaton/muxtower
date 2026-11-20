@@ -68,6 +68,8 @@ FIELDS: tuple[Field, ...] = (
           "then the phone's voice until the month turns (Azure's free tier: 500,000)"),
     Field("writes.window_minutes", "Teams", "Two sessions writing in one worktree: count writes of the last (minutes)",
           "number", "now", "file-editing tools only, not Bash"),
+    Field("attachments.max_mb", "Attachments", "Largest file attached to a message (MB)", "number", "now",
+          "each file; kept 7 days on the machine its session runs on (a node: its own setting)"),
     Field("sessions.default_cwd", "New sessions", "Default folder", "text", "now",
           "where one starts when given no folder (~ is the home folder); empty, or no such folder: home"),
     Field("launch.claude_code_mode", "New sessions", "Claude Code permission mode", "choice", "now",

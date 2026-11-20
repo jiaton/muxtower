@@ -203,6 +203,10 @@ class NodeSource:
     def send_input(self, session_id: str, body: SendInput) -> None:
         self._call(session_id, "input", {"body": body.model_dump(mode="json")})
 
+    def upload_step(self, session_id: str, params: dict[str, Any]) -> Any:
+        """One step of a file's upload to its node (`attachments.py`)."""
+        return self._call(session_id, "attachment", params)
+
     def accept_suggestion(self, session_id: str, text: str) -> None:
         self._call(session_id, "accept_suggestion", {"text": text})
 

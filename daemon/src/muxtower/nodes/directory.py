@@ -6,7 +6,9 @@ Every daemon is built with it; one that no node has joined behaves exactly as `S
 from collections.abc import Sequence
 from typing import Any
 
+from muxtower.attachments.ports import Upload
 from muxtower.errors import Conflict
+from muxtower.nodes.attachments import NodeUpload
 from muxtower.nodes.processes import NodeProcesses
 from muxtower.nodes.source import NodeSource
 from muxtower.sessions.directory import SessionDirectory
@@ -81,6 +83,14 @@ class HubDirectory(SessionDirectory):
         if body.key is not None and keys and body.key not in keys:
             raise Conflict(f"this session takes only these keys: {', '.join(keys)}")
         self.nodes.send_input(session_id, body)  # whole: typed into its terminal or sent as a message there
+
+    def upload(self, session_id: str, name: str, media_type: str) -> Upload:
+        if not self._on_node(session_id):
+            return super().upload(session_id, name, media_type)
+        session = self.get(session_id)
+        if session.offline or session.archived_at:
+            raise Conflict(f"{session.node} is offline" if session.offline else "this session is archived")
+        return NodeUpload(self.nodes, session_id, name, media_type)  # saved there, by its node's rules
 
     def resize(self, session_id: str, body: Resize) -> None:
         if self._on_node(session_id):

@@ -16,6 +16,7 @@ from muxtower.agents.processes import AgentProcesses
 from muxtower.approval.auto import AutoApprover
 from muxtower.approval.service import ApprovalService
 from muxtower.asr.dictionary import DictionaryStore
+from muxtower.attachments.store import AttachmentStore
 from muxtower.auth.pairing import PairingService
 from muxtower.auth.stream_cookie import StreamCookieSigner
 from muxtower.builders import (
@@ -146,7 +147,8 @@ def create_app(
     processes = AgentProcesses([ClaudeProcesses(), CodexProcesses(shared=codex_shared is not None)])
     monitor = Monitor(sessions, processes)
     approvals = ApprovalService(sessions)
-    terminal = TerminalService(sessions, monitor, ImageDrop(settings.state_dir / "images"))
+    attachments = AttachmentStore(settings.state_dir / "attachments", lambda: settings.attachments.max_mb * 1024 * 1024)
+    terminal = TerminalService(sessions, monitor, ImageDrop(settings.state_dir / "images"), attachments)
     summaries = build_summaries(settings, db)
     summaries.language = lambda: settings.listen.language  # glasses and Read aloud speak the same language
     marks = SessionMarks(SqliteMarksRepository(db))
@@ -249,6 +251,7 @@ def create_app(
                 "recovery": recovery.run_loop(bus),
                 "search-index": _indexing(indexer),
                 "listen": listen.run_loop(bus),
+                "attachments": attachments.run_loop(),
             }
             if summaries.available:
 

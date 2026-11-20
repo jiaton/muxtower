@@ -26,6 +26,10 @@ class TooManyRequests(Exception):
     pass
 
 
+class TooLarge(Exception):
+    """A body past what the daemon takes (413)."""
+
+
 class Unavailable(Exception):
     """A service the daemon depends on (outside tmux) failed or could not be reached."""
 

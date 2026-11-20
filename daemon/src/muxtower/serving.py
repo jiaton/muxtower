@@ -6,13 +6,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from muxtower.asr.routes import router as asr_router
+from muxtower.attachments.models import FILENAME_HEADER
 from muxtower.attachments.routes import router as attachments_router
 from muxtower.auth.deps import DAEMON_AUTH_HEADER
 from muxtower.auth.routes import router as auth_router
 from muxtower.chips.routes import router as chips_router
 from muxtower.config import Settings
 from muxtower.diagnostics.routes import router as diagnostics_router
-from muxtower.errors import Conflict, Forbidden, Invalid, NotFound, TooManyRequests, Unauthorized, Unavailable
+from muxtower.errors import (
+    Conflict,
+    Forbidden,
+    Invalid,
+    NotFound,
+    TooLarge,
+    TooManyRequests,
+    Unauthorized,
+    Unavailable,
+)
 from muxtower.hooks.routes import router as hooks_router
 from muxtower.infra.tmux import TmuxError
 from muxtower.listen.routes import router as listen_router
@@ -42,14 +52,14 @@ def serve(app: FastAPI, settings: Settings, allowed_origins: list[str], daemon_n
             allow_origins=allowed_origins,
             allow_credentials=False,  # bearer tokens only; the stream cookie is same-origin
             allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
-            allow_headers=["Authorization", "Content-Type", *settings.cors.extra_headers],
+            allow_headers=["Authorization", "Content-Type", FILENAME_HEADER, *settings.cors.extra_headers],
             expose_headers=list(DAEMON_AUTH_HEADER),
             max_age=600,
         )
         app.add_middleware(PrivateNetworkAccess)  # outside CORS: it adds to the preflight's answer
 
     errors = ((NotFound, 404), (Invalid, 400), (Conflict, 409), (Forbidden, 403), (Unauthorized, 401),
-              (TooManyRequests, 429), (TmuxError, 503), (Unavailable, 503))  # fmt: skip
+              (TooManyRequests, 429), (TooLarge, 413), (TmuxError, 503), (Unavailable, 503))  # fmt: skip
     # 503, not 502: Cloudflare (a tunnel) swaps an origin's 502 for its own page, and the reason is lost.
     for error, status in errors:
 

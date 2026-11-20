@@ -14,6 +14,7 @@ from typing import Literal
 
 from muxtower.approval.models import Answers, ApprovalResult
 from muxtower.approval.service import ApprovalService
+from muxtower.attachments.ports import Upload
 from muxtower.errors import Conflict, NotFound
 from muxtower.runtimes.models import AgentState
 from muxtower.runtimes.spec import ANSI
@@ -42,6 +43,7 @@ WHAT = {
 }  # fmt: skip
 
 IMAGE_ITEMS = 2000  # how far back in a conversation its images can be read
+PICTURES_ONLY = "this session takes pictures only"  # no pane here to paste a file's path into
 
 
 def _as_listed(session: Session, listed_as: dict[str, str]) -> Session:
@@ -314,10 +316,15 @@ class SessionDirectory(OwnerMarks):
         source = self.source_of(session_id)
         if body.images and not session.capabilities.images:
             raise Conflict("this session takes no images")
+        if body.attachments and source is not None:
+            raise Conflict(PICTURES_ONLY)
         remote = self.source_of(session.remote_id) if session.remote_id else None
         if source is None and remote is not None and body.text is not None and session.runtime != "claude-code":
-            # A Codex pane that is also a shared app-server thread: the message goes to the thread, whole.
-            remote.send_text(session.remote_id or "", body.text, body.images)
+            # A Codex pane that is also a shared app-server thread: the message goes to the thread, whole
+            # (its files' paths ahead of the words).
+            files = self.terminal.attachments.paths(session_id, body.attachments)
+            text = "".join(f"{path}\n" for path in files) + body.text
+            remote.send_text(session.remote_id or "", text, body.images)
         elif source is None:
             # A session in tmux here: typed (or pasted) into its pane. A Claude Code one also on Remote Control
             # included: sent over Remote Control, Claude Code (2.1.3xx) takes a message for one from another
@@ -327,6 +334,15 @@ class SessionDirectory(OwnerMarks):
             source.send_text(session_id, body.text, body.images)  # a message is sent whole; `enter` is implied
         elif body.key is not None:
             source.send_key(session_id, body.key)
+
+    def upload(self, session_id: str, name: str, media_type: str) -> Upload:
+        """A file for a message to this session, saved here (`attachments/`): only for one in a pane here."""
+        session = self.get(session_id)
+        if session.archived_at:
+            raise Conflict("this session is archived")
+        if self.source_of(session_id) is not None:
+            raise Conflict(PICTURES_ONLY)
+        return self.terminal.attachments.begin(session_id, name, media_type)
 
     def at_prompt(self, session_id: str) -> bool:
         """A Claude Code pane (here or on a node) showing a dialog (permission, question, trust, plan): typed

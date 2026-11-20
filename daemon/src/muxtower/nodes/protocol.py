@@ -25,7 +25,16 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from muxtower.errors import Conflict, Forbidden, Invalid, NotFound, TooManyRequests, Unauthorized, Unavailable
+from muxtower.errors import (
+    Conflict,
+    Forbidden,
+    Invalid,
+    NotFound,
+    TooLarge,
+    TooManyRequests,
+    Unauthorized,
+    Unavailable,
+)
 from muxtower.runtimes.models import RuntimeInfo
 
 PROTOCOL = 2  # the newest link this side speaks (2: the node asks the hub, HUB_METHODS)
@@ -40,7 +49,7 @@ METHODS = frozenset({
     "release_size", "update", "terminate", "archive", "mark_read", "detect_folder", "create", "image", "recover",
     "resume_archived", "search", "search_status", "accept_suggestion",
     "settings", "set_settings", "mint_token", "revoke_token", "names", "default_folder", "ended_bridges",
-    "carries",
+    "carries", "attachment",
 })  # fmt: skip
 
 # What a node may ask of its hub (protocol 2): one of its sessions calls a team tool.
@@ -57,8 +66,8 @@ REACH_TOOLS = frozenset({
 })  # fmt: skip
 
 ERRORS: dict[int, type[Exception]] = {
-    400: Invalid, 401: Unauthorized, 403: Forbidden, 404: NotFound, 409: Conflict, 429: TooManyRequests,
-    502: Unavailable,
+    400: Invalid, 401: Unauthorized, 403: Forbidden, 404: NotFound, 409: Conflict, 413: TooLarge,
+    429: TooManyRequests, 502: Unavailable,
 }  # fmt: skip
 
 
