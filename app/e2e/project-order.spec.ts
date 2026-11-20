@@ -186,3 +186,50 @@ test('phone: a swipe on a row still opens its actions', async ({ browser }) => {
   await expect(list(page).locator('[data-swipe-open]')).toHaveCount(1)
   expect(await lifted(page)).toBe(false)
 })
+
+test('in a chip (a narrowed view) projects move too: the dragged one alone, the hidden ones kept in place', async ({ browser }) => {
+  // The demo's order: web-app, shop-api, infra. The Product chip shows web-app and shop-api; infra is hidden.
+  const page = await start(browser, 1440, 1600)
+  await list(page)
+    .getByRole('link', { name: /^Product/ })
+    .click()
+  await expect.poll(() => projects(page)).toEqual(['acme/web-app', 'acme/shop-api'])
+  const handle = list(page).getByRole('button', { name: 'Move acme/shop-api' })
+  await projectHeader(page, 'acme/shop-api').hover()
+  await expect(handle).toHaveCSS('opacity', '1')
+  const from = (await handle.boundingBox())!
+  const to = (await projectHeader(page, 'acme/web-app').boundingBox())!
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(from.x + from.width / 2, from.y - 10, { steps: 4 })
+  await page.mouse.move(from.x + from.width / 2, to.y + 4, { steps: 12 })
+  await page.mouse.up()
+  await expect.poll(() => projects(page)).toEqual(['acme/shop-api', 'acme/web-app'])
+  // The whole list (the chip let go, no reload): infra still last.
+  const all = () => page.evaluate(() => void (location.hash = '#/?group=project'))
+  const chip = () =>
+    list(page)
+      .getByRole('link', { name: /^Product/ })
+      .click()
+  await all()
+  await expect.poll(() => projects(page)).toEqual(['acme/shop-api', 'acme/web-app', 'acme/infra'])
+  // The menu's Move down in the chip: past the next project shown.
+  await chip()
+  await expect.poll(() => projects(page)).toEqual(['acme/shop-api', 'acme/web-app'])
+  await list(page).getByRole('button', { name: 'More for acme/shop-api' }).click()
+  await page.getByRole('menuitem', { name: 'Move down' }).click()
+  await expect.poll(() => projects(page)).toEqual(['acme/web-app', 'acme/shop-api'])
+  await all()
+  await expect.poll(() => projects(page)).toEqual(['acme/web-app', 'acme/shop-api', 'acme/infra'])
+})
+
+test('a view with one project shows its handle disabled, saying why, never silently missing', async ({ browser }) => {
+  const page = await start(browser, 1440, 1200)
+  await list(page).getByRole('link', { name: /^Ops/ }).click() // infra and Other: one project
+  await expect.poll(() => projects(page)).toEqual(['acme/infra'])
+  const handle = list(page).getByRole('button', { name: 'Move acme/infra' })
+  await projectHeader(page, 'acme/infra').hover()
+  await expect(handle).toHaveCSS('opacity', '1')
+  await expect(handle).toHaveAttribute('aria-disabled', 'true')
+  await expect(handle).toHaveAttribute('title', /only project shown here/)
+})

@@ -120,6 +120,7 @@ export function useSessionAutoRead() {
         )
     },
     // On, its finished turns no longer count as unread (marked unread by hand comes back from the daemon).
-    onMutate: ({ daemonId, sessionId, autoRead }) => patch(daemonId, sessionId, autoRead ? { auto_read: true, unread: false } : { auto_read: false }),
+    onMutate: ({ daemonId, sessionId, autoRead }) =>
+      patch(daemonId, sessionId, autoRead ? { auto_read: true, unread: false } : { auto_read: false }),
   })
 }

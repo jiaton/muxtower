@@ -45,14 +45,19 @@ export function orderPlaces(
   })
 }
 
-/** The order to keep once the projects shown were put in this order (`shown`, first to last): each shown
- *  project takes, in turn, the places the shown ones held in the order, so one not shown now (another view, a
- *  filter) keeps its place; shown projects the order did not hold yet are added at its end. */
-export function keptOrder(stored: readonly string[], shown: readonly string[]): string[] {
+/** The order to keep once `project` was put at place `to` among the projects shown (`shown`, first to last,
+ *  before the move), in any view (a chip, Unread, a search narrows what is shown): only that project moves, to
+ *  just before the shown project it now precedes, or just after the one it now follows at the end; every other
+ *  project, shown or not, keeps its place. Shown projects the order did not hold yet are added at its end, as
+ *  shown (the list puts them there, by name). */
+export function movedTo(stored: readonly string[], shown: readonly string[], project: string, to: number): string[] {
   const all = [...stored, ...shown.filter((name) => !stored.includes(name))]
-  const taken = new Set(shown)
-  let next = 0
-  return all.map((name) => (taken.has(name) ? shown[next++]! : name))
+  const others = shown.filter((name) => name !== project)
+  const place = Math.max(0, Math.min(to, others.length))
+  const without = all.filter((name) => name !== project)
+  if (!others.length) return all
+  const at = place < others.length ? without.indexOf(others[place]!) : without.indexOf(others[others.length - 1]!) + 1
+  return [...without.slice(0, at), project, ...without.slice(at)]
 }
 
 /** Projects as the owner put them (`order`), the others after by name: the one order every list of projects

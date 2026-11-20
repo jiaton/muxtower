@@ -3,7 +3,7 @@ import type { Session } from '@/lib/api/types'
 import type { Daemon } from '@/lib/daemons/types'
 import type { SessionEntry } from './facets'
 import { groupEntries } from './query'
-import { compareInProject, keptOrder, leads, inProjectOrder } from './project-order'
+import { compareInProject, movedTo, leads, inProjectOrder } from './project-order'
 
 const hub = { id: 'hub', name: 'hub' } as Daemon
 let made = 0
@@ -82,10 +82,19 @@ it('a new session takes its place in its project, not the top; a new project its
   expect(labels(added)).toEqual(['acme/api', 'acme/beta', 'acme/web'])
 })
 
-it('keeps the places of projects not shown when the shown ones are put in order', () => {
-  expect(keptOrder(['a', 'b', 'c'], ['c', 'a'])).toEqual(['c', 'b', 'a'])
-  expect(keptOrder([], ['b', 'a'])).toEqual(['b', 'a'])
-  expect(keptOrder(['a', 'b'], ['new', 'b', 'a'])).toEqual(['new', 'b', 'a'])
+it('a project put in place in a narrowed view moves alone, next to the shown project it was put by', () => {
+  const all = ['a', 'h1', 'b', 'h2', 'c'] // h1, h2: hidden in this view
+  const shown = ['a', 'b', 'c']
+  expect(movedTo(all, shown, 'c', 0)).toEqual(['c', 'a', 'h1', 'b', 'h2']) // to the top: just before a
+  expect(movedTo(all, shown, 'a', 2)).toEqual(['h1', 'b', 'h2', 'c', 'a']) // to the end: just after c
+  expect(movedTo(all, shown, 'c', 1)).toEqual(['a', 'h1', 'c', 'b', 'h2']) // between: just before b
+  // Move up / down: past the next shown project, the hidden ones skipped and left where they were.
+  expect(movedTo(all, shown, 'b', 0)).toEqual(['b', 'a', 'h1', 'h2', 'c'])
+  expect(movedTo(all, shown, 'b', 2)).toEqual(['a', 'h1', 'h2', 'c', 'b'])
+  // Shown projects not in the order yet join at its end, as shown.
+  expect(movedTo([], ['b', 'a'], 'a', 0)).toEqual(['a', 'b'])
+  expect(movedTo(['a', 'b'], ['a', 'b', 'new'], 'new', 0)).toEqual(['new', 'a', 'b'])
+  expect(movedTo(['a', 'b'], ['a', 'b', 'new'], 'a', 1)).toEqual(['b', 'a', 'new'])
 })
 
 it('one order for every list of projects: the owner set it, the others after by name', () => {

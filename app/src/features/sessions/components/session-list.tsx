@@ -129,9 +129,11 @@ function TeamHere({ node }: { node: GroupNode }) {
 /** Folds or unfolds what the header (the button clicked) holds, keeping that header where it is on screen. */
 type Toggle = (key: string, header: HTMLButtonElement) => void
 
+const LONE = 'The only project shown here: show more (another chip, All) to move it past others'
+
 /** A group's sticky header. Drawn again only when what it says changed (not when another part folds). */
 const GroupHeader = memo(
-  function GroupHeader({ node, toggle, sort }: { node: GroupNode; toggle: Toggle; sort?: HeaderSort }) {
+  function GroupHeader({ node, toggle, sort, lone }: { node: GroupNode; toggle: Toggle; sort?: HeaderSort; lone?: boolean }) {
     return (
       <h3 className={`${look.listHeader} sticky top-0 z-10 flex items-center`}>
         <FoldButton
@@ -155,6 +157,17 @@ const GroupHeader = memo(
           <HeaderCount count={node.count} needs={node.needs} className="normal-case" />
         </FoldButton>
         {sort ? <DragHandle {...sort.handle} /> : null}
+        {lone ? (
+          // The only project this view shows: nothing to move it past here. Said, not silently missing
+          // (aria-disabled, not disabled: a disabled button shows no tooltip).
+          <DragHandle
+            label={`Move ${node.label}`}
+            aria-disabled
+            title={LONE}
+            className="cursor-not-allowed"
+            onClick={(e) => e.preventDefault()}
+          />
+        ) : null}
         {node.placeKind === 'project' ? <TeamHere node={node} /> : null}
         {sort ? <ProjectMoveMenu label={node.label} sort={sort} /> : null}
         {node.implies.device || node.placeKind ? <StartHere node={node} /> : null}
@@ -164,6 +177,7 @@ const GroupHeader = memo(
   (a, b) =>
     !a.sort &&
     !b.sort &&
+    a.lone === b.lone &&
     a.toggle === b.toggle &&
     (['key', 'id', 'label', 'sectioned', 'folded', 'foldable', 'count', 'needs'] as const).every((k) => a.node[k] === b.node[k]) &&
     a.node.implies.agent === b.node.implies.agent &&
@@ -331,9 +345,10 @@ export function SessionList({
       projectTag: context.projectTag || group.implies.role,
     },
   })
+  const lone = (group: GroupNode) => Boolean(ordering) && !sortable.length && group.placeKind === 'project'
   const body = (group: GroupNode, sort?: HeaderSort) => (
     <>
-      <GroupHeader node={group} toggle={toggle} sort={sort} />
+      <GroupHeader node={group} toggle={toggle} sort={sort} lone={!sort && lone(group)} />
       <Fold open={!group.folded} still={instant.current === group.key}>
         <Children nodes={group.children} drawn={drawnOf(group)} />
       </Fold>
@@ -345,7 +360,7 @@ export function SessionList({
         {(sort) => body(group, sort)}
       </SortableGroup>
     ) : (
-      <section key={group.id} aria-label={group.label}>
+      <section key={group.id} aria-label={group.label} className={lone(group) ? 'group/sort' : undefined}>
         {body(group)}
       </section>
     ),

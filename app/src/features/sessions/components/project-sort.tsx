@@ -9,7 +9,7 @@ import {
   type UniqueIdentifier,
 } from '@dnd-kit/core'
 import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
-import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS as DndCSS } from '@dnd-kit/utilities'
 import { useRef, useState, type MouseEvent, type ReactNode, type TouchEvent } from 'react'
 import { ArrowDown, ArrowUp, MoreHorizontal } from 'lucide-react'
@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { sortLook, useReducedMotion, useSortSensors } from '@/components/ui/sortable'
 import { cn } from '@/lib/cn'
-import { keptOrder } from '../model/project-order'
+import { movedTo } from '../model/project-order'
 
 /** The owner's order of projects (kept on the hub) and how a new one is kept. */
 export interface ProjectOrdering {
@@ -47,7 +47,7 @@ const DROP_CLICK_MS = 400
  * picked up by its ⋮⋮ handle (a mouse; Space, the arrows and Space from the keyboard, announced) or held on a
  * touch screen, and the groups it passes slide aside (not with reduced motion); the list scrolls near its
  * edges. Nothing else listens: a wheel or a swipe over a header scrolls the list as ever. `ids` are the
- * project groups' keys as shown; a drop keeps the order on the hub (`keptOrder`).
+ * project groups' keys as shown; a drop keeps the order on the hub, moving that project only (`movedTo`), whatever the view hides.
  */
 export function ProjectSort({
   ids,
@@ -99,8 +99,7 @@ export function ProjectSort({
       onDragEnd={(e: DragEndEvent) => {
         setLifted(null)
         if (!e.over || e.active.id === e.over.id) return
-        const moved = arrayMove(ids, ids.indexOf(String(e.active.id)), ids.indexOf(String(e.over.id)))
-        ordering.save(keptOrder(ordering.stored, moved.map(labelOf)))
+        ordering.save(movedTo(ordering.stored, ids.map(labelOf), labelOf(String(e.active.id)), ids.indexOf(String(e.over.id))))
       }}
     >
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
@@ -141,7 +140,8 @@ export function SortableGroup({
     onDragCancel: ({ active }) => void (active.id === id && (dropped.current = performance.now())),
   })
   const at = ids.indexOf(id)
-  const step = (by: -1 | 1) => () => ordering.save(keptOrder(ordering.stored, arrayMove(ids, at, at + by).map(labelOf)))
+  // Up or down: past the next project shown, whatever the view hides between them.
+  const step = (by: -1 | 1) => () => ordering.save(movedTo(ordering.stored, ids.map(labelOf), label, at + by))
   const sort: HeaderSort = {
     handle: { ...attributes, ...listeners, ref: setActivatorNodeRef, label: `Move ${label}` },
     hold: {

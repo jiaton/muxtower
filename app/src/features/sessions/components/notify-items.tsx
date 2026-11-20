@@ -1,7 +1,9 @@
 import { Bell, BellDot, BellOff, CheckCheck, type LucideIcon } from 'lucide-react'
 import {
   DropdownMenuCheckboxItem,
-  DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import type { NotifyLevel, Session } from '@/lib/api/types'
