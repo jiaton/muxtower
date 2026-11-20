@@ -33,13 +33,18 @@ class SendInput(BaseModel):
     key: str | None = None
     enter: bool = False
     images: list[ImageInput] = Field(default_factory=list, max_length=MAX_IMAGES)
+    attachments: list[str] = Field(
+        default_factory=list, max_length=MAX_IMAGES,
+        description="files uploaded for this message (POST …/attachments), by id: each pasted as its path, ahead of "
+        "the words, after any images",
+    )  # fmt: skip
 
     @model_validator(mode="after")
     def _one_of(self) -> "SendInput":
         if (self.text is None) == (self.key is None):
             raise ValueError("send exactly one of text or key")
-        if self.images and self.text is None:
-            raise ValueError("images go with a message (text)")
+        if (self.images or self.attachments) and self.text is None:
+            raise ValueError("images and files go with a message (text)")
         if self.key is not None and not KEY_RE.match(self.key):
             raise ValueError(f"unsupported key {self.key!r}")
         return self

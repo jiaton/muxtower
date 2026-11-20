@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from muxtower.asr.routes import router as asr_router
+from muxtower.attachments.routes import router as attachments_router
 from muxtower.auth.deps import DAEMON_AUTH_HEADER
 from muxtower.auth.routes import router as auth_router
 from muxtower.chips.routes import router as chips_router
@@ -61,7 +62,7 @@ def serve(app: FastAPI, settings: Settings, allowed_origins: list[str], daemon_n
     routers = (system_router, auth_router, sessions_router, summaries_router, asr_router, mcp_router, stream_router,
                push_router, hooks_router, nodes_router, teams_router, usage_router, recovery_router,
                settings_router, chips_router, diagnostics_router, playbook_router, search_router,
-               listen_router, tts_router, triggers_router)  # fmt: skip
+               listen_router, tts_router, triggers_router, attachments_router)  # fmt: skip
     for router in routers:
         app.include_router(router)
 
