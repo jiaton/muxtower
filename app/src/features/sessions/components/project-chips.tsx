@@ -74,12 +74,15 @@ export function ProjectChips({
   search,
   entries,
   groups,
+  onChoose,
   className,
 }: {
   query: SessionQuery
   search: ListSearch
   entries: SessionEntry[]
   groups: ChipGroup[]
+  /** A chip clicked (`''`: let go): chooses it, and may open a session with it (`useChipSwitch`). */
+  onChoose?: (event: MouseEvent, chip: string) => void
   className?: string
 }) {
   const row = useRef<HTMLDivElement>(null)
@@ -160,6 +163,7 @@ export function ProjectChips({
                   scope={{ chip: current ? '' : chip.id }}
                   current={current}
                   count={count(chip)}
+                  onClick={(e) => onChoose?.(e, current ? '' : chip.id)}
                   className="[-webkit-touch-callout:none]"
                 >
                   <span className="max-w-40 truncate">{chip.label}</span>

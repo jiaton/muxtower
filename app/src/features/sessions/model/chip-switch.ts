@@ -38,8 +38,9 @@ export function listOrder(entries: SessionEntry[], query: SessionQuery, projectO
 }
 
 /**
- * Where switching to a chip lands (its `query`): the session `remembered` for it while it is still in the
- * list there and not archived, else the list's first session there, else none (the empty pane).
+ * Where switching to a chip lands (its `query`): the session `remembered` for it while the list still holds
+ * it there (a row of its own, or a side chat or fork under one) and it is not archived, else the list's first
+ * session there, else none (the empty pane).
  */
 export function chipLanding(
   entries: SessionEntry[],
@@ -47,9 +48,10 @@ export function chipLanding(
   remembered: SessionRef | undefined,
   projectOrder: readonly string[] = [],
 ): SessionEntry | null {
-  const listed = listOrder(entries, query, projectOrder)
   const kept =
     remembered &&
-    listed.find((e) => e.daemon.id === remembered.daemonId && e.session.id === remembered.sessionId && !e.session.archived_at)
-  return kept || listed[0] || null
+    filterEntries(entries, query).find(
+      (e) => e.daemon.id === remembered.daemonId && e.session.id === remembered.sessionId && !e.session.archived_at,
+    )
+  return kept || listOrder(entries, query, projectOrder)[0] || null
 }

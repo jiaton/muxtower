@@ -1,23 +1,67 @@
 import { useNavigate } from '@tanstack/react-router'
-import type { RefObject } from 'react'
-import { projectChips, type ChipGroup } from '../model/chip-groups'
-import { stepChip } from '../model/chip-switch'
+import { useEffect, type MouseEvent, type RefObject } from 'react'
+import { chipMembers, projectChips, type ChipGroup } from '../model/chip-groups'
+import { chipLanding, NO_CHIP, stepChip, type SessionRef } from '../model/chip-switch'
 import type { SessionEntry } from '../model/facets'
-import { scopeSearch, type ListSearch } from '../model/search'
+import { scopeSearch, toQuery, type ListSearch } from '../model/search'
+import { useChipMemory, useListPrefs } from '../store'
 import { useChipStepping } from './use-chip-keys'
 
 /**
- * Switching the second row's chip from the list: a sideways wheel over `listRef` or `[` / `]` steps to the
- * chip before or after in the row's order (no chip first, no wrapping), choosing it as a click on it does.
+ * Switching the second row's chip, and what opens with it. Each chip (and no chip, "All") remembers the
+ * session last opened while it was chosen, if it is listed there. Choosing a chip, by a click on it, a
+ * sideways wheel over `listRef` or `[` / `]` (the chip before or after in the row's order, no chip first,
+ * no wrapping), chooses it as the chip's link does and, where the session shows beside the list (`beside`),
+ * opens its remembered session too, as a row's click does; gone, archived or no longer in the chip, its
+ * first session in the list's order; none, the empty pane. On a phone (one pane at a time) it stays on the
+ * list. Returns what a chip's click calls (`choose`): a click with a modifier stays the link's own.
  */
 export function useChipSwitch(
   listRef: RefObject<HTMLElement | null>,
-  { search, entries, groups, projectOrder }: { search: ListSearch; entries: SessionEntry[]; groups: ChipGroup[]; projectOrder: string[] },
+  {
+    search,
+    entries,
+    groups,
+    projectOrder,
+    open,
+    beside,
+  }: {
+    search: ListSearch
+    entries: SessionEntry[]
+    groups: ChipGroup[]
+    projectOrder: string[]
+    /** The session open now, and whether the list shows it under the chosen chip. */
+    open: (SessionRef & { listed: boolean }) | undefined
+    beside: boolean
+  },
 ) {
   const navigate = useNavigate()
+  const group = useListPrefs((s) => s.group)
+  const remember = useChipMemory((s) => s.remember)
+  const chip = search.chip ?? NO_CHIP
+
+  useEffect(() => {
+    if (open?.listed) remember(chip, { daemonId: open.daemonId, sessionId: open.sessionId })
+  }, [chip, open?.daemonId, open?.sessionId, open?.listed, remember])
+
+  const go = (next: string) => {
+    const target = scopeSearch(search, { chip: next })
+    const query = { ...toQuery(target, group), chip: chipMembers(next || undefined, groups) ?? undefined }
+    const landing = beside ? chipLanding(entries, query, useChipMemory.getState().last[next], projectOrder) : null
+    if (landing)
+      void navigate({ to: '/d/$daemonId/s/$sessionId', params: { daemonId: landing.daemon.id, sessionId: landing.session.id }, search: target })
+    else void navigate({ to: '/', search: target })
+  }
+
   const ids = (projectChips(groups, entries, projectOrder) ?? []).map((c) => c.id)
   useChipStepping(listRef, (by) => {
     const next = stepChip(ids, search.chip, by)
-    if (next !== null) void navigate({ to: '/', search: scopeSearch(search, { chip: next }) })
+    if (next !== null) go(next)
   })
+
+  return (event: MouseEvent, next: string) => {
+    if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
+    event.preventDefault()
+    go(next)
+  }
 }

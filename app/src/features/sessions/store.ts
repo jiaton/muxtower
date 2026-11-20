@@ -4,6 +4,8 @@ import type { GroupBy } from './model/query'
 import type { ListSearch } from './model/search'
 import type { NewSessionPreset } from './model/new-here'
 import { mergeWithDefaults } from '@/lib/persist-merge'
+import { safeJSONStorage } from '@/lib/safe-storage'
+import type { SessionRef } from './model/chip-switch'
 
 interface ListPrefs {
   /** How the list is grouped when the URL does not say. */
@@ -123,5 +125,34 @@ export const useChipSwitchPrefs = create<ChipSwitchPrefs>()(
       setWheel: (wheel) => set({ wheel }),
     }),
     { name: 'muxtower.chip-switch', version: 1, merge: mergeWithDefaults, partialize: (s) => ({ wheel: s.wheel }) },
+  ),
+)
+
+interface ChipMemory {
+  /** Per chip of the second row (its id; `NO_CHIP` for none, "All"): the session opened last while it was
+   *  chosen, which choosing it again opens beside the list (`chipLanding`). */
+  last: Record<string, SessionRef>
+  remember: (chip: string, session: SessionRef) => void
+}
+
+/** Per browser; a browser that keeps nothing (storage refused) remembers for this visit only. */
+export const useChipMemory = create<ChipMemory>()(
+  persist(
+    (set) => ({
+      last: {},
+      remember: (chip, session) =>
+        set((s) => {
+          const was = s.last[chip]
+          if (was?.daemonId === session.daemonId && was.sessionId === session.sessionId) return s
+          return { last: { ...s.last, [chip]: session } }
+        }),
+    }),
+    {
+      name: 'muxtower.chip-memory',
+      version: 1,
+      storage: safeJSONStorage(),
+      merge: mergeWithDefaults,
+      partialize: (s) => ({ last: s.last }),
+    },
   ),
 )

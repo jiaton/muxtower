@@ -76,11 +76,18 @@ function SessionsLayout() {
   const setSidebarSlot = useLayoutDrawer((s) => s.setSidebarSlot)
   const withSidebar = asDrawer && panes.split // the sidebar beside the list in the drawer, as they dock
   useScrollMemory(listRef, listKey, !asDrawer || drawerOpen, !loading)
-  useChipSwitch(listRef, { search, entries, groups: chipGroups, projectOrder })
   useEffect(() => useListMemory.setState({ lastSearch: search }), [search])
 
   const visible = filterEntries(entries, query)
   const selectedKey = open ? entryKey(open.params.daemonId, open.params.sessionId) : undefined
+  const chooseChip = useChipSwitch(listRef, {
+    search,
+    entries,
+    groups: chipGroups,
+    projectOrder,
+    open: open ? { ...open.params, listed: visible.some((e) => e.key === selectedKey) } : undefined,
+    beside: panes.split && panes.shown !== 'session', // where a session shows beside the list
+  })
   // On a phone the list is a page of its own: back on it, the session just left stays marked (and in view),
   // so one sees where one was.
   const canSplit = panes.split
@@ -144,7 +151,7 @@ function SessionsLayout() {
           >
             <SearchField search={search} />
             <ListChips query={query} search={search} facets={facets} className="lg:hidden" />
-            <ProjectChips query={query} search={search} entries={entries} groups={chipGroups} />
+            <ProjectChips query={query} search={search} entries={entries} groups={chipGroups} onChoose={chooseChip} />
             <ScopeChip query={query} search={search} />
           </PaneHeader>
           <PaneBody ref={listRef}>

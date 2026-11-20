@@ -82,3 +82,46 @@ test('[ and ] switch the chip outside a text field', async ({ page }) => {
   await expect(page.getByPlaceholder('Search sessions').first()).toHaveValue(']')
   await expect(current(page)).toHaveText(/^Product/)
 })
+
+test('each chip opens the session last opened under it again', async ({ page }) => {
+  await start(page, 1440, 900)
+  const open = () => page.evaluate(() => decodeURIComponent(location.hash.split('?')[0]!))
+  const rows = list(page).locator('[data-row-link]')
+  const session = /^#\/d\/demo\/s\//
+  await chips(page).getByRole('link', { name: /^Product/ }).click()
+  await expect(current(page)).toHaveText(/^Product/)
+  await expect.poll(open).toMatch(session) // nothing remembered yet: its first
+  const first = await open()
+  await rows.nth(1).click() // not its first, which a switch would open anyway
+  await expect.poll(open).not.toBe(first)
+  const product = await open()
+  await chips(page).getByRole('link', { name: /^Ops/ }).click()
+  await expect(current(page)).toHaveText(/^Ops/)
+  await expect.poll(open).not.toBe(product)
+  const opsFirst = await open()
+  await rows.last().click()
+  await expect.poll(open).not.toBe(opsFirst)
+  const ops = await open()
+  await chips(page).getByRole('link', { name: /^Product/ }).click()
+  await expect(current(page)).toHaveText(/^Product/)
+  await expect.poll(open).toBe(product)
+  // And by the wheel, back to Ops' session.
+  await page.mouse.move(...(await center(rows.first())))
+  await page.mouse.wheel(120, 0)
+  await expect(current(page)).toHaveText(/^Ops/)
+  await expect.poll(open).toBe(ops)
+})
+
+test('on a phone, ] switches the chip and stays on the list', async ({ page }) => {
+  await start(page, 390, 844)
+  await page.keyboard.press(']')
+  await expect(current(page)).toHaveText(/^Product/)
+  await page.waitForTimeout(IDLE)
+  expect(await page.evaluate(() => location.hash)).toBe('#/?chip=product')
+  await expect(list(page)).toBeVisible()
+})
+
+async function center(el: ReturnType<Page['locator']>): Promise<[number, number]> {
+  const box = (await el.boundingBox())!
+  return [box.x + box.width / 2, box.y + box.height / 2]
+}
