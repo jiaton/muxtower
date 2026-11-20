@@ -14,7 +14,7 @@ import { CSS as DndCSS } from '@dnd-kit/utilities'
 import { useRef, useState, type MouseEvent, type ReactNode, type TouchEvent } from 'react'
 import { ArrowDown, ArrowUp, MoreHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { sortLook, useReducedMotion, useSortSensors } from '@/components/ui/sortable'
 import { cn } from '@/lib/cn'
 import { keptOrder } from '../model/project-order'
@@ -182,6 +182,7 @@ export function ProjectMoveMenu({ label, sort }: { label: string; sort: HeaderSo
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
+        <DropdownMenuLabel>{label}</DropdownMenuLabel>
         <DropdownMenuItem icon={ArrowUp} disabled={!sort.up} onSelect={sort.up}>
           Move up
         </DropdownMenuItem>
