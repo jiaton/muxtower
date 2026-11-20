@@ -163,7 +163,16 @@ test('phone: a finger held on a header picks the project up and puts it where it
   const from = (await projectHeader(page, 'acme/infra').boundingBox())!
   const to = (await projectHeader(page, 'acme/web-app').boundingBox())!
   const cdp = await page.context().newCDPSession(page)
-  await finger(cdp, from.x + 120, from.y + from.height / 2, from.x + 120, to.y + 4, 600, 16)
+  // Held still until the page has picked it up (a fixed wait was too short on a slow CI runner: the first step
+  // then cancelled the hold), then moved and let go.
+  const [x, y] = [from.x + 120, from.y + from.height / 2]
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
+  await expect.poll(() => lifted(page), { timeout: 5000 }).toBe(true)
+  for (let i = 1; i <= 16; i++) {
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y: y + ((to.y + 4 - y) * i) / 16 }] })
+    await new Promise((r) => setTimeout(r, 16))
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
   await expect.poll(() => projects(page)).toEqual(['acme/infra', 'acme/web-app', 'acme/shop-api'])
   await expect(foldOf(page, 'acme/infra')).toHaveAttribute('aria-expanded', 'true') // the drop folded nothing
 })
