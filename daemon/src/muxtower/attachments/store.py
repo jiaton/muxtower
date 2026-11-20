@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import secrets
+import shlex
 import threading
 import time
 import unicodedata
@@ -37,6 +38,12 @@ def safe_name(name: str) -> str:
     room = MAX_NAME_BYTES - len(ext.encode())
     stem = stem.encode()[:room].decode(errors="ignore").rstrip() or "file"
     return stem + ext
+
+
+def as_pasted(path: Path) -> str:
+    """A file's path as it goes into a prompt: one word (shell-quoted when it has spaces or the like), then a
+    space. Never a newline: in a pane without bracketed paste that is Enter, and the message would go early."""
+    return f"{shlex.quote(str(path))} "
 
 
 def _folder_name(session_id: str) -> str:

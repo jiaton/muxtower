@@ -56,7 +56,7 @@ def test_a_node_s_session_gets_its_files_saved_on_the_node(
 
         message = {"text": "summarise it", "enter": True, "attachments": [found["id"]]}
         assert phone.post(f"/v1/sessions/{sid}/input", json=message).status_code == 204
-        assert ("paste", f"{saved}\n") in pane.sent and ("text", "summarise it") in pane.sent
+        assert ("paste", f"{saved} ") in pane.sent and ("text", "summarise it") in pane.sent
 
         # The node's own limit applies, and nothing is left there.
         node.state.terminal.attachments.max_bytes = lambda: 100

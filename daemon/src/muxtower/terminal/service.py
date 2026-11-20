@@ -1,6 +1,6 @@
 import time
 
-from muxtower.attachments.store import AttachmentStore
+from muxtower.attachments.store import AttachmentStore, as_pasted
 from muxtower.errors import NotFound
 from muxtower.sessions.monitor import Monitor
 from muxtower.sessions.service import SessionService
@@ -42,8 +42,8 @@ class TerminalService:
         for image in body.images:  # each becomes [Image #n] in the prompt, ahead of the words
             tmux.paste(record.pane, str(self.images.save(image)))
             time.sleep(PASTE_SECONDS)
-        for path in files:  # then each file's path, one per line
-            tmux.paste(record.pane, f"{path}\n")
+        for path in files:  # then each file's path, a space after each (`as_pasted`)
+            tmux.paste(record.pane, as_pasted(path))
             time.sleep(PASTE_SECONDS)
         if body.text is not None:
             # Typed, a newline is a key press (Claude Code kept only the last lines of a long message);

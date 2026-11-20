@@ -1,6 +1,7 @@
 """Files attached to a message (any type; pictures keep their own path, `terminal/images.py`): uploaded one by
 one to the session's machine before the message is sent, then named in it by id (`SendInput.attachments`),
-each pasted into the agent's prompt as its path, one per line, as pictures are."""
+each pasted into the agent's prompt as its path followed by a space (shell-quoted where it needs it), as pictures are;
+never a newline, which a pane without bracketed paste would take for Enter."""
 
 from pydantic import BaseModel, Field
 

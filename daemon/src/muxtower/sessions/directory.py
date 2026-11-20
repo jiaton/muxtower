@@ -15,6 +15,7 @@ from typing import Literal
 from muxtower.approval.models import Answers, ApprovalResult
 from muxtower.approval.service import ApprovalService
 from muxtower.attachments.ports import Upload
+from muxtower.attachments.store import as_pasted
 from muxtower.errors import Conflict, NotFound
 from muxtower.runtimes.models import AgentState
 from muxtower.runtimes.spec import ANSI
@@ -323,7 +324,7 @@ class SessionDirectory(OwnerMarks):
             # A Codex pane that is also a shared app-server thread: the message goes to the thread, whole
             # (its files' paths ahead of the words).
             files = self.terminal.attachments.paths(session_id, body.attachments)
-            text = "".join(f"{path}\n" for path in files) + body.text
+            text = "".join(as_pasted(path) for path in files) + body.text
             remote.send_text(session.remote_id or "", text, body.images)
         elif source is None:
             # A session in tmux here: typed (or pasted) into its pane. A Claude Code one also on Remote Control

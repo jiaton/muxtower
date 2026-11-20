@@ -58,15 +58,18 @@ def test_an_uploaded_file_is_saved_privately_and_pasted_as_its_path_after_the_pi
     assert stat.S_IMODE(saved.parent.parent.stat().st_mode) == 0o700
     assert not [p for p in saved.parent.iterdir() if p.name.startswith(".")]  # nothing left half-written
 
-    body = {"text": "read these", "enter": True, "images": [IMAGE], "attachments": [found["id"]]}
+    plain = _upload(client, auth, sid, "notes.txt").json()
+    body = {"text": "read these", "enter": True, "images": [IMAGE], "attachments": [found["id"], plain["id"]]}
     assert client.post(f"/v1/sessions/{sid}/input", json=body, headers=auth).status_code == 204
-    (k1, image), (k2, file), *rest = pane.sent
-    assert (k1, k2) == ("paste", "paste") and image.endswith(".png") and file == f"{saved}\n"
+    (k1, image), (k2, spaced), (k3, bare), *rest = pane.sent
+    assert (k1, k2, k3) == ("paste", "paste", "paste") and image.endswith(".png")
+    assert spaced == f"'{saved}' " and bare == f"{plain['path']} "  # one word each, quoted where it must be
+    assert "\n" not in "".join(text for _, text in pane.sent)  # never Enter in a pane without bracketed paste
     assert rest == [("text", "read these"), ("key", "Enter")]
 
     with app.state.audit.db.connect() as conn:
         rows = conn.execute("SELECT detail FROM audit_log WHERE action = 'attachment'").fetchall()
-    assert [r["detail"] for r in rows] == [f"name={found['name']} size={len(NOTES)}"]  # never the content
+    assert [r["detail"] for r in rows][0] == f"name={found['name']} size={len(NOTES)}"  # never the content
 
 
 def test_a_utf8_name_arrives_percent_encoded(
