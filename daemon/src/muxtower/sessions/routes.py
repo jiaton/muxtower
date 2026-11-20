@@ -15,6 +15,7 @@ from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.launcher import Launcher
 from muxtower.sessions.login import LoginStart, start_claude_login
 from muxtower.sessions.models import (
+    AutoRead,
     Conversation,
     CreateSession,
     DetectedFolder,
@@ -153,6 +154,15 @@ def set_notify(
     """Which push notifications it sends: all, only when it needs the owner, or none; the same on every
     device."""
     session = directory.set_notify(session_id, body.level)
+    request.app.state.bus.publish("sessions", None)
+    return session
+
+
+@router.put("/sessions/{session_id}/auto-read")
+def set_auto_read(session_id: str, body: AutoRead, request: Request, _: CurrentDevice, directory: Directory) -> Session:
+    """Mark its finished turns read as they end (for a chatty worker), or stop; the same on every device.
+    What needs the owner (a prompt, a question, a plan) still shows."""
+    session = directory.set_auto_read(session_id, body.auto_read)
     request.app.state.bus.publish("sessions", None)
     return session
 

@@ -4,7 +4,7 @@ import type { NotifyLevel, Session } from '@/lib/api/types'
 import { useDaemonsStore } from '@/lib/daemons/store'
 import { daemonKey } from '@/lib/query'
 
-/** The owner's marks on a session (read, hidden, pinned, which pushes it sends) live on its daemon, so every device agrees. These
+/** The owner's marks on a session (read, hidden, pinned, which pushes it sends, auto-read) live on its daemon, so every device agrees. These
  *  mutations take any daemon (one call can mark a whole list) and show the change in the cached list at
  *  once; other devices hear it through the daemon's stream. */
 
@@ -96,5 +96,30 @@ export function useSessionNotify() {
         check(await client.PUT('/v1/sessions/{session_id}/notify', { params: { path: { session_id: sessionId } }, body: { level } }))
     },
     onMutate: ({ daemonId, sessionId, level }) => patch(daemonId, sessionId, { notify: level }),
+  })
+}
+
+export interface SessionAutoRead {
+  daemonId: string
+  sessionId: string
+  /** Its finished turns marked read as they end (a chatty worker); what needs the owner still shows. */
+  autoRead: boolean
+}
+
+export function useSessionAutoRead() {
+  const patch = usePatch()
+  return useMutation({
+    mutationFn: async ({ daemonId, sessionId, autoRead }: SessionAutoRead) => {
+      const client = clientOf(daemonId)
+      if (client)
+        check(
+          await client.PUT('/v1/sessions/{session_id}/auto-read', {
+            params: { path: { session_id: sessionId } },
+            body: { auto_read: autoRead },
+          }),
+        )
+    },
+    // On, its finished turns no longer count as unread (marked unread by hand comes back from the daemon).
+    onMutate: ({ daemonId, sessionId, autoRead }) => patch(daemonId, sessionId, autoRead ? { auto_read: true, unread: false } : { auto_read: false }),
   })
 }

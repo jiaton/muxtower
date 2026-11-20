@@ -166,6 +166,10 @@ const SESSION_ROUTES: Record<string, Handler> = {
   },
   'PUT notify': (world, id, body) =>
     world.mark(id, { notify: (body.level as Session['notify']) ?? 'all' }) ? json(world.session(id)) : refuse(404, 'no such session'),
+  'PUT auto-read': (world, id, body) =>
+    world.mark(id, body.auto_read === true ? { auto_read: true, unread: false } : { auto_read: false })
+      ? json(world.session(id))
+      : refuse(404, 'no such session'),
   'GET names': (world, id) => {
     const session = world.session(id)
     return session ? json(namesOf(world, id, session)) : refuse(404, 'no such session')

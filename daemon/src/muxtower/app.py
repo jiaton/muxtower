@@ -237,7 +237,7 @@ def create_app(
             loops = {
                 "monitor": monitor.run_loop(bus, settings.tick_seconds),
                 "push": push.run_loop(bus),
-                "turns": TurnWatcher(marks.finished).run_loop(bus, directory.list),
+                "turns": TurnWatcher(directory.turn_finished).run_loop(bus, directory.list),
                 "transcripts": transcripts.run_loop(bus, directory.transcript_paths),
                 "auto-approve": AutoApprover(approvals, audit).run_loop(bus),
                 "team-tasks": team_tasks.run_loop(bus),

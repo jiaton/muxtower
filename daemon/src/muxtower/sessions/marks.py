@@ -14,6 +14,10 @@ Pinned: listed above the others.
 Notify: which push notifications it sends (`NotifyLevel`), e.g. none from a session that checks on
 something every few minutes.
 
+Auto-read: a finished turn never makes it unread (a chatty worker the owner checks on when they like);
+it is marked read at the turn's end instead. What needs the owner still shows: that is its state, not
+read state. Marking it unread by hand still holds.
+
 Placed: where the owner says it runs (a machine, a folder), for sessions whose source does not say.
 
 Kept in memory, written through to SQLite.
@@ -38,6 +42,7 @@ class Marks:
     folder: str | None = None
     notify: str = "all"
     pinned: bool = False
+    auto_read: bool = False
 
 
 class MarksRepository(Protocol):
@@ -61,7 +66,7 @@ class SqliteMarksRepository:
         def record(r: sqlite3.Row) -> Marks:
             return Marks(
                 _time(r["finished_at"]), _time(r["seen_at"]), bool(r["marked_unread"]), bool(r["hidden"]),
-                r["machine"], r["folder"], r["notify"], bool(r["pinned"]),
+                r["machine"], r["folder"], r["notify"], bool(r["pinned"]), bool(r["auto_read"]),
             )  # fmt: skip
 
         with self.db.connect() as conn:
@@ -71,12 +76,13 @@ class SqliteMarksRepository:
         with self.db.connect() as conn:
             conn.execute(
                 """INSERT INTO session_marks
-                       (session_id, finished_at, seen_at, marked_unread, hidden, machine, folder, notify, pinned)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                       (session_id, finished_at, seen_at, marked_unread, hidden, machine, folder, notify, pinned,
+                        auto_read)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                    ON CONFLICT(session_id) DO UPDATE SET finished_at = excluded.finished_at,
                        seen_at = excluded.seen_at, marked_unread = excluded.marked_unread, hidden = excluded.hidden,
                        machine = excluded.machine, folder = excluded.folder, notify = excluded.notify,
-                       pinned = excluded.pinned""",
+                       pinned = excluded.pinned, auto_read = excluded.auto_read""",
                 (
                     session_id,
                     _text(record.finished_at),
@@ -87,6 +93,7 @@ class SqliteMarksRepository:
                     record.folder,
                     record.notify,
                     int(record.pinned),
+                    int(record.auto_read),
                 ),  # fmt: skip
             )
 
@@ -125,6 +132,19 @@ class SessionMarks:
     def set_notify(self, session_id: str, level: str) -> None:
         self._change(session_id, notify=level)
 
+    def set_auto_read(self, session_id: str, auto_read: bool) -> None:
+        self._change(session_id, auto_read=auto_read)
+
+    def turn_finished(self, session_id: str, at: datetime | None = None) -> bool:
+        """A turn ended: unread, or, for an auto-read session, read up to now (a mark to come back to stays).
+        True when it was read."""
+        at = at or datetime.now(UTC)
+        if self.get(session_id).auto_read:
+            self._change(session_id, finished_at=at, seen_at=at)
+            return True
+        self.finished(session_id, at)
+        return False
+
     def place(self, session_id: str, machine: str | None, folder: str | None) -> None:
         self._change(session_id, machine=machine or None, folder=folder or None)
 
@@ -134,6 +154,8 @@ class SessionMarks:
         seen = record.seen_at
         if record.marked_unread:
             return True
+        if record.auto_read:  # its turns are read as they end, here and wherever its source keeps its own
+            return False
         if record.finished_at and (seen is None or record.finished_at > seen):
             return True
         return source_unread and (seen is None or active_at > seen)

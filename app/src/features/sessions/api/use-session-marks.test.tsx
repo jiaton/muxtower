@@ -7,7 +7,7 @@ import type { Session } from '@/lib/api/types'
 import { daemonKey } from '@/lib/query'
 import { addDaemon } from '@/test/render'
 import { DAEMON_URL, server } from '@/test/server'
-import { useHideSession, useMarkRead, useSessionNotify } from './use-session-marks'
+import { useHideSession, useMarkRead, useSessionAutoRead, useSessionNotify } from './use-session-marks'
 
 it('tells the daemon and shows the session read at once', async () => {
   const daemon = addDaemon()
@@ -67,4 +67,26 @@ it('sets which notifications a session sends, on its daemon and in the list at o
   expect(queryClient.getQueryData<Session[]>(daemonKey(daemon.id, 'sessions'))?.[0].notify).toBe('needs')
   await waitFor(() => expect(result.current.isSuccess).toBe(true))
   expect(bodies).toEqual([{ level: 'needs' }])
+})
+
+it('marks a session read automatically, on its daemon and in the list at once', async () => {
+  const daemon = addDaemon()
+  const bodies: unknown[] = []
+  server.use(
+    http.put(`${DAEMON_URL}/v1/sessions/s1/auto-read`, async ({ request }) => {
+      bodies.push(await request.json())
+      return HttpResponse.json({ id: 's1', auto_read: true, unread: false })
+    }),
+  )
+  const queryClient = new QueryClient()
+  queryClient.setQueryData(daemonKey(daemon.id, 'sessions'), [{ id: 's1', auto_read: false, unread: true } as Session])
+  const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  const { result } = renderHook(() => useSessionAutoRead(), { wrapper })
+
+  result.current.mutate({ daemonId: daemon.id, sessionId: 's1', autoRead: true })
+  const listed = queryClient.getQueryData<Session[]>(daemonKey(daemon.id, 'sessions'))?.[0]
+  expect(listed?.auto_read).toBe(true)
+  expect(listed?.unread).toBe(false) // its finished turns no longer count
+  await waitFor(() => expect(result.current.isSuccess).toBe(true))
+  expect(bodies).toEqual([{ auto_read: true }])
 })

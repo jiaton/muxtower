@@ -26,6 +26,7 @@ def decorate(session: Session, directory: SessionDirectory) -> Session:
         update["hidden"] = marks.hidden
         update["pinned"] = marks.pinned
         update["notify"] = NotifyLevel(marks.notify)
+        update["auto_read"] = marks.auto_read
     if session.node is None:
         if session.source != SessionSource.REMOTE_CONTROL:
             update.update(machine=d.hub_name or session.machine, on_host=True)

@@ -17,7 +17,7 @@ import {
 } from '../model/facets'
 import { alsoWritingText } from '../model/writes'
 import { AgentMark } from './agent-mark'
-import { NOTIFY_LEVELS } from './notify-items'
+import { AUTO_READ, NOTIFY_LEVELS } from './notify-items'
 import { StatusIcon } from '@/components/ui/status-icon'
 import { listRow, listRowBelow } from '@/components/ui/list-row'
 import { ink, listItem, look } from '@/components/ui/intents'
@@ -119,6 +119,9 @@ export function SessionRow({
                 role="img"
                 aria-label={`Notifications: ${quieter.label}`}
               />
+            ) : null}
+            {session.auto_read ? (
+              <AUTO_READ.icon className={`${ink.quiet} size-3.5 shrink-0 self-center`} role="img" aria-label={AUTO_READ.label} />
             ) : null}
             <time
               // Where the row's ⋯ shows (pointed at, focused, its menu open), it takes the time's place.

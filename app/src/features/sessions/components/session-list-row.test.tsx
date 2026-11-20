@@ -42,6 +42,27 @@ describe('SessionListRow', () => {
     expect(screen.getByRole('menuitem', { name: /Pin/ })).toBeInTheDocument()
     expect(screen.getByRole('menuitemradio', { name: /All/ })).toBeInTheDocument()
   })
+
+  it('turns on marking read automatically from its menu, and then shows it on the row', async () => {
+    const { http, HttpResponse } = await import('msw')
+    const { addDaemon } = await import('@/test/render')
+    const { DAEMON_URL, server } = await import('@/test/server')
+    const hub = addDaemon()
+    const bodies: unknown[] = []
+    server.use(
+      http.put(`${DAEMON_URL}/v1/sessions/s1/auto-read`, async ({ request }) => {
+        bodies.push(await request.json())
+        return HttpResponse.json({ ...session, auto_read: true })
+      }),
+    )
+    const row = await renderRow(hub)
+    expect(screen.queryByRole('img', { name: 'Mark read automatically' })).toBeNull()
+    fireEvent.contextMenu(row, { clientX: 40, clientY: 12 })
+    const item = await screen.findByRole('menuitemcheckbox', { name: /Mark read automatically/ })
+    expect(item).toHaveAttribute('aria-checked', 'false')
+    fireEvent.click(item)
+    await vi.waitFor(() => expect(bodies).toEqual([{ auto_read: true }]))
+  })
 })
 
 describe('the open session’s row', () => {

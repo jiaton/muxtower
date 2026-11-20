@@ -180,6 +180,11 @@ class Session(BaseModel):
     hidden: bool = Field(default=False, description="the owner hid it: kept out of the lists and done notifications")
     pinned: bool = Field(default=False, description="the owner pinned it: listed above the others")
     notify: NotifyLevel = Field(default=NotifyLevel.ALL, description="which push notifications it sends")
+    auto_read: bool = Field(
+        default=False,
+        description="its finished turns never make it unread: marked read as each ends (what needs the owner "
+        "still shows)",
+    )
     placement: Placement | None = Field(
         default=None, description="where the owner placed it; `machine` and `cwd` already follow it"
     )
@@ -285,6 +290,10 @@ class PinSession(BaseModel):
 
 class SessionNotify(BaseModel):
     level: NotifyLevel
+
+
+class AutoRead(BaseModel):
+    auto_read: bool = Field(description="mark its finished turns read as they end")
 
 
 class MarkRead(BaseModel):

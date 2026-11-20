@@ -64,14 +64,15 @@ class PushService:
 
     def notify_done(self, session_id: str) -> int:
         """A session finished a turn: to devices that take finished turns (`done`), for a session set to all.
-        Not for one set to notify only when it needs the owner: it does that through its prompts (approvals,
-        questions, plans, trust, a message to deliver), never a finished turn. A turn's summary cannot say
-        whom it asks (a teammate's report ends with a question too). Nor for the assistant (its replies are
-        the conversation itself), a session someone is watching, or one the owner hid."""
+                Not for one set to notify only when it needs the owner: it does that through its prompts (approvals,
+                questions, plans, trust, a message to deliver), never a finished turn. A turn's summary cannot say
+                whom it asks (a teammate's report ends with a question too). Nor for one whose turns are read as they
+        end (`auto_read`: its turn is settled already), the assistant (its replies are
+                the conversation itself), a session someone is watching, or one the owner hid."""
         view = self.sessions.find(session_id)
         if view is None or view.needs_attention or view.state == AgentState.BUSY or view.role == SessionRole.CONCIERGE:
             return 0
-        if view.notify != NotifyLevel.ALL:
+        if view.notify != NotifyLevel.ALL or view.auto_read:
             return 0
         marks = self.sessions.marks
         if view.hidden or (marks and marks.seen_within(session_id, WATCHING_SECONDS)):

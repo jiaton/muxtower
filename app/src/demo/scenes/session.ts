@@ -44,6 +44,7 @@ export function demoSession(fields: Pick<Session, 'id' | 'name' | 'cwd'> & Parti
     hidden: false,
     pinned: false,
     notify: 'all',
+    auto_read: false,
     placement: null,
     archived_at: null,
     project_auto: false,
