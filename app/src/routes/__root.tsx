@@ -36,9 +36,12 @@ function Sidebar({ inDrawer = false }: { inDrawer?: boolean }) {
     <>
       <div className="flex h-14 shrink-0 items-center gap-2 px-4">
         <SidebarSwitch />
-        <Link to="/" className={`${ink.brand} truncate`}>
-          muxtower
-        </Link>
+        {/* In a drawer the switch is enough: no wordmark cut to "muxto…" beside it. */}
+        {inDrawer ? null : (
+          <Link to="/" className={`${ink.brand} truncate`}>
+            muxtower
+          </Link>
+        )}
         <WebUsageMark />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
