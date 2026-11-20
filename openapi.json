@@ -2239,6 +2239,24 @@
         "title": "ProcessUsage",
         "type": "object"
       },
+      "ProjectOrder": {
+        "properties": {
+          "projects": {
+            "description": "project names, in the order the list shows their groups",
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Projects",
+            "type": "array"
+          }
+        },
+        "required": [
+          "projects"
+        ],
+        "title": "ProjectOrder",
+        "type": "object"
+      },
       "PutPlaybook": {
         "properties": {
           "base_version": {
@@ -5987,6 +6005,68 @@
         "summary": "Playbook Versions",
         "tags": [
           "playbook"
+        ]
+      }
+    },
+    "/v1/project-order": {
+      "get": {
+        "description": "The owner's order of projects in the list grouped by project; the same on every device (kept on the hub).",
+        "operationId": "get_project_order_v1_project_order_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectOrder"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Project Order",
+        "tags": [
+          "chips"
+        ]
+      },
+      "put": {
+        "description": "Replaces it with this list of project names, first to last (at most 500, each of 200 characters).",
+        "operationId": "put_project_order_v1_project_order_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectOrder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectOrder"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Project Order",
+        "tags": [
+          "chips"
         ]
       }
     },
