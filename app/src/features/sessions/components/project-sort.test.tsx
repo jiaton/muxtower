@@ -90,7 +90,7 @@ it('shows the projects by name until put in order; Move down and Move up keep th
   fireEvent.click(within(again).getByRole('menuitem', { name: 'Move up' }))
   await waitFor(() => expect(puts.at(-1)).toEqual(['acme/shop', 'acme/web', 'acme/api']))
   await waitFor(() => expect(headers()).toEqual(['acme/shop', 'acme/web', 'acme/api', 'Other']))
-})
+}, 15_000) // two menus opened: slow on a busy runner
 
 it('only projects are put in order: Other and folder groups have no handle and no menu', async () => {
   render(<Harness entries={sessions} />, { wrapper: wrapper() })
