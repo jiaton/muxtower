@@ -52,7 +52,9 @@ describe('the second row', () => {
   it('shows the groups in their order, else a chip per project, and nothing for a single project', () => {
     const rest: ChipGroup = { id: 'rest', name: 'Rest', projects: [OTHER], sessions: [] }
     expect(projectChips([rest, focus], entries)?.map((c) => c.label)).toEqual(['Rest', 'Focus'])
-    expect(projectChips([], entries)?.map((c) => c.id)).toEqual(['p:ha', 'p:web', 'p:muxtower', `p:${OTHER}`])
+    // No groups: one chip per project in the owner's order (none set: by name), Other last; activity moves none.
+    expect(projectChips([], entries)?.map((c) => c.id)).toEqual(['p:ha', 'p:muxtower', 'p:web', `p:${OTHER}`])
+    expect(projectChips([], entries, ['web', 'muxtower'])?.map((c) => c.id)).toEqual(['p:web', 'p:muxtower', 'p:ha', `p:${OTHER}`])
     expect(projectChips([], entries.slice(0, 1))).toBeNull()
     expect(chipMembers('focus', [focus])).toEqual({ projects: ['muxtower', 'ha'], sessions: [], roles: [] })
     expect(chipMembers('p:web', [])).toEqual({ projects: ['web'], sessions: [] })

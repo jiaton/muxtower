@@ -36,9 +36,7 @@ export function useProjectActivity(daemonId: string, project: string | null | un
   return useQuery({
     queryKey: daemonKey(daemonId, 'activity', project, hours, sessionsAt),
     queryFn: async () =>
-      unwrap(
-        await client!.GET('/v1/projects/{project}/activity', { params: { path: { project: project! }, query: { hours } } }),
-      ),
+      unwrap(await client!.GET('/v1/projects/{project}/activity', { params: { path: { project: project! }, query: { hours } } })),
     enabled: Boolean(client && project),
     placeholderData: (previous) => previous, // no flash between two answers
     refetchInterval: 30_000,

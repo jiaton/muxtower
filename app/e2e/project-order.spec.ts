@@ -29,6 +29,16 @@ const order = (page: Page) =>
 const projects = async (page: Page) => (await order(page)).filter((t) => t.startsWith('acme/'))
 
 /** The list's scroller: the nearest ancestor of its headers that scrolls. */
+/** The sidebar's PROJECTS section, top to bottom. */
+const sidebarProjects = async (page: Page) =>
+  (
+    await page
+      .getByRole('navigation', { name: 'Sessions' })
+      .locator('xpath=.//div[./div/span[normalize-space()="Projects"]]') // the section, not the device tree below
+      .getByRole('link')
+      .allInnerTexts()
+  ).map((t) => t.split('\n')[0]!.trim())
+
 async function scroller(page: Page): Promise<Locator> {
   const header = list(page).getByRole('heading', { level: 3 }).first()
   await header.evaluate((h) => {
@@ -45,6 +55,7 @@ const lifted = (page: Page) => page.evaluate(() => /Picked up/.test(document.bod
 test('the demo’s projects in the owner’s order, not by name; a PM and a lead first in theirs', async ({ browser }) => {
   const page = await start(browser, 1440, 900)
   expect(await projects(page)).toEqual(['acme/web-app', 'acme/shop-api', 'acme/infra'])
+  expect(await sidebarProjects(page)).toEqual(['acme/web-app', 'acme/shop-api', 'acme/infra']) // the one order
   const rows = list(page).getByRole('region', { name: 'acme/shop-api', exact: true }).locator('[data-row]')
   await expect(rows.first()).toHaveAttribute('data-row', /\/pm$/)
   await expect(rows.nth(1)).toHaveAttribute('data-row', /\/lead$/)
@@ -64,6 +75,7 @@ test('desktop: a header’s handle shows on hover; dragged with the mouse, the p
   await page.mouse.move(from.x + from.width / 2, to.y + 4, { steps: 12 })
   await page.mouse.up()
   await expect.poll(() => projects(page)).toEqual(['acme/infra', 'acme/web-app', 'acme/shop-api'])
+  await expect.poll(() => sidebarProjects(page)).toEqual(['acme/infra', 'acme/web-app', 'acme/shop-api']) // follows
   await expect(foldOf(page, 'acme/infra')).toHaveAttribute('aria-expanded', 'true') // the drop folded nothing
 })
 

@@ -3,7 +3,7 @@ import type { Session } from '@/lib/api/types'
 import type { Daemon } from '@/lib/daemons/types'
 import type { SessionEntry } from './facets'
 import { groupEntries } from './query'
-import { compareInProject, keptOrder, leads } from './project-order'
+import { compareInProject, keptOrder, leads, inProjectOrder } from './project-order'
 
 const hub = { id: 'hub', name: 'hub' } as Daemon
 let made = 0
@@ -86,4 +86,10 @@ it('keeps the places of projects not shown when the shown ones are put in order'
   expect(keptOrder(['a', 'b', 'c'], ['c', 'a'])).toEqual(['c', 'b', 'a'])
   expect(keptOrder([], ['b', 'a'])).toEqual(['b', 'a'])
   expect(keptOrder(['a', 'b'], ['new', 'b', 'a'])).toEqual(['new', 'b', 'a'])
+})
+
+it('one order for every list of projects: the owner set it, the others after by name', () => {
+  const projects = [{ label: 'acme/shop' }, { label: 'acme/web' }, { label: 'acme/infra' }, { label: 'acme/api' }]
+  const ordered = inProjectOrder(projects, (p) => p.label, ['acme/web', 'acme/shop'])
+  expect(ordered.map((p) => p.label)).toEqual(['acme/web', 'acme/shop', 'acme/api', 'acme/infra'])
 })

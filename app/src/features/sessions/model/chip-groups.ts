@@ -1,3 +1,4 @@
+import { inProjectOrder } from './project-order'
 /**
  * The second chip row: groups of projects the owner makes (kept on the hub, `GET/PUT /v1/chip-groups`),
  * or, while there are none, the most recently active projects one chip each. Chosen together with a view
@@ -81,12 +82,21 @@ export function projectsByActivity(entries: SessionEntry[]): string[] {
     .map(([project]) => project)
 }
 
-/** What the row shows: the groups in their order, else one chip per recent project; null when it would
- *  show a single project and no groups (no row, no height taken). */
-export function projectChips(groups: ChipGroup[], entries: SessionEntry[]): ProjectChip[] | null {
+/** What the row shows: the groups in their order, else one chip per project, in the owner's order of projects
+ *  (`order`, then by name; Other last), the same as the list; null when it would show a single project and no
+ *  groups (no row, no height taken). */
+export function projectChips(groups: ChipGroup[], entries: SessionEntry[], order: readonly string[] = []): ProjectChip[] | null {
   if (groups.length)
     return groups.map((g) => ({ id: g.id, label: g.name, projects: g.projects, sessions: g.sessions ?? [], roles: g.roles ?? [] }))
-  const projects = projectsByActivity(entries)
+  const listed = projectsByActivity(entries)
+  const projects = [
+    ...inProjectOrder(
+      listed.filter((p) => p !== OTHER),
+      (p) => p,
+      order,
+    ),
+    ...listed.filter((p) => p === OTHER),
+  ]
   if (projects.length <= 1) return null
   return projects.slice(0, AUTO_CHIPS).map((p) => ({ id: `p:${p}`, label: projectLabel(p), projects: [p], sessions: [] }))
 }

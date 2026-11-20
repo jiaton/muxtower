@@ -54,3 +54,14 @@ export function keptOrder(stored: readonly string[], shown: readonly string[]): 
   let next = 0
   return all.map((name) => (taken.has(name) ? shown[next++]! : name))
 }
+
+/** Projects as the owner put them (`order`), the others after by name: the one order every list of projects
+ *  follows (the session list's groups, the sidebar, the project chips). */
+export function inProjectOrder<T>(items: readonly T[], name: (item: T) => string, order: readonly string[]): T[] {
+  const at = new Map(order.map((project, i) => [project, i]))
+  const place = (item: T) => at.get(name(item)) ?? Infinity
+  return [...items].sort((a, b) => {
+    const [pa, pb] = [place(a), place(b)]
+    return pa !== pb ? (pa < pb ? -1 : 1) : byName(name(a), name(b))
+  })
+}

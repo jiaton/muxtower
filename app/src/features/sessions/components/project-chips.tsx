@@ -1,4 +1,5 @@
 import { Plus } from 'lucide-react'
+import { useProjectOrder } from '../api/use-project-order'
 import {
   DndContext,
   DragOverlay,
@@ -88,7 +89,7 @@ export function ProjectChips({
   const [allTeams, setAllTeams] = useState(false)
   const [team, setTeam] = useState<{ project: string; x: number; y: number; open: boolean } | null>(null)
   const teams = menu ? teamsOfGroup(menu.group, entries) : []
-  const chips = projectChips(groups, entries)
+  const chips = projectChips(groups, entries, useProjectOrder())
 
   useLayoutEffect(() => {
     const el = row.current

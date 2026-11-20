@@ -423,6 +423,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/project-order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Project Order
+         * @description The owner's order of projects in the list grouped by project; the same on every device (kept on the hub).
+         */
+        get: operations["get_project_order_v1_project_order_get"];
+        /**
+         * Put Project Order
+         * @description Replaces it with this list of project names, first to last (at most 500, each of 200 characters).
+         */
+        put: operations["put_project_order_v1_project_order_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{project}/activity": {
         parameters: {
             query?: never;
@@ -2481,6 +2505,14 @@ export interface components {
             /** Rss Mb */
             rss_mb?: number | null;
         };
+        /** ProjectOrder */
+        ProjectOrder: {
+            /**
+             * Projects
+             * @description project names, in the order the list shows their groups
+             */
+            projects: string[];
+        };
         /** PutPlaybook */
         PutPlaybook: {
             /**
@@ -4361,6 +4393,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlaybookVersion"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_project_order_v1_project_order_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectOrder"];
+                };
+            };
+        };
+    };
+    put_project_order_v1_project_order_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectOrder"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectOrder"];
                 };
             };
             /** @description Validation Error */

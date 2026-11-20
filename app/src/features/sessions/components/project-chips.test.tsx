@@ -24,6 +24,7 @@ const entries = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((p, i) => entry(p, p, i)
 function show(sessions: SessionEntry[], groups: ChipGroup[], chip?: string, listed = true) {
   // The daemon's list has come (or not: `listed`), which counts wait for.
   server.use(http.get(`${DAEMON_URL}/v1/sessions`, () => (listed ? HttpResponse.json([]) : new Promise(() => {}))))
+  server.use(http.get(`${DAEMON_URL}/v1/project-order`, () => HttpResponse.json({ projects: [] }))) // none set: by name
   addDaemon()
   const root = createRootRoute({
     component: () => <ProjectChips query={{ view: 'all', group: 'status' }} search={{ chip }} entries={sessions} groups={groups} />,
@@ -54,15 +55,16 @@ it('is not shown for a single project and no groups', async () => {
   expect(screen.queryByRole('navigation', { name: 'Projects' })).toBeNull()
 })
 
-it('without groups: the most recently active projects, one chip each, then +', async () => {
+it("without groups: the projects in the owner's order (none set: by name), one chip each, then +", async () => {
   show(entries, [])
-  await waitFor(async () => expect(await labels()).toEqual(['g1', 'f1', 'e1', 'd1', 'c1', 'b1']), { timeout: 5000 }) // six, latest first, with counts
+  // Six, in the stable order the list's groups follow (activity never moves them), with counts.
+  await waitFor(async () => expect(await labels()).toEqual(['a1', 'b1', 'c1', 'd1', 'e1', 'f1']), { timeout: 5000 })
   expect(screen.getByRole('button', { name: 'New group' })).toBeInTheDocument()
 })
 
 it('before the first list has come, no counts: placeholders, never a "0"', async () => {
   show(entries, [], undefined, false)
-  expect(await labels()).toEqual(['g', 'f', 'e', 'd', 'c', 'b'])
+  expect(await labels()).toEqual(['a', 'b', 'c', 'd', 'e', 'f'])
 })
 
 it('with groups: the groups in their order, counting the sessions they hold', async () => {
@@ -84,7 +86,7 @@ it('scrolls the chosen chip into view', async () => {
     const i = at(this)
     return { left: i >= 0 ? i * 100 : 0, width: 90, top: 0, height: 32, right: 0, bottom: 0, x: 0, y: 0, toJSON: () => ({}) } as DOMRect
   })
-  show(entries, [], 'p:b') // the sixth chip: at 500, past a row 300 wide
+  show(entries, [], 'p:f') // the sixth chip: at 500, past a row 300 wide
   const nav = await screen.findByRole('navigation', { name: 'Projects' })
   await waitFor(() => expect(nav.querySelector('[data-scroll-row]')!.scrollLeft).toBe(500 - 150 + 45))
   rect.mockRestore()

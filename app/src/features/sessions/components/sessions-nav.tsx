@@ -16,6 +16,8 @@ import { isCurrentScope, parseListSearch, scopeSearch, toQuery, type ListSearch,
 import { SPLIT_QUERY, useMediaQuery } from '@/lib/use-media-query'
 import { entryKey, type SessionEntry } from '../model/facets'
 import { useSessionEntries } from '../hooks/use-session-entries'
+import { useProjectOrder } from '../api/use-project-order'
+import { inProjectOrder } from '../model/project-order'
 import { useListPrefs } from '../store'
 import { AgentMark } from './agent-mark'
 import { TeamCard } from './team-card'
@@ -186,6 +188,7 @@ function DeviceTree({
  *  sessions is open. */
 export function SessionsNav({ replace = false }: { replace?: boolean }) {
   const { entries } = useSessionEntries()
+  const projectOrder = useProjectOrder() // the owner's order of projects, the same as the list's groups
   const facets = facetsOf(entries)
   const usage = useMachineUsage()
   const search = parseListSearch(useSearch({ strict: false }) as Record<string, unknown>)
@@ -209,7 +212,7 @@ export function SessionsNav({ replace = false }: { replace?: boolean }) {
           </NavSection>
           {facets.projects.length > 1 ? (
             <NavSection title="Projects">
-              {facets.projects.map((p) => (
+              {inProjectOrder(facets.projects, (p) => p.label, projectOrder).map((p) => (
                 <ScopeLink key={p.label} search={search} scope={{ project: p.label }} className={navItemClass}>
                   <FolderGit2 aria-hidden />
                   <span className="truncate">{p.label}</span>
