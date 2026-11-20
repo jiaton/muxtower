@@ -5,8 +5,10 @@ session's capabilities and hands the action to the local services or to the owni
 gets a 409 instead of keys sent to the wrong place.
 """
 
+import builtins
 import logging
 import threading
+import time
 from collections.abc import Callable, Iterable, Sequence
 from typing import Literal
 
@@ -103,6 +105,8 @@ class SessionDirectory(OwnerMarks):
         self.writing: Callable[[str], list[AlsoWriting]] | None = None  # set by the app: `writes/`
         self._held: dict[str, list[SendInput]] = {}  # the owner's messages waiting for a prompt to go (`hold`)
         self._held_lock = threading.Lock()
+        self._listed: tuple[float, list[Session]] = (float("-inf"), [])  # the latest `list()`, and when it began
+        self._listing = threading.RLock()  # one `list()` at a time: those that wait for it take its result
 
     # --- reading ------------------------------------------------------------------------------
 
@@ -135,10 +139,29 @@ class SessionDirectory(OwnerMarks):
     def _locals(self) -> list[Session]:
         return [self._linked(s) for s in self.local.list()]
 
+    def recent(self, max_age: float) -> list[Session]:
+        """The latest `list()` when it is younger than `max_age` seconds (the stream lists at every change),
+        else a new one: for those that look on their own schedule and can take one a little old."""
+        at, found = self._listed
+        return found[:] if time.monotonic() - at < max_age else self.list()
+
     def list(self) -> list[Session]:
         """Every session once: one reported by two sources (a Remote Control session a node reports
         too) is listed from the one that owns it (`source_of`), and one merged into another entry (a
-        tmux pane that also runs Remote Control, here or on a node) under that entry."""
+        tmux pane that also runs Remote Control, here or on a node) under that entry.
+
+        Every client's stream asks at every change, at once: one list is made at a time, and one begun
+        after a caller asked is that caller's answer too (it read everything after the change)."""
+        asked = time.monotonic()
+        with self._listing:
+            began, found = self._listed
+            if began <= asked:
+                began = time.monotonic()
+                found = self._list()
+                self._listed = (began, found)
+        return found[:]
+
+    def _list(self) -> builtins.list[Session]:
         listed = [(source, v) for source in self.sources for v in source.views()]
         if self.archive_store:
             self.archive_store.revive(v for _, v in listed)

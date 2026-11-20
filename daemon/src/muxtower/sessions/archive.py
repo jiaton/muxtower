@@ -30,16 +30,15 @@ logger = logging.getLogger("muxtower.archive")
 READ_ONLY = Capabilities(screen=False, conversation=False, keys=[], resize=False, terminate=True, rename=False)
 
 
-# Whether an archived session can be started again, and if not why (`RecoveryService.resumable`).
-Judge = Callable[[ArchiveRecord, Session], ResumeBlock | None]
+# Whether each archived session can be started again, and if not why (`Resumability.resumable_all`).
+Judge = Callable[[list[tuple[ArchiveRecord, Session]]], list[ResumeBlock | None]]
+CANNOT = ResumeBlock(code="runtime", reason="it cannot be started again here")
 
 
-def _view(record: ArchiveRecord, judge: Judge | None = None) -> Session:
-    """Its last view, at rest: nothing runs, waits or can be typed into any more; whether it can be started
-    again (`judge`)."""
+def _view(record: ArchiveRecord, view: Session, blocked: ResumeBlock | None) -> Session:
+    """Its last view (`view`, as kept), at rest: nothing runs, waits or can be typed into any more; whether
+    it can be started again (`blocked`)."""
     readable = record.transcript is not None or record.items is not None
-    view = Session.model_validate_json(record.session)
-    blocked = judge(record, view) if judge else ResumeBlock(code="runtime", reason="it cannot be started again here")
     return view.model_copy(
         update={
             "capabilities": READ_ONLY.model_copy(update={"conversation": readable, "resume": blocked is None}),
@@ -76,6 +75,29 @@ class SessionArchive:
         self._lock = threading.Lock()
         self._records = {r.session_id: r for r in repo.list()}
         self.judge: Judge | None = None  # set by the recovery service, which starts them again
+        # Each record's view, read once: kept while the record is the same object (a change replaces it)
+        # and so is whether it can be started again. Listed sessions are never changed in place.
+        self._kept: dict[str, tuple[ArchiveRecord, Session, ResumeBlock | None, Session]] = {}
+        self._kept_lock = threading.Lock()
+
+    def _views(self, records: list[ArchiveRecord]) -> list[Session]:
+        with self._kept_lock:
+            kept = {r.session_id: k for r in records if (k := self._kept.get(r.session_id)) and k[0] is r}
+        parsed = [(r, kept[r.session_id][1] if r.session_id in kept else Session.model_validate_json(r.session))
+                  for r in records]  # fmt: skip
+        blocks = self.judge(parsed) if self.judge else [CANNOT] * len(parsed)
+        views: list[Session] = []
+        fresh: dict[str, tuple[ArchiveRecord, Session, ResumeBlock | None, Session]] = {}
+        for (record, view), blocked in zip(parsed, blocks, strict=True):
+            was = kept.get(record.session_id)
+            shown = was[3] if was and was[2] == blocked else _view(record, view, blocked)
+            fresh[record.session_id] = (record, view, blocked, shown)
+            views.append(shown)
+        with self._kept_lock:
+            if len(records) > 1:
+                self._kept = {k: v for k, v in self._kept.items() if k in self._records}
+            self._kept.update(fresh)
+        return views
 
     def ended(self) -> set[str]:
         """What live lists leave out: archived sessions, and the Remote Control sessions they were, while a
@@ -105,7 +127,7 @@ class SessionArchive:
         if days > 0:
             since = datetime.now(UTC) - timedelta(days=days)
             records = [r for r in records if r.archived_at >= since]
-        return [_view(r, self.judge) for r in records]
+        return self._views(records)
 
     def unplaced(self, source: str) -> list[str]:
         """The archived sessions of `source` that name no parent: archived before forks were told, some
@@ -131,7 +153,7 @@ class SessionArchive:
     def get(self, session_id: str) -> Session | None:
         with self._lock:
             record = self._records.get(session_id)
-        return _view(record, self.judge) if record else None
+        return self._views([record])[0] if record else None
 
     def record(self, session_id: str) -> ArchiveRecord | None:
         with self._lock:

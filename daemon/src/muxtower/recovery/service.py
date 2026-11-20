@@ -13,7 +13,6 @@ another the owner gives when it is gone), its conversation resumed (Claude Code'
 it leaves Archived. `resumable` says when it cannot, and why."""
 
 import asyncio
-import json
 import logging
 import os
 from collections.abc import Callable
@@ -23,8 +22,9 @@ from typing import Any
 from muxtower.config import RecoverySettings
 from muxtower.errors import Conflict, Invalid, NotFound
 from muxtower.infra.bus import EventBus
+from muxtower.recovery.resumable import Resumability, relaunch_of
 from muxtower.sessions.archive import SessionArchive
-from muxtower.sessions.interrupted import agent_id_of, resume_args
+from muxtower.sessions.interrupted import resume_args
 from muxtower.sessions.models import ResumeBlock, Session
 from muxtower.sessions.ports import ArchiveRecord, SessionRecord, SessionSource
 from muxtower.sessions.service import SessionService
@@ -33,16 +33,6 @@ from muxtower.terminal.ports import PaneRef
 logger = logging.getLogger("muxtower.recovery")
 
 CHECK_SECONDS = 30.0  # besides every change of the session list
-RAN_HERE = (SessionSource.LAUNCHED, SessionSource.ADOPTED)  # in tmux: what muxtower can start again
-NOT_OURS = "muxtower never ran it: it ran in Claude's app or on Remote Control only, so start it there"
-
-
-def _relaunch(record: ArchiveRecord) -> dict[str, Any]:
-    try:
-        kept = json.loads(record.relaunch or "{}")
-    except ValueError:
-        kept = {}
-    return kept if isinstance(kept, dict) else {}
 
 
 def _local_id(session_id: str) -> str:
@@ -65,8 +55,9 @@ class RecoveryService:
         self.node_online: Callable[[str], bool] = lambda _: False
         self.ask_node_resume: Callable[[str, str, str | None], Session] | None = None
         self._told: set[str] = set()  # interrupted sessions already handled for `mode`
+        self.resumability = Resumability(sessions, processes, lambda node: self.node_online(node))
         if archive is not None:
-            archive.judge = self.resumable
+            archive.judge = self.resumability.resumable_all
 
     def interrupted(self) -> list[Session]:
         """The sessions here that wait to be started again."""
@@ -96,48 +87,9 @@ class RecoveryService:
 
     # --- archived sessions ---------------------------------------------------------------------
 
-    def _agent_of(self, record: ArchiveRecord, view: Session) -> str | None:
-        """The agent's own id of an archived session's conversation: as kept, else its transcript's name,
-        else from what a Remote Control session of it left; then where it went on (`continued-in`)."""
-        agent = _relaunch(record).get("agent_id") or agent_id_of(record.transcript)
-        if agent is None and self.processes is not None:
-            remote_ids = [r for r, s in self.sessions.repo.remote_ids().items() if s == view.id]
-            for remote_id in filter(None, [record.remote_id, *remote_ids]):
-                if agent := self.processes.agent_for_remote(remote_id):
-                    break
-        if agent and view.runtime == "claude-code" and self.processes is not None:
-            latest = self.processes.transcript_for(agent)
-            agent = agent_id_of(latest) or agent if latest else agent
-        return agent
-
-    def _transcript_gone(self, record: ArchiveRecord, view: Session, agent: str) -> bool:
-        if view.runtime == "claude-code" and self.processes is not None:
-            return self.processes.transcript_for(agent) is None
-        return bool(record.transcript) and not os.path.exists(record.transcript or "")
-
     def resumable(self, record: ArchiveRecord, view: Session) -> ResumeBlock | None:
-        """None when it can be started again; else why not (`ResumeBlock`). A node's is told by its node; here
-        only whether that node is online."""
-        if view.node:
-            if not self.node_online(view.node):
-                return ResumeBlock(code="offline", reason=f"{view.node} is offline: it can be started again there")
-            return None
-        if view.source not in RAN_HERE:
-            return ResumeBlock(code="not_ours", reason=NOT_OURS)
-        try:
-            runtime = self.sessions.resolve_runtime(view.runtime)
-        except Invalid:
-            runtime = None
-        if runtime is None or not runtime.config.resume:
-            return ResumeBlock(code="runtime", reason=f"{view.runtime} conversations cannot be resumed")
-        agent = self._agent_of(record, view)
-        if agent is None:
-            return ResumeBlock(code="transcript", reason="its conversation's id was not kept, so it cannot be found")
-        if self._transcript_gone(record, view, agent):
-            return ResumeBlock(code="transcript", reason="its conversation's transcript is gone from this machine")
-        if not os.path.isdir(view.cwd or ""):
-            return ResumeBlock(code="folder", reason=f"its folder {view.cwd} is gone: pick another")
-        return None
+        """None when it can be started again; else why not (`ResumeBlock`, `resumable.py`)."""
+        return self.resumability.resumable(record, view)
 
     def resume(self, session_id: str, cwd: str | None = None) -> Session:
         """Blocking. Starts an archived session again (here, or on its node), its conversation resumed, under
@@ -166,7 +118,7 @@ class RecoveryService:
         if blocked:
             raise Conflict(blocked.reason)
         runtime = self.sessions.resolve_runtime(view.runtime)
-        kept = _relaunch(record)
+        kept = relaunch_of(record)
         named_at = kept.get("named_at")
         again = SessionRecord(
             id=view.id, name=view.name, runtime=runtime.name, cwd=cwd or view.cwd or "", source=SessionSource.LAUNCHED,
@@ -174,7 +126,7 @@ class RecoveryService:
             auto_approve=bool(kept.get("auto_approve")),
             created_at=datetime.fromisoformat(kept["created_at"]) if kept.get("created_at") else view.created_at,
             named=bool(kept.get("named", True)), named_at=datetime.fromisoformat(named_at) if named_at else None,
-            launch_args=kept.get("launch_args"), agent_id=self._agent_of(record, view),
+            launch_args=kept.get("launch_args"), agent_id=self.resumability.agent_of(record, view),
         )  # fmt: skip
         args = resume_args(again, runtime.config)
         logger.info("starting archived %s (%s) again: %s", again.id, again.name, " ".join(args))

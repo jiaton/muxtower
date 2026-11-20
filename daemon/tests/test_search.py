@@ -55,6 +55,9 @@ class Directory:
             for i in ids
         ]  # fmt: skip
 
+    def recent(self, max_age: float) -> "list[Any]":
+        return self.list()
+
     def conversation(self, sid: str, after: int, limit: int) -> Any:
         return SimpleNamespace(items=self.items[sid])
 

@@ -37,6 +37,10 @@ class AgentProcesses:
                 found += ask(pane_pid)
         return found
 
+    def stamp(self) -> object:
+        """What changes when what the plugins know of their files may have (`ClaudeProcesses.stamp`)."""
+        return tuple((ask() if (ask := getattr(p, "stamp", None)) else None) for p in self.plugins)
+
     def transcript_for(self, agent_id: str) -> str | None:
         """A conversation's transcript by its agent's own id (`ClaudeProcesses.transcript_for`)."""
         for p in self.plugins:

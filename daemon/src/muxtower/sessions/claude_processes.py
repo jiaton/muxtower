@@ -29,6 +29,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from muxtower.infra.procfs import Children, alive, family, started_at
+from muxtower.sessions.claude_files import ProcessFiles, TranscriptIndex
 from muxtower.sessions.models import GitPlace
 from muxtower.sessions.naming import AgentName
 
@@ -36,7 +37,6 @@ SEARCH_DEPTH = 3
 BRIDGE_PREFIX = "session_"
 REMOTE_PREFIX = "cse_"
 RUNNING_TTL_SECONDS = 5.0
-TAIL_BYTES = 16_384  # the end of a transcript, where a `continued-in` line is
 MAX_HOPS = 8
 MXT_TMUX = re.compile(r"^mxt-([0-9a-f]{8})")  # muxtower's own tmux sessions: mxt-<its id's first 8>
 # A process file is its process's when written after that process started: its startedAt is not before
@@ -48,48 +48,29 @@ START_SKEW_SECONDS = 2.0
 AGENTS_VIEW = "conversation moved to the background"
 
 
-def _continued_in(path: Path) -> str | None:
-    """The session a transcript says it goes on in: its last line, `{"type": "continued-in",
-    "continuedInSessionId": …}`, which Claude Code writes when the conversation moves to another
-    session (a job, another folder) while its process file still names this one."""
-    try:
-        with path.open("rb") as f:
-            f.seek(max(0, path.stat().st_size - TAIL_BYTES))
-            lines = f.read().splitlines()[-3:]
-    except OSError:
-        return None
-    for line in reversed(lines):
-        try:
-            entry = json.loads(line)
-        except ValueError:
-            continue
-        if isinstance(entry, dict) and entry.get("type") == "continued-in":
-            following = entry.get("continuedInSessionId")
-            return following if isinstance(following, str) and re.fullmatch(r"[0-9a-f-]{36}", following) else None
-    return None
-
-
-def continued(path: Path, projects_dir: Path) -> str:
+def continued(path: Path, projects_dir: Path | TranscriptIndex) -> str:
     """The transcript a conversation goes on in, following its `continued-in` lines (into any folder)."""
+    index = projects_dir if isinstance(projects_dir, TranscriptIndex) else TranscriptIndex(projects_dir)
     for _ in range(MAX_HOPS):
-        following = _continued_in(path)
-        found = next(projects_dir.glob(f"*/{following}.jsonl"), None) if following else None
+        following = index.continued_in(path)
+        found = index.find(following) if following else None
         if found is None:
             break
         path = found
     return str(path)
 
 
-def continuations(path: Path, projects_dir: Path) -> list[str]:
+def continuations(path: Path, projects_dir: Path | TranscriptIndex) -> list[str]:
     """The sessions a conversation went on in, in order (`continued-in`, followed into any folder); the
     last may have no transcript yet."""
+    index = projects_dir if isinstance(projects_dir, TranscriptIndex) else TranscriptIndex(projects_dir)
     ids: list[str] = []
     for _ in range(MAX_HOPS):
-        following = _continued_in(path)
+        following = index.continued_in(path)
         if not following or following in ids:
             break
         ids.append(following)
-        found = next(projects_dir.glob(f"*/{following}.jsonl"), None)
+        found = index.find(following)
         if found is None:
             break
         path = found
@@ -172,18 +153,23 @@ class ClaudeProcesses:
         self.sessions_dir = home / "sessions"
         self.projects_dir = home / "projects"
         self._running: tuple[float, dict[str, ClaudeProcess]] = (0.0, {})
+        self.files = ProcessFiles(self.sessions_dir)  # process files, parsed once per change
+        self.index = TranscriptIndex(self.projects_dir)  # transcripts by id, read again on a folder's change
         self._firsts: dict[Path, str] = {}  # each transcript's first message (never changes once written)
         self._firsts_lock = threading.Lock()
+
+    def stamp(self) -> object:
+        """What changes when a process file or a transcript comes or goes (read now): what is known from
+        them (`transcript_for`, `agent_for_remote`) is the same while it stays the same, but for a file
+        changed in place."""
+        return self.files.stamp(), self.index.stamp()
 
     def _info(self, pane_pid: int) -> dict[str, object] | None:
         """The process file of the pane's Claude Code, if it runs one."""
         for pid in family(pane_pid, Children(self.proc), SEARCH_DEPTH):
-            try:
-                info = json.loads((self.sessions_dir / f"{pid}.json").read_text())
-            except (OSError, ValueError):
+            info = self.files.get(f"{pid}.json")
+            if info is None:
                 continue
-            if not isinstance(info, dict):
-                return None
             if runs(pid, info, self.proc, listed=True):
                 return info  # else a file left from before a restart, its pid now this one's: not its own
         return None
@@ -199,13 +185,12 @@ class ClaudeProcesses:
         process has no bridge and its transcript went on in a session a live process runs: the latest."""
         if _remote_id(info) or not (path := self._path(info)) or not path.is_file():
             return None
-        ids = continuations(path, self.projects_dir)
+        ids = continuations(path, self.index)
         if not ids:
             return None
         best: tuple[int, dict[str, object]] | None = None
-        for file in self.sessions_dir.glob("*.json"):
+        for file, other in self.files.read():
             try:
-                other = json.loads(file.read_text())
                 pid = int(other.get("pid") or file.stem)
             except (OSError, ValueError, AttributeError):
                 continue
@@ -241,9 +226,8 @@ class ClaudeProcesses:
             return []
         own = self.remote_id(pane_pid)
         found = []
-        for file in self.sessions_dir.glob("*.json"):
+        for file, other in self.files.read():
             try:
-                other = json.loads(file.read_text())
                 pid = int(other.get("pid") or file.stem)
             except (OSError, ValueError, AttributeError):
                 continue
@@ -252,7 +236,7 @@ class ClaudeProcesses:
                 continue  # a process still running is a session of its own (the same conversation resumed twice)
             if other.get("sessionId") == current or (
                 (path := self._path(other)) is not None and path.is_file()
-                and current in continuations(path, self.projects_dir)
+                and current in continuations(path, self.index)
             ):  # fmt: skip
                 found.append(remote_id)
         return sorted(set(found))
@@ -277,24 +261,20 @@ class ClaudeProcesses:
         """The transcript file of the pane's Claude Code session, when it exists."""
         info = self._info(pane_pid)
         path = self._path(info) if info else None
-        return continued(path, self.projects_dir) if path and path.is_file() else None
+        return continued(path, self.index) if path and path.is_file() else None
 
     def transcript_for(self, agent_id: str) -> str | None:
         """The transcript of a conversation by its own id (a session whose process is gone: interrupted), or
         where it went on (`continued`); None when there is none here."""
         if not re.fullmatch(r"[0-9a-f-]{36}", agent_id):
             return None
-        found = next(self.projects_dir.glob(f"*/{agent_id}.jsonl"), None)
-        return continued(found, self.projects_dir) if found else None
+        found = self.index.find(agent_id)
+        return continued(found, self.index) if found else None
 
     def agent_for_remote(self, remote_id: str) -> str | None:
         """The conversation's own id of a Remote Control session, from a process file that named it (left
         after its process ended, until Claude Code tidies it away); None when none is left."""
-        for path in self.sessions_dir.glob("*.json"):
-            try:
-                info = json.loads(path.read_text())
-            except (OSError, ValueError):
-                continue
+        for _, info in self.files.read():
             agent = info.get("sessionId") if isinstance(info, dict) else None
             if _remote_id(info) == remote_id and isinstance(agent, str) and re.fullmatch(r"[0-9a-f-]{36}", agent):
                 return agent
@@ -322,16 +302,15 @@ class ClaudeProcesses:
         current = Path(transcript)
         if self._first_of(current) == first:
             return True
-        return any(current.stem in continuations(p, self.projects_dir) for p in self.starting_with(first))
+        return any(current.stem in continuations(p, self.index) for p in self.starting_with(first))
 
     def ended_bridges(self) -> dict[str, str]:
         """Remote Control sessions of muxtower's own tmux sessions whose Claude Code has ended (its process
         file is left, its process gone or another's): each to the first 8 of that muxtower session's id, as
         its tmux session is named. A bridge some process still runs is none of them."""
         found: dict[str, str] = {}
-        for path in self.sessions_dir.glob("*.json"):
+        for path, info in self.files.read():
             try:
-                info = json.loads(path.read_text())
                 pid = int(info.get("pid") or path.stem)
             except (OSError, ValueError, AttributeError):
                 continue
@@ -350,9 +329,8 @@ class ClaudeProcesses:
         if time.monotonic() - at < RUNNING_TTL_SECONDS:
             return found
         found = {}
-        for path in self.sessions_dir.glob("*.json"):
+        for path, info in self.files.read():
             try:
-                info = json.loads(path.read_text())
                 pid = int(info.get("pid") or path.stem)
             except (OSError, ValueError, AttributeError):
                 continue

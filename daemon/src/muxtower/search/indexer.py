@@ -90,7 +90,7 @@ class Indexer:
         found: list[Target] = []
         busy = False
         d = self.directory
-        for s in d.list():
+        for s in d.recent(self.tick_seconds):
             if s.node:
                 continue  # its node indexes it
             busy = busy or s.state == AgentState.BUSY
