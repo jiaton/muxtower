@@ -1,3 +1,4 @@
+import { forgetVoiceElement } from './speech'
 import { http, HttpResponse } from 'msw'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { addDaemon } from '@/test/render'
@@ -74,6 +75,7 @@ const said: string[] = []
 const utterances: { text: string; onend?: () => void }[] = []
 
 beforeEach(() => {
+  forgetVoiceElement()
   Object.defineProperty(navigator, 'mediaSession', { value: session, configurable: true })
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:silence', revokeObjectURL: () => {} }))
   vi.stubGlobal('Audio', FakeAudio)
@@ -359,4 +361,19 @@ it("makes ten seconds of a 25 Hz tone at -60 dBFS: over Chrome's audible thresho
   expect(Math.max(...samples.map(Math.abs))).toBeLessThan(50) // a whisper of full scale
   expect(samples[0]).toBe(0)
   expect(Math.abs(samples.at(-1)! - samples[0]!)).toBeLessThan(2) // whole cycles: the loop joins smoothly
+})
+
+it('the hub voice plays every piece through one element: a car follows one player', async () => {
+  const { useLive, useSpeech, setHubVoice, speak } = await load()
+  useSpeech.setState({ readAloud: true, front: { key: 'd/s', name: 'a session', reply: 'A reply.' } })
+  useLive.setState({ phase: 'listening' })
+  await vi.waitFor(() => expect(handlers.play).toBeTypeOf('function'))
+  setHubVoice(async () => new Blob(['mp3']))
+  speak('First summary.', { title: 'a' })
+  await vi.waitFor(() => expect(audios.some((a) => !a.loop)).toBe(true))
+  audios.find((a) => !a.loop)!.fire('ended')
+  speak('Second summary.', { title: 'b' })
+  await events()
+  await new Promise((r) => setTimeout(r, 50))
+  expect(audios.filter((a) => !a.loop)).toHaveLength(1) // the same player, its source changed
 })

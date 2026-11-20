@@ -202,10 +202,22 @@ export function keepCaption(kept: boolean) {
   if (!kept && useSpeech.getState().caption?.done) captionDone()
 }
 
+/** The one element the hub's voice plays through, every piece: a car's media UI (the Tesla's) follows one
+ *  player, and one made new for each piece left it pointing at the last (a press mid-speech reached
+ *  nothing). Made on first use, its source set per piece. */
+let voiceElement: HTMLAudioElement | null = null
+const voiceAudio = () => (voiceElement ??= new Audio())
+
+/** Tests: the next piece makes the element again (each test has its own stand-in Audio). */
+export function forgetVoiceElement() {
+  voiceElement = null
+}
+
 function playAudio(blob: Blob): Promise<void> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(blob)
-    const audio = new Audio(url)
+    const audio = voiceAudio()
+    audio.src = url
     playing = audio
     const started = performance.now()
     const at = () => ({ ms: performance.now() - started })
@@ -219,6 +231,10 @@ function playAudio(blob: Blob): Promise<void> {
     // and take them along when it ends, so the handlers are set again then.
     audio.onplay = () => logMedia('mp3', { ev: 'play', ...at() })
     audio.onpause = () => logMedia('mp3', { ev: 'pause', ...at() })
+    // Everything else it does, too: what a press mid-speech does to it shows here (a car may pause or
+    // reload the element itself instead of calling our handlers).
+    for (const ev of ['playing', 'waiting', 'stalled', 'suspend', 'emptied', 'loadstart', 'seeking'] as const)
+      audio[`on${ev}`] = () => logMedia('mp3', { ev, paused: audio.paused, ready: audio.readyState, ...at() })
     audio.onended = () => {
       logMedia('mp3', { ev: 'ended', ...at() })
       done(true)()

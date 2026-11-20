@@ -1,11 +1,16 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { dismissCaption, keepCaption, readAll, setHubVoice, speak, stopSpeaking, useSpeech } from './speech'
+import { dismissCaption, keepCaption, readAll, setHubVoice, speak, stopSpeaking, useSpeech, forgetVoiceElement } from './speech'
 
 let finishAudio: (() => void) | null = null
 const handlers: Record<string, (() => void) | null> = {}
-const session = { metadata: null as unknown, playbackState: 'none', setActionHandler: (a: string, f: (() => void) | null) => (handlers[a] = f) }
+const session = {
+  metadata: null as unknown,
+  playbackState: 'none',
+  setActionHandler: (a: string, f: (() => void) | null) => (handlers[a] = f),
+}
 
 beforeEach(() => {
+  forgetVoiceElement()
   vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:x', revokeObjectURL: () => {} }))
   vi.stubGlobal(
     'Audio',

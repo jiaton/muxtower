@@ -26,7 +26,12 @@ it('tells a Bluetooth microphone by the output it shares a group with, when its 
     { kind: 'audiooutput', deviceId: 'o', groupId: 'c', label: 'Acme X1 (Bluetooth)' },
   ]
   expect(chooseMic(devices, 'bluetooth').deviceId).toBe('car')
-  expect(chooseMic(devices.filter((d) => d.deviceId !== 'car'), 'bluetooth').deviceId).toBe('x1')
+  expect(
+    chooseMic(
+      devices.filter((d) => d.deviceId !== 'car'),
+      'bluetooth',
+    ).deviceId,
+  ).toBe('x1')
   expect(chooseMic(devices, 'phone').deviceId).toBe('mic')
 })
 
@@ -101,7 +106,11 @@ it('falls back to the default when the one chosen is not here, and says so', asy
   ;(navigator.mediaDevices as { enumerateDevices: () => Promise<Device[]> }).enumerateDevices = async () => devices
   await openMic()
   expect(asked).toEqual([micConstraints(null, true)])
-  expect(useAudioStatus.getState()).toMatchObject({ input: 'Default', processing: true, note: 'Bluetooth microphone not found: using the default' })
+  expect(useAudioStatus.getState()).toMatchObject({
+    input: 'Default',
+    processing: true,
+    note: 'Bluetooth microphone not found: using the default',
+  })
 })
 
 it('the default: opened as it is, with voice processing as set', async () => {
