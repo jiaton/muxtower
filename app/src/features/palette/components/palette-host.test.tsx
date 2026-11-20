@@ -51,16 +51,51 @@ it('"/" opens it outside a text field only', async () => {
 })
 
 it('runs a command picked by name, and shows its key', async () => {
+  useLayoutPrefs.setState({ layout: 'full', previous: 'full' })
+  vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener() {}, removeEventListener() {} })) // wide
   show()
   await screen.findByRole('textbox', { name: 'Elsewhere' })
   fireEvent.keyDown(window, { code: 'KeyK', key: 'k', ctrlKey: true })
-  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'focus' } })
-  const item = screen.getByRole('option', { name: /Focus mode/ })
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'session only' } })
+  const item = screen.getByRole('option', { name: /^Session only/ })
   expect(item).toHaveTextContent('Alt')
-  const before = useLayoutPrefs.getState().sidebar
   fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
-  expect(useLayoutPrefs.getState().sidebar).toBe(!before)
+  expect(useLayoutPrefs.getState().layout).toBe('session')
   expect(screen.queryByRole('combobox')).toBeNull()
+  // Again: back to the layout before it.
+  fireEvent.keyDown(window, { code: 'KeyK', key: 'k', ctrlKey: true })
+  fireEvent.change(screen.getByRole('combobox'), { target: { value: 'leave session only' } })
+  fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
+  expect(useLayoutPrefs.getState().layout).toBe('full')
+})
+
+it('offers the layouts this screen can show: three where the sidebar docks, two below, none on a phone', async () => {
+  const layouts = () => screen.queryAllByRole('option', { name: /^Layout: / }).map((o) => o.textContent)
+  const widths = { dock: true, split: true }
+  vi.stubGlobal('matchMedia', (q: string) => ({
+    matches: q.includes('64rem') ? widths.dock : q.includes('48rem') ? widths.split : false,
+    addEventListener() {},
+    removeEventListener() {},
+  }))
+  show()
+  await screen.findByRole('textbox', { name: 'Elsewhere' })
+  const open = (q: string) => {
+    fireEvent.keyDown(window, { code: 'KeyK', key: 'k', ctrlKey: true })
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: q } })
+  }
+  open('layout')
+  expect(layouts()).toEqual(['Layout: Sidebar, list and session', 'Layout: List and session', 'Layout: Session only'])
+  fireEvent.click(screen.getByRole('option', { name: 'Layout: List and session' }))
+  expect(useLayoutPrefs.getState().layout).toBe('list')
+  widths.dock = false // a Fold
+  open('layout')
+  expect(layouts()).toEqual(['Layout: List and session', 'Layout: Session only'])
+  fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Escape' })
+  widths.split = false // a phone
+  open('layout')
+  expect(layouts()).toEqual([])
+  expect(screen.queryByRole('option', { name: /Session only/ })).toBeNull()
+  useLayoutPrefs.setState({ layout: 'full' })
 })
 
 it('searches inside conversations once typing pauses, says a late node is still searching, and goes to a hit', async () => {

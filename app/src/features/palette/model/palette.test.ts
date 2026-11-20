@@ -31,10 +31,10 @@ it('matches commands by every word of their name, and offers none for a facet se
   const commands = [
     { id: 'new', label: 'New session…', run },
     { id: 'here', label: 'New session here', run },
-    { id: 'focus', label: 'Focus mode', run },
+    { id: 'session-only', label: 'Session only', run },
   ]
-  expect(matchCommands(commands, '').map((c) => c.id)).toEqual(['new', 'here', 'focus'])
+  expect(matchCommands(commands, '').map((c) => c.id)).toEqual(['new', 'here', 'session-only'])
   expect(matchCommands(commands, 'new here').map((c) => c.id)).toEqual(['here'])
-  expect(matchCommands(commands, 'FOC').map((c) => c.id)).toEqual(['focus'])
+  expect(matchCommands(commands, 'ONLY').map((c) => c.id)).toEqual(['session-only'])
   expect(matchCommands(commands, 'role:pm')).toEqual([])
 })

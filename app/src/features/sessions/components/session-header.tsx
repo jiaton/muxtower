@@ -1,28 +1,31 @@
 import { Link } from '@tanstack/react-router'
-import { Menu } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
 import { PaneHeader } from '@/components/ui/pane'
 import { projectLabel, workingIn } from '../model/places'
 import type { Session } from '@/lib/api/types'
 import { useSession } from '../api/use-sessions'
 import { NO_ENVIRONMENT, agentOf, deviceOf, folderOf, sourceOf } from '../model/facets'
-import { useSessionDrawer } from '../store'
-import { useListBeside } from '@/lib/layout-prefs'
 import { agentIcon } from './agent-mark'
 import { StateBadge } from './state-badge'
 import { StreamMark } from './stream-mark'
 import { ink } from '@/components/ui/intents'
 
-/** The top of a session page: the list as a drawer (phones, or the list hidden), name and state, which agent it is and where
- *  it runs (and, for a side chat or a fork, the session it came from, one tap away), and the page's
- *  actions. */
-export function SessionHeader({ daemonId, session, actions }: { daemonId: string; session: Session; actions?: ReactNode }) {
+/** The top of a session page: what opens the panes the layout hides (`leading`, from the page), name and
+ *  state, which agent it is and where it runs (and, for a side chat or a fork, the session it came from,
+ *  one tap away), and the page's actions. */
+export function SessionHeader({
+  daemonId,
+  session,
+  leading,
+  actions,
+}: {
+  daemonId: string
+  session: Session
+  leading?: ReactNode
+  actions?: ReactNode
+}) {
   const parent = useSession(daemonId, session.fork_of ?? '').session
-  const drawerOpen = useSessionDrawer((s) => s.open)
-  const setDrawer = useSessionDrawer((s) => s.setOpen)
-  const beside = useListBeside()
   const agent = agentOf(session)
   const AgentIcon = agentIcon(agent)
   const project = projectLabel(session)
@@ -38,20 +41,7 @@ export function SessionHeader({ daemonId, session, actions }: { daemonId: string
   ].filter(Boolean)
   return (
     <PaneHeader
-      leading={
-        beside ? null : (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Sessions"
-            aria-expanded={drawerOpen}
-            title="Sessions"
-            onClick={() => setDrawer(true)}
-          >
-            <Menu />
-          </Button>
-        )
-      }
+      leading={leading}
       title={
         <>
           <h1 className="min-w-0 truncate">{session.name}</h1>

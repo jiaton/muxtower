@@ -35,7 +35,7 @@ describe('persisted stores from older versions load', () => {
     expect(useDrafts.getState().quotes['d/s']).toEqual([{ text: 'a line', reply: '' }])
     await kept('muxtower.layout', { sidebar: 'no', list: false })
     await useLayoutPrefs.persist.rehydrate()
-    expect(useLayoutPrefs.getState()).toMatchObject({ sidebar: true, list: false })
+    expect(useLayoutPrefs.getState()).toMatchObject({ layout: 'full' }) // the sidebar shown (a wrong shape), the list not
     await kept('muxtower.views', { views: [], last: 3 })
     await useSessionViews.persist.rehydrate()
     expect(useSessionViews.getState().views).toEqual({})

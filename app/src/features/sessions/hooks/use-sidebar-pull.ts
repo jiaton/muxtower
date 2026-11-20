@@ -1,6 +1,6 @@
 import { useEffect, type RefObject } from 'react'
 import { axisOf, holdScroll, sideways, Speed } from '@/components/ui/gesture'
-import { useSidebarDrawer } from '@/lib/sidebar-drawer'
+import { useLayoutDrawer } from '@/lib/layout-drawer'
 
 /** Touches starting this close to the screen's left edge are the system's (Android's and iOS's back). */
 export const EDGE_PX = 24
@@ -22,7 +22,7 @@ export function useSidebarPull(el: RefObject<HTMLElement | null>, active: boolea
     const root = el.current
     if (!active || !root) return
     let g: { x: number; y: number; axis?: 'x' | 'y'; speed: Speed } | null = null
-    const pull = () => useSidebarDrawer.getState().pull
+    const pull = () => useLayoutDrawer.getState().pull
     const down = (e: TouchEvent) => {
       const t = e.touches[0]
       g = e.touches.length === 1 && t && startsPull(e.target, t.clientX, root) ? { x: t.clientX, y: t.clientY, speed: new Speed() } : null

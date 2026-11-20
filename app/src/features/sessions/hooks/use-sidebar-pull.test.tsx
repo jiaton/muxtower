@@ -1,8 +1,7 @@
 import { act, fireEvent, render, renderHook } from '@testing-library/react'
 import { useRef } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { useBackCloses } from '@/lib/use-back-closes'
-import { useSidebarDrawer } from '@/lib/sidebar-drawer'
+import { useDrawerHistory, useLayoutDrawer } from '@/lib/layout-drawer'
 import { EDGE_PX, startsPull, useSidebarPull } from './use-sidebar-pull'
 
 function List() {
@@ -23,7 +22,7 @@ function List() {
 
 function pullSpy() {
   const pull = { move: vi.fn(), end: vi.fn() }
-  useSidebarDrawer.setState({ pull })
+  useLayoutDrawer.setState({ pull })
   return pull
 }
 
@@ -34,7 +33,7 @@ const swipe = (el: Element, from: number, to: number) => {
   fireEvent.touchEnd(el, { changedTouches: [{ clientX: to, clientY: 102 }] })
 }
 
-afterEach(() => useSidebarDrawer.setState({ open: false, pull: null }))
+afterEach(() => useLayoutDrawer.setState({ open: false, pull: null }))
 
 describe('where a swipe right may pull the sidebar', () => {
   it('not at the screen’s edge, not on the chip rows, not on a row showing its actions; a row counts', () => {
@@ -63,28 +62,35 @@ describe('where a swipe right may pull the sidebar', () => {
 })
 
 describe('Back', () => {
-  it('closes what is open instead of leaving the page', () => {
-    const setOpen = vi.fn()
+  it('closes the open drawer instead of leaving the page', () => {
     const pushed = vi.spyOn(history, 'pushState')
-    renderHook(({ open }) => useBackCloses(open, setOpen), { initialProps: { open: true } })
+    act(() => useLayoutDrawer.getState().setOpen(true))
+    renderHook(() => useDrawerHistory(true))
     expect(pushed).toHaveBeenCalledOnce() // an entry of the same page, for Back to pop
     act(() => {
       window.dispatchEvent(new PopStateEvent('popstate'))
     })
-    expect(setOpen).toHaveBeenCalledWith(false)
+    expect(useLayoutDrawer.getState().open).toBe(false)
     pushed.mockRestore()
   })
 
-  it('closed another way, takes its entry back', () => {
+  it('closed another way (Esc, a tap outside, a layout picked), takes its entry back', () => {
     vi.useFakeTimers()
     const back = vi.spyOn(history, 'back').mockImplementation(() => {})
-    const setOpen = vi.fn()
-    const { result } = renderHook(() => useBackCloses(true, setOpen))
-    act(() => result.current(false))
+    act(() => useLayoutDrawer.getState().setOpen(true))
+    renderHook(() => useDrawerHistory(true))
+    act(() => useLayoutDrawer.getState().setOpen(false))
     vi.advanceTimersByTime(100)
     expect(back).toHaveBeenCalledOnce()
-    expect(setOpen).toHaveBeenCalledWith(false)
     back.mockRestore()
     vi.useRealTimers()
+  })
+
+  it('no drawer at all (every pane docked): no entry', () => {
+    const pushed = vi.spyOn(history, 'pushState')
+    act(() => useLayoutDrawer.getState().setOpen(true))
+    renderHook(() => useDrawerHistory(false))
+    expect(pushed).not.toHaveBeenCalled()
+    pushed.mockRestore()
   })
 })

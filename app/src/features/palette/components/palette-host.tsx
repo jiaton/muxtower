@@ -9,7 +9,8 @@ import { deviceOf, entryKey, isAssistant, placeGroupOf, roleNameOf, type Session
 import { presetForSession } from '@/features/sessions/model/new-here'
 import { useNewSessionRequest, useSessionViews } from '@/features/sessions/store'
 import { toggleLive } from '@/features/voice/live/engine'
-import { useLayoutPrefs } from '@/lib/layout-prefs'
+import { LAYOUT_LABEL, layoutsFor, useLayoutPrefs } from '@/lib/layout-prefs'
+import { SIDEBAR_QUERY, SPLIT_QUERY, useMediaQuery } from '@/lib/use-media-query'
 import { usePairedDaemons } from '@/lib/daemons/store'
 import { useNodeNames } from '@/lib/daemons/use-nodes'
 import { ago } from '@/lib/time'
@@ -72,7 +73,10 @@ function Palette({ entries, current, actions = [] }: { entries: SessionEntry[]; 
   const recent = useRecentSessions((s) => s.keys)
   const navigate = useNavigate()
   const startNew = useNewSessionRequest((s) => s.start)
-  const toggleFocus = useLayoutPrefs((s) => s.toggleFocus)
+  const layout = useLayoutPrefs((s) => s.layout)
+  const setLayout = useLayoutPrefs((s) => s.setLayout)
+  const toggleSessionOnly = useLayoutPrefs((s) => s.toggleSessionOnly)
+  const layouts = layoutsFor({ dock: useMediaQuery(SIDEBAR_QUERY), split: useMediaQuery(SPLIT_QUERY) })
   const setView = useSessionViews((s) => s.setView)
   const chosenView = useSessionViews((s) => (current ? (s.views[current.key] ?? s.last) : undefined))
   const hub = usePairedDaemons()[0]
@@ -89,7 +93,12 @@ function Palette({ entries, current, actions = [] }: { entries: SessionEntry[]; 
     if (here) commands.push({ id: 'new-here', label: 'New session here', run: () => startNew(here) })
     commands.push({ id: 'live', label: 'Toggle Live', keys: 'Alt+L', run: () => void toggleLive() })
   }
-  commands.push({ id: 'focus', label: 'Focus mode', keys: 'Alt+F', run: toggleFocus })
+  // The layouts this screen can show (none on a phone), and Alt+F's: the session only, or back.
+  if (layouts.length) {
+    const back = layout === 'session'
+    commands.push({ id: 'session-only', label: back ? 'Leave Session only' : 'Session only', keys: 'Alt+F', run: toggleSessionOnly })
+    for (const l of layouts) commands.push({ id: `layout-${l}`, label: `Layout: ${LAYOUT_LABEL[l]}`, run: () => setLayout(l) })
+  }
   const action = (id: SessionAction['id'], label: (a: SessionAction) => string) => {
     const a = actions.find((x) => x.id === id && !x.disabled)
     if (a) commands.push({ id, label: label(a), run: a.run })

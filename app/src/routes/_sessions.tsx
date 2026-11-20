@@ -1,5 +1,5 @@
 import { Link, Outlet, createFileRoute, useMatch } from '@tanstack/react-router'
-import { Archive, BellOff, CheckCheck, EyeOff, PanelLeft, PanelLeftClose, Plus, RotateCcw, SearchX, Server } from 'lucide-react'
+import { Archive, BellOff, CheckCheck, EyeOff, Plus, RotateCcw, SearchX, Server } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Drawer } from '@/components/ui/drawer'
@@ -14,9 +14,7 @@ import { ExpiredLogins } from '@/features/daemons/components/expired-logins'
 import { ListChips } from '@/features/sessions/components/list-chips'
 import { ListMenu, ScopeChip, SearchField } from '@/features/sessions/components/list-controls'
 import { useSidebarPull } from '@/features/sessions/hooks/use-sidebar-pull'
-import { useSidebarDrawer } from '@/lib/sidebar-drawer'
-import { useDaemonsNeedALook } from '@/features/daemons/hooks/use-daemons-need-a-look'
-import { Dot } from '@/components/ui/indicators'
+import { useLayoutDrawer } from '@/lib/layout-drawer'
 import { NewSessionDialog } from '@/features/sessions/components/new-session-dialog'
 import { SessionList } from '@/features/sessions/components/session-list'
 import { ListSkeleton } from '@/features/sessions/components/list-skeleton'
@@ -35,11 +33,12 @@ import { useChipGroups } from '@/features/sessions/api/use-chip-groups'
 import { byRole, chipMembers } from '@/features/sessions/model/chip-groups'
 import { searchTerms } from '@/features/sessions/model/filter'
 import { ProjectChips } from '@/features/sessions/components/project-chips'
-import { useListMemory, useListPrefs, useSessionDrawer } from '@/features/sessions/store'
+import { useListMemory, useListPrefs } from '@/features/sessions/store'
 import { cn } from '@/lib/cn'
 import { useUnpairedDaemons } from '@/lib/daemons/store'
-import { useCanSplit, useLayoutPrefs, useListBeside, useSidebarDocked } from '@/lib/layout-prefs'
-import { ink } from '@/components/ui/intents'
+import { usePanes } from '@/lib/layout-prefs'
+import { ink, look } from '@/components/ui/intents'
+import { ShowPanes } from './-panes'
 
 export const Route = createFileRoute('/_sessions')({ validateSearch: parseListSearch, component: SessionsLayout })
 
@@ -61,22 +60,17 @@ function SessionsLayout() {
   const { entries, daemons, loading } = useSessionEntries()
   const unpaired = useUnpairedDaemons()
   const open = useMatch({ from: '/_sessions/d/$daemonId/s/$sessionId', shouldThrow: false })
-  const split = useListBeside() // hidden (focus mode), the list is a drawer over the session, as on a phone
-  const docked = useSidebarDocked()
-  const hideList = useLayoutPrefs((s) => s.setList)
-  const openSidebar = useSidebarDrawer((s) => s.setOpen)
-  const needsALook = useDaemonsNeedALook()
+  const panes = usePanes(Boolean(open))
+  const asDrawer = panes.listInDrawer // beside an open session the layout leaves out, as on a phone
   const listPane = useRef<HTMLElement>(null)
-  useSidebarPull(listPane, !docked) // a swipe right on the list: the sidebar, one level up
+  useSidebarPull(listPane, panes.sidebarAlone) // a swipe right on the list: the sidebar, one level up
   const listRef = useRef<HTMLDivElement>(null)
   const listKey = JSON.stringify(query)
-  const asDrawer = Boolean(open) && !split
-  const drawerOpen = useSessionDrawer((s) => s.open)
-  const setDrawer = useSessionDrawer((s) => s.setOpen)
-  const setPull = useSessionDrawer((s) => s.setPull)
-  useEffect(() => {
-    if (!asDrawer) setDrawer(false) // back on the list, or side by side: no drawer left open for later
-  }, [asDrawer, setDrawer])
+  const drawerOpen = useLayoutDrawer((s) => s.open)
+  const setDrawer = useLayoutDrawer((s) => s.setOpen)
+  const setPull = useLayoutDrawer((s) => s.setPull)
+  const setSidebarSlot = useLayoutDrawer((s) => s.setSidebarSlot)
+  const withSidebar = asDrawer && panes.split // the sidebar beside the list in the drawer, as they dock
   useScrollMemory(listRef, listKey, !asDrawer || drawerOpen, !loading)
   useEffect(() => useListMemory.setState({ lastSearch: search }), [search])
 
@@ -84,7 +78,7 @@ function SessionsLayout() {
   const selectedKey = open ? entryKey(open.params.daemonId, open.params.sessionId) : undefined
   // On a phone the list is a page of its own: back on it, the session just left stays marked (and in view),
   // so one sees where one was.
-  const canSplit = useCanSplit()
+  const canSplit = panes.split
   const lastOpen = useListMemory((s) => s.lastOpen)
   useEffect(() => {
     if (selectedKey) useListMemory.setState({ lastOpen: selectedKey })
@@ -111,26 +105,13 @@ function SessionsLayout() {
 
   return (
     <div className="flex min-w-0 flex-1">
-      <Drawer drawer={asDrawer} open={drawerOpen} onOpenChange={setDrawer} onPull={setPull} label="Sessions">
-        {/* Beside a session: the list's own widths. In its drawer: the drawer's whole width (the drawer is
-            min(85vw, 24rem); a 20rem list left an empty strip in it between md and xl, as on a car's screen). */}
-        <Pane ref={listPane} ruled className={asDrawer ? 'flex w-full' : 'flex w-full md:w-80 md:shrink-0 xl:w-96'} aria-label="Sessions">
+      <Drawer drawer={asDrawer} open={drawerOpen} onOpenChange={setDrawer} onPull={setPull} wide={withSidebar} label="Sessions">
+        {withSidebar ? <div ref={setSidebarSlot} className={`${look.bar.side} flex w-56 shrink-0 flex-col pt-[env(safe-area-inset-top)]`} /> : null}
+        {/* Beside a session: the list's own widths. In its drawer: the rest of the drawer's width (a 20rem list
+            left an empty strip in it between md and xl, as on a car's screen). */}
+        <Pane ref={listPane} ruled className={asDrawer ? 'flex min-w-0 flex-1' : 'flex w-full md:w-80 md:shrink-0 xl:w-96'} aria-label="Sessions">
           <PaneHeader
-            leading={
-              docked ? null : (
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={needsALook ? `Open sidebar (${needsALook})` : 'Open sidebar'}
-                  title={needsALook ? `Sidebar · ${needsALook}` : 'Sidebar'}
-                  onClick={() => openSidebar(true)}
-                  className="relative"
-                >
-                  <PanelLeft />
-                  {needsALook ? <Dot tone="warning" className="absolute top-0.5 right-0.5 size-2" /> : null}
-                </Button>
-              )
-            }
+            leading={panes.sidebarAlone ? <ShowPanes list={false} /> : null}
             title={
               <h1 className="truncate" title={title}>
                 {query.folder ? folderName(title) : title}
@@ -139,11 +120,6 @@ function SessionsLayout() {
             subtitle={loading ? <Skeleton className="w-20" /> : within ? `${within} · ${counted}` : counted}
             actions={
               <>
-                {open && split ? (
-                  <Button variant="ghost" size="icon-sm" aria-label="Hide the list" title="Hide the list" onClick={() => hideList(false)}>
-                    <PanelLeftClose />
-                  </Button>
-                ) : null}
                 <ListMenu
                   query={query}
                   unread={visible.filter((e) => e.session.unread)}
@@ -187,6 +163,7 @@ function SessionsLayout() {
                   showAccount: facets.accounts.length > 0 && !query.account,
                   showAgent: agentsDiffer([...visible, ...kept].map((e) => e.session)),
                   projectTag: byRole(query.chip) || searchTerms(query.q ?? '').roles.length > 0,
+                  replace: asDrawer, // picked in the drawer: in place of the page it opened on (Back closed it)
                 }}
                 extra={({ daemon, session }) =>
                   session.needs_attention && session.pending ? (

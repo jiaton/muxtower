@@ -22,6 +22,8 @@ import { listRow, listRowBelow } from '@/components/ui/list-row'
 import { ink, listItem, look } from '@/components/ui/intents'
 
 export interface RowContext {
+  /** In a drawer: a session opened replaces the page the drawer opened on (whose Back closed it). */
+  replace?: boolean
   /** The list is already narrowed to one device / folder: do not repeat it on every row. */
   hideDevice?: boolean
   hideFolder?: boolean
@@ -90,6 +92,7 @@ export function SessionRow({
         to="/d/$daemonId/s/$sessionId"
         params={{ daemonId: daemon.id, sessionId: session.id }}
         search={true}
+        replace={context.replace}
         aria-current={selected ? 'page' : undefined}
         data-row-link
         className={listRow()}

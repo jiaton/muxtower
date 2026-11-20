@@ -20,7 +20,6 @@ function Page({ open: initial = false, onOpenChange = () => {} }: { open?: boole
         }}
         onPull={(p) => (pull = p)}
         label="Navigation"
-        over
         push={content}
       >
         <nav>sidebar</nav>

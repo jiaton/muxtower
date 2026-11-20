@@ -12,7 +12,7 @@ function Harness({ onPick }: { onPick: (id: string) => void }) {
       label: 'Sessions',
       items: ['alpha', 'beta'].filter((x) => x.includes(query)).map((x) => ({ id: x, label: x, onSelect: () => onPick(x) })),
     },
-    { id: 'c', label: 'Commands', items: [{ id: 'focus', label: 'Focus mode', keys: 'Alt+F', onSelect: () => onPick('focus') }] },
+    { id: 'c', label: 'Commands', items: [{ id: 'session-only', label: 'Session only', keys: 'Alt+F', onSelect: () => onPick('session-only') }] },
   ]
   return (
     <>
@@ -38,12 +38,12 @@ it('moves with the arrows across sections, wraps, and picks with Enter, then clo
   expect(screen.getByRole('option', { name: 'alpha' })).toHaveAttribute('aria-selected', 'true')
   fireEvent.keyDown(box, { key: 'ArrowDown' })
   fireEvent.keyDown(box, { key: 'ArrowDown' })
-  expect(screen.getByRole('option', { name: 'Focus mode' })).toHaveAttribute('aria-selected', 'true')
+  expect(screen.getByRole('option', { name: 'Session only' })).toHaveAttribute('aria-selected', 'true')
   fireEvent.keyDown(box, { key: 'ArrowDown' }) // wraps to the first
   expect(screen.getByRole('option', { name: 'alpha' })).toHaveAttribute('aria-selected', 'true')
   fireEvent.keyDown(box, { key: 'ArrowUp' })
   fireEvent.keyDown(box, { key: 'Enter' })
-  expect(onPick).toHaveBeenCalledWith('focus')
+  expect(onPick).toHaveBeenCalledWith('session-only')
   expect(screen.queryByRole('combobox')).toBeNull()
 })
 
@@ -68,7 +68,7 @@ it('says so when nothing matches; a phone gets it the width of the screen, at th
   render(<Harness onPick={() => {}} />)
   fireEvent.click(screen.getByRole('button', { name: 'Open' }))
   fireEvent.change(screen.getByRole('combobox'), { target: { value: 'zzz' } })
-  expect(screen.getByText('Focus mode')).toBeInTheDocument() // a command still there
+  expect(screen.getByText('Session only')).toBeInTheDocument() // a command still there
   const dialog = screen.getByRole('dialog')
   expect(dialog.className).toMatch(/inset-x-0 top-0/)
 })

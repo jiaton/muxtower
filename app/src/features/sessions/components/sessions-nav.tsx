@@ -28,7 +28,7 @@ import { ink } from '@/components/ui/intents'
 
 /** Opens the scope's only session with it, when that is what a click on it would show (see `useSoleOpener`). */
 const SoleOpener = createContext<(event: MouseEvent, target: ListSearch) => void>(() => {})
-/** In the phone's drawer: a scope replaces the page it opened on (`useBackCloses`). */
+/** In the phone's drawer: a scope replaces the page it opened on (`useDrawerHistory`). */
 const Replace = createContext(false)
 
 /** Side by side with the list (where opening it loses no one), a click on a scope that holds one session

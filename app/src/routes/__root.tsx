@@ -1,7 +1,7 @@
-import { Link, Outlet, createRootRoute } from '@tanstack/react-router'
-import { PanelLeftClose, PanelLeftOpen, Server } from 'lucide-react'
+import { Link, Outlet, createRootRoute, useMatch } from '@tanstack/react-router'
+import { Server } from 'lucide-react'
 import { useEffect, useRef } from 'react'
-import { Button } from '@/components/ui/button'
+import { createPortal } from 'react-dom'
 import { navItemClass } from '@/components/ui/nav'
 import { AppUpdateBanner } from '@/features/daemons/components/app-update-banner'
 import { WebUsageMark } from '@/features/daemons/components/web-usage-mark'
@@ -20,42 +20,26 @@ import { useHubFallback } from '@/lib/daemons/use-hub-fallback'
 import { useConfiguredDaemons } from '@/lib/runtime-config'
 import { useColorScheme } from '@/lib/use-color-scheme'
 import { Drawer } from '@/components/ui/drawer'
-import { useBackCloses } from '@/lib/use-back-closes'
-import { useSidebarDrawer } from '@/lib/sidebar-drawer'
-import { SIDEBAR_QUERY, useMediaQuery } from '@/lib/use-media-query'
-import { useLayoutPrefs, useSidebarDocked } from '@/lib/layout-prefs'
+import { useDrawerHistory, useLayoutDrawer } from '@/lib/layout-drawer'
+import { useLayoutShortcut, usePanes } from '@/lib/layout-prefs'
+import { SidebarSwitch } from './-panes'
 import { ink, look } from '@/components/ui/intents'
 
 export const Route = createRootRoute({ component: RootLayout })
 
-/** What the sidebar holds, docked or as the phone's drawer: views, devices with their folders, agents,
- *  sources; a new session; the daemons. In the drawer, a scope chosen replaces the page the drawer
- *  opened on (`useBackCloses`), and closes it. */
-function Sidebar({ inDrawer = false, onLeave }: { inDrawer?: boolean; onLeave?: () => void }) {
-  // Wide enough to dock: docked, it can be hidden (a drawer from then on); hidden, its drawer docks it again.
-  const wide = useMediaQuery(SIDEBAR_QUERY)
-  const setShown = useLayoutPrefs((s) => s.setSidebar)
+/** What the sidebar holds, docked or in the drawer: the layout switch (from `md`), views, devices with
+ *  their folders, agents, sources; the daemons. In the drawer, a scope chosen replaces the page the drawer
+ *  opened on (`useDrawerHistory`), and closes it. */
+function Sidebar({ inDrawer = false }: { inDrawer?: boolean }) {
   const needsALook = useDaemonsNeedALook()
   return (
     <>
       <div className="flex h-14 shrink-0 items-center gap-2 px-4">
-        <Link to="/" className={ink.brand}>
+        <SidebarSwitch />
+        <Link to="/" className={`${ink.brand} truncate`}>
           muxtower
         </Link>
         <WebUsageMark />
-        <div className="ml-auto flex items-center" onClick={onLeave}>
-          {wide ? (
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              aria-label={inDrawer ? 'Keep the sidebar open' : 'Hide the sidebar'}
-              title={inDrawer ? 'Keep the sidebar open' : 'Hide the sidebar'}
-              onClick={() => setShown(inDrawer)}
-            >
-              {inDrawer ? <PanelLeftOpen /> : <PanelLeftClose />}
-            </Button>
-          ) : null}
-        </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
         <SessionsNav replace={inDrawer} />
@@ -71,9 +55,10 @@ function Sidebar({ inDrawer = false, onLeave }: { inDrawer?: boolean; onLeave?: 
 }
 
 /**
- * The app shell: a sidebar (sessions by view, device and folder; daemons), docked when there is room, else a
- * drawer the list's header opens; no tab bar (Daemons is seldom needed: the sidebar, ⌘K and Settings reach
- * it, and a dot on the sidebar's button says when it wants a look).
+ * The app shell: a sidebar (the layout switch; sessions by view, device and folder; daemons), docked where
+ * the layout and the screen have it, else in the one drawer (alone, pushing the page aside; or beside the
+ * list in the list's drawer, `_sessions`); no tab bar (Daemons is seldom needed: the sidebar, ⌘K and
+ * Settings reach it, and a dot on the panel-left says when it wants a look).
  */
 function RootLayout() {
   useColorScheme()
@@ -95,33 +80,42 @@ function RootLayout() {
       ),
     daemons.map((d) => d.updatedAt).join(),
   )
-  const docked = useSidebarDocked()
-  const sidebarOpen = useSidebarDrawer((s) => s.open)
-  const setSidebarOpen = useSidebarDrawer((s) => s.setOpen)
-  const setSidebarPull = useSidebarDrawer((s) => s.setPull)
-  const closeSidebar = useBackCloses(sidebarOpen && !docked, setSidebarOpen)
+  const sessionOpen = Boolean(useMatch({ from: '/_sessions/d/$daemonId/s/$sessionId', shouldThrow: false }))
+  const panes = usePanes(sessionOpen)
+  useLayoutShortcut(panes.split)
+  const open = useLayoutDrawer((s) => s.open)
+  const setOpen = useLayoutDrawer((s) => s.setOpen)
+  const setPull = useLayoutDrawer((s) => s.setPull)
+  const slot = useLayoutDrawer((s) => s.sidebarSlot)
+  // The drawer is the list's (in `_sessions`, the sidebar beside the list from `md`) or the sidebar's alone.
+  useDrawerHistory(panes.listInDrawer || panes.sidebarAlone)
   const content = useRef<HTMLDivElement>(null)
-  const pushed = sidebarOpen && !docked
-  // Docked again while its drawer was open: the drawer is gone, and is not open when it next comes back.
+  const pushed = open && panes.sidebarAlone
+  // Another drawer, or none (docked again: a wider layout, the window widened; a phone back on its list):
+  // what was open is gone, and is not open when it next comes back.
+  const kind = panes.listInDrawer ? 'list' : panes.sidebarAlone ? 'sidebar' : null
   useEffect(() => {
-    if (docked && useSidebarDrawer.getState().open) setSidebarOpen(false)
-  }, [docked, setSidebarOpen])
+    if (useLayoutDrawer.getState().open) setOpen(false)
+  }, [kind, setOpen])
 
   return (
     <div className="flex h-dvh overflow-hidden pt-[env(safe-area-inset-top)]">
       <NewSessionHost />
       <PaletteHost />
-      {docked ? (
+      {panes.sidebarDocked ? (
         <aside className={`${look.bar.side} flex w-56 shrink-0 flex-col xl:w-64`} aria-label="Navigation">
           <Sidebar />
         </aside>
-      ) : (
-        <Drawer drawer open={sidebarOpen} onOpenChange={closeSidebar} onPull={setSidebarPull} label="Navigation" over push={content}>
+      ) : panes.sidebarAlone ? (
+        <Drawer drawer open={open} onOpenChange={setOpen} onPull={setPull} label="Navigation" push={content}>
           <div className={`${look.surface} flex w-full flex-col pt-[env(safe-area-inset-top)]`}>
-            <Sidebar inDrawer onLeave={() => closeSidebar(false)} />
+            <Sidebar inDrawer />
           </div>
         </Drawer>
-      )}
+      ) : panes.listInDrawer && panes.split && slot ? (
+        // Beside the list, in its drawer.
+        createPortal(<Sidebar inDrawer />, slot)
+      ) : null}
 
       {/* Pushed aside by the sidebar drawer, never resized (a terminal keeps its size): out of reach meanwhile. */}
       <div ref={content} className="flex min-w-0 flex-1 flex-col" inert={pushed} aria-hidden={pushed || undefined}>

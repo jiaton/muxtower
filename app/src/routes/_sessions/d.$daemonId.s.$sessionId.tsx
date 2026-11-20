@@ -16,14 +16,15 @@ import { ConversationView } from '@/features/conversation/components/conversatio
 import { useDaemonSessions, useSession } from '@/features/sessions/api/use-sessions'
 import { useMentionSource } from '@/features/mentions/hooks/use-mention-source'
 import { SessionActionsMenu } from '@/features/sessions/components/session-actions-menu'
-import { FocusToggle } from '@/features/sessions/components/focus-toggle'
 import { SessionSkeleton } from '@/features/sessions/components/session-skeleton'
 import { FullScreenItem } from '@/features/sessions/components/full-screen-item'
-import { canFullScreen } from '@/lib/layout-prefs'
+import { canFullScreen, usePanes } from '@/lib/layout-prefs'
+import { useLayoutDrawer } from '@/lib/layout-drawer'
+import { ShowPanes } from '../-panes'
 import { SessionHeader } from '@/features/sessions/components/session-header'
 import { InterruptedState } from '@/features/sessions/components/interrupted'
 import { useSeenWhileOpen } from '@/features/sessions/hooks/use-seen-while-open'
-import { useSessionDrawer, useSessionViews, type SessionView as View } from '@/features/sessions/store'
+import { useSessionViews, type SessionView as View } from '@/features/sessions/store'
 import { useSendInput } from '@/features/terminal/api/use-terminal'
 import { InputBar } from '@/features/terminal/components/input-bar'
 import { TerminalMenuItems } from '@/features/terminal/components/terminal-menu-items'
@@ -144,7 +145,8 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
   const atPrompt = session.runtime === 'claude-code' && DIALOG_STATES.has(session.state)
   const outgoing = useOutgoing(daemonId, session.id, hasConversation ? conversation.data : undefined, active, atPrompt)
   const setFit = useTerminalPrefs((s) => s.setFit)
-  const pullDrawer = useSessionDrawer((s) => s.pull)
+  const pullDrawer = useLayoutDrawer((s) => s.pull) // a swipe right on the first page: the panes the layout hides
+  const { listInDrawer } = usePanes(true)
   const both = screen && hasConversation
   useSeenWhileOpen(daemonId, session)
   const views = useRef<HTMLDivElement>(null)
@@ -205,6 +207,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
       <SessionHeader
         daemonId={daemonId}
         session={session}
+        leading={listInDrawer ? <ShowPanes list /> : null}
         actions={
           <>
             <PlayButton daemonId={daemonId} sessionId={session.id} reply={session.last_message} name={session.name} />
@@ -219,7 +222,6 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
                 ]}
               />
             ) : null}
-            <FocusToggle />
             <SessionActionsMenu
               daemonId={daemonId}
               session={session}

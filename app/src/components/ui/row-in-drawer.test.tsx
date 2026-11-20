@@ -59,7 +59,7 @@ it('with the sidebar shut: a swipe left on a row shows its actions, and the side
   const pulled = vi.fn()
   render(
     <>
-      <Drawer drawer open={false} onOpenChange={sidebar} onPull={pulled} label="Navigation" over>
+      <Drawer drawer open={false} onOpenChange={sidebar} onPull={pulled} label="Navigation">
         <nav>All sessions</nav>
       </Drawer>
       <SwipeActions actions={<SwipeAction icon={() => null} label="Hide" onClick={() => {}} />}>

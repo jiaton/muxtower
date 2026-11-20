@@ -17,7 +17,7 @@ export function Drawer({
   onOpenChange,
   label,
   onPull,
-  over,
+  wide,
   push,
   children,
 }: {
@@ -26,8 +26,8 @@ export function Drawer({
   onOpenChange: (open: boolean) => void
   label: string
   onPull?: (pull: Pull | null) => void
-  /** Above another drawer (the sidebar over the session list's). */
-  over?: boolean
+  /** Holds two panes side by side (the sidebar and the list), each as wide as it docks. */
+  wide?: boolean
   /** A push drawer (Slack's, Discord's): this, the page beside it, slides right as the drawer opens, by
    *  a transform only, so nothing in it changes size (a terminal is not fitted again, its tmux pane not
    *  resized); the strip of it that still shows is dimmed lightly and closes the drawer when tapped. */
@@ -53,7 +53,7 @@ export function Drawer({
     el.style.transform = target
   }, [push, drawer, shown])
 
-  // Gone (the sidebar docked: focus mode left, "Keep the sidebar open", the window widened) or no longer a
+  // Gone (the sidebar docked: a wider layout picked, Alt+F, the window widened) or no longer a
   // drawer while open: the page it pushed aside is put back. Left translated, it kept a blank column.
   useEffect(() => {
     const el = push?.current
@@ -107,7 +107,7 @@ export function Drawer({
           onClick={() => onOpenChange(false)}
           className={cn(
             'fixed inset-0 bg-overlay transition-opacity duration-200 motion-reduce:transition-none',
-            over ? 'z-[60]' : 'z-40',
+            'z-40',
             shown ? (push ? 'opacity-40' : 'opacity-100') : 'pointer-events-none opacity-0',
           )}
         />
@@ -123,8 +123,8 @@ export function Drawer({
           drawer
             ? cn(
                 'fixed inset-y-0 left-0 flex bg-bg transition-transform duration-200 ease-out motion-reduce:transition-none',
-                push ? 'w-[min(85vw,18rem)] border-r border-border' : 'w-[min(85vw,24rem)] shadow-card',
-                over ? 'z-[70]' : 'z-50',
+                push ? 'w-[min(85vw,18rem)] border-r border-border' : wide ? 'w-[min(92vw,36rem)] shadow-card' : 'w-[min(85vw,24rem)] shadow-card',
+                'z-50',
               )
             : 'contents',
           drawer && !open && '-translate-x-full',
