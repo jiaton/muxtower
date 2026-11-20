@@ -45,6 +45,7 @@ import { Chip } from './list-chips'
 import { TeamCard, TeamPanel } from './team-card'
 import { Button } from '@/components/ui/button'
 import { bleedRow } from '@/components/ui/list-row'
+import { ScrollRow } from '@/components/ui/scroll-row'
 import { chip } from '@/components/ui/chip'
 import { lifted as liftedLook, liftedFrom } from '@/components/ui/intents'
 
@@ -62,7 +63,8 @@ const MENU_PX = 8 // a lifted chip let go within this: its menu, not a move
  * group. A chip chosen again is let go. Groups are put in order by dragging them along the row (dnd-kit's
  * sortable: the others slide aside, the chip is lifted and dropped into place; a mouse past a few pixels, so
  * a click still chooses; a finger after a short hold, so a swipe still scrolls the row; Space, the arrows and
- * Space again, announced to screen readers; or Alt+←/→ on a focused chip). A right click, or a held finger
+ * Space again, announced to screen readers; or Alt+←/→ on a focused chip). The row is a `ScrollRow`: a mouse's
+ * wheel scrolls it, its edges fade where there is more, ‹ › on hover. A right click, or a held finger
  * let go without moving, offers its teams, Edit and Delete, under the chip it belongs to. Projects shown while there are no groups are in order of
  * activity, and do not move; "+" stays last. Not shown for a single project and no groups.
  */
@@ -127,7 +129,7 @@ export function ProjectChips({
 
   return (
     <nav aria-label="Projects" data-own-swipe className={cn(bleedRow.outer, className)}>
-      <div ref={row} className={cn(bleedRow.inner, 'flex gap-1.5 overflow-x-auto [scrollbar-width:none]')}>
+      <ScrollRow ref={row} className={cn(bleedRow.inner, 'gap-1.5')}>
         <DndContext
           sensors={sensors}
           modifiers={[restrictToHorizontalAxis]}
@@ -214,7 +216,7 @@ export function ProjectChips({
             <Plus aria-hidden />
           </Button>
         ) : null}
-      </div>
+      </ScrollRow>
       <DropdownMenu
         open={Boolean(menu)}
         onOpenChange={(open) => {

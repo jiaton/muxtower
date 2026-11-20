@@ -142,6 +142,34 @@
   * {
     overscroll-behavior-x: none;
   }
+
+  /* ... but not on a box that only clips (a truncated label, a clamp, overflow hidden). It is a scroll
+     container that no one can scroll, and with `none` it ended the scroll chain under the pointer: a sideways
+     wheel or trackpad swipe over a chip's label moved its row not at all (only over the gaps between). With
+     `auto` the scroll goes on to the scroller around it, and from there to the root, which still has none. */
+  .truncate,
+  .overflow-hidden,
+  .overflow-x-hidden,
+  .overflow-y-hidden,
+  .line-clamp-1,
+  .line-clamp-2,
+  .line-clamp-3 {
+    overscroll-behavior-x: auto;
+  }
+}
+
+/* A sideways scroller faded out at an edge where there is more to scroll (`ScrollRow` sets `data-more-start`
+   and `data-more-end`); only the mask's alpha counts. */
+@utility fade-edges-x {
+  --fade-start: 0px;
+  --fade-end: 0px;
+  mask-image: linear-gradient(to right, transparent, black var(--fade-start), black calc(100% - var(--fade-end)), transparent);
+  &[data-more-start] {
+    --fade-start: 2.5rem;
+  }
+  &[data-more-end] {
+    --fade-end: 2.5rem;
+  }
 }
 
 /* The page's endless animations (a busy agent's spinner, a dot that pulses) run for hours. On their own

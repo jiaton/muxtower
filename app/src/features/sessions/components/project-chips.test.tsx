@@ -75,7 +75,7 @@ it('with groups: the groups in their order, counting the sessions they hold', as
 
 it('scrolls the chosen chip into view', async () => {
   const at = (el: Element) => {
-    const nav = el.closest('nav')?.firstElementChild
+    const nav = el.closest('nav')?.querySelector('[data-scroll-row]')
     const links = nav ? [...nav.querySelectorAll('a')] : []
     return links.indexOf(el as HTMLAnchorElement)
   }
@@ -86,7 +86,7 @@ it('scrolls the chosen chip into view', async () => {
   })
   show(entries, [], 'p:b') // the sixth chip: at 500, past a row 300 wide
   const nav = await screen.findByRole('navigation', { name: 'Projects' })
-  await waitFor(() => expect(nav.firstElementChild!.scrollLeft).toBe(500 - 150 + 45))
+  await waitFor(() => expect(nav.querySelector('[data-scroll-row]')!.scrollLeft).toBe(500 - 150 + 45))
   rect.mockRestore()
 })
 
@@ -150,6 +150,34 @@ it('a chip dragged with the mouse lands where it is let go, the order saved, and
 // chip). Checked where the row would stop it: the click reaches the link not cancelled (a listener on the link
 // itself runs after the row's capture handler, before the router's own); the router's navigating on it is
 // not waited for here (a CI runner twice never saw it, never reproduced).
+it('a mouse’s wheel scrolls the row, and a chip dragged after it still lands where it is let go; drag takes no wheel', async () => {
+  const put = watchPut()
+  const rect = lineUp()
+  show(entries, three)
+  const one = await screen.findByRole('link', { name: /One/ })
+  const row = one.closest<HTMLElement>('[data-scroll-row]')!
+  const wheel = (deltaY: number) => {
+    const e = new WheelEvent('wheel', { deltaY, bubbles: true, cancelable: true })
+    one.dispatchEvent(e)
+    return e.defaultPrevented
+  }
+  expect(wheel(30)).toBe(false) // fits (jsdom lays nothing out): the page's, even with the drag code there
+  let left = 0
+  Object.defineProperty(row, 'clientWidth', { configurable: true, get: () => 300 })
+  Object.defineProperty(row, 'scrollWidth', { configurable: true, get: () => 500 })
+  Object.defineProperty(row, 'scrollLeft', { configurable: true, get: () => left, set: (v: number) => (left = v) })
+  expect(wheel(30)).toBe(true)
+  expect(left).toBe(30)
+  fireEvent.mouseDown(one, { button: 0, clientX: 40, clientY: 10 })
+  fireEvent.mouseMove(document, { clientX: 60, clientY: 10 })
+  expect(wheel(30)).toBe(true) // a wheel while lifted: still the row's own scroll, nothing of the drag's
+  fireEvent.mouseMove(document, { clientX: 120, clientY: 10 })
+  fireEvent.mouseUp(document, { clientX: 120, clientY: 10 })
+  await waitFor(() => expect(put).toEqual([['two', 'one', 'three']]), { timeout: 5000 })
+  rect.mockRestore()
+  await new Promise((r) => setTimeout(r, 60)) // dnd-kit swallows clicks until 50 ms after a drop: not the next test's
+})
+
 it('a click that hardly moves is no drag: the row leaves the click to the link', async () => {
   const put = watchPut()
   show(entries, three)

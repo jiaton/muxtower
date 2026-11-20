@@ -9,6 +9,7 @@ import { scopeSearch, type ListSearch, type Scope } from '../model/search'
 import { Divider } from '@/components/ui/divider'
 import { chip, chipCount } from '@/components/ui/chip'
 import { bleedRow } from '@/components/ui/list-row'
+import { ScrollRow } from '@/components/ui/scroll-row'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCountsKnown } from '../hooks/use-counts-known'
 
@@ -16,7 +17,7 @@ const VIEW_CHIP: Partial<Record<View, string>> = { all: 'All', needs: 'Needs you
 
 /** One row of what to show, one at a time (where the sidebar is not shown): everything, what needs you,
  *  what finished unread, what works, then each device, then each agent when there is more than one, with
- *  counts. It scrolls sideways when it does not fit, with the current one in view. A folder, a source or
+ *  counts. It scrolls sideways when it does not fit (a `ScrollRow`), with the current one in view. A folder, a source or
  *  an account is chosen from the filter menu. */
 export function ListChips({
   query,
@@ -47,7 +48,7 @@ export function ListChips({
 
   return (
     <nav aria-label="Show" data-own-swipe className={cn(bleedRow.outer, className)}>
-      <div ref={row} className={cn(bleedRow.inner, 'flex gap-1.5 overflow-x-auto [scrollbar-width:none]')}>
+      <ScrollRow ref={row} className={cn(bleedRow.inner, 'gap-1.5')}>
         {views.map((view) => (
           <Chip
             key={view}
@@ -74,7 +75,7 @@ export function ListChips({
             <span className="max-w-32 truncate">{a.label}</span>
           </Chip>
         ))}
-      </div>
+      </ScrollRow>
     </nav>
   )
 }
