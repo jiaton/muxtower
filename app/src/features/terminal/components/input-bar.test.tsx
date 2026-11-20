@@ -220,10 +220,21 @@ describe('InputBar', () => {
     expect(screen.queryByRole('list', { name: 'Pictures' })).toBeNull()
   })
 
-  it('offers no pictures where the session takes none', () => {
+  it('offers pictures or files everywhere; a phone keeps its picture choices only where the session takes them', () => {
     device(false)
-    render(<InputBar daemonId="nas" sessionId="s1" />)
+    const { unmount } = render(<InputBar daemonId="nas" sessionId="s1" />)
+    expect(screen.getByRole('button', { name: 'Add pictures or files' })).toBeTruthy()
+    unmount()
+    vi.stubGlobal('matchMedia', () => ({ matches: true, addEventListener() {}, removeEventListener() {} })) // a phone
+    const phone = render(<InputBar daemonId="nas" sessionId="s1" />)
+    fireEvent.click(screen.getByRole('button', { name: 'Show keys and files' }))
+    expect(screen.getByRole('button', { name: 'Add files' })).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Add pictures' })).toBeNull()
+    phone.unmount()
+    render(<InputBar daemonId="nas" sessionId="s1" images />)
+    fireEvent.click(screen.getByRole('button', { name: 'Show keys, pictures and files' }))
+    expect(screen.getByRole('button', { name: 'Add pictures' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Add files' })).toBeTruthy()
   })
 
   it('shows a placeholder at once while a pasted picture is made small, and Send waits for it', async () => {

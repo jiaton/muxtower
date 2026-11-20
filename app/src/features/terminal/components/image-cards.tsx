@@ -9,11 +9,12 @@ import { RemoveBadge } from '@/components/ui/remove-badge'
 import { keepFocus } from '@/components/ui/gesture'
 
 /** The pictures a message carries, above what is typed, each with its own remove; a placeholder for each
- *  still being made small. A tap on one shows it large, the others a swipe or an arrow key away. */
+ *  still being made small. A tap on one shows it large, the others a swipe or an arrow key away. Placed in
+ *  the composer's attachment row (`AttachmentRow`), before the files. */
 export function ImageCards({ items, pending = 0, onRemove }: { items: Attachment[]; pending?: number; onRemove: (id: string) => void }) {
   const [shown, setShown] = useState<number | null>(null)
   return (
-    <ul aria-label="Pictures" className="flex gap-2 overflow-x-auto px-2 pt-2">
+    <ul aria-label="Pictures" className="flex shrink-0 gap-2">
       {items.map((item, i) => (
         <li key={item.id} className="relative shrink-0">
           <Button variant="plain" aria-label={`Show picture ${i + 1}`} onPointerDown={keepFocus} onClick={() => setShown(i)}>

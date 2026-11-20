@@ -98,6 +98,7 @@ export const box = cva('', {
       default: 'border border-border',
       accent: 'border border-accent',
       warning: 'border border-state-permission',
+      danger: 'border border-danger',
       transparent: 'border border-transparent',
       none: 'border-0',
     },

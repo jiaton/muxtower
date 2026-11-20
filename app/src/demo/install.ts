@@ -7,6 +7,7 @@ import { scenes } from './scenes'
 import { DEMO_DAEMON, NODE, demoSession } from './scenes/session'
 import { respond } from './server'
 import { DemoSocket } from './socket'
+import { installUploads } from './upload'
 import { type Step, World } from './world'
 
 /** Where the demo's second computer answers itself (direct fallback, `?hub=down`). */
@@ -37,6 +38,9 @@ export function installDemo() {
     if (at(request.url, DIRECT_URL)) return respondAsNode(world, request)
     return fetchOut(input, init)
   }
+
+  // Uploads (XMLHttpRequest, for their progress) to the demo daemon: answered here too.
+  installUploads(world, (url) => !hubDown && at(new URL(url, location.href).href, origin))
 
   const SocketOut = globalThis.WebSocket
   function DemoWebSocket(url: string | URL, protocols?: string | string[]) {

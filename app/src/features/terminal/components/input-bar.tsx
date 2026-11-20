@@ -1,4 +1,4 @@
-import { CornerDownLeft, ImagePlus, Plus, SendHorizontal, X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -10,21 +10,24 @@ import { MAC, SEND_KEYS } from '@/lib/send-keys'
 import { setSuggestionTaker } from '@/lib/suggestion-key'
 import { useAcceptSuggestion, useSendInput } from '../api/use-terminal'
 import { useAttachments } from '../hooks/use-attachments'
+import { useFiles } from '../hooks/use-files'
 import { useComposerPanel, usePanelSwipe } from '../hooks/use-composer-panel'
 import { useGuardedKeys } from '../hooks/use-guarded-keys'
 import { base64, imagesIn } from '../images'
 import { withQuotes, type Quote } from '../quotes'
 import { draftKey as keyOf, useDrafts } from '../store'
 import { ImageCards } from './image-cards'
+import { AttachmentRow, FileCards } from './file-cards'
+import { AttachPickers, PanelAttach, SendButton } from './composer-controls'
 import { KeyPad, PAD_KEYS } from './key-pad'
 import { QuoteCards } from './quote-cards'
 import { submitters } from '../draft-box'
 import { useTokenMenu, type TokenSource } from '@/components/ui/token-menu'
 import { composerField, composerText } from '@/components/ui/composer-field'
-import { FilePicker } from '@/components/ui/file-picker'
 import { look } from '@/components/ui/intents'
 import { Fold } from '@/components/ui/fold'
 import { keepFocus } from '@/components/ui/gesture'
+import { useAttachPickers } from '@/lib/attach-picker'
 
 const NO_QUOTES: Quote[] = []
 const TOUCH = '(pointer: coarse)' // a phone: its keyboard covers half the screen, its return key is a new line
@@ -38,7 +41,8 @@ const TOUCH = '(pointer: coarse)' // a phone: its keyboard covers half the scree
  *  cannot be sent, it comes back into the textarea. Enter sends with a keyboard; on a phone, return is a new line and Send sends, so
  *  the keyboard can be put away and more quoted first. `keys`: the key names this session accepts; empty
  *  means all of them. `images`: the session takes pictures with a message (pasted, dropped or picked;
- *  `useAttachments`), shown above the words. Other features add to it: `extra` beside Send (the microphone), and `cover`, shown
+ *  `useAttachments`), shown above the words. Any other file (every file, where it takes no pictures) is
+ *  uploaded as it is added and goes with the message by id (`useFiles`); Send waits for uploads on their way. Other features add to it: `extra` beside Send (the microphone), and `cover`, shown
  *  instead of the row while it is there (speaking). */
 export function InputBar({
   daemonId,
@@ -80,6 +84,16 @@ export function InputBar({
   const message = withQuotes(quotes, draft)
   const touch = useMediaQuery(TOUCH)
   const pictures = useAttachments()
+  const files = useFiles(daemonId, sessionId)
+  /** Files added (picked, pasted, dropped): pictures as pictures where the session takes them, the rest
+   *  uploaded. */
+  const attach = (list: FileList | File[] | null | undefined) => {
+    const all = Array.from(list ?? [])
+    const shown = images ? imagesIn(all) : []
+    if (shown.length) void pictures.add(shown)
+    files.add(all.filter((f) => !shown.includes(f)))
+  }
+  const attached = pictures.items.length + files.ready
   const textarea = useRef<HTMLTextAreaElement>(null)
   const lastReply = useDrafts((s) => s.quoted[draftKey])
   // Replies made since this textarea showed (not one from before, coming back to the session): its card
@@ -88,7 +102,7 @@ export function InputBar({
   const replied = lastReply && lastReply.n > shownAt.current ? lastReply : undefined
   // Only quotes, nothing written: a first Enter does not send them, it goes on to the line to write
   // (`armed`); a second one sends them as they are. Writing anything, or quoting more, starts over.
-  const quoteOnly = quotes.length > 0 && !draft.trim() && quotes.every((q) => !q.reply.trim()) && !pictures.items.length
+  const quoteOnly = quotes.length > 0 && !draft.trim() && quotes.every((q) => !q.reply.trim()) && !pictures.items.length && !files.items.length
   const [armed, setArmed] = useState(false)
   useEffect(() => setArmed(false), [message])
   const filled = useDrafts((s) => s.filled[draftKey] ?? 0)
@@ -109,9 +123,14 @@ export function InputBar({
   const narrow = useMediaQuery(PHONE_QUERY) // a phone's row: pictures go to the + panel
   const guarded = useGuardedKeys(guard ?? (() => null), (key) => send.mutate({ key }))
   const guardedKeys = guard ? PAD_KEYS.filter((k) => guard(k)) : []
-  const picker = useRef<HTMLInputElement>(null)
+  const picker = useRef<HTMLInputElement>(null) // any file
+  const picturePicker = useRef<HTMLInputElement>(null) // a phone's own picture choices (camera, photos)
+  const setPicker = useAttachPickers((s) => s.set)
+  useEffect(() => {
+    setPicker(draftKey, () => picker.current?.click()) // ⌘K's "Attach a file…"
+    return () => setPicker(draftKey, null)
+  }, [draftKey, setPicker])
 
-  /** With pictures: they and the words leave the textarea together, and come back to it if not sent. */
   /** What the textarea holds now, from the store: written from outside (Live mode) just before a send, it is
    *  there before this textarea has rendered it. */
   const now = () => {
@@ -121,9 +140,11 @@ export function InputBar({
     return { text: nowText, quotes: nowQuotes, message: withQuotes(nowQuotes, nowText) }
   }
 
-  const submitPictures = async () => {
+  /** With pictures or files: they and the words leave the textarea together, and come back to it if not
+   *  sent. */
+  const submitAttached = async () => {
     const { text, quotes, message } = now()
-    const [sentText, sentQuotes, taken] = [text, quotes, pictures.take()]
+    const [sentText, sentQuotes, taken, takenFiles] = [text, quotes, pictures.take(), files.take()]
     setText('')
     setQuotes(draftKey, [])
     const back = () => {
@@ -131,18 +152,24 @@ export function InputBar({
       setText([sentText, now.drafts[draftKey] ?? ''].filter(Boolean).join('\n'))
       setQuotes(draftKey, [...sentQuotes, ...(now.quotes[draftKey] ?? [])])
       pictures.restore(taken)
+      files.restore(takenFiles)
     }
     try {
       const encoded = await Promise.all(taken.map(async (a) => ({ media_type: a.type, data: await base64(a.blob) })))
-      send.mutate({ text: message, enter: true, images: encoded }, { onError: back })
+      const ids = takenFiles.flatMap((f) => (f.attachment ? [f.attachment.id] : []))
+      send.mutate({ text: message, enter: true, images: encoded, ...(ids.length ? { attachments: ids } : {}) }, { onError: back })
     } catch {
       back()
     }
   }
 
+  // Send pressed while files are still uploading: it goes once they are done (or failed, or removed).
+  const [waiting, setWaiting] = useState(false)
   const submit = () => {
     if (pictures.pending) return // a picture is still being made small: Send waits for it
-    if (pictures.items.length) return void submitPictures()
+    if (files.uploading) return setWaiting(true)
+    setWaiting(false)
+    if (attached) return void submitAttached()
     const { text, quotes, message } = now()
     if (!message) return
     const [sentText, sentQuotes] = [text, quotes]
@@ -201,7 +228,7 @@ export function InputBar({
   // Send from outside the page (Live mode's "send"), exactly as the Send button does.
   const submitNow = useRef<() => 'sent' | 'empty'>(() => 'empty')
   submitNow.current = () => {
-    if (!now().message.trim() && !pictures.items.length) return 'empty'
+    if (!now().message.trim() && !pictures.items.length && !files.items.length) return 'empty'
     submit()
     return 'sent'
   }
@@ -209,9 +236,14 @@ export function InputBar({
     submitters.set(draftKey, () => submitNow.current())
     return () => void submitters.delete(draftKey)
   }, [draftKey])
+  const submitLater = useRef(submit)
+  submitLater.current = submit
+  useEffect(() => {
+    if (waiting && !files.uploading) submitLater.current()
+  }, [waiting, files.uploading])
 
   // Nothing in the box (no words, quotes or pictures): ⌘↵ sends the agent's suggestion, if one shows.
-  const empty = !draft.trim() && !quotes.length && !pictures.items.length
+  const empty = !draft.trim() && !quotes.length && !pictures.items.length && !files.items.length
   // Taken: gone from here at once, and not taken again until the screen shows a suggestion anew (a second
   // ⌘↵ would only be refused: the agent is at work on the first).
   const [taken, setTaken] = useState<string | null>(null)
@@ -281,23 +313,17 @@ export function InputBar({
           {pictures.error}
         </Banner>
       ) : null}
+      {files.notice ? (
+        <Banner tone="error" aligned action={<Dismiss onClick={files.dismissNotice} />}>
+          {files.notice}
+        </Banner>
+      ) : null}
       {/* The + panel, the swap for the row while speaking, and the row: no gap of their own, so the panel's
           fold (its own padding below) is all that moves; the row never jumps. */}
       <div className="flex flex-col">
         <Fold open={open}>
           <div className="flex flex-col gap-2 pb-2">
-            {images && narrow ? (
-              // A phone's row is narrow: pictures are here, beside the keys (pasting or dropping still works).
-              <Button
-                variant="secondary"
-                size="sm"
-                className="self-start"
-                onPointerDown={keepFocus}
-                onClick={() => picker.current?.click()}
-              >
-                <ImagePlus /> Add pictures
-              </Button>
-            ) : null}
+            {narrow ? <PanelAttach any={picker} pictures={images ? picturePicker : undefined} /> : null}
             {guarded.hint ? (
               <Banner tone="warning" aligned>
                 {guarded.hint}
@@ -319,9 +345,7 @@ export function InputBar({
           <Button
             variant={open ? 'secondary' : 'ghost'}
             size="icon"
-            aria-label={
-              open ? (images && narrow ? 'Hide keys and pictures' : 'Hide keys') : images && narrow ? 'Show keys and pictures' : 'Show keys'
-            }
+            aria-label={`${open ? 'Hide' : 'Show'} keys${narrow ? (images ? ', pictures and files' : ' and files') : ''}`}
             aria-expanded={open}
             title={open ? 'Hide keys' : 'Keys: esc, tab, arrows, enter…'}
             className="shrink-0"
@@ -334,16 +358,20 @@ export function InputBar({
           <div
             data-landed={glow || undefined}
             className={composerField({ glow })}
-            onDragOver={(e) => images && e.dataTransfer.types.includes('Files') && e.preventDefault()}
+            onDragOver={(e) => e.dataTransfer.types.includes('Files') && e.preventDefault()}
             onDrop={(e) => {
-              const dropped = images ? imagesIn(e.dataTransfer.files) : []
-              if (!dropped.length) return
+              if (!e.dataTransfer.files.length) return
               e.preventDefault()
-              void pictures.add(dropped)
+              attach(e.dataTransfer.files)
             }}
           >
-            {pictures.items.length || pictures.pending ? (
-              <ImageCards items={pictures.items} pending={pictures.pending} onRemove={pictures.remove} />
+            {pictures.items.length || pictures.pending || files.items.length ? (
+              <AttachmentRow>
+                {pictures.items.length || pictures.pending ? (
+                  <ImageCards items={pictures.items} pending={pictures.pending} onRemove={pictures.remove} />
+                ) : null}
+                {files.items.length ? <FileCards items={files.items} onRetry={files.retry} onRemove={files.remove} /> : null}
+              </AttachmentRow>
             ) : null}
             {quotes.length ? (
               <QuoteCards
@@ -377,52 +405,32 @@ export function InputBar({
               onSelect={mentions.sync}
               onBlur={mentions.close}
               onPaste={(e) => {
-                const pasted = images ? imagesIn(e.clipboardData.files) : []
-                if (!pasted.length) return
-                e.preventDefault() // a screenshot: attached, not its file name typed
-                void pictures.add(pasted)
+                if (!e.clipboardData.files.length) return
+                e.preventDefault() // a screenshot or a copied file: attached, not its file name typed
+                attach(e.clipboardData.files)
               }}
               bare
               className={composerText}
             />
             {mentions.menu}
           </div>
-          {images ? (
-            <>
-              <FilePicker
-                ref={picker}
-                accept="image/*"
-                multiple
-                onChange={(e) => {
-                  void pictures.add(imagesIn(e.target.files))
-                  e.target.value = ''
-                  setOpen(false) // pictures added: the panel has done its part
-                }}
-              />
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn('shrink-0', narrow && 'hidden')}
-                aria-label="Add pictures"
-                title="Add pictures (or paste or drop them in the textarea)"
-                onPointerDown={keepFocus}
-                onClick={() => picker.current?.click()}
-              >
-                <ImagePlus />
-              </Button>
-            </>
-          ) : null}
+          <AttachPickers
+            any={picker}
+            pictures={picturePicker}
+            narrow={narrow}
+            onPicked={(list) => {
+              attach(list)
+              setOpen(false) // added: the panel has done its part
+            }}
+          />
           {extra}
-          <Button
-            type="submit"
-            size="icon"
-            className="shrink-0"
-            aria-label={offered ? `Send suggestion: ${offered}` : 'Send'}
-            title={offered ? `Send suggestion: ${offered}` : undefined}
-            disabled={offered ? accept.isPending : send.isPending || pictures.pending > 0 || (!message && !pictures.items.length)}
-          >
-            {offered ? <CornerDownLeft /> : <SendHorizontal />}
-          </Button>
+          <SendButton
+            offered={offered}
+            uploading={files.uploading > 0}
+            waiting={waiting}
+            narrow={narrow}
+            disabled={offered ? accept.isPending : send.isPending || pictures.pending > 0 || (!message && !attached)}
+          />
         </form>
       </div>
     </div>

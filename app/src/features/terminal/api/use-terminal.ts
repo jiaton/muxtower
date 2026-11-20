@@ -42,10 +42,12 @@ export function useSendInput(daemonId: string, sessionId: string) {
   const client = useDaemonClient(daemonId)
   return useMutation({
     /** `held`: the session shows a dialog; the hub types it in once that has gone (202). */
-    mutationFn: async (body: { text?: string; key?: string; enter?: boolean; images?: ImageInput[] }) => {
+    /** `attachments`: the ids of files uploaded for this message (`useUploadAttachment`). */
+    mutationFn: async (body: { text?: string; key?: string; enter?: boolean; images?: ImageInput[]; attachments?: string[] }) => {
+      const files = body.attachments?.length ? { attachments: body.attachments } : {}
       const res = await client!.POST('/v1/sessions/{session_id}/input', {
         params: { path: { session_id: sessionId } },
-        body: { text: body.text ?? null, key: body.key ?? null, enter: body.enter ?? false, images: body.images ?? [] },
+        body: { text: body.text ?? null, key: body.key ?? null, enter: body.enter ?? false, images: body.images ?? [], ...files },
       })
       check(res)
       return { held: res.response.status === 202 }

@@ -9,6 +9,7 @@ import { DemoSettings } from './settings'
 import { dictionary, saveDictionary } from './dictionary'
 import { triggers } from './triggers'
 import { keptSpoken, speakLatest } from './spoken'
+import { withAttachments } from './upload'
 import type { World } from './world'
 
 type Me = components['schemas']['Me']
@@ -149,7 +150,7 @@ const SESSION_ROUTES: Record<string, Handler> = {
     return pending ? json({ session_id: id, state: pending.state, option: null }) : refuse(409, 'nothing to deny')
   },
   'POST input': (world, id, body) => {
-    world.input(id, typeof body.text === 'string' ? body.text : null, body.enter === true)
+    world.input(id, withAttachments(world, typeof body.text === 'string' ? body.text : null, body.attachments), body.enter === true)
     return empty()
   },
   // The suggested prompt taken (→ then Enter there): sent like one typed, and gone from the input line.

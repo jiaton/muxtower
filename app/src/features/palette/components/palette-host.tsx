@@ -12,6 +12,7 @@ import { toggleLive } from '@/features/voice/live/engine'
 import { LAYOUT_LABEL, layoutsFor, useLayoutPrefs } from '@/lib/layout-prefs'
 import { SIDEBAR_QUERY, SPLIT_QUERY, useMediaQuery } from '@/lib/use-media-query'
 import { usePairedDaemons } from '@/lib/daemons/store'
+import { useAttachPickers } from '@/lib/attach-picker'
 import { useNodeNames } from '@/lib/daemons/use-nodes'
 import { ago } from '@/lib/time'
 import type { Session } from '@/lib/api/types'
@@ -85,6 +86,8 @@ function Palette({ entries, current, actions = [] }: { entries: SessionEntry[]; 
   const text = useTextSearch(query, open)
   const jump = useJump((s) => s.go)
   const byKey = useMemo(() => new Map(entries.map((e) => [e.key, e])), [entries])
+  // The session in front shows a message box: its file picker.
+  const attachFile = useAttachPickers((s) => (current ? s.pickers[current.key] : undefined))
 
   const commands: Command[] = []
   commands.push({ id: 'new', label: 'New session…', run: () => startNew({ daemonId: '', node: null, cwd: '' }) })
@@ -92,6 +95,7 @@ function Palette({ entries, current, actions = [] }: { entries: SessionEntry[]; 
     const here = presetForSession(current.daemon.id, current.session, nodes)
     if (here) commands.push({ id: 'new-here', label: 'New session here', run: () => startNew(here) })
     commands.push({ id: 'live', label: 'Toggle Live', keys: 'Alt+L', run: () => void toggleLive() })
+    if (attachFile) commands.push({ id: 'attach', label: 'Attach a file…', run: attachFile })
   }
   // The layouts this screen can show (none on a phone), and Alt+F's: the session only, or back.
   if (layouts.length) {
