@@ -82,6 +82,11 @@ const STARTING_GROUPS: ChipGroup[] = [
 ]
 const chipGroups = (world: World) => CHIP_GROUPS.get(world) ?? STARTING_GROUPS
 
+/** The owner's order of projects (grouped by project): not by name, so the list shows it is theirs. */
+const PROJECT_ORDER = new WeakMap<World, string[]>()
+const STARTING_ORDER = ['acme/web-app', 'acme/shop-api', 'acme/infra']
+const projectOrder = (world: World) => PROJECT_ORDER.get(world) ?? STARTING_ORDER
+
 /** How many sessions the reader has started in this visit (for their ids). */
 const STARTED = new WeakMap<World, number>()
 
@@ -221,6 +226,12 @@ const ROUTES: Record<string, (world: World, body: Record<string, unknown>, url: 
   'PUT /v1/chip-groups': (world, body) => {
     CHIP_GROUPS.set(world, Array.isArray(body.groups) ? (body.groups as ChipGroup[]) : [])
     return json({ groups: chipGroups(world) })
+  },
+  'GET /v1/project-order': (world) => json({ projects: projectOrder(world) }),
+  'PUT /v1/project-order': (world, body) => {
+    const projects = Array.isArray(body.projects) ? body.projects.filter((p): p is string => typeof p === 'string') : []
+    PROJECT_ORDER.set(world, [...new Set(projects)])
+    return json({ projects: projectOrder(world) })
   },
   'GET /v1/health': () => json({ status: 'ok', version: 'demo' }),
   'GET /v1/search/status': () =>

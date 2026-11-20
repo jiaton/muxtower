@@ -6,6 +6,7 @@
  */
 import type { ChipMembers } from './chip-groups'
 import { filterEntries } from './filter'
+import { compareInProject, orderPlaces } from './project-order'
 import { nestFolders, withRepositories } from './folders'
 import { anchorOf, homeKind, homeOf, worktreeOf, type PlaceKind } from './places'
 import {
@@ -245,8 +246,8 @@ function folderSections(entries: SessionEntry[]): Section[] | undefined {
 }
 
 /** Groups in display order: the assistant, when there is one, in a group of its own at the top, then
- *  what the owner pinned, then the rest. */
-export function groupEntries(entries: SessionEntry[], by: GroupBy): Group[] {
+ *  what the owner pinned, then the rest; by project, in `projectOrder` (the owner's, `project-order.ts`). */
+export function groupEntries(entries: SessionEntry[], by: GroupBy, projectOrder: readonly string[] = []): Group[] {
   const sorted = [...entries].sort(compareEntries)
   const assistant = sorted.filter((e) => isAssistant(e.session))
   const pinned = sorted.filter((e) => !isAssistant(e.session) && e.session.pinned)
@@ -271,22 +272,15 @@ export function groupEntries(entries: SessionEntry[], by: GroupBy): Group[] {
   }
 
   if (by === 'project') {
-    // In a group: what needs you first, then what works, then the most recently active. Projects first
-    // (those with something that needs you, then the most recently active), then folders (the most recently
-    // active first), then Other.
-    const tier = (e: SessionEntry) => (e.session.needs_attention ? 0 : e.session.state === 'busy' ? 1 : 2)
-    const inGroup = [...rest].sort((a, b) => tier(a) - tier(b) || compareEntries(a, b))
+    // A stable order (`project-order.ts`): nothing moves for what the sessions do.
+    const inGroup = [...rest].sort(compareInProject)
     const places = placeGroups(inGroup)
     const byPlace = bucket(inGroup, (e) => places.keyOf.get(e.key)!)
-    const rank = { project: 0, folder: 1, other: 2 } as const
-    const needs = (key: string) => byPlace.get(key)!.some((e) => e.session.needs_attention)
-    const latest = (key: string) => Math.max(...byPlace.get(key)!.map((e) => Date.parse(e.session.updated_at) || 0))
-    const keys = [...byPlace.keys()].sort(
-      (a, b) =>
-        rank[places.kind.get(a)!] - rank[places.kind.get(b)!] ||
-        (places.kind.get(a) === 'project' ? Number(needs(b)) - Number(needs(a)) : 0) ||
-        latest(b) - latest(a) ||
-        a.localeCompare(b),
+    const keys = orderPlaces(
+      [...byPlace.keys()],
+      (k) => places.kind.get(k)!,
+      (k) => places.label.get(k)!,
+      projectOrder,
     )
     return [
       ...groups,

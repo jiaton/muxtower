@@ -16,6 +16,8 @@ import { AgentMark } from './agent-mark'
 import { PlaceIcon } from './place-icon'
 import type { RowContext } from './session-row'
 import { RowView, type Extra } from './session-tree'
+import { ProjectMoveMenu, ProjectSort, SortableGroup, type HeaderSort, type ProjectOrdering } from './project-sort'
+import { DragHandle } from '@/components/ui/sortable'
 
 import { Button } from '@/components/ui/button'
 import { Chevron } from '@/components/ui/indicators'
@@ -38,8 +40,10 @@ function FoldButton({
   onToggle,
   className,
   indent,
+  extra,
   children,
 }: {
+  extra?: HeaderSort['hold']
   folded: boolean
   onToggle?: (header: HTMLButtonElement) => void
   className: string
@@ -50,10 +54,11 @@ function FoldButton({
   return (
     <Button
       variant="plain"
+      {...extra}
       aria-expanded={!folded}
       onClick={onToggle ? (e: MouseEvent<HTMLButtonElement>) => onToggle(e.currentTarget) : undefined}
       disabled={!onToggle}
-      className={cn('flex w-full items-center text-left', className)}
+      className={cn('flex w-full items-center text-left', extra?.className, className)}
       style={indent ? { paddingLeft: `calc(0.75rem + ${indent}rem)` } : undefined}
     >
       {onToggle ? <Chevron open={!folded} /> : null}
@@ -126,10 +131,11 @@ type Toggle = (key: string, header: HTMLButtonElement) => void
 
 /** A group's sticky header. Drawn again only when what it says changed (not when another part folds). */
 const GroupHeader = memo(
-  function GroupHeader({ node, toggle }: { node: GroupNode; toggle: Toggle }) {
+  function GroupHeader({ node, toggle, sort }: { node: GroupNode; toggle: Toggle; sort?: HeaderSort }) {
     return (
       <h3 className={`${look.listHeader} sticky top-0 z-10 flex items-center`}>
         <FoldButton
+          extra={sort?.hold}
           folded={node.folded}
           onToggle={node.foldable ? (header) => toggle(node.key, header) : undefined}
           className={`${ink.eyebrow} ${ink.quietAction} min-w-0 flex-1 gap-2 px-3 py-1.5 sm:px-4 [&_svg]:size-3.5 [&_svg]:shrink-0`}
@@ -148,12 +154,16 @@ const GroupHeader = memo(
           </span>
           <HeaderCount count={node.count} needs={node.needs} className="normal-case" />
         </FoldButton>
+        {sort ? <DragHandle {...sort.handle} /> : null}
         {node.placeKind === 'project' ? <TeamHere node={node} /> : null}
+        {sort ? <ProjectMoveMenu label={node.label} sort={sort} /> : null}
         {node.implies.device || node.placeKind ? <StartHere node={node} /> : null}
       </h3>
     )
   },
   (a, b) =>
+    !a.sort &&
+    !b.sort &&
     a.toggle === b.toggle &&
     (['key', 'id', 'label', 'sectioned', 'folded', 'foldable', 'count', 'needs'] as const).every((k) => a.node[k] === b.node[k]) &&
     a.node.implies.agent === b.node.implies.agent &&
@@ -240,8 +250,11 @@ export function SessionList({
   unfolded = false,
   foldedFirst = false,
   held = {},
+  ordering,
 }: {
   groups: Group[]
+  /** The owner's order of projects: given, project groups are put in order by hand (`ProjectSort`). */
+  ordering?: ProjectOrdering
   held?: Held
   selectedKey?: string
   context?: RowContext
@@ -300,33 +313,61 @@ export function SessionList({
     rows[Math.max(0, Math.min(rows.length - 1, at + (e.key === 'ArrowDown' ? 1 : -1)))]?.focus()
   }
 
+  const projects = tree.filter((g) => g.placeKind === 'project').map((g) => g.id)
+  const sortable = ordering && projects.length > 1 ? projects : [] // one alone has nowhere to go
+  const labelOf = (id: string) => tree.find((g) => g.id === id)?.label ?? id
+  const drawnOf = (group: GroupNode): Drawn => ({
+    selectedKey,
+    extra,
+    toggle,
+    context: {
+      ...context,
+      hideDevice: context.hideDevice || group.implies.device,
+      hideFolder: context.hideFolder || group.implies.folder,
+      hideSource: context.hideSource || group.implies.source,
+      showAccount: context.showAccount && !group.implies.account,
+      showAgent: context.showAgent && !group.implies.agent,
+      deviceTag: group.implies.project,
+      projectTag: context.projectTag || group.implies.role,
+    },
+  })
+  const body = (group: GroupNode, sort?: HeaderSort) => (
+    <>
+      <GroupHeader node={group} toggle={toggle} sort={sort} />
+      <Fold open={!group.folded} still={instant.current === group.key}>
+        <Children nodes={group.children} drawn={drawnOf(group)} />
+      </Fold>
+    </>
+  )
+  const groupsShown = tree.map((group) =>
+    ordering && sortable.includes(group.id) ? (
+      <SortableGroup key={group.id} id={group.id} label={group.label} ids={sortable} ordering={ordering} labelOf={labelOf}>
+        {(sort) => body(group, sort)}
+      </SortableGroup>
+    ) : (
+      <section key={group.id} aria-label={group.label}>
+        {body(group)}
+      </section>
+    ),
+  )
+
   return (
     <div ref={root} className="flex flex-col" onKeyDown={onKeyDown}>
-      {tree.map((group) => {
-        const drawn: Drawn = {
-          selectedKey,
-          extra,
-          toggle,
-          context: {
-            ...context,
-            hideDevice: context.hideDevice || group.implies.device,
-            hideFolder: context.hideFolder || group.implies.folder,
-            hideSource: context.hideSource || group.implies.source,
-            showAccount: context.showAccount && !group.implies.account,
-            showAgent: context.showAgent && !group.implies.agent,
-            deviceTag: group.implies.project,
-            projectTag: context.projectTag || group.implies.role,
-          },
-        }
-        return (
-          <section key={group.id} aria-label={group.label}>
-            <GroupHeader node={group} toggle={toggle} />
-            <Fold open={!group.folded} still={instant.current === group.key}>
-              <Children nodes={group.children} drawn={drawn} />
-            </Fold>
-          </section>
-        )
-      })}
+      {ordering && sortable.length ? (
+        <ProjectSort
+          ids={sortable}
+          labelOf={labelOf}
+          ordering={ordering}
+          overlay={(id) => {
+            const group = tree.find((g) => g.id === id)
+            return group ? <GroupHeader node={group} toggle={toggle} /> : null
+          }}
+        >
+          {groupsShown}
+        </ProjectSort>
+      ) : (
+        groupsShown
+      )}
       {/* Room at the end while a fold plays near it (`useFoldAnchor`), cut again once scrolled past. */}
       <div ref={spacer} aria-hidden />
     </div>

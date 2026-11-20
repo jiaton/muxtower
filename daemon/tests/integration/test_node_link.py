@@ -248,6 +248,11 @@ def test_a_node_s_sessions_see_the_whole_team_through_the_hub(hub: tuple[FastAPI
         assert hub_app.state.chip_groups.load().groups[0].name == "Focus"  # on the hub, not the node
         assert node.state.chip_groups.load().groups == []
         assert node_mcp.get("/v1/chip-groups", headers=on_node).json() == focus
+        order = {"projects": ["acme/api", "acme/web"]}
+        assert node_mcp.put("/v1/project-order", json=order, headers=on_node).status_code == 200
+        assert hub_app.state.project_order.load().projects == ["acme/api", "acme/web"]  # on the hub
+        assert node.state.project_order.load().projects == []
+        assert node_mcp.get("/v1/project-order", headers=on_node).json() == order
 
         # Without its hub, the node answers for itself and says so.
         link.stop()

@@ -30,6 +30,7 @@ import { foldForks } from '@/features/sessions/model/forks'
 import { foldSideChats } from '@/features/sessions/model/side-chats'
 import { parseListSearch, toQuery } from '@/features/sessions/model/search'
 import { useChipGroups } from '@/features/sessions/api/use-chip-groups'
+import { useProjectOrder, useSaveProjectOrder } from '@/features/sessions/api/use-project-order'
 import { byRole, chipMembers } from '@/features/sessions/model/chip-groups'
 import { searchTerms } from '@/features/sessions/model/filter'
 import { ProjectChips } from '@/features/sessions/components/project-chips'
@@ -50,6 +51,8 @@ export const Route = createFileRoute('/_sessions')({ validateSearch: parseListSe
 function SessionsLayout() {
   const search = Route.useSearch()
   const chipGroups = useChipGroups()
+  const projectOrder = useProjectOrder()
+  const saveOrder = useSaveProjectOrder()
   const query = {
     ...toQuery(
       search,
@@ -97,7 +100,7 @@ function SessionsLayout() {
   // forks are listed under the session they were forked from.
   const { shown: unfolded, sideChats } = foldSideChats(visible)
   const { shown, forks } = foldForks(unfolded)
-  const groups = [...groupEntries(shown, query.group), ...keptGroups(kept)]
+  const groups = [...groupEntries(shown, query.group, projectOrder), ...keptGroups(kept)]
   const count = visible.filter((e) => !isAssistant(e.session)).length
   const facets = facetsOf(entries)
   const { title, within } = queryTitle(query)
@@ -151,6 +154,7 @@ function SessionsLayout() {
               <SessionList
                 groups={groups}
                 held={{ sideChats, forks }}
+                ordering={query.group === 'project' ? { stored: projectOrder, save: (projects) => saveOrder.mutate(projects) } : undefined}
                 selectedKey={markedKey}
                 foldScope={query.view === 'archived' ? `archived:${query.group}` : query.group}
                 foldedFirst={query.view === 'archived'}

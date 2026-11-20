@@ -9,6 +9,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
+from muxtower.chips.project_order import ProjectOrder, ProjectOrderStore
 from muxtower.chips.service import ChipGroups, ChipGroupStore
 from muxtower.errors import Invalid
 from muxtower.mcp.caller import CALLER, Caller
@@ -43,6 +44,14 @@ def _chip_groups(store: ChipGroupStore | None, params: dict[str, Any]) -> dict[s
     return groups.model_dump()
 
 
+def _project_order(store: ProjectOrderStore | None, params: dict[str, Any]) -> dict[str, Any]:
+    if store is None:
+        raise Invalid("unknown method project_order")
+    put = params.get("put")
+    order = store.load() if put is None else store.replace(ProjectOrder.model_validate(put))
+    return order.model_dump()
+
+
 def _playbook(store: PlaybookStore | None, node: str, params: dict[str, Any]) -> Any:
     if store is None:
         raise Invalid("unknown method playbook")
@@ -62,6 +71,7 @@ def _triggers(triggers: TriggerAnswer | None, node: str, params: dict[str, Any])
 async def answer(
     tools: McpTools, node: str, frame: dict[str, Any], chips: ChipGroupStore | None = None,
     playbook: PlaybookStore | None = None, triggers: TriggerAnswer | None = None,
+    order: ProjectOrderStore | None = None,
 ) -> str:  # fmt: skip
     """The reply frame to a node's request."""
     method, params = frame.get("method"), frame.get("params") or {}
@@ -74,6 +84,8 @@ async def answer(
             return protocol.answer(frame["id"], await asyncio.to_thread(_triggers, triggers, node, params))
         if method == "chip_groups":
             return protocol.answer(frame["id"], await asyncio.to_thread(_chip_groups, chips, params))
+        if method == "project_order":
+            return protocol.answer(frame["id"], await asyncio.to_thread(_project_order, order, params))
         text = await asyncio.to_thread(_team_tool, tools, node, params)
         return protocol.answer(frame["id"], {"text": text})
     except Exception as exc:  # noqa: BLE001 - every failure goes back to the node as its status

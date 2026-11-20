@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { ServerFrame } from '@/lib/api/types'
+import type { ServerFrame, Session } from '@/lib/api/types'
+import { groupEntries } from '@/features/sessions/model/query'
 import { scenes } from './scenes'
 import { DEMO_ANSWER, DEMO_DAEMON, demoSession } from './scenes/session'
 import { WIDTH, plain } from './scenes/terminal'
@@ -176,6 +177,31 @@ describe('the demo daemon over HTTP', () => {
     const [started] = await (await call(w, 'POST', '/v1/recovery', { session_ids: ['laptop~migrations', 'docs'] })).json()
     expect([started.id, started.interrupted_at, started.capabilities.screen]).toEqual(['laptop~migrations', null, true])
     expect(await (await call(w, 'POST', '/v1/recovery', { session_ids: ['laptop~migrations'] })).json()).toEqual([])
+  })
+
+  it("keeps the owner's order of projects, not by name, and shows them in it, a PM and a lead first in each", async () => {
+    const { w } = world()
+    expect(await (await call(w, 'GET', '/v1/project-order')).json()).toEqual({ projects: ['acme/web-app', 'acme/shop-api', 'acme/infra'] })
+    const sessions = (await (await call(w, 'GET', '/v1/sessions')).json()) as Session[]
+    const entries = sessions.map((session) => ({
+      key: `demo/${session.id}`,
+      daemon: { id: 'demo', name: 'demo', url: '', token: '' },
+      session,
+    }))
+    const groups = groupEntries(
+      entries.filter((e) => !e.session.archived_at && !e.session.pinned),
+      'project',
+      ['acme/web-app', 'acme/shop-api', 'acme/infra'],
+    )
+    expect(groups.filter((g) => g.kind === 'project').map((g) => g.label)).toEqual(['acme/web-app', 'acme/shop-api', 'acme/infra'])
+    expect(
+      groups
+        .find((g) => g.label === 'acme/shop-api')!
+        .entries.slice(0, 2)
+        .map((e) => e.session.id),
+    ).toEqual(['pm', 'lead'])
+    const put = await call(w, 'PUT', '/v1/project-order', { projects: ['acme/infra', 'acme/web-app', 'acme/infra'] })
+    expect(await put.json()).toEqual({ projects: ['acme/infra', 'acme/web-app'] })
   })
 
   it('starts a session where asked: named from its folder, in the project of that folder, its first message answered', async () => {

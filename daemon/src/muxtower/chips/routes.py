@@ -1,8 +1,10 @@
-"""GET and PUT /v1/chip-groups: the owner's groups of projects (`service.py`). On a node, asked of its hub."""
+"""GET and PUT /v1/chip-groups: the owner's groups of projects (`service.py`); GET and PUT /v1/project-order: their
+order of projects in the list (`project_order.py`). On a node, both asked of its hub."""
 
 from fastapi import APIRouter, Request
 
 from muxtower.auth.deps import CurrentDevice
+from muxtower.chips.project_order import ProjectOrder, ProjectOrderStore
 from muxtower.chips.service import ChipGroups, ChipGroupStore
 
 router = APIRouter(prefix="/v1", tags=["chips"])
@@ -30,4 +32,28 @@ def put_chip_groups(body: ChipGroups, request: Request, _: CurrentDevice) -> Chi
     if answered is not None:
         return answered
     request.app.state.bus.publish("chip-groups", None)
+    return store.replace(body)
+
+
+def _hubs_order(request: Request, put: ProjectOrder | None) -> ProjectOrder | None:
+    """The hub's order, when this daemon is a node (None: it keeps it itself)."""
+    answered = request.app.state.hub.ask("project_order", {"put": put.model_dump() if put else None})
+    return None if answered is None else ProjectOrder.model_validate(answered)
+
+
+@router.get("/project-order")
+def get_project_order(request: Request, _: CurrentDevice) -> ProjectOrder:
+    """The owner's order of projects in the list grouped by project; the same on every device (kept on the hub)."""
+    store: ProjectOrderStore = request.app.state.project_order
+    return _hubs_order(request, None) or store.load()
+
+
+@router.put("/project-order")
+def put_project_order(body: ProjectOrder, request: Request, _: CurrentDevice) -> ProjectOrder:
+    """Replaces it with this list of project names, first to last (at most 500, each of 200 characters)."""
+    store: ProjectOrderStore = request.app.state.project_order
+    answered = _hubs_order(request, body)
+    if answered is not None:
+        return answered
+    request.app.state.bus.publish("project-order", None)
     return store.replace(body)

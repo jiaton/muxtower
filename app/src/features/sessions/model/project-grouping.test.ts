@@ -33,20 +33,25 @@ it('names one project the same on every device: the team project, else the repos
   expect(placeGroupOf(e('n', { cwd: '' }).session).kind).toBe('other')
 })
 
-it('groups one project across devices; inside it what needs you, then what works, then the latest; Other last', () => {
+it('groups one project across devices, in a stable order: inside it by creation; projects by name; Other last', () => {
   at = 0
   const entries = [
-    e('nas-idle', { git: git('/home/me/web', 'acme/web') }),
-    e('mac-busy', { machine: 'mac', state: 'busy', git: git('/Users/me/web', 'acme/web') }),
+    e('nas-idle', { git: git('/home/me/web', 'acme/web'), created_at: '2026-11-01T00:00:00Z' }),
+    e('mac-busy', { machine: 'mac', state: 'busy', git: git('/Users/me/web', 'acme/web'), created_at: '2026-11-02T00:00:00Z' }),
     e('loose', { cwd: '/home/me' }),
-    e('mac-asks', { machine: 'mac', needs_attention: true, git: git('/Users/me/web', 'acme/web', '/Users/me/web-ui') }),
+    e('mac-asks', {
+      machine: 'mac',
+      needs_attention: true,
+      git: git('/Users/me/web', 'acme/web', '/Users/me/web-ui'),
+      created_at: '2026-11-03T00:00:00Z',
+    }),
     e('api', { project: 'acme/api', project_source: 'set' }),
     e('pinned', { pinned: true, git: git('/home/me/web', 'acme/web') }),
   ]
   const groups = groupEntries(entries, 'project')
-  expect(groups.map((g) => g.label)).toEqual(['Pinned', 'acme/web', 'acme/api', 'Other'])
+  expect(groups.map((g) => g.label)).toEqual(['Pinned', 'acme/api', 'acme/web', 'Other'])
   const web = groups.find((g) => g.label === 'acme/web')!
-  expect(web.entries.map((x) => x.session.id)).toEqual(['mac-asks', 'mac-busy', 'nas-idle'])
+  expect(web.entries.map((x) => x.session.id)).toEqual(['nas-idle', 'mac-busy', 'mac-asks'])
   expect(web.implies).toEqual({ project: true }) // rows say their device
   expect(web.kind).toBe('project')
   expect(groups.at(-1)!.kind).toBeUndefined() // Other
