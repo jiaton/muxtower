@@ -129,9 +129,12 @@ test('desktop 1440: three layouts, panel-left with the needs-you count, one draw
   await page.mouse.click(1400, 450)
   await expect(page.getByRole('dialog', { name: 'Sessions' }).and(page.locator('[aria-modal="true"]'))).toHaveCount(0)
   await showSessions.click()
+  // Open before Esc: an Esc ahead of the drawer did nothing, and the next click then closed it (CI).
+  await expect(page.locator('[aria-modal="true"]')).toHaveCount(1)
   await page.keyboard.press('Escape')
   await expect(page.locator('[aria-modal="true"]')).toHaveCount(0)
   await showSessions.click()
+  await expect(page.locator('[aria-modal="true"]')).toHaveCount(1)
   // Settled before a row is picked (it slides in): a CI runner under load once saw the row move for 30 s.
   await expect(open).toHaveCSS('translate', 'none')
   const row = open.locator('a[data-row-link]:not([aria-current])').first()

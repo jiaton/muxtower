@@ -160,6 +160,14 @@ test('phone: a finger held on a header picks the project up and puts it where it
   await foldOf(page, 'acme/shop-api').tap() // a tap still folds
   await expect(foldOf(page, 'acme/shop-api')).toHaveAttribute('aria-expanded', 'false')
   await expect(projectHeader(page, 'acme/infra')).toBeInViewport()
+  // Where the fold put it: the headers below slide up as shop-api folds, and a finger aimed mid-slide (a slow
+  // CI runner) held nothing.
+  const top = async () => (await projectHeader(page, 'acme/infra').boundingBox())?.y
+  await expect(async () => {
+    const was = await top()
+    await page.waitForTimeout(150)
+    expect(await top()).toBe(was)
+  }).toPass({ timeout: 10_000 })
   const from = (await projectHeader(page, 'acme/infra').boundingBox())!
   const to = (await projectHeader(page, 'acme/web-app').boundingBox())!
   const cdp = await page.context().newCDPSession(page)
