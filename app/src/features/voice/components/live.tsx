@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/cn'
 import { useMediaQuery } from '@/lib/use-media-query'
 import { SEND_KEYS, isSendShortcut } from '@/lib/send-keys'
-import { cancelArmedSend, pauseLive, resumeLive, sendFromKey, stopLive, toggleLive, useLive } from '../live/engine'
+import { takeSuggestion } from '@/lib/suggestion-key'
+import { cancelArmedSend, liveBusy, pauseLive, resumeLive, sendFromKey, stopLive, toggleLive, useLive } from '../live/engine'
 import { feedbackOf, liveDetails } from '../live/feedback'
 import { readAll, stopSpeaking, useSpeech } from '../live/speech'
 import { play } from '../live/play'
@@ -32,8 +33,9 @@ export function sendKey(e: KeyboardEvent): boolean {
   const at = document.activeElement as HTMLElement | null
   const editable = at && (at.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(at.tagName))
   if (editable && at.getAttribute('aria-label') !== 'Message the agent') return false
-  // With Live on, ⌘↵ always sends what is said (armed while it is still being heard): never the agent's
-  // suggested prompt, which an empty box shows while the first words are not written yet. Send takes that.
+  // Busy with what is said (heard, on its way, or just paused): ⌘↵ sends that (armed until it is written).
+  // Idle, the box empty and a suggestion showing: ⌘↵ takes it, as with Live off.
+  if (!liveBusy() && takeSuggestion()) return true
   return sendFromKey()
 }
 

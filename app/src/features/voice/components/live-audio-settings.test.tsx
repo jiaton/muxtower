@@ -19,7 +19,13 @@ it('sets the microphone, voice processing and the car’s ⏭, and says what is 
   const now = screen.getByRole('status', { name: 'Live audio now' })
   expect(now.textContent).toBe('Now: Live is off · media controls not held')
   act(() =>
-    useAudioStatus.setState({ input: 'Speakerphone', processing: false, note: 'Bluetooth microphone not found: using the default', handlers: true, loop: 'playing' }),
+    useAudioStatus.setState({
+      input: 'Speakerphone',
+      processing: false,
+      note: 'Bluetooth microphone not found: using the default',
+      handlers: true,
+      loop: 'playing',
+    }),
   )
   expect(now.textContent).toBe(
     'Now: Speakerphone (Bluetooth microphone not found: using the default) · voice processing off · media controls held',

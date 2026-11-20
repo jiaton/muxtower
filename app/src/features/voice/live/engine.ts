@@ -42,6 +42,8 @@ export type Phase = 'off' | 'starting' | 'listening' | 'paused' | 'error'
 interface LiveState {
   phase: Phase
   speaking: boolean
+  /** When the last speech heard ended (ms): just after, it may yet be one with a short pause in it. */
+  quietSince: number
   pending: number
   /** A command heard on its own, waiting for the words before it to land. */
   then: Command | null
@@ -55,6 +57,7 @@ interface LiveState {
 export const useLive = create<LiveState>(() => ({
   phase: 'off',
   speaking: false,
+  quietSince: 0,
   pending: 0,
   then: null,
   error: null,
@@ -202,12 +205,12 @@ export async function toggleLive() {
       },
       onVADMisfire: () => {
         utterance.end()
-        useLive.setState({ speaking: false })
+        useLive.setState({ speaking: false, quietSince: Date.now() })
         heard({ kind: 'ignored', why: 'too short' })
         pipeline.heardEnd() // a ⌘↵ waiting for it: nothing more to write, it sends now
       },
       onSpeechEnd: (audio: Float32Array) => {
-        useLive.setState({ speaking: false })
+        useLive.setState({ speaking: false, quietSince: Date.now() })
         try {
           heardSpeech(audio)
         } finally {
@@ -395,6 +398,16 @@ async function loadCommands() {
 
 /** ⌘↵ (Ctrl+Enter elsewhere) while Live is on: sends the box of the session page in front, as the spoken
  *  "send" does (after what is still being written lands). False: Live is off, or no page is in front. */
+/** Speech ended this recently counts as still going (its next words may follow a short pause). */
+export const QUIET_MS = 400
+
+/** Live is busy with what is said: hearing it, writing it (uploading, transcribing), or it just paused. */
+export function liveBusy(now = Date.now()): boolean {
+  const { phase, speaking, pending, quietSince } = useLive.getState()
+  if (phase === 'off' || phase === 'error') return false
+  return speaking || pending > 0 || now - quietSince < QUIET_MS
+}
+
 export function sendFromKey(): boolean {
   const { phase } = useLive.getState()
   if (phase === 'off' || phase === 'error' || !target) return false

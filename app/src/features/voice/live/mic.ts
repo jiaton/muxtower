@@ -33,10 +33,7 @@ const NAMES: Record<Exclude<MicSource, 'default'>, string> = { phone: 'Phone mic
 
 function isBluetooth(device: Device, all: Device[]): boolean {
   if (BLUETOOTH.test(device.label)) return true
-  return (
-    !!device.groupId &&
-    all.some((d) => d.kind === 'audiooutput' && d.groupId === device.groupId && BLUETOOTH.test(d.label))
-  )
+  return !!device.groupId && all.some((d) => d.kind === 'audiooutput' && d.groupId === device.groupId && BLUETOOTH.test(d.label))
 }
 
 /** The device for a source, from what `enumerateDevices` listed. */

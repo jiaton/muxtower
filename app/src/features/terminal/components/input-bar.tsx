@@ -7,6 +7,7 @@ import { cn } from '@/lib/cn'
 import { PHONE_QUERY, useMediaQuery } from '@/lib/use-media-query'
 import type { Track } from '@/lib/use-outbox'
 import { MAC, SEND_KEYS } from '@/lib/send-keys'
+import { setSuggestionTaker } from '@/lib/suggestion-key'
 import { useAcceptSuggestion, useSendInput } from '../api/use-terminal'
 import { useAttachments } from '../hooks/use-attachments'
 import { useComposerPanel, usePanelSwipe } from '../hooks/use-composer-panel'
@@ -225,6 +226,12 @@ export function InputBar({
     accept.mutate(offered)
     return true
   }
+  // Live's ⌘↵ (it comes first) takes it through here when Live is idle.
+  useEffect(() => {
+    if (!offered) return
+    setSuggestionTaker(() => takeRef.current())
+    return () => setSuggestionTaker(null)
+  }, [offered])
   // A suggestion not taken (the screen changed under it) says so for a moment, then goes.
   useEffect(() => {
     if (!accept.isError) return

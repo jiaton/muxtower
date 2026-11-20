@@ -116,6 +116,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
   const mention = useMentionSource(daemonId, session, useDaemonSessions(daemonId).data)
   // While Live is on, a word selected on screen can be added to the voice dictionary (`DictionaryQuickAdd`).
   const liveOn = useLive((s) => s.phase !== 'off' && s.phase !== 'error')
+  const liveBusyNow = useLive((s) => s.speaking || s.pending > 0) // hearing or writing what is said
   // Read aloud: this session's turns, said when they end (the daemon summarizes only what is listened to).
   const readAloud = useSpeech((s) => s.readAloud)
   useStreamSubscription(daemonId, liveOn && readAloud ? { type: 'subscribe', topic: 'spoken', session_id: session.id, history: 0 } : null)
@@ -348,7 +349,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
               images={session.capabilities.images}
               track={outgoing.track}
               suggestion={session.runtime === 'claude-code' && !DIALOG_STATES.has(session.state) ? session.suggestion : null}
-              keySends={!liveOn} // Live on: ⌘↵ sends what is being said, Send takes the suggestion
+              keySends={!liveOn || !liveBusyNow} // Live busy with speech: ⌘↵ sends that; idle: it takes the suggestion
               extra={
                 dictation.available ? (
                   <>
