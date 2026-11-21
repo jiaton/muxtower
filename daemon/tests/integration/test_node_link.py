@@ -269,6 +269,17 @@ def test_a_node_s_sessions_see_the_whole_team_through_the_hub(hub: tuple[FastAPI
         assert hub_app.state.project_order.load().projects == ["acme/api", "acme/web"]  # on the hub
         assert node.state.project_order.load().projects == []
         assert node_mcp.get("/v1/project-order", headers=on_node).json() == order
+        # Each project's colour: kept on the hub, read and changed through the node.
+        hub_app.state.project_colours.see(["acme/api"])
+        on_hub = hub_app.state.project_colours.load().model_dump()
+        assert node_mcp.get("/v1/project-colours", headers=on_node).json() == on_hub
+        hue = 1 + on_hub["hues"]["acme/api"] % 6  # another one
+        picked = node_mcp.put("/v1/project-colours", json={"project": "acme/api", "hue": hue}, headers=on_node)
+        assert picked.status_code == 200 and picked.json()["hues"]["acme/api"] == hue
+        assert hub_app.state.project_colours.load().hues["acme/api"] == hue  # on the hub
+        assert node.state.project_colours.load().hues == {}  # a node gives none, even listing its own
+        bad = node_mcp.put("/v1/project-colours", json={"project": "acme/api", "hue": 7}, headers=on_node)
+        assert bad.status_code == 422
 
         # Without its hub, the node answers for itself and says so.
         link.stop()

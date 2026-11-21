@@ -27,6 +27,7 @@ from muxtower.builders import (
     build_summaries,
     build_token_service,
 )
+from muxtower.chips.project_colours import ProjectColourStore
 from muxtower.chips.project_order import ProjectOrderStore
 from muxtower.chips.service import ChipGroupStore
 from muxtower.concierge.events_repository import SqliteConciergeEvents
@@ -202,6 +203,9 @@ def create_app(
         ),
         Updater(settings.hub.update),
     )  # fmt: skip
+    # Each project's colour: given on the hub as it lists a project's session the first time; a node asks it.
+    project_colours = ProjectColourStore(db)
+    directory.listed = lambda found: None if hub_store.load() else project_colours.see_sessions(found)
     concierge: ConciergeService | None = None
     if settings.concierge.enabled:
         store = FileConciergeStore(settings.state_dir / "concierge.json", settings.state_dir / "concierge")
@@ -342,6 +346,7 @@ def create_app(
         watches=watches,
         direct=DirectAccess(nodes, node_sessions.call), feature_settings=feature_settings,
         chip_groups=ChipGroupStore(db), project_order=ProjectOrderStore(db), playbook=playbook,
+        project_colours=project_colours,
         search=search, indexer=indexer, listen=listen, tts=tts,
         triggers=triggers, trigger_service=trigger_service,
         node_sessions=node_sessions, mcp=mcp, asr=asr, asr_dictionary=dictionary_store,

@@ -108,6 +108,7 @@ class SessionDirectory(OwnerMarks):
         self.writing: Callable[[str], list[AlsoWriting]] | None = None  # set by the app: `writes/`
         self._held: dict[str, list[SendInput]] = {}  # the owner's messages waiting for a prompt to go (`hold`)
         self._held_lock = threading.Lock()
+        self.listed: Callable[[list[Session]], object] | None = None  # set by the app: told each new list
         self._listed: tuple[float, list[Session]] = (float("-inf"), [])  # the latest `list()`, and when it began
         self._listing = threading.RLock()  # one `list()` at a time: those that wait for it take its result
 
@@ -162,6 +163,11 @@ class SessionDirectory(OwnerMarks):
                 began = time.monotonic()
                 found = self._list()
                 self._listed = (began, found)
+                if self.listed is not None:
+                    try:
+                        self.listed(found)
+                    except Exception:  # what is told of a list never keeps it from being listed
+                        logger.exception("telling of a new list failed")
         return found[:]
 
     def _list(self) -> builtins.list[Session]:

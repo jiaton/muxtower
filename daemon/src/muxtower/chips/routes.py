@@ -1,9 +1,12 @@
 """GET and PUT /v1/chip-groups: the owner's groups of projects (`service.py`); GET and PUT /v1/project-order: their
-order of projects in the list (`project_order.py`). On a node, both asked of its hub."""
+order of projects in the list (`project_order.py`); GET and PUT /v1/project-colours: each project's colour
+(`project_colours.py`). On a node, all asked of its hub."""
 
 from fastapi import APIRouter, Request
 
 from muxtower.auth.deps import CurrentDevice
+from muxtower.auth.routes import Audit
+from muxtower.chips.project_colours import ProjectColour, ProjectColours, ProjectColourStore
 from muxtower.chips.project_order import ProjectOrder, ProjectOrderStore
 from muxtower.chips.service import ChipGroups, ChipGroupStore
 
@@ -57,3 +60,29 @@ def put_project_order(body: ProjectOrder, request: Request, _: CurrentDevice) ->
         return answered
     request.app.state.bus.publish("project-order", None)
     return store.replace(body)
+
+
+def _hubs_colours(request: Request, put: ProjectColour | None) -> ProjectColours | None:
+    """The hub's colours, when this daemon is a node (None: it keeps them itself)."""
+    answered = request.app.state.hub.ask("project_colours", {"put": put.model_dump() if put else None})
+    return None if answered is None else ProjectColours.model_validate(answered)
+
+
+@router.get("/project-colours")
+def get_project_colours(request: Request, _: CurrentDevice) -> ProjectColours:
+    """Each project's colour, one of 6 hues; the same on every device (kept on the hub, which gives a project
+    its hue the first time it lists one of its sessions). A project not here has none yet."""
+    store: ProjectColourStore = request.app.state.project_colours
+    return _hubs_colours(request, None) or store.load()
+
+
+@router.put("/project-colours")
+def put_project_colour(body: ProjectColour, request: Request, device: CurrentDevice, audit: Audit) -> ProjectColours:
+    """Gives a project the hue the owner picked (1 to 6), kept from now on; answers every project's."""
+    store: ProjectColourStore = request.app.state.project_colours
+    answered = _hubs_colours(request, body)
+    audit.record(device.name, "project-colour", detail=f"{body.project}={body.hue}")
+    if answered is not None:
+        return answered
+    request.app.state.bus.publish("project-colours", None)
+    return store.choose(body)
