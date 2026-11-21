@@ -56,7 +56,12 @@ export function sessionDetails(session: Session, now = Date.now()): Detail[] {
     { label: 'Agent', value: agentOf(session) },
     { label: 'Folder', value: folderOf(session) ?? NONE, code: true, copy: session.cwd || undefined },
     session.working_dir
-      ? { label: 'Working in', value: folderOf({ ...session, cwd: session.working_dir }) ?? session.working_dir, code: true, copy: session.working_dir }
+      ? {
+          label: 'Working in',
+          value: folderOf({ ...session, cwd: session.working_dir }) ?? session.working_dir,
+          code: true,
+          copy: session.working_dir,
+        }
       : null,
     { label: 'Permission mode', value: session.permission_mode || NONE },
     { label: 'Started by', value: sourceOf(session) },
@@ -72,5 +77,6 @@ export function sessionDetails(session: Session, now = Date.now()): Detail[] {
     { label: 'Session id', value: session.id, code: true, copy: session.id },
     { label: 'Remote id', value: session.remote_id || NONE, code: true, copy: session.remote_id || undefined },
   ]
-  return rows.filter((r) => r !== null)
+  // No value: the plain "—" (in the code font it reads as a narrower dash than the other rows').
+  return rows.filter((r) => r !== null).map((r) => (r.value === NONE ? { ...r, code: false } : r))
 }
