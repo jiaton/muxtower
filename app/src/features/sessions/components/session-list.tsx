@@ -1,4 +1,4 @@
-import { Folder, FolderGit2, Monitor, Plus, Users } from 'lucide-react'
+import { Folder, Monitor, Plus, Users } from 'lucide-react'
 import { ProjectTeamDialog } from './team-dialog'
 import { memo, useCallback, useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type ReactNode } from 'react'
 import { Badge } from '@/components/ui/badge'
@@ -16,8 +16,10 @@ import { AgentMark } from './agent-mark'
 import { PlaceIcon } from './place-icon'
 import type { RowContext } from './session-row'
 import { RowView, type Extra } from './session-tree'
-import { ProjectMoveMenu, ProjectSort, SortableGroup, type HeaderSort, type ProjectOrdering } from './project-sort'
+import { ProjectMenu, ProjectSort, SortableGroup, type HeaderSort, type ProjectOrdering } from './project-sort'
 import { DragHandle } from '@/components/ui/sortable'
+import { ProjectIcon } from '@/components/ui/project-hue'
+import { useProjectHue } from '../api/use-project-colours'
 
 import { Button } from '@/components/ui/button'
 import { Chevron } from '@/components/ui/indicators'
@@ -126,6 +128,11 @@ function TeamHere({ node }: { node: GroupNode }) {
   )
 }
 
+/** A project group's dot (its colour), or its icon while it has none. */
+function GroupProjectIcon({ name }: { name: string }) {
+  return <ProjectIcon hue={useProjectHue(name)} className="size-3.5" />
+}
+
 /** Folds or unfolds what the header (the button clicked) holds, keeping that header where it is on screen. */
 type Toggle = (key: string, header: HTMLButtonElement) => void
 
@@ -145,7 +152,7 @@ const GroupHeader = memo(
           {node.sectioned ? (
             <Monitor aria-hidden />
           ) : node.placeKind === 'project' ? (
-            <FolderGit2 aria-hidden />
+            <GroupProjectIcon name={node.label} />
           ) : node.placeKind === 'folder' ? (
             <Folder aria-hidden />
           ) : node.implies.agent ? (
@@ -174,7 +181,7 @@ const GroupHeader = memo(
           />
         ) : null}
         {node.placeKind === 'project' ? <TeamHere node={node} /> : null}
-        {sort ? <ProjectMoveMenu label={node.label} sort={sort} /> : null}
+        {node.placeKind === 'project' && (sort || lone) ? <ProjectMenu label={node.label} sort={sort} /> : null}
         {node.implies.device || node.placeKind ? <StartHere node={node} /> : null}
       </h3>
     )

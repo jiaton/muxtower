@@ -88,6 +88,33 @@ const PROJECT_ORDER = new WeakMap<World, string[]>()
 const STARTING_ORDER = ['acme/web-app', 'acme/shop-api', 'acme/infra']
 const projectOrder = (world: World) => PROJECT_ORDER.get(world) ?? STARTING_ORDER
 
+/** Each project's colour (`--color-project-N`), as the hub keeps it: a project it lists first gets the hue
+ *  fewest have (the lowest on a tie); the reader's picks are kept for this visit. */
+const PROJECT_HUES = 6
+const PROJECT_COLOURS = new WeakMap<World, Record<string, number>>()
+const STARTING_COLOURS: Record<string, number> = {
+  'acme/web-app': 1,
+  'acme/shop-api': 2,
+  'acme/infra': 3,
+  'acme/docs': 4,
+  'acme/mobile': 5,
+  'labs/ml-pipeline': 6,
+  'labs/design-system': 1,
+  'personal/dotfiles': 2,
+}
+function projectColours(world: World): Record<string, number> {
+  const hues = { ...(PROJECT_COLOURS.get(world) ?? STARTING_COLOURS) }
+  for (const s of world.sessions()) {
+    const project = s.project && s.project_source !== 'folder' ? s.project : s.git ? s.git.remote || s.git.repo.split('/').pop() : null
+    if (!project || project in hues) continue
+    const used = Object.values(hues)
+    const count = (h: number) => used.filter((u) => u === h).length
+    hues[project] = Array.from({ length: PROJECT_HUES }, (_, i) => i + 1).reduce((a, b) => (count(b) < count(a) ? b : a))
+  }
+  PROJECT_COLOURS.set(world, hues)
+  return hues
+}
+
 /** How many sessions the reader has started in this visit (for their ids). */
 const STARTED = new WeakMap<World, number>()
 
@@ -233,6 +260,14 @@ const ROUTES: Record<string, (world: World, body: Record<string, unknown>, url: 
     const projects = Array.isArray(body.projects) ? body.projects.filter((p): p is string => typeof p === 'string') : []
     PROJECT_ORDER.set(world, [...new Set(projects)])
     return json({ projects: projectOrder(world) })
+  },
+  'GET /v1/project-colours': (world) => json({ hues: projectColours(world) }),
+  'PUT /v1/project-colours': (world, body) => {
+    const hue = Number(body.hue)
+    if (typeof body.project !== 'string' || !body.project.trim() || !Number.isInteger(hue) || hue < 1 || hue > PROJECT_HUES)
+      return json({ detail: 'a project and a hue, 1 to 6' }, 422)
+    PROJECT_COLOURS.set(world, { ...projectColours(world), [body.project]: hue })
+    return json({ hues: projectColours(world) })
   },
   'GET /v1/health': () => json({ status: 'ok', version: 'demo' }),
   'GET /v1/search/status': () =>

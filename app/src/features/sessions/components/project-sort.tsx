@@ -14,9 +14,18 @@ import { CSS as DndCSS } from '@dnd-kit/utilities'
 import { useRef, useState, type MouseEvent, type ReactNode, type TouchEvent } from 'react'
 import { ArrowDown, ArrowUp, MoreHorizontal } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { ProjectHuePicker } from '@/components/ui/project-hue'
 import { sortLook, useReducedMotion, useSortSensors } from '@/components/ui/sortable'
 import { cn } from '@/lib/cn'
+import { useProjectHue, useSaveProjectColour } from '../api/use-project-colours'
 import { movedTo } from '../model/project-order'
 
 /** The owner's order of projects (kept on the hub) and how a new one is kept. */
@@ -172,8 +181,11 @@ export function SortableGroup({
   )
 }
 
-/** A project header's "⋯": Move up and Move down, the way to put it in order without dragging. */
-export function ProjectMoveMenu({ label, sort }: { label: string; sort: HeaderSort }) {
+/** A project header's "⋯": Move up and Move down, the way to put it in order without dragging (off where it
+ *  has nowhere to go), and its colour (`ProjectHuePicker`), kept on the hub and shown everywhere at once. */
+export function ProjectMenu({ label, sort }: { label: string; sort?: HeaderSort }) {
+  const hue = useProjectHue(label)
+  const save = useSaveProjectColour()
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -183,12 +195,14 @@ export function ProjectMoveMenu({ label, sort }: { label: string; sort: HeaderSo
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>{label}</DropdownMenuLabel>
-        <DropdownMenuItem icon={ArrowUp} disabled={!sort.up} onSelect={sort.up}>
+        <DropdownMenuItem icon={ArrowUp} disabled={!sort?.up} onSelect={sort?.up}>
           Move up
         </DropdownMenuItem>
-        <DropdownMenuItem icon={ArrowDown} disabled={!sort.down} onSelect={sort.down}>
+        <DropdownMenuItem icon={ArrowDown} disabled={!sort?.down} onSelect={sort?.down}>
           Move down
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <ProjectHuePicker hue={hue} onPick={(picked) => save.mutate({ project: label, hue: picked })} />
       </DropdownMenuContent>
     </DropdownMenu>
   )

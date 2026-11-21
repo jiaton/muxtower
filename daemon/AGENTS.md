@@ -43,7 +43,8 @@ src/muxtower/
   summaries/  short versions of long replies: a Summarizer port (claude/codex CLI adapters), SQLite cache, background loop
   asr/        speech to text for voice replies: a Transcriber port (OpenAI-compatible adapter: Groq, OpenAI)
   concierge/  the owner's assistant: a Claude Code session kept running, its MCP config, watched sessions
-  chips/      the app's groups of projects (`service.py`) and order of projects (`project_order.py`), kept on the hub;
+  chips/      the app's groups of projects (`service.py`), order of projects (`project_order.py`) and their colours
+              (`project_colours.py`: given as the hub first lists a project, under a lock), kept on the hub;
               a node asks its hub (HUB_METHODS)
   mcp/        MCP over HTTP at /v1/mcp (JSON-RPC, JSON responses): tools to list, read, message, approve sessions
   teams/      teams: each session's role (free text) and project (from git: origin remote, repository, folder)

@@ -26,7 +26,9 @@ const order = (page: Page) =>
   list(page).evaluate((el) =>
     [...el.querySelectorAll('section[aria-label]')].filter((s) => s.querySelector(':scope > h3')).map((s) => s.getAttribute('aria-label')!),
   )
-const projects = async (page: Page) => (await order(page)).filter((t) => t.startsWith('acme/'))
+/** The three projects these tests move (the demo has more, which come after them, by name). */
+const MOVED = ['acme/web-app', 'acme/shop-api', 'acme/infra']
+const projects = async (page: Page) => (await order(page)).filter((t) => MOVED.includes(t))
 
 /** The list's scroller: the nearest ancestor of its headers that scrolls. */
 /** The sidebar's PROJECTS section, top to bottom. */
@@ -37,7 +39,9 @@ const sidebarProjects = async (page: Page) =>
       .locator('xpath=.//div[./div/span[normalize-space()="Projects"]]') // the section, not the device tree below
       .getByRole('link')
       .allInnerTexts()
-  ).map((t) => t.split('\n')[0]!.trim())
+  )
+    .map((t) => t.split('\n')[0]!.trim())
+    .filter((t) => MOVED.includes(t))
 
 async function scroller(page: Page): Promise<Locator> {
   const header = list(page).getByRole('heading', { level: 3 }).first()
@@ -85,11 +89,9 @@ test('keyboard: Space, the arrows, Space put a project in its place', async ({ b
   await page.keyboard.press('Space')
   await expect.poll(() => lifted(page)).toBe(true)
   await page.keyboard.press('ArrowDown')
-  await expect.poll(() => said(page)).toMatch(/moved to place 2 of 3/)
-  await page.keyboard.press('ArrowDown')
-  await expect.poll(() => said(page)).toMatch(/moved to place 3 of 3/)
+  await expect.poll(() => said(page)).toMatch(/moved to place 2 of 8/) // the demo has 8 projects
   await page.keyboard.press('Space')
-  await expect.poll(() => projects(page)).toEqual(['acme/shop-api', 'acme/infra', 'acme/web-app'])
+  await expect.poll(() => projects(page)).toEqual(['acme/shop-api', 'acme/web-app', 'acme/infra'])
 })
 
 test('the header menu moves a project up and down', async ({ browser }) => {

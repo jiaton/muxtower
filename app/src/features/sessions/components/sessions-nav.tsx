@@ -1,5 +1,5 @@
 import { Link, useMatch, useNavigate, useSearch } from '@tanstack/react-router'
-import { Archive, CircleAlert, CircleCheck, EyeOff, FolderGit2, Layers, LoaderCircle, Monitor, RotateCcw, UserRound } from 'lucide-react'
+import { Archive, CircleAlert, CircleCheck, EyeOff, Layers, LoaderCircle, Monitor, RotateCcw, UserRound } from 'lucide-react'
 import { createContext, useContext, useState, type MouseEvent, type ReactNode } from 'react'
 import { NavCount, NavSection, navItemClass, navItemRoom, navSubItemClass } from '@/components/ui/nav'
 import { cn } from '@/lib/cn'
@@ -17,6 +17,8 @@ import { SPLIT_QUERY, useMediaQuery } from '@/lib/use-media-query'
 import { entryKey, type SessionEntry } from '../model/facets'
 import { useSessionEntries } from '../hooks/use-session-entries'
 import { useProjectOrder } from '../api/use-project-order'
+import { useProjectColours } from '../api/use-project-colours'
+import { ProjectIcon } from '@/components/ui/project-hue'
 import { inProjectOrder } from '../model/project-order'
 import { useListPrefs } from '../store'
 import { AgentMark } from './agent-mark'
@@ -189,6 +191,7 @@ function DeviceTree({
 export function SessionsNav({ replace = false }: { replace?: boolean }) {
   const { entries } = useSessionEntries()
   const projectOrder = useProjectOrder() // the owner's order of projects, the same as the list's groups
+  const hues = useProjectColours() // each project's colour, a dot before its name
   const facets = facetsOf(entries)
   const usage = useMachineUsage()
   const search = parseListSearch(useSearch({ strict: false }) as Record<string, unknown>)
@@ -214,7 +217,7 @@ export function SessionsNav({ replace = false }: { replace?: boolean }) {
             <NavSection title="Projects">
               {inProjectOrder(facets.projects, (p) => p.label, projectOrder).map((p) => (
                 <ScopeLink key={p.label} search={search} scope={{ project: p.label }} className={navItemClass}>
-                  <FolderGit2 aria-hidden />
+                  <ProjectIcon hue={hues[p.label] ?? null} className="size-4" />
                   <span className="truncate">{p.label}</span>
                   <NavCount count={p.needs || p.count} alert={p.needs > 0} />
                 </ScopeLink>

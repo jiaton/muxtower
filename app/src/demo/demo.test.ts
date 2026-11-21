@@ -151,6 +151,14 @@ describe('the demo daemon over HTTP', () => {
       'lead',
       'laptop~review',
       'laptop~web-pm',
+      'docs-site',
+      'laptop~docs-links',
+      'laptop~mobile-push',
+      'mobile-crash',
+      'nightly-train',
+      'laptop~eval-report',
+      'ds-tokens',
+      'laptop~dotfiles',
       'old-1',
       'old-2',
       'laptop~old-3',
@@ -193,7 +201,16 @@ describe('the demo daemon over HTTP', () => {
       'project',
       ['acme/web-app', 'acme/shop-api', 'acme/infra'],
     )
-    expect(groups.filter((g) => g.kind === 'project').map((g) => g.label)).toEqual(['acme/web-app', 'acme/shop-api', 'acme/infra'])
+    expect(groups.filter((g) => g.kind === 'project').map((g) => g.label)).toEqual([
+      'acme/web-app',
+      'acme/shop-api',
+      'acme/infra',
+      'acme/docs', // the rest by name
+      'acme/mobile',
+      'labs/design-system',
+      'labs/ml-pipeline',
+      'personal/dotfiles',
+    ])
     expect(
       groups
         .find((g) => g.label === 'acme/shop-api')!
@@ -202,6 +219,17 @@ describe('the demo daemon over HTTP', () => {
     ).toEqual(['pm', 'lead'])
     const put = await call(w, 'PUT', '/v1/project-order', { projects: ['acme/infra', 'acme/web-app', 'acme/infra'] })
     expect(await put.json()).toEqual({ projects: ['acme/infra', 'acme/web-app'] })
+  })
+
+  it("keeps each project's colour, gives a new one the least used, and keeps the reader's pick", async () => {
+    const { w } = world()
+    const hues = (await (await call(w, 'GET', '/v1/project-colours')).json()).hues as Record<string, number>
+    expect(hues).toMatchObject({ 'acme/web-app': 1, 'acme/shop-api': 2, 'labs/ml-pipeline': 6, 'personal/dotfiles': 2 })
+    expect(Object.values(hues).every((h) => h >= 1 && h <= 6)).toBe(true)
+    const put = await call(w, 'PUT', '/v1/project-colours', { project: 'acme/infra', hue: 5 })
+    expect((await put.json()).hues['acme/infra']).toBe(5)
+    expect((await (await call(w, 'GET', '/v1/project-colours')).json()).hues['acme/infra']).toBe(5)
+    expect((await call(w, 'PUT', '/v1/project-colours', { project: 'acme/infra', hue: 7 })).status).toBe(422)
   })
 
   it('starts a session where asked: named from its folder, in the project of that folder, its first message answered', async () => {

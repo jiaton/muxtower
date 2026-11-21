@@ -3,7 +3,10 @@ import { Badge } from '@/components/ui/badge'
 import { look } from '@/components/ui/intents'
 import { PaneHeader } from '@/components/ui/pane'
 import type { Session } from '@/lib/api/types'
+import { ProjectTag } from '@/components/ui/project-hue'
+import { useProjectHue } from '../api/use-project-colours'
 import { headerTags } from '../model/details'
+import { projectGroupOf } from '../model/facets'
 import { SessionDetails } from './session-details'
 import { StateBadge } from './state-badge'
 import { StreamMark } from './stream-mark'
@@ -28,6 +31,8 @@ export function SessionHeader({
   actions?: ReactNode
 }) {
   const tags = headerTags(session)
+  const grouped = projectGroupOf(session) // the project as the list groups it, which its colour is kept by
+  const hue = useProjectHue(grouped)
   return (
     <PaneHeader
       leading={leading}
@@ -50,11 +55,23 @@ export function SessionHeader({
         <span className="flex min-w-0 items-center gap-1 pt-0.5">
           {tags.length ? (
             <span className="flex min-w-0 items-center gap-1 overflow-hidden">
-              {tags.map((t) => (
-                <span key={t.key} data-tag={t.key} title={t.title} className={`${look.tag} ${TAG_FIT[t.key]} truncate`}>
-                  {t.text}
-                </span>
-              ))}
+              {tags.map((t) =>
+                t.key === 'project' ? (
+                  <ProjectTag
+                    key={t.key}
+                    data-tag={t.key}
+                    title={t.title}
+                    hue={t.text === grouped ? hue : null}
+                    className={`${TAG_FIT[t.key]} truncate`}
+                  >
+                    {t.text}
+                  </ProjectTag>
+                ) : (
+                  <span key={t.key} data-tag={t.key} title={t.title} className={`${look.tag} ${TAG_FIT[t.key]} truncate`}>
+                    {t.text}
+                  </span>
+                ),
+              )}
             </span>
           ) : null}
           <SessionDetails daemonId={daemonId} session={session} />

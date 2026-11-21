@@ -2,7 +2,9 @@ import { useMatch, useNavigate } from '@tanstack/react-router'
 import { useEffect, useMemo } from 'react'
 import { CommandPalette, type PaletteItem, type PaletteSection } from '@/components/ui/command-palette'
 import { ink, look } from '@/components/ui/intents'
+import { ProjectTag } from '@/components/ui/project-hue'
 import { StatusIcon } from '@/components/ui/status-icon'
+import { useProjectHue } from '@/features/sessions/api/use-project-colours'
 import { useSessionEntries } from '@/features/sessions/hooks/use-session-entries'
 import { SessionActions, type SessionAction } from '@/features/sessions/components/session-actions'
 import { deviceOf, entryKey, isAssistant, placeGroupOf, roleNameOf, type SessionEntry } from '@/features/sessions/model/facets'
@@ -216,9 +218,13 @@ function HitItem({ hit, name }: { hit: SearchHit; name: string }) {
   )
 }
 
-/** A session as the list shows it, in one line and a half: its state, name, time; role · project, device. */
+/** A session as the list shows it, in one line and a half: its state, name, its project as a tag in its
+ *  colour, device, time; its role (and the folder or place, when it has no project). */
 function SessionItem({ session }: { session: Session }) {
-  const where = [roleNameOf(session), placeGroupOf(session).name].filter(Boolean).join(' · ')
+  const place = placeGroupOf(session)
+  const project = place.kind === 'project' ? place.name : null
+  const hue = useProjectHue(project)
+  const where = [roleNameOf(session), project ? null : place.name].filter(Boolean).join(' · ')
   return (
     <div className="flex min-w-0 items-start gap-2">
       <StatusIcon state={session.state} assistant={isAssistant(session)} unread={session.unread} className="mt-0.5" />
@@ -228,6 +234,11 @@ function SessionItem({ session }: { session: Session }) {
             {session.name}
           </span>
           {session.archived_at ? <span className={`${look.tag} shrink-0`}>Archived</span> : null}
+          {project ? (
+            <ProjectTag hue={hue} data-tag="project" title={`Project: ${project}`} className="max-w-40 shrink truncate">
+              {project}
+            </ProjectTag>
+          ) : null}
           <span className={`${look.tag} shrink-0`}>{deviceOf(session) ?? '—'}</span>
           <span className={`${ink.meta} ${ink.count} shrink-0`}>{ago(session.updated_at)}</span>
         </div>

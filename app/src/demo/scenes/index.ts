@@ -2,6 +2,7 @@ import type { Scene } from '../world'
 import { docs } from './docs'
 import { archived, migrations } from './interrupted'
 import { changelogFork, infra, releaseNotes, releaseNotesFork, releasePostFork, shopApiLaptop, tidyUp } from './others'
+import { moreProjects } from './projects'
 import { shopApi } from './shop-api'
 import { TEAM_TASKS, team } from './team'
 import { webApp } from './web-app'
@@ -21,6 +22,7 @@ export const scenes = (): Scene[] =>
     shopApiLaptop(),
     migrations(),
     ...team(),
+    ...moreProjects(),
     ...archived(),
   ])
 
