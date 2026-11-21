@@ -2239,6 +2239,46 @@
         "title": "ProcessUsage",
         "type": "object"
       },
+      "ProjectColour": {
+        "properties": {
+          "hue": {
+            "description": "one of the app's project hues, 1 to 6",
+            "maximum": 6.0,
+            "minimum": 1.0,
+            "title": "Hue",
+            "type": "integer"
+          },
+          "project": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Project",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "hue"
+        ],
+        "title": "ProjectColour",
+        "type": "object"
+      },
+      "ProjectColours": {
+        "properties": {
+          "hues": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "description": "each project's hue, 1 to 6, by name; a project not here has none yet",
+            "title": "Hues",
+            "type": "object"
+          }
+        },
+        "required": [
+          "hues"
+        ],
+        "title": "ProjectColours",
+        "type": "object"
+      },
       "ProjectOrder": {
         "properties": {
           "projects": {
@@ -6005,6 +6045,68 @@
         "summary": "Playbook Versions",
         "tags": [
           "playbook"
+        ]
+      }
+    },
+    "/v1/project-colours": {
+      "get": {
+        "description": "Each project's colour, one of 6 hues; the same on every device (kept on the hub, which gives a project\nits hue the first time it lists one of its sessions). A project not here has none yet.",
+        "operationId": "get_project_colours_v1_project_colours_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectColours"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Project Colours",
+        "tags": [
+          "chips"
+        ]
+      },
+      "put": {
+        "description": "Gives a project the hue the owner picked (1 to 6), kept from now on; answers every project's.",
+        "operationId": "put_project_colour_v1_project_colours_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectColour"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectColours"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Project Colour",
+        "tags": [
+          "chips"
         ]
       }
     },

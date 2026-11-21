@@ -423,6 +423,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/project-colours": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Project Colours
+         * @description Each project's colour, one of 6 hues; the same on every device (kept on the hub, which gives a project
+         *     its hue the first time it lists one of its sessions). A project not here has none yet.
+         */
+        get: operations["get_project_colours_v1_project_colours_get"];
+        /**
+         * Put Project Colour
+         * @description Gives a project the hue the owner picked (1 to 6), kept from now on; answers every project's.
+         */
+        put: operations["put_project_colour_v1_project_colours_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/project-order": {
         parameters: {
             query?: never;
@@ -2505,6 +2530,26 @@ export interface components {
             /** Rss Mb */
             rss_mb?: number | null;
         };
+        /** ProjectColour */
+        ProjectColour: {
+            /**
+             * Hue
+             * @description one of the app's project hues, 1 to 6
+             */
+            hue: number;
+            /** Project */
+            project: string;
+        };
+        /** ProjectColours */
+        ProjectColours: {
+            /**
+             * Hues
+             * @description each project's hue, 1 to 6, by name; a project not here has none yet
+             */
+            hues: {
+                [key: string]: number;
+            };
+        };
         /** ProjectOrder */
         ProjectOrder: {
             /**
@@ -4393,6 +4438,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlaybookVersion"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_project_colours_v1_project_colours_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectColours"];
+                };
+            };
+        };
+    };
+    put_project_colour_v1_project_colours_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProjectColour"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectColours"];
                 };
             };
             /** @description Validation Error */
