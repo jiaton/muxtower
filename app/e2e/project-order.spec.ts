@@ -43,6 +43,16 @@ const sidebarProjects = async (page: Page) =>
     .map((t) => t.split('\n')[0]!.trim())
     .filter((t) => MOVED.includes(t))
 
+/** The chip `name` chosen: clicked again only while it is not (the row draws again as its data comes, and a
+ *  click on a link being replaced was lost on a loaded runner; a second click on a chosen chip lets it go). */
+async function pickChip(page: Page, name: string) {
+  const link = list(page).getByRole('link', { name: new RegExp(`^${name}`) })
+  await expect(async () => {
+    if ((await link.getAttribute('data-current')) !== 'true') await link.click()
+    await expect(link).toHaveAttribute('data-current', 'true', { timeout: 2000 })
+  }).toPass({ timeout: 15_000 })
+}
+
 async function scroller(page: Page): Promise<Locator> {
   const header = list(page).getByRole('heading', { level: 3 }).first()
   await header.evaluate((h) => {
@@ -200,9 +210,7 @@ test('phone: a swipe on a row still opens its actions', async ({ browser }) => {
 test('in a chip (a narrowed view) projects move too: the dragged one alone, the hidden ones kept in place', async ({ browser }) => {
   // The demo's order: web-app, shop-api, infra. The Product chip shows web-app and shop-api; infra is hidden.
   const page = await start(browser, 1440, 1600)
-  await list(page)
-    .getByRole('link', { name: /^Product/ })
-    .click()
+  await pickChip(page, 'Product')
   await expect.poll(() => projects(page)).toEqual(['acme/web-app', 'acme/shop-api'])
   const handle = list(page).getByRole('button', { name: 'Move acme/shop-api' })
   await projectHeader(page, 'acme/shop-api').hover()
@@ -217,10 +225,7 @@ test('in a chip (a narrowed view) projects move too: the dragged one alone, the 
   await expect.poll(() => projects(page)).toEqual(['acme/shop-api', 'acme/web-app'])
   // The whole list (the chip let go, no reload): infra still last.
   const all = () => page.evaluate(() => void (location.hash = '#/?group=project'))
-  const chip = () =>
-    list(page)
-      .getByRole('link', { name: /^Product/ })
-      .click()
+  const chip = () => pickChip(page, 'Product')
   await all()
   await expect.poll(() => projects(page)).toEqual(['acme/shop-api', 'acme/web-app', 'acme/infra'])
   // The menu's Move down in the chip: past the next project shown.
@@ -235,7 +240,7 @@ test('in a chip (a narrowed view) projects move too: the dragged one alone, the 
 
 test('a view with one project shows its handle disabled, saying why, never silently missing', async ({ browser }) => {
   const page = await start(browser, 1440, 1200)
-  await list(page).getByRole('link', { name: /^Ops/ }).click() // infra and Other: one project
+  await pickChip(page, 'Ops') // infra and Other: one project
   await expect.poll(() => projects(page)).toEqual(['acme/infra'])
   const handle = list(page).getByRole('button', { name: 'Move acme/infra' })
   await projectHeader(page, 'acme/infra').hover()
