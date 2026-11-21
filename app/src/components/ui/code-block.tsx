@@ -1,6 +1,7 @@
 import { Check, Copy } from 'lucide-react'
 import { createContext, useContext, useEffect, useRef, useState, type ComponentProps, type ComponentType } from 'react'
 import { cn } from '@/lib/cn'
+import { copyText } from './copy-button'
 import { box, focusRing, text } from './styles'
 
 /** A snippet shown on its own, to be copied (not inside Markdown): small machine text on a quiet ground,
@@ -23,33 +24,6 @@ export interface CodeAction {
 export const CodeActionContext = createContext<CodeAction | null>(null)
 
 const CORNER_BUTTON = `inline-flex size-7 items-center justify-center rounded-md border border-border bg-surface text-fg-muted hover:text-fg ${focusRing} [&_svg]:size-3.5`
-
-/** Puts text on the clipboard: the Clipboard API where the page may use it, else the older copy command
- *  (a page served over plain http on the LAN has no `navigator.clipboard`). */
-async function copyText(text: string): Promise<boolean> {
-  try {
-    if (navigator.clipboard) {
-      await navigator.clipboard.writeText(text)
-      return true
-    }
-  } catch {
-    // refused (no permission, not focused): try the older way
-  }
-  const area = document.createElement('textarea')
-  area.value = text
-  area.setAttribute('readonly', '')
-  area.style.position = 'fixed'
-  area.style.opacity = '0'
-  document.body.append(area)
-  area.select()
-  try {
-    return document.execCommand('copy')
-  } catch {
-    return false
-  } finally {
-    area.remove()
-  }
-}
 
 /** A code block with a Copy button in its corner (and the `CodeActionContext` action beside it): always
  *  shown on a touch screen, on hover or focus where there is a pointer. The buttons stay put while the
