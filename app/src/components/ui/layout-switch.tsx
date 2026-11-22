@@ -52,7 +52,7 @@ export function LayoutSwitch<T extends string>({
   className?: string
 }) {
   return (
-    <div role="radiogroup" aria-label="Layout" className={cn('flex shrink-0 gap-0.5 rounded-md border border-border bg-surface p-0.5', className)}>
+    <div role="radiogroup" aria-label="Layout" data-component="layout switch" className={cn('flex shrink-0 gap-0.5 rounded-md border border-border bg-surface p-0.5', className)}>
       {options.map((o) => (
         <button
           key={o.value}

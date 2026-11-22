@@ -1,7 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { RouterProvider, createHashHistory, createRouter } from '@tanstack/react-router'
 import { StrictMode } from 'react'
-import { watchPage } from '@/lib/diagnostics'
+import { watchPage } from '@/lib/watch-page'
 import { createRoot } from 'react-dom/client'
 import { listenForInstall } from './features/install/store'
 import { queryClient } from './lib/query'

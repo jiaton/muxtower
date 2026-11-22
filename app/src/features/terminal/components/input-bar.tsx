@@ -391,6 +391,7 @@ export function InputBar({
             ) : null}
             <Textarea
               ref={textarea}
+              data-component="message box"
               rows={1}
               enterKeyHint={touch ? 'enter' : 'send'}
               value={draft}

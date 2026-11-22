@@ -132,7 +132,7 @@ export function ProjectChips({
   const liftedChip = lifted ? chips.find((c) => c.id === lifted) : undefined
 
   return (
-    <nav aria-label="Projects" data-own-swipe className={cn(bleedRow.outer, className)}>
+    <nav aria-label="Projects" data-component="projects row" data-own-swipe className={cn(bleedRow.outer, className)}>
       <ScrollRow ref={row} className={cn(bleedRow.inner, 'gap-1.5')}>
         <DndContext
           sensors={sensors}

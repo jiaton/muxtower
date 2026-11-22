@@ -202,6 +202,8 @@ export function TerminalView({ ansi, fontSize, onNeedMore, loadingMore, onFit, o
         style={{ fontSize, lineHeight: `${rowPx(fontSize, dpr)}px` }}
         role="log"
         aria-label="Session output"
+        data-component="terminal"
+        data-bounded // its scrollback is kept to a bound (diagnostics measure growth without it)
         tabIndex={0}
         data-own-keys // the app's own key shortcuts (the chip row's [ ]) leave it alone
       >

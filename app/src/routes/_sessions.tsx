@@ -121,7 +121,7 @@ function SessionsLayout() {
         {withSidebar ? <div ref={setSidebarSlot} className={`${look.bar.side} flex w-56 shrink-0 flex-col pt-[env(safe-area-inset-top)]`} /> : null}
         {/* Beside a session: the list's own widths. In its drawer: the rest of the drawer's width (a 20rem list
             left an empty strip in it between md and xl, as on a car's screen). */}
-        <Pane ref={listPane} ruled className={asDrawer ? 'flex min-w-0 flex-1' : 'flex w-full md:w-80 md:shrink-0 xl:w-96'} aria-label="Sessions">
+        <Pane ref={listPane} ruled className={asDrawer ? 'flex min-w-0 flex-1' : 'flex w-full md:w-80 md:shrink-0 xl:w-96'} aria-label="Sessions" data-component="session list">
           <PaneHeader
             leading={panes.sidebarAlone ? <PanesLead list={false} /> : null}
             title={

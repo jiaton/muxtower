@@ -106,7 +106,7 @@ function RootLayout() {
       <NewSessionHost />
       <PaletteHost />
       {panes.sidebarDocked ? (
-        <aside className={`${look.bar.side} flex w-56 shrink-0 flex-col xl:w-64`} aria-label="Navigation">
+        <aside className={`${look.bar.side} flex w-56 shrink-0 flex-col xl:w-64`} aria-label="Navigation" data-component="sidebar">
           <Sidebar />
         </aside>
       ) : panes.sidebarAlone ? (

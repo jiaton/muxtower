@@ -79,6 +79,7 @@ export function CommandPalette({
         <DialogPrimitive.Overlay className="fixed inset-0 z-[90] bg-overlay" />
         <DialogPrimitive.Content
           aria-label={label}
+          data-component="command palette"
           className={cn(
             'fixed inset-x-0 top-0 z-[90] flex max-h-[70dvh] flex-col rounded-b-lg border border-border bg-surface shadow-card',
             'pt-[env(safe-area-inset-top)] sm:inset-x-auto sm:top-[12dvh] sm:left-1/2 sm:w-full sm:max-w-xl sm:-translate-x-1/2 sm:rounded-lg sm:pt-0',

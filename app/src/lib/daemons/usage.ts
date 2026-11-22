@@ -1,5 +1,5 @@
 import type { MachineUsage, UsageAlert } from '@/lib/api/types'
-import type { WebAlert } from '@/lib/diagnostics'
+import { inputText, type WebAlert } from '@/lib/diagnostics-alerts'
 
 /** One line for what is over its limit, with its limit. */
 export function alertText(alert: UsageAlert | WebAlert): string {
@@ -16,16 +16,18 @@ export function alertText(alert: UsageAlert | WebAlert): string {
       return `JS heap ${alert.value} MB (limit ${alert.threshold} MB)`
     case 'input':
       return `Answering a key or a tap takes ${alert.value} ms (p75; limit ${alert.threshold} ms)`
-    case 'input-slow':
-      return `${alert.value} keys or taps took over ${alert.threshold} ms in the last few minutes`
+    case 'input-slow': {
+      const slowest = 'slowest' in alert && alert.slowest ? `; the slowest: ${inputText(alert.slowest)}: ${alert.slowest.ms} ms` : ''
+      return `${alert.value} keys or taps took over ${alert.threshold} ms in the last 5 min${slowest}`
+    }
     case 'blocking':
       return `The page was blocked ${Math.round(alert.value * 100)}% of the last minute (limit ${Math.round(alert.threshold * 100)}%)`
     case 'dom-growth':
-      return `The page has ${alert.value}× the elements it had when loaded: reload it (limit ${alert.threshold}×)`
+      return `The page has ${alert.value}× the elements it had once settled, besides terminal and conversation history: reload it (limit ${alert.threshold}×)`
     case 'gpu':
       return 'The browser lost GPU acceleration and draws in software: restart the browser (reloading the page is not enough)'
     case 'heap-growth':
-      return `JS heap is ${alert.value}× what it was when loaded: reload it (limit ${alert.threshold}×)`
+      return `JS heap is ${alert.value}× what it was once settled: reload it (limit ${alert.threshold}×)`
     default:
       return `${alert.metric}: ${alert.value} (limit ${alert.threshold})`
   }

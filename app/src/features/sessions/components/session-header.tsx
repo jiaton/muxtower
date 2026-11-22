@@ -35,6 +35,7 @@ export function SessionHeader({
   const hue = useProjectHue(grouped)
   return (
     <PaneHeader
+      component="session header"
       leading={leading}
       title={
         <>

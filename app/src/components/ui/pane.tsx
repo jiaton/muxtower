@@ -15,7 +15,10 @@ export function PaneHeader({
   actions,
   children,
   className,
+  component,
 }: {
+  /** The area's name for diagnostics (`data-component`: where a slow tap landed), a fixed phrase. */
+  component?: string
   leading?: ReactNode
   title: ReactNode
   subtitle?: ReactNode
@@ -25,7 +28,10 @@ export function PaneHeader({
   className?: string
 }) {
   return (
-    <header className={cn('flex shrink-0 flex-col gap-2 border-b border-border bg-bg px-3 pt-2 pb-2 sm:px-4', className)}>
+    <header
+      data-component={component}
+      className={cn('flex shrink-0 flex-col gap-2 border-b border-border bg-bg px-3 pt-2 pb-2 sm:px-4', className)}
+    >
       <div className="flex min-h-10 items-center gap-1.5">
         {leading}
         <div className="min-w-0 flex-1">

@@ -208,7 +208,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
   const termItems = view === 'terminal' && !!screen
   const fullScreen = canFullScreen()
   return (
-    <Pane className="flex-1" aria-label={session.name}>
+    <Pane className="flex-1" aria-label={session.name} data-component="session">
       <SessionHeader
         daemonId={daemonId}
         session={session}

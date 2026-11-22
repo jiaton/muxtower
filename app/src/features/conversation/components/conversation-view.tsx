@@ -227,6 +227,8 @@ export function ConversationView({
         ref={scroller}
         role="log"
         aria-label="Conversation"
+        data-component="conversation"
+        data-bounded // its items are kept to a bound (diagnostics measure growth without them)
         tabIndex={0}
         className={`${ink.body} flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-y-contain p-3`}
         onScroll={() => {

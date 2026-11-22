@@ -1,18 +1,28 @@
 import { Gauge } from 'lucide-react'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/cn'
 
 /** A small mark beside a name when something about it is over a limit: nothing otherwise. It opens to the
- *  lines that say what (`lines`), then quieter ones (`details`). */
+ *  lines that say what (`lines`), then quieter ones (`details`), and, given `onDismiss`, an item that hides it
+ *  (the caller decides for how long). */
 export function WarningMark({
   what,
   lines,
   details = [],
+  onDismiss,
   className,
 }: {
   what: string
   lines: string[]
   details?: string[]
+  onDismiss?: () => void
   className?: string
 }) {
   if (!lines.length) return null
@@ -35,6 +45,12 @@ export function WarningMark({
             {line}
           </p>
         ))}
+        {onDismiss ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={onDismiss}>Dismiss</DropdownMenuItem>
+          </>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   )
