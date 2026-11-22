@@ -22,7 +22,15 @@ const repoOf = (session: Session) => (session.git ? folderOf({ ...session, cwd: 
 const loose = (session: Session) => !session.git && session.project_source !== 'set'
 
 /** The workspaces among the folders sessions sit loose in, per device. */
-export function workspacesOf(entries: SessionEntry[]): Set<string> {
+export function workspacesOf(entries: SessionEntry[]): ReadonlySet<string> {
+  let found = workspacesCache.get(entries)
+  if (!found) workspacesCache.set(entries, (found = findWorkspaces(entries)))
+  return found
+}
+/** Per list of entries: every folder row of the sidebar filters by folder, and each asked for these again. */
+const workspacesCache = new WeakMap<SessionEntry[], ReadonlySet<string>>()
+
+function findWorkspaces(entries: SessionEntry[]): Set<string> {
   const repos = new Map<string, string[]>()
   for (const entry of entries) {
     const repo = repoOf(entry.session)
@@ -39,10 +47,10 @@ export function workspacesOf(entries: SessionEntry[]): Set<string> {
 }
 
 /** Whether a device's folder is a workspace. */
-export const isWorkspace = (workspaces: Set<string>, device: string, folder: string) => workspaces.has(key(device, folder))
+export const isWorkspace = (workspaces: ReadonlySet<string>, device: string, folder: string) => workspaces.has(key(device, folder))
 
 /** Whether a session sits loose in a workspace. */
-export function inWorkspace(entry: SessionEntry, workspaces: Set<string>): boolean {
+export function inWorkspace(entry: SessionEntry, workspaces: ReadonlySet<string>): boolean {
   const folder = folderOf(entry.session)
   return Boolean(folder && loose(entry.session) && workspaces.has(key(deviceLabel(entry), folder)))
 }

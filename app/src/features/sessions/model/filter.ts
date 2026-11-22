@@ -29,7 +29,7 @@ export function filterEntries(entries: SessionEntry[], query: SessionQuery): Ses
 
 /** Whether a session is listed in a folder row of the sidebar: its place, its worktree, or (a workspace,
  *  `workspaces.ts`) anything it holds, its loose sessions in its "Other" row. */
-function inFolder(entry: SessionEntry, folder: string, workspaces: Set<string>): boolean {
+function inFolder(entry: SessionEntry, folder: string, workspaces: ReadonlySet<string>): boolean {
   const loose = workspaceOfLoose(folder)
   if (loose) return folderLabel(entry) === loose && inWorkspace(entry, workspaces)
   if (folderLabel(entry) === folder || worktreeOf(entry.session)?.label === folder) return true

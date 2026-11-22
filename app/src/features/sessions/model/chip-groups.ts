@@ -52,7 +52,7 @@ export function isNoPlace(cwd: string | null | undefined): boolean {
 
 /** The project a session counts under in the chips; `workspaces` (`workspacesOf` the known sessions) say
  *  which folders hold repositories, where a session with nothing else to place it is in Other. */
-export function chipProject(session: Session, workspaces?: Set<string>, entry?: SessionEntry): string {
+export function chipProject(session: Session, workspaces?: ReadonlySet<string>, entry?: SessionEntry): string {
   if (session.project && session.project_source === 'set') return session.project
   if (session.git) return session.project && session.project_source !== 'folder' ? session.project : folderName(session.git.repo)
   if (isNoPlace(session.cwd)) return OTHER
@@ -61,7 +61,7 @@ export function chipProject(session: Session, workspaces?: Set<string>, entry?: 
 }
 
 /** `chipProject` of an entry among these sessions. */
-export const projectIn = (entry: SessionEntry, workspaces: Set<string>) => chipProject(entry.session, workspaces, entry)
+export const projectIn = (entry: SessionEntry, workspaces: ReadonlySet<string>) => chipProject(entry.session, workspaces, entry)
 
 export const projectLabel = (project: string) => (project === OTHER ? OTHER_LABEL : project)
 
@@ -111,7 +111,7 @@ export function chipMembers(id: string | undefined, groups: ChipGroup[]): ChipMe
 }
 
 /** Whether a chip holds a session: its project whole, its role (in any project), or the session itself. */
-export function inChip(entry: SessionEntry, chip: ChipMembers, workspaces: Set<string>): boolean {
+export function inChip(entry: SessionEntry, chip: ChipMembers, workspaces: ReadonlySet<string>): boolean {
   if (chip.projects.includes(projectIn(entry, workspaces)) || chip.sessions.includes(entry.session.id)) return true
   const role = chip.roles?.length ? roleKeyOf(entry.session) : null
   return role !== null && chip.roles!.includes(role)

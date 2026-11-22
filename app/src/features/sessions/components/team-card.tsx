@@ -44,6 +44,10 @@ export function TeamCard({
   children: ReactNode
 }) {
   const [shown, setShown] = useState<Shown | null>(null)
+  // Its panel (a menu, its popper, a tasks query) is mounted once it has shown, and kept for its closing:
+  // every sidebar folder and project chip has a card, and mounting them all made every render cost more.
+  const [used, setUsed] = useState(false)
+  if (shown && !used) setUsed(true)
   const timer = useRef<number | undefined>(undefined)
   const pinAt = useRef<(x: number, y: number) => void>(() => {})
   const hold = useHold(HOLD_MS, (x, y) => pinAt.current(x, y)) // a finger held still: the card, pinned
@@ -85,15 +89,17 @@ export function TeamCard({
       }}
     >
       {children}
-      <TeamPanel
-        project={project}
-        members={members}
-        device={device}
-        shown={shown}
-        onClose={() => setShown(null)}
-        onEnter={keep}
-        onLeave={leave}
-      />
+      {used ? (
+        <TeamPanel
+          project={project}
+          members={members}
+          device={device}
+          shown={shown}
+          onClose={() => setShown(null)}
+          onEnter={keep}
+          onLeave={leave}
+        />
+      ) : null}
     </div>
   )
 }

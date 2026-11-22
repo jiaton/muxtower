@@ -1,4 +1,5 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
+import { useCallback } from 'react'
 import { pollInterval, type StreamStatus } from '@/lib/api/stream-status'
 import { useStreamStatus } from '@/lib/api/streams'
 import { createDaemonClient, unwrap } from '@/lib/api/client'
@@ -42,19 +43,23 @@ export interface DaemonSessions {
   updatedAt: number // when the sessions were last fetched or streamed (epoch ms; 0 before)
 }
 
-/** Every paired daemon's sessions, for the Inbox. One failing daemon never hides the others. */
+/** Every paired daemon's sessions, for the Inbox. One failing daemon never hides the others. The same
+ *  array until a daemon or its sessions change (`combine` kept while the daemons are), so what callers derive
+ *  from it (facets, filters, counts) is not worked out again on every render of each. */
 export function useAllSessions(): DaemonSessions[] {
   const daemons = usePairedDaemons()
   const status = useStreamStatus((s) => s.status)
-  return useQueries({
-    queries: daemons.map((d) => sessionsQuery(d, status[d.id])),
-    combine: (results) =>
+  const combine = useCallback(
+    (results: { data?: Session[]; error: Error | null; isPending: boolean; dataUpdatedAt: number }[]) =>
       results.map((r, i) => ({
-        daemon: daemons[i],
-        sessions: r.data ?? [],
+        daemon: daemons[i]!,
+        sessions: r.data ?? NO_SESSIONS,
         error: r.error,
         isPending: r.isPending,
         updatedAt: r.dataUpdatedAt,
       })),
-  })
+    [daemons],
+  )
+  return useQueries({ queries: daemons.map((d) => sessionsQuery(d, status[d.id])), combine })
 }
+const NO_SESSIONS: Session[] = []

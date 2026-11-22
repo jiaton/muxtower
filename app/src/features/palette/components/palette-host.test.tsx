@@ -73,7 +73,10 @@ it('offers the layouts this screen can show: three where the sidebar docks, two 
   const layouts = () => screen.queryAllByRole('option', { name: /^Layout: / }).map((o) => o.textContent)
   const widths = { dock: true, split: true }
   vi.stubGlobal('matchMedia', (q: string) => ({
-    matches: q.includes('64rem') ? widths.dock : q.includes('48rem') ? widths.split : false,
+    // Live, as a MediaQueryList is (the app keeps one per query).
+    get matches() {
+      return q.includes('64rem') ? widths.dock : q.includes('48rem') ? widths.split : false
+    },
     addEventListener() {},
     removeEventListener() {},
   }))

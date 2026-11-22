@@ -69,6 +69,15 @@ function facet(entries: SessionEntry[], labelOf: (e: SessionEntry) => string, la
 /** Counts for the navigation: per view, per device and its folders, per agent, per source. The assistant is not
  *  counted, nor are hidden or archived sessions anywhere but in their own view. */
 export function facetsOf(entries: SessionEntry[]): Facets {
+  let found = facetsCache.get(entries)
+  if (!found) facetsCache.set(entries, (found = countFacets(entries)))
+  return found
+}
+/** Per list of entries (a new one whenever a session changes): the sidebar, the list, the panes and the
+ *  dialogs ask for the same counts on every render of each. Read only. */
+const facetsCache = new WeakMap<SessionEntry[], Facets>()
+
+function countFacets(entries: SessionEntry[]): Facets {
   const counted = entries.filter((e) => !isAssistant(e.session) && placeOf(e.session) === 'listed')
   return {
     views: {

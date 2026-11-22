@@ -14,6 +14,9 @@ export function useRowMoves(root: RefObject<HTMLElement | null>, placed: Map<str
   const last = useRef<{ placed: Map<string, string>; tops: Map<string, number> } | null>(null)
 
   useLayoutEffect(() => {
+    // No row changed its group, came or went: nothing to play, and no layout to read. Read on every render,
+    // the rows' boxes forced a layout of the whole page in each session or chip switch.
+    if (last.current && samePlaces(last.current.placed, placed)) return
     const list = root.current
     if (!list || list.offsetParent === null) return // not shown: keep what it had
     const origin = list.getBoundingClientRect().top // offsets within the list, whatever its scroll
@@ -41,3 +44,6 @@ export function useRowMoves(root: RefObject<HTMLElement | null>, placed: Map<str
     }
   })
 }
+
+const samePlaces = (a: Map<string, string>, b: Map<string, string>) =>
+  a.size === b.size && [...a].every(([key, group]) => b.get(key) === group)

@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode, type Ref, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode, type Ref, type RefObject } from 'react'
 import { cn } from '@/lib/cn'
 import { Button } from './button'
 import { reducedMotion, useWheelScrollsX } from './use-wheel-scrolls-x'
@@ -70,7 +70,8 @@ export function ScrollRow({ ref, className, children }: { ref?: Ref<HTMLDivEleme
 }
 
 /** Whether a sideways scroller has more to show before and after what is in view: on scrolling, on a resize,
- *  and after each render (what it holds may have changed). */
+ *  and after each render (what it holds may have changed), then at the next frame: read during a commit, its
+ *  width forced a layout of the whole page in the middle of a chip or session switch. */
 function useMoreToScroll(ref: RefObject<HTMLElement | null>) {
   const [more, setMore] = useState({ start: false, end: false })
   const measure = useCallback(() => {
@@ -81,7 +82,10 @@ function useMoreToScroll(ref: RefObject<HTMLElement | null>) {
     const end = max >= 1 && el.scrollLeft < max - 1
     setMore((was) => (was.start === start && was.end === end ? was : { start, end }))
   }, [ref])
-  useLayoutEffect(measure)
+  useEffect(() => {
+    const frame = requestAnimationFrame(measure)
+    return () => cancelAnimationFrame(frame)
+  })
   useEffect(() => {
     const el = ref.current
     if (!el) return
