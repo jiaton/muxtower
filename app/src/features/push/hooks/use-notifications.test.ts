@@ -81,6 +81,21 @@ describe('useCloseSettledNotifications', () => {
     renderHook(() => useCloseSettledNotifications(settled, 'v1'))
     await waitFor(() => expect(closed).toEqual(['nas:read']))
   })
+
+  it('sweeps again when the installed app is resumed (pageshow), not only on start', async () => {
+    const closed: string[] = []
+    const shown = [{ tag: 'nas:a', at: 100, close: () => closed.push('nas:a') }]
+    browser(shown)
+    let settledNow = false
+    renderHook(() => useCloseSettledNotifications(() => settledNow, 'v1'))
+    await new Promise((r) => setTimeout(r, 350)) // the first sweep: nothing settled yet
+    expect(closed).toEqual([])
+    settledNow = true
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 60_000) // past the resume's de-duplication
+    dispatchEvent(new PageTransitionEvent('pageshow'))
+    await waitFor(() => expect(closed).toEqual(['nas:a']))
+    vi.restoreAllMocks()
+  })
 })
 
 describe('settledIn', () => {

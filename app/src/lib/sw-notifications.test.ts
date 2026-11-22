@@ -10,16 +10,32 @@ function registration(...tags: string[]) {
 describe('closeSessions', () => {
   it("closes these sessions' notifications of that daemon only", async () => {
     const r = registration(sessionTag('d1', 'a'), sessionTag('d1', 'b'), sessionTag('d2', 'a'))
-    expect(await closeSessions(r.registration, 'd1', ['a'])).toBe(1)
+    expect((await closeSessions(r.registration, 'd1', ['a'])).closed).toEqual(['d1:a'])
     expect(r.closed).toEqual(['d1:a'])
   })
   it('a clearing push leaves one on screen: if closing would leave none, it closes none', async () => {
     const r = registration(sessionTag('d1', 'a'), sessionTag('d1', 'b'))
-    expect(await closeSessions(r.registration, 'd1', ['a', 'b'], true)).toBe(0)
+    expect(await closeSessions(r.registration, 'd1', ['a', 'b'], true)).toMatchObject({ closed: [], held: ['d1:a', 'd1:b'] })
     expect(r.closed).toEqual([])
-    expect(await closeSessions(r.registration, 'd1', ['a'], true)).toBe(1)
+    expect(await closeSessions(r.registration, 'd1', ['a'], true)).toMatchObject({ closed: ['d1:a'], held: [] })
     expect(r.closed).toEqual(['d1:a'])
-    expect(await closeSessions(r.registration, 'd1', ['b'], true)).toBe(0) // the last one stays
+    expect(await closeSessions(r.registration, 'd1', ['b'], true)).toMatchObject({ closed: [], held: ['d1:b'] }) // the last one stays
+  })
+  it('says what it was asked, what was there and when it came, by tag only', async () => {
+    const shown: ShownNotification[] = [
+      { tag: 'd1:a', timestamp: 5, data: { at: 7 }, close: () => undefined },
+      { tag: 'd1:b', timestamp: 9, close: () => undefined },
+    ]
+    const outcome = await closeSessions({ getNotifications: async () => shown }, 'd1', ['a', 'gone'])
+    expect(outcome).toEqual({
+      asked: ['d1:a', 'd1:gone'],
+      present: [
+        { tag: 'd1:a', at: 7 },
+        { tag: 'd1:b', at: 9 },
+      ],
+      closed: ['d1:a'],
+      held: [],
+    })
   })
 })
 

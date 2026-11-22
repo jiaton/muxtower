@@ -8,6 +8,7 @@ import { usePanes } from '@/lib/layout-prefs'
 import { PanesLead } from './-panes'
 import { DaemonCard } from '@/features/daemons/components/daemon-card'
 import { Diagnostics } from '@/features/daemons/components/diagnostics'
+import { PushLogTable } from '@/features/push/components/push-log-table'
 import { VoiceCommandsSettings } from '@/features/voice/components/voice-commands-settings'
 import { LiveAudioSettings } from '@/features/voice/components/live-audio-settings'
 import { ListSettings } from '@/features/sessions/components/list-settings'
@@ -66,7 +67,7 @@ function DaemonsPage() {
             </EmptyState>
           )}
           <InstallApp />
-          <Diagnostics />
+          <Diagnostics extra={<PushLogTable />} />
           <ListSettings />
           <VoiceCommandsSettings />
           <LiveAudioSettings />

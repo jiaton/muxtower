@@ -110,6 +110,9 @@ export const look = {
   tag: `${box({ ground: 'muted', radius: 'md' })} ${text({ size: 'xs', tone: 'muted' })} px-1.5`,
   /** A table of counts, its cells ruled against each other (the team view's matrix, `matrixCell`). */
   matrix: 'w-full border-collapse text-center',
+  /** A log read row by row (Diagnostics' push log): small figures of one width, left-aligned, unruled.
+   *  Not `matrix`: records, not counts set against each other. */
+  logTable: `${text({ size: 'xs', numeric: true })} w-full border-collapse text-left`,
   /** A key on the keyboard, named where it does something (a menu item's shortcut). */
   keycap: `${box({ outline: 'default', radius: 'xs' })} ${text({ mono: true, size: 'xs', tone: 'muted' })} min-w-5 px-1 text-center`,
   /** Something waiting for an answer, in a conversation. */

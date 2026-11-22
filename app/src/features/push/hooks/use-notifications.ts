@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react'
 import type { Session } from '@/lib/api/types'
 import type { PushClickRecord } from '@/lib/push-click'
 import { takePushClicks } from '@/lib/push-click-store'
+import { onResume } from '@/lib/resume'
 import { appRecord, postClicks } from '../api/report-clicks'
 import { pushSupport } from '../api/use-push'
 
@@ -68,8 +69,10 @@ export function settledIn(
 }
 
 /** Closes this device's notifications of sessions that are settled: whenever what the app knows of its
- *  sessions changes (`version`), and when it comes back to the front. Only by news newer than a
- *  notification: a list from before it came cannot say it has been seen. */
+ *  sessions changes (`version`), and whenever it comes back (`onResume`: shown again, also from the
+ *  back-forward cache, focused, back online), as an installed app is mostly resumed, not started. Only by
+ *  news newer than a notification: a list from before it came cannot say it has been seen (the refetch on
+ *  resume brings one, and its `version` sweeps again). */
 export function useCloseSettledNotifications(settled: Settled, version: unknown) {
   const latest = useRef(settled)
   latest.current = settled
@@ -79,11 +82,7 @@ export function useCloseSettledNotifications(settled: Settled, version: unknown)
     return () => clearTimeout(timer)
   }, [version])
 
-  useEffect(() => {
-    const shown = () => void closeSettled(latest.current)
-    document.addEventListener('visibilitychange', shown)
-    return () => document.removeEventListener('visibilitychange', shown)
-  }, [])
+  useEffect(() => onResume(() => void closeSettled(latest.current)), [])
 }
 
 async function closeSettled(settled: Settled) {

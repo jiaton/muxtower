@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { alertText } from '@/lib/daemons/usage'
 import { WEB_LIMITS } from '@/lib/diagnostics'
 import { inputText, webAlerts } from '@/lib/diagnostics-alerts'
@@ -18,8 +19,9 @@ const age = (ms: number) => {
 /** What this page costs on this device: what the live streams bring, how long a terminal takes to draw,
  *  how fast it answers keys and taps (the slow ones: what and where), how much its main thread is blocked,
  *  and its size (elements, the JS heap where the browser tells) against when it had settled. What is over a
- *  limit is said here first; only the severe reaches the mark by the app's name (`WebUsageMark`). */
-export function Diagnostics() {
+ *  limit is said here first; only the severe reaches the mark by the app's name (`WebUsageMark`). Other
+ *  features add their own below (`extra`: the push log). */
+export function Diagnostics({ extra }: { extra?: ReactNode }) {
   const web = useWebUsage(2000)
   const alerts = webAlerts(web)
   const rows: [string, string][] = [
@@ -84,6 +86,7 @@ export function Diagnostics() {
           </div>
         ))}
       </dl>
+      {extra}
     </section>
   )
 }

@@ -110,3 +110,24 @@ def test_notifications_shown_before_a_restart_are_still_taken_away_after_it(tmp_
     assert "3 shown, none settled" in caplog.text
     after.clear_settled()
     assert caplog.text.count("3 shown, none settled") == 1  # the same decision again: not logged again
+
+
+def test_a_device_a_push_skipped_keeps_its_settled_notifications_to_clear() -> None:
+    """A finished turn goes only to devices that take finished turns; the settled sessions it names are
+    forgotten only for those. Another device still shows them, and its clearing push takes them away."""
+    sender = FakeSender()
+    directory = Directory(asking("a"), asking("c"), session(id="b", unread=True))
+    phone = Subscribe(**SUB)
+    desk = Subscribe(**{**SUB, "endpoint": "https://push.example/desk", "done": False})
+    subs = Subscriptions(phone, desk)
+    service = PushService(subs, sender, directory, "hub", lambda _: True)  # type: ignore[arg-type]
+    assert service.notify("a") == 2 and service.notify("c") == 2
+
+    directory.now["a"] = session(id="a")  # answered
+    assert service.notify_done("b") == 1  # the phone only, naming "a"
+    assert json.loads(sender.sent[-1][1])["settled"] == ["a"]
+
+    assert service.clear_settled() == 1  # the desk still shows "a" (and "c"): told now
+    endpoint, payload = sender.sent[-1]
+    clear = json.loads(payload)
+    assert endpoint == subs.subs[1].endpoint and clear["kind"] == "clear" and clear["settled"] == ["a"]

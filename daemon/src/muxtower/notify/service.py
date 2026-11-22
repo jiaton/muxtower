@@ -138,8 +138,8 @@ class PushService:
         self, view: Session, kind: Literal["attention", "done"], title: str, body: str,
         wants: Callable[[StoredSubscription], bool],
     ) -> int:  # fmt: skip
-        sent = 0
         settled = self._settled(view.id)
+        told: list[str] = []  # the subscriptions this push went to
         for sub in self._paired():
             if not wants(sub) or view.id in sub.muted:
                 continue
@@ -149,25 +149,30 @@ class PushService:
                 settled=settled,
             )  # fmt: skip
             if self.sender.send(sub, payload.model_dump_json()):
-                sent += 1
+                told.append(sub.id)
+                logger.info(
+                    "pushed %s of %s to %s (%s); settled named: %s", kind, view.id, sub.device or "?", sub.id[:8],
+                    ", ".join(settled) or "none",
+                )  # fmt: skip
             else:
                 self.repo.delete(sub.id)
-        if sent:
+        if told:
             with self._lock:
                 now = time.time()
-                for sub in self._paired():
-                    shown = self._shown.setdefault(sub.id, {})
+                # Only where it went: a device this push skipped (it takes no finished turns, or mutes this
+                # session) still shows the settled ones, and its clearing push (`clear_settled`) takes them.
+                for sub_id in told:
+                    shown = self._shown.setdefault(sub_id, {})
                     for session_id in settled:
                         shown.pop(session_id, None)
-                    if wants(sub) and view.id not in sub.muted:
-                        shown[view.id] = now
+                    shown[view.id] = now
                 for session_id in [*settled, view.id]:
                     self._notified.pop(session_id, None)
                 self._notified[view.id] = now  # newest last: the oldest is the first to go
                 while len(self._notified) > NOTIFIED_KEPT:
                     del self._notified[next(iter(self._notified))]
                 self._save()
-        return sent
+        return len(told)
 
     def _save(self) -> None:
         """Under the lock: what is remembered, written down (a subscription gone is forgotten with it)."""
@@ -206,8 +211,11 @@ class PushService:
                 continue
             settled = [sid for sid in shown if self._is_settled(sid)]
             names = ", ".join(settled)
+            # Which ones this daemon believes the device shows, to set against what the device logged
+            # (`push-clear` diagnostics): ids only.
+            believed = f"; shown: {', '.join(shown)}"
             if not settled:
-                self._log_clear(sub, f"{len(shown)} shown, none settled")
+                self._log_clear(sub, f"{len(shown)} shown, none settled{believed}")
                 continue
             if len(settled) == len(shown):
                 self._log_clear(sub, f"all {len(shown)} shown are settled ({names}): kept until a push or the app")
@@ -221,7 +229,7 @@ class PushService:
                 self.repo.delete(sub.id)
                 continue
             told += 1
-            self._log_clear(sub, f"sent: {len(settled)} of {len(shown)} shown settled ({names})")
+            self._log_clear(sub, f"sent: {len(settled)} of {len(shown)} shown settled ({names}){believed}")
             with self._lock:
                 for session_id in settled:
                     self._shown.get(sub.id, {}).pop(session_id, None)

@@ -6,7 +6,8 @@ import { clientsClaim } from 'workbox-core'
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { NOT_THE_APP } from './lib/sw-routes'
-import { alertsAgain, closeSessions, pushTag } from './lib/sw-notifications'
+import { alertsAgain, closeSessions, pushTag, type CloseOutcome } from './lib/sw-notifications'
+import { logPush, pushRecord, type PushLogEvent } from './lib/push-log'
 import { appBaseOf, openFromNotification } from './lib/push-click'
 import { savePushClick } from './lib/push-click-store'
 
@@ -36,12 +37,36 @@ interface PushPayload {
 /** The app's base path, as this registration's scope gives it. */
 const appBase = () => new URL(appBaseOf(self.registration.scope)).pathname
 
+const VERSION: string = import.meta.env.VITE_APP_VERSION ?? ''
+
+/** Keeps what was done (tags and times only, `lib/push-log.ts`) and tells an open app, which posts it to the
+ *  daemon. Never fails the event. */
+async function log(
+  event: PushLogEvent,
+  fields: { kind?: string | null; ref?: string | null; session?: string | null; tag?: string | null },
+  outcome?: CloseOutcome,
+  keepOne = false,
+) {
+  await logPush(pushRecord(event, { ...fields, scope: self.registration.scope, version: VERSION }, outcome, keepOne))
+  try {
+    for (const client of await self.clients.matchAll({ type: 'window' })) client.postMessage({ type: 'push-log' })
+  } catch {
+    // the app posts it at its next start all the same
+  }
+}
+
 self.addEventListener('push', (event) => {
   const data = event.data?.json() as PushPayload | undefined
   if (!data) return
   // Only notifications that no longer matter (read, answered or gone elsewhere): the daemon sends this
   // while the device shows another of its own, and none is closed if that one would be the last.
-  if (data.kind === 'clear') return event.waitUntil(closeSessions(self.registration, data.client_ref, data.settled ?? [], true))
+  if (data.kind === 'clear')
+    return event.waitUntil(
+      closeSessions(self.registration, data.client_ref, data.settled ?? [], true).then((outcome) =>
+        log('clear', { kind: data.kind, ref: data.client_ref }, outcome, true),
+      ),
+    )
+  const tag = pushTag(data.client_ref, data)
   const url = data.session_id ? `${appBase()}d/${encodeURIComponent(data.client_ref)}/s/${encodeURIComponent(data.session_id)}` : appBase()
   event.waitUntil(
     // One notification per session: a newer one replaces it (a finished turn replaces a handled
@@ -51,7 +76,7 @@ self.addEventListener('push', (event) => {
       closeSessions(self.registration, data.client_ref, data.settled ?? []),
       self.registration.showNotification(data.title, {
         body: data.body,
-        tag: pushTag(data.client_ref, data),
+        tag,
         renotify: alertsAgain(data.kind),
         requireInteraction: data.kind !== 'done',
         timestamp: Date.now(),
@@ -59,8 +84,15 @@ self.addEventListener('push', (event) => {
         icon: `${appBase()}icon-192.png`, // Android draws no SVG here
         badge: `${appBase()}badge-96.png`, // the status bar's monochrome mark; without it, the browser's
       } as NotificationOptions),
-    ]),
+    ]).then(([outcome]) =>
+      log('show', { kind: data.kind ?? null, ref: data.client_ref, session: data.session_id ?? null, tag }, outcome),
+    ),
   )
+})
+
+// Swiped away (or closed by the system): the daemon still counts it as shown until its session settles.
+self.addEventListener('notificationclose', (event) => {
+  event.waitUntil(log('dismiss', { tag: event.notification.tag }))
 })
 
 self.addEventListener('notificationclick', (event) => {
@@ -76,7 +108,7 @@ self.addEventListener('notificationclick', (event) => {
         openWindow: (to) => self.clients.openWindow(to),
       })
       console.info('[push-click]', JSON.stringify(record))
-      await savePushClick(record)
+      await Promise.all([savePushClick(record), log('tap', { tag: event.notification.tag })])
     })(),
   )
 })
