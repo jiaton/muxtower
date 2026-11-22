@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react'
+import { matches } from './shortcuts'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { SIDEBAR_QUERY, SPLIT_QUERY, useMediaQuery } from './use-media-query'
@@ -48,10 +49,11 @@ export const useLayoutPrefs = create<LayoutPrefs>()(
     (set) => ({
       layout: 'full',
       previous: 'full',
-      setLayout: (layout) =>
-        set((s) => (s.layout === layout ? s : layout === 'session' ? { layout, previous: s.layout } : { layout })),
+      setLayout: (layout) => set((s) => (s.layout === layout ? s : layout === 'session' ? { layout, previous: s.layout } : { layout })),
       toggleSessionOnly: () =>
-        set((s) => (s.layout === 'session' ? { layout: s.previous === 'session' ? 'full' : s.previous } : { layout: 'session', previous: s.layout })),
+        set((s) =>
+          s.layout === 'session' ? { layout: s.previous === 'session' ? 'full' : s.previous } : { layout: 'session', previous: s.layout },
+        ),
     }),
     {
       name: 'muxtower.layout',
@@ -113,7 +115,7 @@ export function useLayoutShortcut(enabled: boolean) {
   useEffect(() => {
     if (!enabled) return
     const onKey = (e: KeyboardEvent) => {
-      if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.code !== 'KeyF') return
+      if (!matches('layout', e)) return
       e.preventDefault()
       useLayoutPrefs.getState().toggleSessionOnly()
     }

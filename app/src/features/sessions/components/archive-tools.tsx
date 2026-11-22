@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { forgetHistory } from '@/lib/composer-history'
 import { Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Banner } from '@/components/ui/banner'
@@ -58,6 +59,7 @@ function useDeleteArchived() {
         if (!daemon.token || daemon.rejected) throw new Error(`${daemon.name} is not connected`)
         const client = createDaemonClient({ url: daemon.url, token: daemon.token })
         check(await client.DELETE('/v1/sessions/{session_id}', { params: { path: { session_id: session.id } } }))
+        forgetHistory(daemon.id, session.id)
       }
     },
     onSettled: (_, __, entries) =>

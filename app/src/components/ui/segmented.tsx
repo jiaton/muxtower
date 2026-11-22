@@ -5,6 +5,8 @@ import { focusRing } from './styles'
 export interface SegmentedOption<T extends string> {
   value: T
   label: ReactNode
+  /** Its tooltip (e.g. what it is, with its shortcut). */
+  title?: string
 }
 
 const ITEM = 'flex h-8 items-center justify-center gap-1 rounded-sm px-2 whitespace-nowrap'
@@ -63,6 +65,7 @@ export function Segmented<T extends string>({
           type="button"
           role="radio"
           aria-checked={option.value === value}
+          title={option.title}
           onClick={() => onChange(option.value)}
           className={cn(
             ITEM,

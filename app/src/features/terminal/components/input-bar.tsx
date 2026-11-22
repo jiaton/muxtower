@@ -13,6 +13,7 @@ import { useAttachments } from '../hooks/use-attachments'
 import { useFiles } from '../hooks/use-files'
 import { useComposerPanel, usePanelSwipe } from '../hooks/use-composer-panel'
 import { useGuardedKeys } from '../hooks/use-guarded-keys'
+import { useComposerKeys } from '../hooks/use-composer-keys'
 import { base64, imagesIn } from '../images'
 import { withQuotes, type Quote } from '../quotes'
 import { draftKey as keyOf, useDrafts } from '../store'
@@ -102,7 +103,8 @@ export function InputBar({
   const replied = lastReply && lastReply.n > shownAt.current ? lastReply : undefined
   // Only quotes, nothing written: a first Enter does not send them, it goes on to the line to write
   // (`armed`); a second one sends them as they are. Writing anything, or quoting more, starts over.
-  const quoteOnly = quotes.length > 0 && !draft.trim() && quotes.every((q) => !q.reply.trim()) && !pictures.items.length && !files.items.length
+  const quoteOnly =
+    quotes.length > 0 && !draft.trim() && quotes.every((q) => !q.reply.trim()) && !pictures.items.length && !files.items.length
   const [armed, setArmed] = useState(false)
   useEffect(() => setArmed(false), [message])
   const filled = useDrafts((s) => s.filled[draftKey] ?? 0)
@@ -213,6 +215,7 @@ export function InputBar({
   }
 
   const mentions = useTokenMenu(mention, textarea, draft, setText)
+  const editing = useComposerKeys(textarea, draftKey, draft, setText) // Ctrl+U, ↑/↓ through what was sent
   // Words written in from outside (Live mode): the textarea's border glows a moment, in place of an echo.
   const landed = useDrafts((s) => s.landed[draftKey] ?? 0)
   const [glow, setGlow] = useState(false)
@@ -273,6 +276,7 @@ export function InputBar({
 
   const keyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (mentions.onKeyDown(e)) return // the mention menu's: Up/Down, Enter/Tab to insert, Esc
+    if (editing.onKeyDown(e)) return
     const command = MAC ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey
     if (e.key === 'Enter' && command && !e.shiftKey && !e.altKey && keySends && takeRef.current()) {
       e.preventDefault()
@@ -292,6 +296,7 @@ export function InputBar({
     }
     if (!touch) {
       e.preventDefault()
+      editing.recordSend()
       submit()
     }
   }
@@ -339,6 +344,7 @@ export function InputBar({
           onSubmit={(e) => {
             e.preventDefault()
             if (takeRef.current()) return // the box empty: Send takes the agent's suggestion
+            editing.recordSend()
             submit()
           }}
         >

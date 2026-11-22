@@ -3,6 +3,7 @@ import { check, unwrap } from '@/lib/api/client'
 import type { Session } from '@/lib/api/types'
 import { useDaemonClient } from '@/lib/daemons/use-daemon-client'
 import { daemonKey } from '@/lib/query'
+import { forgetHistory } from '@/lib/composer-history'
 
 function usePatchCache(daemonId: string) {
   const queryClient = useQueryClient()
@@ -54,8 +55,10 @@ export function useTerminateSession(daemonId: string, sessionId: string) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async () => check(await client!.DELETE('/v1/sessions/{session_id}', { params: { path: { session_id: sessionId } } })),
-    onSuccess: () =>
-      queryClient.setQueryData<Session[]>(daemonKey(daemonId, 'sessions'), (list) => list?.filter((s) => s.id !== sessionId)),
+    onSuccess: () => {
+      forgetHistory(daemonId, sessionId) // its messages sent from this browser's box go with it
+      queryClient.setQueryData<Session[]>(daemonKey(daemonId, 'sessions'), (list) => list?.filter((s) => s.id !== sessionId))
+    },
   })
 }
 

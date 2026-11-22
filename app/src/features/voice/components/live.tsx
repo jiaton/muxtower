@@ -1,4 +1,5 @@
 import { AudioLines, BookOpenText, Ear, Pause, Play, Square, Volume2, VolumeX, X } from 'lucide-react'
+import { keysOf, matches } from '@/lib/shortcuts'
 import { useEffect, useState } from 'react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
@@ -20,7 +21,7 @@ import { keepFocus } from '@/components/ui/gesture'
 
 const NOTE_KEY = 'muxtower.live.phone-note'
 const FEEDBACK_MS = 2000 // how long what became of the last thing heard stays in place of the hint
-const SHORTCUT = 'Alt+L'
+const SHORTCUT = keysOf('live')
 /** Sends while Live is on, from anywhere on the page (`sendKey`). */
 export { SEND_KEYS }
 
@@ -47,7 +48,7 @@ export function LiveButton() {
   const commandsOnly = phase === 'paused'
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!e.altKey || e.ctrlKey || e.metaKey || e.code !== 'KeyL') return
+      if (!matches('live', e)) return
       e.preventDefault() // not the character Option+L types on a Mac
       if (useLive.getState().phase === 'paused') resumeLive()
       else void toggleLive()

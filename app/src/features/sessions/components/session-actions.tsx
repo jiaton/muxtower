@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import type { Session } from '@/lib/api/types'
+import { MENU_KEYS } from '@/lib/shortcuts'
 import { useHideSession, useMarkRead, usePinSession } from '../api/use-session-marks'
 import { useRecoverSessions } from '../api/use-recovery'
 import { presetForSession } from '../model/new-here'
@@ -44,18 +45,7 @@ export interface SessionAction {
 
 /** The key that does an action while a menu of them is open (`DropdownMenuItem shortcut`): mnemonic, one
  *  each. */
-export const ACTION_KEYS: Partial<Record<SessionAction['id'], string>> = {
-  read: 'u', // unread / read
-  pin: 'p',
-  new: 'n',
-  rename: 'r',
-  place: 'm', // move
-  team: 't',
-  hide: 'h',
-  archive: 'a',
-  interrupt: 's', // stop what it is doing
-  delete: 'x', // and Delete
-}
+export const ACTION_KEYS: Partial<Record<SessionAction['id'], string>> = MENU_KEYS // the registry's
 
 /** What the owner can do to a session from anywhere it is shown (a list row's swipe tray or menu, the
  *  session's own menu): mark read or unread, pin or unpin, rename, move (say where it runs), hide or show, interrupt,

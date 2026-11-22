@@ -1,4 +1,5 @@
 import { useMatch, useNavigate } from '@tanstack/react-router'
+import { chordMatches, paletteKeys, SHORTCUTS } from '@/lib/shortcuts'
 import { useEffect, useMemo } from 'react'
 import { CommandPalette, type PaletteItem, type PaletteSection } from '@/components/ui/command-palette'
 import { ink, look } from '@/components/ui/intents'
@@ -21,17 +22,17 @@ import type { Session } from '@/lib/api/types'
 import { matchCommands, paletteSessions, type Command } from '../model/palette'
 import { useTextSearch, type SearchHit } from '../api/use-text-search'
 import { useJump } from '@/features/conversation/jump'
-import { usePalette, useRecentSessions } from '../store'
+import { usePalette, useRecentSessions, useShortcutSheet } from '../store'
+import { ShortcutSheet } from './shortcut-sheet'
 
-const MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)
-export const PALETTE_KEYS = MAC ? '⌘+K' : 'Ctrl+K'
+export const PALETTE_KEYS = paletteKeys('palette')
 
 const editable = (el: Element | null) => el instanceof HTMLElement && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName))
 
 /** Cmd+K (Ctrl+K off a Mac) anywhere opens the palette, or closes it; "/" too, outside a text field and a
  *  dialog. Cmd+F stays the browser's find. */
 export function paletteKey(e: KeyboardEvent): boolean {
-  const k = e.code === 'KeyK' && (MAC ? e.metaKey && !e.ctrlKey : e.ctrlKey && !e.metaKey) && !e.shiftKey && !e.altKey
+  const k = chordMatches(SHORTCUTS.palette.keys[0], e)
   const slash =
     e.key === '/' &&
     !e.metaKey &&
@@ -63,11 +64,17 @@ export function PaletteHost() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
-  if (!current) return <Palette entries={entries} />
   return (
-    <SessionActions daemonId={current.daemon.id} session={current.session} open>
-      {(actions) => <Palette entries={entries} current={current} actions={actions} />}
-    </SessionActions>
+    <>
+      <ShortcutSheet />
+      {current ? (
+        <SessionActions daemonId={current.daemon.id} session={current.session} open>
+          {(actions) => <Palette entries={entries} current={current} actions={actions} />}
+        </SessionActions>
+      ) : (
+        <Palette entries={entries} />
+      )}
+    </>
   )
 }
 
@@ -76,6 +83,7 @@ function Palette({ entries, current, actions = [] }: { entries: SessionEntry[]; 
   const recent = useRecentSessions((s) => s.keys)
   const navigate = useNavigate()
   const startNew = useNewSessionRequest((s) => s.start)
+  const openSheet = useShortcutSheet((s) => s.setOpen)
   const layout = useLayoutPrefs((s) => s.layout)
   const setLayout = useLayoutPrefs((s) => s.setLayout)
   const toggleSessionOnly = useLayoutPrefs((s) => s.toggleSessionOnly)
@@ -96,13 +104,18 @@ function Palette({ entries, current, actions = [] }: { entries: SessionEntry[]; 
   if (current) {
     const here = presetForSession(current.daemon.id, current.session, nodes)
     if (here) commands.push({ id: 'new-here', label: 'New session here', run: () => startNew(here) })
-    commands.push({ id: 'live', label: 'Toggle Live', keys: 'Alt+L', run: () => void toggleLive() })
+    commands.push({ id: 'live', label: 'Toggle Live', keys: paletteKeys('live'), run: () => void toggleLive() })
     if (attachFile) commands.push({ id: 'attach', label: 'Attach a file…', run: attachFile })
   }
   // The layouts this screen can show (none on a phone), and Alt+F's: the session only, or back.
   if (layouts.length) {
     const back = layout === 'session'
-    commands.push({ id: 'session-only', label: back ? 'Leave Session only' : 'Session only', keys: 'Alt+F', run: toggleSessionOnly })
+    commands.push({
+      id: 'session-only',
+      label: back ? 'Leave Session only' : 'Session only',
+      keys: paletteKeys('layout'),
+      run: toggleSessionOnly,
+    })
     for (const l of layouts) commands.push({ id: `layout-${l}`, label: `Layout: ${LAYOUT_LABEL[l]}`, run: () => setLayout(l) })
   }
   const action = (id: SessionAction['id'], label: (a: SessionAction) => string) => {
@@ -120,6 +133,7 @@ function Palette({ entries, current, actions = [] }: { entries: SessionEntry[]; 
       commands.push({ id: 'view', label: `Switch to the ${to}`, run: () => setView(current.key, to) })
     }
   }
+  commands.push({ id: 'shortcuts', label: 'Keyboard shortcuts', keys: paletteKeys('cheatSheet'), run: () => openSheet(true) })
   commands.push({ id: 'daemons', label: 'Open Daemons', run: () => void navigate({ to: '/daemons' }) })
   const settingsOf = current?.daemon.id ?? hub?.id
   if (settingsOf)

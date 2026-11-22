@@ -25,3 +25,9 @@ export const useRecentSessions = create<{ keys: string[]; note: (key: string) =>
     { name: 'muxtower.recent-sessions', version: 1, merge: mergeWithDefaults },
   ),
 )
+
+/** The keyboard shortcuts sheet ("?", or ⌘K's "Keyboard shortcuts"): open or not. Not kept. */
+export const useShortcutSheet = create<{ open: boolean; setOpen: (open: boolean) => void }>()((set) => ({
+  open: false,
+  setOpen: (open) => set({ open }),
+}))

@@ -46,6 +46,8 @@ import { useDictation } from '@/features/voice/hooks/use-dictation'
 import { entryKey } from '@/features/sessions/model/facets'
 import type { Session } from '@/lib/api/types'
 import { useOutgoing } from '@/lib/use-outbox'
+import { withKeys } from '@/lib/shortcuts'
+import { useShortcut } from '@/lib/use-shortcut'
 import { directPlace, useFallback } from '@/lib/daemons/fallback'
 import { useDaemonsStore } from '@/lib/daemons/store'
 import { FooterBar } from '@/components/ui/bar'
@@ -149,6 +151,8 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
   const pullDrawer = useLayoutDrawer((s) => s.pull) // a swipe right on the first page: the panes the layout hides
   const { listInDrawer } = usePanes(true)
   const both = screen && hasConversation
+  // Alt+V: the other view (as the header's switch).
+  useShortcut('view', () => setView(view === 'conversation' ? 'terminal' : 'conversation'), both)
   useSeenWhileOpen(daemonId, session)
   const views = useRef<HTMLDivElement>(null)
   const addQuote = useDrafts((s) => s.addQuote)
@@ -218,8 +222,16 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
                 value={view}
                 onChange={setView}
                 options={[
-                  { value: 'terminal', label: <SquareTerminal aria-label="Terminal" className="size-4" /> },
-                  { value: 'conversation', label: <MessagesSquare aria-label="Conversation" className="size-4" /> },
+                  {
+                    value: 'terminal',
+                    label: <SquareTerminal aria-label="Terminal" className="size-4" />,
+                    title: withKeys('Terminal', 'view'),
+                  },
+                  {
+                    value: 'conversation',
+                    label: <MessagesSquare aria-label="Conversation" className="size-4" />,
+                    title: withKeys('Conversation', 'view'),
+                  },
                 ]}
               />
             ) : null}
