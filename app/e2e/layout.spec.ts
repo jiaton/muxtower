@@ -125,16 +125,20 @@ test('desktop 1440: three layouts, panel-left with the needs-you count, one draw
   expect(Math.abs(navBox!.y - listBox!.y)).toBeLessThan(80)
   await expect(open.getByRole('radio', { name: 'Session only', exact: true })).toHaveAttribute('aria-checked', 'true')
 
+  // The drawer opened: clicked again only while it is not (a click while it still slid shut was lost, CI).
+  const openDrawer = () =>
+    expect(async () => {
+      if ((await page.locator('[aria-modal="true"]').count()) === 0) await showSessions.click()
+      await expect(page.locator('[aria-modal="true"]')).toHaveCount(1, { timeout: 2000 })
+    }).toPass({ timeout: 15_000 })
   // Closes on a tap outside, Esc, and a session picked (staying in Session only).
   await page.mouse.click(1400, 450)
   await expect(page.getByRole('dialog', { name: 'Sessions' }).and(page.locator('[aria-modal="true"]'))).toHaveCount(0)
-  await showSessions.click()
   // Open before Esc: an Esc ahead of the drawer did nothing, and the next click then closed it (CI).
-  await expect(page.locator('[aria-modal="true"]')).toHaveCount(1)
+  await openDrawer()
   await page.keyboard.press('Escape')
   await expect(page.locator('[aria-modal="true"]')).toHaveCount(0)
-  await showSessions.click()
-  await expect(page.locator('[aria-modal="true"]')).toHaveCount(1)
+  await openDrawer()
   // Settled before a row is picked (it slides in): a CI runner under load once saw the row move for 30 s.
   await expect(open).toHaveCSS('translate', 'none')
   const row = open.locator('a[data-row-link]:not([aria-current])').first()

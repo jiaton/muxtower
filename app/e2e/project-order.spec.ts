@@ -68,7 +68,7 @@ const lifted = (page: Page) => page.evaluate(() => /Picked up/.test(document.bod
 
 test('the demo’s projects in the owner’s order, not by name; a PM and a lead first in theirs', async ({ browser }) => {
   const page = await start(browser, 1440, 900)
-  expect(await projects(page)).toEqual(['acme/web-app', 'acme/shop-api', 'acme/infra'])
+  await expect.poll(() => projects(page)).toEqual(['acme/web-app', 'acme/shop-api', 'acme/infra'])
   expect(await sidebarProjects(page)).toEqual(['acme/web-app', 'acme/shop-api', 'acme/infra']) // the one order
   const rows = list(page).getByRole('region', { name: 'acme/shop-api', exact: true }).locator('[data-row]')
   await expect(rows.first()).toHaveAttribute('data-row', /\/pm$/)
@@ -141,7 +141,7 @@ test('a mouse wheel over a header scrolls the list; trackpad deltas sideways lif
   expect(await box.evaluate((el) => el.scrollLeft)).toBe(0)
   await expect.poll(() => page.evaluate(() => (window as unknown as { wheels: boolean[] }).wheels)).toEqual([false, false, false, false]) // none taken
   expect(await lifted(page)).toBe(false)
-  expect(await projects(page)).toEqual(['acme/web-app', 'acme/shop-api', 'acme/infra'])
+  await expect.poll(() => projects(page)).toEqual(['acme/web-app', 'acme/shop-api', 'acme/infra']) // as the list settles
 })
 
 /** A finger: down at (x, y), moved to (x2, y2) in steps, held `holdMs` first, then let go (CDP touch events). */
@@ -164,7 +164,7 @@ test('phone: a finger that scrolls from a header scrolls the list and lifts noth
   await finger(cdp, at.x + 150, at.y + at.height / 2, at.x + 150, at.y + at.height / 2 - 300, 0, 12)
   await expect.poll(() => scrollTop(box)).toBeGreaterThan(100)
   expect(await lifted(page)).toBe(false)
-  expect(await projects(page)).toEqual(['acme/web-app', 'acme/shop-api', 'acme/infra'])
+  await expect.poll(() => projects(page)).toEqual(['acme/web-app', 'acme/shop-api', 'acme/infra'])
 })
 
 test('phone: a finger held on a header picks the project up and puts it where it is let go', async ({ browser }) => {
