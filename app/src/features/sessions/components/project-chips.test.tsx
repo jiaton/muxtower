@@ -281,3 +281,29 @@ it('slides the others aside as a chip moves, unless the reader asked for less mo
   expect(still.transition).toBe('')
   vi.unstubAllGlobals()
 })
+
+it('Edit: a held project no session has shows "No sessions"; Remove takes it out of the group and saves it', async () => {
+  const saved: ChipGroup[][] = []
+  server.use(
+    http.put(`${DAEMON_URL}/v1/chip-groups`, async ({ request }) => {
+      const body = (await request.json()) as { groups: ChipGroup[] }
+      saved.push(body.groups)
+      return HttpResponse.json(body)
+    }),
+  )
+  show(entries, [{ id: 'f', name: 'Focus', projects: ['b', 'acme/old'], sessions: [] }, ...three])
+  fireEvent.contextMenu(await screen.findByRole('link', { name: /Focus/ }))
+  fireEvent.click(await screen.findByRole('menuitem', { name: 'Edit' }))
+  const dialog = await screen.findByRole('dialog')
+  expect(within(dialog).getByText('No sessions')).toBeInTheDocument()
+  fireEvent.click(within(dialog).getByRole('button', { name: 'Remove acme/old from the group' }))
+  await waitFor(() => expect(saved).toHaveLength(1))
+  expect(saved[0].map((g) => [g.id, g.projects])).toEqual([
+    ['f', ['b']],
+    ['one', ['a']],
+    ['two', ['b']],
+    ['three', ['c']],
+  ])
+  expect(within(dialog).queryByText('acme/old')).toBeNull() // gone from the dialog, which stays open
+  expect(within(dialog).getByRole('textbox', { name: 'Group name' })).toHaveValue('Focus')
+})

@@ -3,10 +3,13 @@
  * besides (a fixed list: ticking each session of a project one by one never turns into the project). A
  * project shows "all" when held whole, "some" when the group holds sessions of it but not it, else none.
  * Sessions the group held that are no longer known (archived, gone) are not shown, and not kept on save.
+ * A project the group holds that no session has, live or archived, is `gone`: the dialog offers to remove it
+ * (a rename or a typo leaves one); one only archived sessions have is still a project. A project whose every
+ * session is placed only by its folder (`projectGroupOf` none) is a `folder`, said as one.
  */
 import type { Session } from '@/lib/api/types'
 import { MAX_PROJECTS, MAX_ROLES, MAX_SESSIONS, OTHER, projectIn, projectLabel, type ChipGroup, type ChipMembers } from './chip-groups'
-import { placeOf, roleKeyOf, roleLabels, statusOf, type SessionEntry } from './facets'
+import { placeOf, projectGroupOf, roleKeyOf, roleLabels, statusOf, type SessionEntry } from './facets'
 import { workspacesOf } from './workspaces'
 
 export type PickState = 'all' | 'some' | 'none'
@@ -19,6 +22,12 @@ export interface ShownProject {
 
 export interface Picks {
   sessionsOf: (project: string) => SessionEntry[]
+  /** Held by the group, and no session has it, live or archived. */
+  gone: (project: string) => boolean
+  /** A folder's name, not a project: every session of it (archived ones too) is placed only by its folder. */
+  folder: (project: string) => boolean
+  /** Without it: no longer listed or held (Remove, saved at once). */
+  drop: (project: string) => Picks
   state: (project: string) => PickState
   holds: (project: string, sessionId: string) => boolean
   canTake: (projectOrSession: string) => boolean
@@ -38,12 +47,15 @@ const recent = (a: SessionEntry, b: SessionEntry) => Date.parse(b.session.update
 
 /** The projects of the known (not archived) sessions, those needing the owner first, then by activity, then
  *  the ones the group holds that no session has now; Other last. */
-function projectsOf(entries: SessionEntry[], held: string[]): { order: string[]; by: Map<string, SessionEntry[]> } {
+function projectsOf(entries: SessionEntry[], held: string[]): { order: string[]; by: Map<string, SessionEntry[]>; kinds: Kinds } {
   const by = new Map<string, SessionEntry[]>()
+  const kinds: Kinds = { known: new Set(), projects: new Set() }
   const workspaces = workspacesOf(entries)
   for (const entry of entries) {
-    if (placeOf(entry.session) === 'archived') continue
     const project = projectIn(entry, workspaces)
+    kinds.known.add(project)
+    if (projectGroupOf(entry.session) !== null) kinds.projects.add(project)
+    if (placeOf(entry.session) === 'archived') continue
     by.set(project, [...(by.get(project) ?? []), entry])
   }
   for (const list of by.values()) list.sort(recent)
@@ -51,7 +63,14 @@ function projectsOf(entries: SessionEntry[], held: string[]): { order: string[];
   const latest = (p: string) => Date.parse(by.get(p)![0].session.updated_at) || 0
   const known = [...by.keys()].filter((p) => p !== OTHER).sort((a, b) => Number(needs(b)) - Number(needs(a)) || latest(b) - latest(a))
   const kept = held.filter((p) => p !== OTHER && !by.has(p))
-  return { order: [...known, ...kept, OTHER], by }
+  return { order: [...known, ...kept, OTHER], by, kinds }
+}
+
+/** What every session says of a project name, archived ones too: that some session has it (`known`), and
+ *  that some has it as a project, not only as its folder's name (`projects`). */
+interface Kinds {
+  known: Set<string>
+  projects: Set<string>
 }
 
 /** Every role key the known sessions have, the most held first, then those `held` that none has now. */
@@ -70,12 +89,13 @@ function rolesOf(entries: SessionEntry[], held: string[]): Picks['roles'] {
 }
 
 export function groupPicks(entries: SessionEntry[], group?: ChipGroup): Picks {
-  const { order, by } = projectsOf(entries, group?.projects ?? [])
+  const { order, by, kinds } = projectsOf(entries, group?.projects ?? [])
   const known = new Set([...by.values()].flat().map((e) => e.session.id))
   const roles = rolesOf(entries, group?.roles ?? [])
   return picks(
     order,
     by,
+    kinds,
     roles,
     new Set(group?.projects ?? []),
     new Set((group?.sessions ?? []).filter((id) => known.has(id))),
@@ -86,6 +106,7 @@ export function groupPicks(entries: SessionEntry[], group?: ChipGroup): Picks {
 function picks(
   order: string[],
   by: Map<string, SessionEntry[]>,
+  kinds: Kinds,
   roleList: Picks['roles'],
   projects: Set<string>,
   sessions: Set<string>,
@@ -93,7 +114,7 @@ function picks(
 ): Picks {
   const sessionsOf = (project: string) => by.get(project) ?? []
   const idsOf = (project: string) => sessionsOf(project).map((e) => e.session.id)
-  const next = (p: Set<string>, s: Set<string>, r = roles) => picks(order, by, roleList, p, s, r)
+  const next = (p: Set<string>, s: Set<string>, r = roles) => picks(order, by, kinds, roleList, p, s, r)
   const self: Picks = {
     roles: roleList,
     hasRole: (key) => roles.has(key),
@@ -104,6 +125,21 @@ function picks(
       return next(projects, sessions, r)
     },
     sessionsOf,
+    gone: (project) => project !== OTHER && projects.has(project) && !kinds.known.has(project),
+    folder: (project) => project !== OTHER && kinds.known.has(project) && !kinds.projects.has(project),
+    drop: (project) => {
+      const p = new Set(projects)
+      p.delete(project)
+      return picks(
+        order.filter((x) => x !== project),
+        by,
+        kinds,
+        roleList,
+        p,
+        sessions,
+        roles,
+      )
+    },
     state: (project) => (projects.has(project) ? 'all' : idsOf(project).some((id) => sessions.has(id)) ? 'some' : 'none'),
     holds: (project, id) => projects.has(project) || sessions.has(id),
     canTake: (x) => (order.includes(x) ? projects.has(x) || projects.size < MAX_PROJECTS : sessions.size < MAX_SESSIONS),

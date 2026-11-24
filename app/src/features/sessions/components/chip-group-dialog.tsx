@@ -19,13 +19,17 @@ const TONE: Record<string, 'warn' | 'error' | 'ok'> = { needs: 'warn', error: 'e
 /** A group of projects, new (`group` undefined) or to edit: a name, the roles it holds in every project
  *  (every project's PM), then each project, ticked whole (its
  *  sessions to come too) or opened to tick single sessions of it (a fixed list). The search finds a
- *  session by its name and opens its project: where a session falls is what the owner may not know. */
+ *  session by its name and opens its project: where a session falls is what the owner may not know. A project
+ *  the group holds that no session has, live or archived, shows greyed, "No sessions", with Remove: out of the
+ *  group and saved at once (`onRemove`). A folder's name is said as one ("web/ folder", as the list's
+ *  folder groups), never taken for a project. */
 export function ChipGroupDialog({
   group,
   entries,
   error,
   pending,
   onSave,
+  onRemove,
   onClose,
 }: {
   group?: ChipGroup
@@ -33,6 +37,8 @@ export function ChipGroupDialog({
   error?: Error | null
   pending?: boolean
   onSave: (name: string, members: ChipMembers) => void
+  /** Takes a project no session has out of the group, as stored, and saves it. */
+  onRemove?: (project: string) => void
   onClose: () => void
 }) {
   const [name, setName] = useState(group?.name ?? '')
@@ -88,6 +94,7 @@ export function ChipGroupDialog({
           <div role="group" aria-label="Projects" className="flex max-h-80 flex-col overflow-y-auto">
             {shown.map(({ project, sessions, expanded }) => {
               const state = picks.state(project)
+              const gone = picks.gone(project)
               return (
                 <div key={project} className="flex flex-col">
                   <div className={`${look.hoverRow} flex items-center gap-1`}>
@@ -101,7 +108,7 @@ export function ChipGroupDialog({
                     >
                       <Chevron open={expanded} />
                     </Button>
-                    <label className={`${ink.body} flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-1`}>
+                    <label className={`${gone ? ink.hint : ink.body} flex min-w-0 flex-1 items-center gap-2 py-1.5 pr-1`}>
                       <Checkbox
                         checked={state === 'all'}
                         aria-checked={state === 'some' ? 'mixed' : state === 'all'}
@@ -111,9 +118,26 @@ export function ChipGroupDialog({
                         disabled={!picks.canTake(project)}
                         onChange={() => setPicks(picks.toggleProject(project))}
                       />
-                      <span className="min-w-0 flex-1 truncate">{projectLabel(project)}</span>
-                      <span className={`${ink.count} ${ink.meta}`}>{picks.sessionsOf(project).length}</span>
+                      <ProjectName project={project} folder={picks.folder(project)} />
+                      {gone ? (
+                        <span className={`${ink.meta} shrink-0`}>No sessions</span>
+                      ) : (
+                        <span className={`${ink.count} ${ink.meta}`}>{picks.sessionsOf(project).length}</span>
+                      )}
                     </label>
+                    {gone && onRemove ? (
+                      <Button
+                        variant="ghost"
+                        size="xs"
+                        aria-label={`Remove ${projectLabel(project)} from the group`}
+                        onClick={() => {
+                          setPicks(picks.drop(project))
+                          onRemove(project)
+                        }}
+                      >
+                        Remove
+                      </Button>
+                    ) : null}
                   </div>
                   {expanded
                     ? sessions.map(({ session, daemon }) => (
@@ -141,5 +165,16 @@ export function ChipGroupDialog({
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** A project's name; a folder's with a trailing slash and a quiet "folder" after it, as the list says it. */
+function ProjectName({ project, folder }: { project: string; folder: boolean }) {
+  if (!folder) return <span className="min-w-0 flex-1 truncate">{projectLabel(project)}</span>
+  return (
+    <span className="flex min-w-0 flex-1 items-center gap-1.5">
+      <span className="min-w-0 truncate">{project}/</span>
+      <span className={`${ink.aside} shrink-0`}>folder</span>
+    </span>
   )
 }

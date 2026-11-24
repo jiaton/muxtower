@@ -281,6 +281,13 @@ export function ProjectChips({
           error={save.error}
           pending={save.isPending}
           onClose={() => setEditing(null)}
+          onRemove={(project) => {
+            if (editing === 'new') return
+            const stored = groups.find((g) => g.id === editing.id) ?? editing
+            const kept = { ...stored, projects: stored.projects.filter((p) => p !== project) }
+            setEditing({ ...editing, projects: editing.projects.filter((p) => p !== project) })
+            saveAll(groups.map((g) => (g.id === kept.id ? kept : g)))
+          }}
           onSave={(name, members) => {
             const next =
               editing === 'new'
