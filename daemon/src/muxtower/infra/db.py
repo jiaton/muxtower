@@ -18,6 +18,7 @@ class Database:
         self.path = path
         self._lock = threading.RLock()
         self._conn: sqlite3.Connection | None = None
+        self._depth = 0  # transactions open (`transaction`), on the thread holding the lock
 
     def _connection(self) -> sqlite3.Connection:
         if self._conn is None:
@@ -32,11 +33,50 @@ class Database:
 
     @contextmanager
     def connect(self) -> Iterator[sqlite3.Connection]:
-        """A transaction on the shared connection: commits on success, rolls back on error."""
+        """A transaction on the shared connection: commits on success, rolls back on error. Inside
+        `transaction` it is a savepoint of that one: its error rolls back its own writes, and the outer
+        transaction commits or rolls back everything."""
         with self._lock:
             conn = self._connection()
+            if self._depth:
+                with self._savepoint(conn):
+                    yield conn
+                return
             with conn:
                 yield conn
+
+    @contextmanager
+    def transaction(self) -> Iterator[sqlite3.Connection]:
+        """One transaction for several stores: every `connect` inside it (on this thread, which holds the
+        lock throughout) joins it, and all of it commits at the end, or none of it on an error."""
+        with self._lock:
+            conn = self._connection()
+            if self._depth:
+                with self._savepoint(conn):
+                    yield conn
+                return
+            with conn:
+                conn.execute("BEGIN IMMEDIATE")
+                self._depth = 1
+                try:
+                    yield conn
+                finally:
+                    self._depth = 0
+
+    @contextmanager
+    def _savepoint(self, conn: sqlite3.Connection) -> Iterator[None]:
+        self._depth += 1
+        conn.execute("SAVEPOINT nested")  # the same name nests: each refers to the latest open one
+        try:
+            yield
+        except BaseException:
+            conn.execute("ROLLBACK TO nested")
+            conn.execute("RELEASE nested")
+            raise
+        else:
+            conn.execute("RELEASE nested")
+        finally:
+            self._depth -= 1
 
     def close(self) -> None:
         with self._lock:

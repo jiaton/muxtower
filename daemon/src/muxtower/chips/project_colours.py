@@ -90,6 +90,21 @@ class ProjectColourStore:
     def see_sessions(self, sessions: Iterable[Session]) -> list[str]:
         return self.see(p for s in sessions if (p := project_of(s)))
 
+    def rename_project(self, old: str, new: str) -> bool:
+        """A project renamed (`teams/renaming.py`): its hue moves with the name. Merged into a project that
+        has a hue already, that one's stays and the old name's row goes. Whether it changed. Takes no lock of
+        its own (it runs inside the rename's transaction, which holds the database's: `see` takes this
+        store's lock first); `old` stays known, so a listing made before the rename gives it no hue again."""
+        with self.db.connect() as conn:
+            if conn.execute("SELECT 1 FROM project_colours WHERE project = ?", (old,)).fetchone() is None:
+                return False
+            if conn.execute("SELECT 1 FROM project_colours WHERE project = ?", (new,)).fetchone() is None:
+                conn.execute("UPDATE project_colours SET project = ? WHERE project = ?", (new, old))
+            else:
+                conn.execute("DELETE FROM project_colours WHERE project = ?", (old,))
+        self._known.add(new)
+        return True
+
     def choose(self, chosen: ProjectColour) -> ProjectColours:
         """The owner's pick for a project, kept from now on (also for one not seen yet)."""
         if not 1 <= chosen.hue <= HUES:

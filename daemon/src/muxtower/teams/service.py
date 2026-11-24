@@ -16,6 +16,7 @@ from muxtower.sessions.interrupted import agent_id_of
 from muxtower.sessions.models import Session
 from muxtower.teams.checkout import CheckoutCache, checkout
 from muxtower.teams.ports import Checkout, TeamRecord, TeamRepository
+from muxtower.teams.renaming import ProjectRenames
 
 ROLE_CHARS = 200
 NOTE_CHARS = 300
@@ -73,6 +74,7 @@ class TeamService:
         self.transcript_of = transcript_of or (lambda _: None)
         self.taken_over: Callable[[str, str], None] = lambda old, new: None  # its names follow (`names.py`)
         self.changed: Callable[[], None] = lambda: None  # a role or project changed (the lists show them)
+        self.renames = ProjectRenames()  # what else a rename reaches, in its transaction (`renaming.py`)
         self._lock = threading.Lock()
         self._records = repo.load()
         directory.team = self.kept
@@ -173,16 +175,26 @@ class TeamService:
                 record = self._records.get(session.id) or TeamRecord(session.id)
             self._save(replace(record, project=name, project_auto=False, project_source=None))
             return self.member(session), 1
-        moved = [m for m in self.members() if m.project == current.project]
-        for m in moved:  # kept for each: one only worked out from its folder is kept from now on too
+        old = current.project
+        moved = [m for m in self.members() if m.project == old]
+        with self._lock:  # kept for each: one only worked out from its folder is kept from now on too
+            records = [
+                replace(self._records.get(m.session.id) or TeamRecord(m.session.id), project=name,
+                        project_auto=False, project_source=None)
+                for m in moved
+            ]  # fmt: skip
+        with self.renames.transaction():  # one commit: the sessions and everything kept by the name
+            for record in records:
+                self.repo.save(record)
+            self.repo.rename_project(old, name)  # also the archived ones
+            topics = self.renames.rename(old, name)
             with self._lock:
-                record = self._records.get(m.session.id) or TeamRecord(m.session.id)
-            self._save(replace(record, project=name, project_auto=False, project_source=None))
-        self.repo.rename_project(current.project, name)  # also the archived ones
-        with self._lock:
-            for record in self._records.values():
-                if record.project == current.project:
-                    record.project, record.project_auto = name, False
+                self._records.update({r.session_id: r for r in records})
+                for record in self._records.values():
+                    if record.project == old:
+                        record.project, record.project_auto, record.project_source = name, False, None
+        self.changed()
+        self.renames.announce(topics)
         return self.member(session), len(moved)
 
     def find(self, session_id: str) -> Member:

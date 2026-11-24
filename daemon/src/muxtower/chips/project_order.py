@@ -40,3 +40,12 @@ class ProjectOrderStore:
                 "INSERT INTO project_order (position, project) VALUES (?, ?)", list(enumerate(order.projects))
             )
         return self.load()
+
+    def rename_project(self, old: str, new: str) -> bool:
+        """A project renamed (`teams/renaming.py`): the new name takes its place; where the order held the
+        new name already (a merge), that one goes. Whether it changed."""
+        projects = self.load().projects
+        if old not in projects:
+            return False
+        self.replace(ProjectOrder(projects=[new if p == old else p for p in projects if p != new]))
+        return True

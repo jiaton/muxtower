@@ -88,6 +88,7 @@ from muxtower.sources.codex.shared import SharedCodexSource
 from muxtower.sources.remote_control.lineage_store import SqliteLineageStore, SqlitePlaceStore
 from muxtower.sources.remote_control.service import RemoteControlSource
 from muxtower.teams import placing
+from muxtower.teams.renaming import ProjectRenames
 from muxtower.teams.repository import SqliteTaskRepository, SqliteTeamRepository
 from muxtower.teams.service import TeamService
 from muxtower.teams.tasks import TaskService
@@ -323,6 +324,13 @@ def create_app(
     node_api.search_status = lambda: search.status().model_dump(mode="json")
     playbook = PlaybookStore(db)  # the owner's team playbook: kept here when this daemon is the hub
     triggers = TriggerStore(db)  # outside events that reach an agent (`triggers/`): kept on the hub
+    chip_groups, project_order = ChipGroupStore(db), ProjectOrderStore(db)
+    teams.renames = ProjectRenames(
+        db,
+        {"chip-groups": chip_groups, "project-order": project_order, "project-colours": project_colours,
+         "playbook": playbook, "triggers": triggers},
+        lambda topic: bus.publish(topic, None),
+    )  # fmt: skip
     trigger_service = TriggerService(
         triggers, team_tasks, mcp.session_tools.start_as,
         lambda sid: (s := directory.find(sid)) is not None and s.archived_at is None, push.notify_trigger,
@@ -345,7 +353,7 @@ def create_app(
         concierge=concierge, teams=teams, team_tasks=team_tasks, usage=usage, recovery=recovery, writes=writes,
         watches=watches,
         direct=DirectAccess(nodes, node_sessions.call), feature_settings=feature_settings,
-        chip_groups=ChipGroupStore(db), project_order=ProjectOrderStore(db), playbook=playbook,
+        chip_groups=chip_groups, project_order=project_order, playbook=playbook,
         project_colours=project_colours,
         search=search, indexer=indexer, listen=listen, tts=tts,
         triggers=triggers, trigger_service=trigger_service,

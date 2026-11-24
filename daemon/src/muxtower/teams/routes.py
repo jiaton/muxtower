@@ -51,6 +51,12 @@ class TeamTask(BaseModel):
     delivered_at: datetime | None = None
 
 
+def _hub_renamed(request: Request, session_id: str, project: str) -> bool:
+    """On a node, a project rename is the hub's, which keeps the projects and all that is kept by their
+    names (`renaming.py`): asked there, as the session's own `set_project` would be. False: no node."""
+    return request.app.state.hub.team_tool("set_project", {"project": project, "rename": True}, session_id) is not None
+
+
 @router.put("/sessions/{session_id}/team")
 def update_team(
     session_id: str, body: UpdateTeam, request: Request, device: CurrentDevice, teams: Teams, audit: Audit
@@ -60,7 +66,7 @@ def update_team(
         role = body.role if "role" in body.model_fields_set else current.role
         note = body.note if "note" in body.model_fields_set else current.note
         teams.set_role(session_id, role, note)
-    if body.project:
+    if body.project and not (body.rename_project and _hub_renamed(request, session_id, body.project)):
         teams.set_project(session_id, body.project, body.rename_project)
     audit.record(device.name, "team", session_id, body.model_dump_json(exclude_unset=True))
     session: Session = request.app.state.directory.get(session_id)

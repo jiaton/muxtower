@@ -108,6 +108,31 @@ class TriggerStore:
             for table, column in tables:
                 conn.execute(f"DELETE FROM {table} WHERE {column} = ?", (trigger_id,))  # noqa: S608 - fixed names
 
+    def rename_project(self, old: str, new: str) -> list[str]:
+        """A project renamed (`teams/renaming.py`): a trigger delivering to `role@old` delivers to `role@new`
+        (the project compared as `send_task` does, without regard to case), and one starting sessions in
+        `old` starts them in `new`. The names of the triggers changed."""
+        changed: list[str] = []
+        with self.db.connect() as conn:
+            for row in conn.execute("SELECT id, name, spec FROM triggers ORDER BY name").fetchall():
+                spec = json.loads(row["spec"])
+                action = spec.get("action") or {}
+                if action.get("kind") == "deliver" and "@" in action.get("to", ""):
+                    role, project = action["to"].rsplit("@", 1)
+                    if " ".join(project.split()).lower() != old.lower():
+                        continue
+                    action["to"] = f"{role}@{new}"
+                elif action.get("kind") == "start" and action.get("project") == old:
+                    action["project"] = new
+                else:
+                    continue
+                conn.execute(
+                    "UPDATE triggers SET spec = ?, updated_at = ? WHERE id = ?",
+                    (json.dumps(spec), _now().isoformat(), row["id"]),
+                )
+                changed.append(row["name"])
+        return changed
+
     def rotate(self, trigger_id: str) -> str:
         self.get(trigger_id)
         secret = secrets.token_urlsafe(32)

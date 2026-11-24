@@ -164,6 +164,22 @@ class PlaybookStore:
             now = self._part(scope)
             return self._save(scope, old.text, old.mode, now.version + 1, author, f"reverted to v{version}")
 
+    def rename_project(self, old: str, new: str) -> bool:
+        """A project renamed (`teams/renaming.py`): its playbook and its history move to the new name's
+        scope. Merged into a project that has a playbook already, both stay as they are (two texts are not
+        merged by guess): the old one is still there to read, and to copy, under its old name. Whether it moved."""
+        source, target = scope_of(old), scope_of(new)
+        with self.db.connect() as conn:
+            if conn.execute("SELECT 1 FROM playbooks WHERE scope = ?", (source,)).fetchone() is None:
+                return False
+            taken = conn.execute("SELECT 1 FROM playbooks WHERE scope = ?", (target,)).fetchone()
+            taken = taken or conn.execute("SELECT 1 FROM playbook_versions WHERE scope = ?", (target,)).fetchone()
+            if taken:
+                return False
+            conn.execute("UPDATE playbooks SET scope = ? WHERE scope = ?", (target, source))
+            conn.execute("UPDATE playbook_versions SET scope = ? WHERE scope = ?", (target, source))
+        return True
+
     def _save(self, scope: str, text: str, mode: str, version: int, author: str, note: str | None) -> PlaybookPart:
         at = datetime.now(UTC).isoformat()
         with self.db.connect() as conn:
