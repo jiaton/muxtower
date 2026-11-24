@@ -25,6 +25,10 @@ ATTENTION_STATES = frozenset(
 )
 APPROVABLE_STATES = ATTENTION_STATES - {AgentState.ERROR}
 
+# The `kind` of a dialog the screen rules know only as one (a rule's `kind`): no tool call of the agent's,
+# nothing its hooks report, so a hook saying it is idle does not end it. Its detail is its title.
+DIALOG = "dialog"
+
 
 class Option(BaseModel):
     """One numbered choice in a dialog, e.g. key "2", label "Yes, allow reads during this session"."""

@@ -2,6 +2,7 @@ import { Check, Send, X } from 'lucide-react'
 import { Banner } from '@/components/ui/banner'
 import { Button } from '@/components/ui/button'
 import { Clamp } from '@/components/ui/clamp'
+import { DIALOG_KIND, DIALOG_REASON } from '@/lib/agent-state'
 import type { PendingAction } from '@/lib/api/types'
 import { useAnswer, useApprove, useDeny } from '../api/use-approval'
 import { QuestionForm } from './question-form'
@@ -20,10 +21,16 @@ export function PendingActionCard({ daemonId, sessionId, pending }: { daemonId: 
   const options = pending.options ?? []
   if (pending.kind === 'peer_message')
     return <PeerMessage pending={pending} busy={busy} error={error} pick={(key) => approve.mutate(key)} />
+  const dialog = pending.kind === DIALOG_KIND
 
   return (
     <div className="flex flex-col gap-3">
-      {pending.tool_name || pending.detail ? (
+      {dialog ? (
+        <div className="flex flex-col gap-1">
+          <p className={ink.eyebrow}>{DIALOG_REASON}</p>
+          {pending.detail ? <p className={ink.body}>{pending.detail}</p> : null}
+        </div>
+      ) : pending.tool_name || pending.detail ? (
         <div className="flex flex-col gap-1">
           {pending.tool_name ? <p className={ink.eyebrow}>{pending.tool_name}</p> : null}
           {pending.detail ? (
@@ -49,10 +56,10 @@ export function PendingActionCard({ daemonId, sessionId, pending }: { daemonId: 
           ))}
         </div>
       ) : (
-        <p className={ink.hint}>Waiting for the choices to appear on screen…</p>
+        <p className={ink.hint}>{dialog ? 'Answer it on the screen, with the keys there.' : 'Waiting for the choices to appear on screen…'}</p>
       )}
       <Button variant="ghost" className="self-start" disabled={busy} onClick={() => deny.mutate()}>
-        <X /> Deny (Esc)
+        <X /> {dialog ? 'Esc' : 'Deny (Esc)'}
       </Button>
       {error ? <Banner tone="error">{error.message}</Banner> : null}
     </div>

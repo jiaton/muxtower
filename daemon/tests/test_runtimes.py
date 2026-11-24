@@ -42,7 +42,8 @@ def test_options_are_parsed_and_broader_approval_preferred() -> None:
 
 def test_generic_dialog_is_a_question_not_trust_and_prompt_is_not_a_menu() -> None:
     result = claude().classify(screens.AUTO_MODE_TIP)
-    assert result.state == AgentState.NEEDS_ANSWER and result.rule == "choice-dialog"
+    assert result.state == AgentState.NEEDS_ANSWER and result.rule == "dialog-footer" and result.kind == "dialog"
+    assert result.detail == "Teach auto mode about your environment?"
     assert [o.label for o in result.options] == ["Yes", "Not now", "Don't show again"]
     assert claude().parse_menu(screens.IDLE) is None
 

@@ -10,7 +10,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
-from muxtower.runtimes.models import APPROVABLE_STATES, ATTENTION_STATES, AgentState, Option, PendingQuestion
+from muxtower.runtimes.models import APPROVABLE_STATES, ATTENTION_STATES, DIALOG, AgentState, Option, PendingQuestion
 from muxtower.runtimes.spec import Classification
 from muxtower.sessions.models import PendingAction, StateSource
 from muxtower.sessions.naming import AgentName
@@ -88,10 +88,14 @@ def _hook_knows_better(hook: HookState | None, screen: ScreenState) -> bool:
     uses, quoted on the screen (a reply, a diff), are no dialog. Hooks report the agent's own prompts
     (permission, question, plan), so a hook that said "working" or "done" since that screen showed wins;
     trust dialogs show only at startup, before any hook, so once one came the screen's trust is not
-    believed; and an error stands with the Stop that came with it, not against a hook well after it."""
+    believed; and an error stands with the Stop that came with it, not against a hook well after it. A dialog
+    the rules know only as one (`DIALOG`: a tip, /config, "Resume this conversation?") is no tool call: the
+    agent shows it while idle, hooks never report it, and only one saying it went to work since ends it."""
     if hook is None or hook.state in ATTENTION_STATES:
         return False
     state = screen.classification.state
+    if screen.classification.kind == DIALOG:
+        return hook.state == AgentState.BUSY and hook.at >= screen.since
     if state == AgentState.ERROR:  # an error the agent went on from: its Stop comes with it, a later hook after
         return hook.at - screen.since > ERROR_GRACE_SECONDS
     return state == AgentState.NEEDS_TRUST or (state in APPROVABLE_STATES and hook.at >= screen.since)
@@ -109,7 +113,8 @@ def merge(hook: HookState | None, screen: ScreenState | None, now: float, busy_s
         )
         if not cleared:
             shown = screen if screen is not None and screen_state in APPROVABLE_STATES else None
-            kind = shown.classification.kind if shown else None
+            # The hook's own prompt, read by the generic dialog rules (AskUserQuestion): it is what the hook says.
+            kind = shown.classification.kind if shown and shown.classification.kind != DIALOG else None
             pending = PendingAction(
                 state=hook.state,
                 tool_name=hook.tool_name,

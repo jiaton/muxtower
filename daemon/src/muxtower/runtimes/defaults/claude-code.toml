@@ -47,9 +47,11 @@ pattern = 'Do\s+you\s+want\s+to.*?\n\s*❯?\s*1\.\s*Yes'
 last_lines = 12
 
 [[rules]]
+# AskUserQuestion: "Enter to select · ↑/↓ to navigate · Esc to cancel". Other menus say "to navigate" too
+# (/config, /mcp, a multi-select): those are dialogs (below), not a question.
 name = "question"
 state = "needs_answer"
-pattern = '↑/↓\s+to\s+navigate'
+pattern = 'Enter\s+to\s+select\b[^\n]*\bto\s+navigate'
 last_lines = 4
 
 [[rules]]
@@ -99,11 +101,38 @@ state = "plan_review"
 pattern = 'How\s+would\s+you\s+like\s+to\s+proceed\?'
 last_lines = 12
 
+# Any other dialog of Claude Code's (a tip, /config, /model, /resume, "Resume this conversation?"…): the owner's
+# to answer, and nothing typed goes into it. Tried after every dialog known by name, and seen only where a
+# dialog can be (the screen without its input box, or the panel framed right above the box): what a reply
+# quotes above the box is none. It says its title: the first line under its top rule.
 [[rules]]
-name = "choice-dialog"
+# Its footer, as its last line: a key and what it does ("Enter to confirm · Esc to resume", "↓ to navigate
+# · ↑ to switch tabs · Esc to go back", "s to use this session only · Enter to save · Esc to cancel"). Not
+# the status bar under the box ("⏵⏵ … (shift+tab to cycle)", "esc to interrupt"), shown with no box.
+name = "dialog-footer"
 state = "needs_answer"
-pattern = 'Enter\s+to\s+confirm\s+·\s+Esc\s+to\s+cancel[^\n]*\Z'
+kind = "dialog"
+pattern = '(?m)^(?![^\n]*(?:⏵|shift\+tab|esc\s+to\s+inter))[ \t]*(?:[^\n]*·[ \t]+)?(?:Esc|Enter|Space|Tab|Ctrl\+\S+|[↑↓←→](?:/[↑↓←→])?)[ \t]+to[ \t]+\w[^\n]*(?:\n[ \t]*)*\Z'
 last_lines = 3
+detail = ['\A[─▔]{8,}[ \t]*\n(?:[ \t]*\n)*[ \t]*([^\n]+)']
+
+[[rules]]
+# A list of numbered choices with the cursor on one ("❯ 1. Resume" over "  2. Start a new conversation").
+name = "dialog-menu"
+state = "needs_answer"
+kind = "dialog"
+pattern = '(?m)\A(?=.*^[ \t]*❯[ \t]*\d+\.[ \t]+\S)(?=.*^[ \t]+\d+\.[ \t]+\S)'
+last_lines = 12
+detail = ['\A[─▔]{8,}[ \t]*\n(?:[ \t]*\n)*[ \t]*([^\n]+)']
+
+[[rules]]
+# Choices to tick: two checkbox lines ("[ ] …", "[x] …", "◯ …", "◉ …").
+name = "dialog-checkboxes"
+state = "needs_answer"
+kind = "dialog"
+pattern = '(?m)^[ \t]*(?:❯[ \t]*)?(?:\[[ xX✔✓]\]|[◯◉☐☒☑])[ \t]+\S[^\n]*\n(?:[^\n]*\n){0,8}?[ \t]*(?:❯[ \t]*)?(?:\[[ xX✔✓]\]|[◯◉☐☒☑])[ \t]+\S'
+last_lines = 20
+detail = ['\A[─▔]{8,}[ \t]*\n(?:[ \t]*\n)*[ \t]*([^\n]+)']
 
 [[rules]]
 name = "api-error"
@@ -136,7 +165,7 @@ last_lines = 3
 # What a dialog asks about, for whoever approves it away from the screen (when no hook said). Only the
 # dialog's own lines are searched, from its top rule (the last one) down; the tool is the call right
 # above that rule ("● Bash(…)"), not one before another item of the conversation.
-top = '^─{8,}[ \t]*$'
+top = '^[─▔]{8,}[ \t]*$'
 tool = '^[●⏺][ \t]+([^\n(]{1,80}?)\('
 tool_stop = '^[●⏺❯>]'
 detail = [

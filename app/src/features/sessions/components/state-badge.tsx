@@ -1,7 +1,8 @@
 import { Badge } from '@/components/ui/badge'
-import { STATE_LABEL, STATE_TONE } from '@/lib/agent-state'
+import { STATE_TONE, stateLabel } from '@/lib/agent-state'
 import type { AgentState } from '@/lib/api/types'
 
-export function StateBadge({ state }: { state: AgentState }) {
-  return <Badge tone={STATE_TONE[state]}>{STATE_LABEL[state]}</Badge>
+/** A session's state; `kind`, what its pending prompt is (`pending.kind`), names a Claude Code dialog as one. */
+export function StateBadge({ state, kind }: { state: AgentState; kind?: string | null }) {
+  return <Badge tone={STATE_TONE[state]}>{stateLabel(state, kind)}</Badge>
 }

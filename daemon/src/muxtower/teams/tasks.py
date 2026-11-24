@@ -154,8 +154,8 @@ class TaskService:
             self.repo.update(task)
             self.changed()
             return "undeliverable"
-        if session.needs_attention and not _by_remote_control(session):
-            return "waiting"  # typing now would answer its prompt
+        if not _by_remote_control(session) and (session.needs_attention or self.directory.dialog_now(session.id)):
+            return "waiting"  # typing now would answer its prompt (or a dialog that came up since the last look)
         # A text that opens with its sender's own label (a trigger's "[trigger <name>] external event data …")
         # says who it is from already: not said twice.
         said = task.text.startswith(f"[{task.from_label}]")

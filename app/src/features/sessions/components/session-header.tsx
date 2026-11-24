@@ -47,7 +47,7 @@ export function SessionHeader({
           ) : session.offline ? (
             <Badge>Offline</Badge>
           ) : (
-            <StateBadge state={session.state} />
+            <StateBadge state={session.state} kind={session.needs_attention ? session.pending?.kind : null} />
           )}
           <StreamMark daemonId={daemonId} />
         </>

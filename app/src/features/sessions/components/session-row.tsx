@@ -3,6 +3,7 @@ import { GitCompareArrows } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { ago } from '@/lib/time'
+import { DIALOG_KIND, DIALOG_REASON } from '@/lib/agent-state'
 import {
   NO_ENVIRONMENT,
   agentOf,
@@ -54,6 +55,8 @@ const plain = (text: string) =>
 /** What the agent is asking, or else what it did last, in one line. */
 function lineOf({ session }: SessionEntry): { text: string; asking: boolean } | null {
   const pending = session.needs_attention ? session.pending : null
+  if (pending?.kind === DIALOG_KIND)
+    return { text: pending.detail ? `${DIALOG_REASON}: ${pending.detail}` : DIALOG_REASON, asking: true }
   if (pending?.detail || pending?.tool_name) return { text: [pending.tool_name, pending.detail].filter(Boolean).join(': '), asking: true }
   const said = session.summary?.needs || session.summary?.detail || session.summary?.recent || session.last_message
   return said ? { text: plain(said), asking: false } : null

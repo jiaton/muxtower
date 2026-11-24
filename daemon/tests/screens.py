@@ -493,3 +493,203 @@ SUGGESTION_ANSI = (
     "\x1b[39m  \x1b[38;5;211m⏵⏵ bypass permissions on\x1b[38;5;246m (shift+tab to cycle)\x1b[39m\n"
 )
 TYPED_ANSI = SUGGESTION_ANSI.replace("\x1b[2myes, open it\x1b[0m", "yes, open it")  # typed by someone: plain
+
+# Claude Code dialogs no rule knows by name: each one's chrome (top rule, title, option markers, footer) as
+# Claude Code 2.1.331 draws it at 120 columns, its text made up. They are dialogs all the same.
+TOP = "▔" * 100
+DIALOG_TEACH_AUTO_MODE = f"""\
+❯ Tidy the changelog for the docs site
+● Done: the changelog lists the three fixes under 1.4.0.
+
+{TOP}
+  Teach auto mode about your environment?
+
+  Claude Code reads this project, your recent Claude sessions, and optionally your shell history and other
+  repositories. Claude analyzes this data and customizes auto mode to make better decisions.
+
+    How you use Claude here     Mixed
+  ❯ Also scan shell history     on
+    Also scan your other repos  off
+    Continue
+
+  ↑/↓ to navigate · Space to toggle · Esc to cancel
+"""
+
+DIALOG_RESUME = """\
+❯ Can the release notes go out with the next build?
+
+● Yes: they are in docs/releases/1.4.md and the build picks them up.
+
+✻ Worked for 1m 12s · done Thursday, Nov 5, 9:02 PM
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  Resume this conversation?
+
+  This conversation has been inactive for 4d 2h 10m and is 412.7k tokens long. Resuming it will use about 9% of your
+  5-hour usage limit.
+
+  ❯ 1. Resume
+    2. Start a new conversation  Claude can look this one up if you refer to it later
+
+  Enter to confirm · Esc to resume
+"""
+
+DIALOG_CONFIG = f"""\
+❯ Run the linter on the billing module
+● Lint is clean.
+
+{TOP}
+  Settings  Status   Config   Usage   Stats
+
+  ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+  │ ⌕ Search settings…                                                                                           │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  ❯ Auto-compact                                    on
+    Show tips                                       on
+    Reduce motion                                   off
+    Thinking mode                                   on
+    Verbose output                                  off
+    Default permission mode                         Ask before acting
+    ↓ 18 more
+
+  ↓ to navigate · ↑ to switch tabs · Esc to go back
+"""
+
+DIALOG_MODEL = f"""\
+{TOP}
+  Select model
+  Your pick is the default for new sessions. For other models, use --model.
+
+    1.  Default (recommended)  Model A · Best for everyday tasks
+  ❯ 2.  Model A ✔              For complex work and everyday tasks
+    3.  Model B                Most efficient for simpler tasks
+    ▸   More models
+
+  ◐ Medium effort (default) ←/→ to adjust
+
+  s to use this session only · Enter to save · Esc to cancel
+"""
+
+# The folder trust dialog of earlier versions, which no trust rule knows: a dialog.
+DIALOG_TRUST_FILES = """\
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Do you trust the files in this folder?
+
+ /work/acme/web
+
+ Claude Code may read files in this folder. Reading untrusted files may lead Claude Code to behave in unexpected
+ ways.
+
+ ❯ 1. Yes, proceed
+   2. No, exit
+
+ Enter to confirm · Esc to exit
+"""
+
+DIALOG_PERMISSIONS = f"""\
+{TOP}
+  Permissions  Recently blocked   Allow   Ask   Deny   Auto mode   Workspace
+
+  Claude Code won't ask before using allowed tools.
+  ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+  │ ⌕ Search…                                                                                                    │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  ❯ Add a new rule…
+    Bash(npm run test:*)
+    Read(docs/**)
+
+  ↓ to navigate · ←/→ to switch · / to search · Esc to close
+"""
+
+DIALOG_MCP = f"""\
+{TOP}
+  MCP servers
+  3 servers
+
+    Project MCPs (.mcp.json)
+  ❯ ✔ docs                           4 tools
+    ✔ tracker                        11 tools
+    ⚠ calendar                       needs sign-in
+
+  ↑/↓ to navigate · Enter to view · Esc to close
+"""
+
+DIALOG_RESUME_LIST = f"""\
+{TOP}
+  Resume session
+
+  ╭──────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+  │ ⌕ Search…                                                                                                    │
+  ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+  ❯ Plan the launch
+    2 hours ago · main · 48 messages
+    Fix the flaky upload test
+    yesterday · fix-upload · 112 messages
+
+  Ctrl+A to show all projects · Ctrl+B to only show current branch · Esc to close
+"""
+
+# The footer cut off (a short pane): its numbered choices still make it a dialog.
+DIALOG_MENU_ONLY = """\
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  Resume this conversation?
+
+  ❯ 1. Resume
+    2. Start a new conversation
+"""
+
+# Choices to tick, with no footer on screen.
+DIALOG_CHECKBOXES = """\
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  Pick the folders to index
+
+  ❯ [x] src
+    [ ] docs
+    [ ] scripts
+"""
+
+# Not dialogs. The input box, empty, between its rules, as 2.1.331 draws it.
+IDLE_BOX = """\
+● The tests pass.
+
+✻ Worked for 12s · done 9:12 AM
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏵⏵ bypass permissions on (shift+tab to cycle) · ← for agents
+"""
+
+# A reply that quotes dialogs' footers and choices, above the empty input box.
+IDLE_QUOTING_FOOTERS = """\
+● Claude Code's dialogs end with a hint line, for example:
+
+    Settings  Status   Config
+  ❯ 1. Resume
+    2. Start a new conversation
+  [ ] docs
+  [x] src
+
+  Enter to confirm · Esc to resume
+  ↑/↓ to navigate · Space to toggle · Esc to cancel
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏵⏵ auto mode on (shift+tab to cycle)
+"""
+
+# At work, the hint "esc to interrupt" in the status bar.
+BUSY_BOX = """\
+● Reading the upload handler.
+
+✢ Misting… (22s · ↓ 1.9k tokens)
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ 
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  ⏵⏵ auto mode on (shift+tab to cycle) · esc to interrupt
+"""
+
+# The status bar alone at the bottom (the box scrolled off, a pane a few rows tall): no dialog either.
+STATUS_BAR_ONLY = """\
+● Reading the upload handler.
+  ⏵⏵ auto mode on · 1 shell · ↓ to manage · esc to interrupt
+"""

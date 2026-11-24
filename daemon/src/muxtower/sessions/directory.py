@@ -360,6 +360,22 @@ class SessionDirectory(OwnerMarks):
             return False
         return session.runtime == "claude-code" and session.state in PROMPT_STATES
 
+    def dialog_now(self, session_id: str) -> bool:
+        """Blocking. A pane here showing a dialog right now, read again from its screen: the state the last
+        look saw can be a moment old, and a dialog that came up since (a tip right after a turn) would take
+        what is typed. Only before typing words into one; a session elsewhere is checked where it runs."""
+        if self.source_of(session_id) is not None:
+            return False
+        try:
+            record = self.local.record(session_id)
+        except NotFound:
+            return False
+        runtime = self.local.runtime_of(record)
+        if runtime is None or runtime.name != "claude-code":  # as `at_prompt`
+            return False
+        text = self.local.tmux.capture(record.pane)
+        return text is not None and runtime.classify(text).state in PROMPT_STATES
+
     def accept_suggestion(self, session_id: str, text: str) -> None:
         """Send the prompt its agent suggests (`Session.suggestion`), as it is: read again from its screen
         first, still that one, its input line still empty and no dialog up; else nothing is sent."""
@@ -389,8 +405,9 @@ class SessionDirectory(OwnerMarks):
     def send_or_hold(self, session_id: str, body: SendInput) -> bool:
         """The owner's message: typed in now, or, while its session shows a dialog (`at_prompt`), held and
         typed in once the dialog has gone (`deliver_held`), in the order sent. True when held."""
-        with self._held_lock:
-            if body.text is not None and (self._held.get(session_id) or self.at_prompt(session_id)):
+        dialog = body.text is not None and (self.at_prompt(session_id) or self.dialog_now(session_id))
+        with self._held_lock:  # never held across a look at the pane
+            if body.text is not None and (self._held.get(session_id) or dialog):
                 if self.get(session_id).archived_at:
                     raise Conflict("this session is archived")
                 self._held.setdefault(session_id, []).append(body)
@@ -409,7 +426,7 @@ class SessionDirectory(OwnerMarks):
                 with self._held_lock:
                     self._held.pop(session_id, None)
                 continue
-            if self.at_prompt(session_id):
+            if self.at_prompt(session_id) or self.dialog_now(session_id):
                 continue
             with self._held_lock:
                 bodies = self._held.pop(session_id, [])

@@ -75,6 +75,10 @@ def apply_event(previous: HookState | None, event: HookEvent, asking: AskingTool
                 return previous
             return state(AgentState.NEEDS_ANSWER, detail=event.message)
         if kind == "idle_prompt":
+            # Waiting for input for a while: news only after a prompt that went unreported. Already idle, it
+            # keeps when it became so, or it would read as newer than a dialog shown since (`live.py`).
+            if previous is not None and previous.state == AgentState.IDLE:
+                return previous
             return state(AgentState.IDLE)
         return previous
     if name == "Stop":

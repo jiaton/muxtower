@@ -4,10 +4,11 @@ runs. Agents write Markdown; a notification shows plain text."""
 
 import re
 
-from muxtower.runtimes.models import AgentState
+from muxtower.runtimes.models import DIALOG, AgentState
 from muxtower.sessions.models import Session
 
 BODY_CHARS = 180
+DIALOG_REASON = "Waiting on a Claude Code dialog"
 FOLDER_CHARS = 32  # longer folders keep their last two parts
 _MARKS = re.compile(r"\*\*|__|`|^#+\s+|^>\s+|^[-*]\s+", re.MULTILINE)
 _HOME = re.compile(r"^/(?:home|Users)/[^/]+(?=/|$)|^/root(?=/|$)")
@@ -38,6 +39,9 @@ def attention_text(session: Session) -> tuple[str, str]:
     if pending and pending.kind == "peer_message":
         sender = pending.sender or "another session"
         return session.name, _with_place(f"{session.name} received a message from {sender}: deliver?", session)
+    if pending and pending.kind == DIALOG:  # a dialog known only as one: its title, when it has one
+        what = f"{DIALOG_REASON}: {detail}" if detail else DIALOG_REASON
+        return session.name, _with_place(what, session)
     match session.state:
         case AgentState.NEEDS_PERMISSION:
             what = f"Approve {tool}: {detail}" if tool and detail else f"Approve {tool or 'a tool call'}"

@@ -63,11 +63,19 @@ class RuleConfig(BaseModel):
     # agent session, held for the owner to deliver or deny), and who it is from: group 1 of `sender`.
     kind: str | None = None
     sender: str | None = None
+    # What it is about, for a rule that knows better than `[context] detail`: tried in their place, on the
+    # same text (the dialog from its top line). A dialog the rules do not know by name says its title.
+    detail: list[str] | None = None
 
     @field_validator("pattern")
     @classmethod
     def anchored_lookahead(cls, pattern: str) -> str:
         return _anchored(pattern)
+
+    @field_validator("detail")
+    @classmethod
+    def anchored_detail(cls, patterns: list[str] | None) -> list[str] | None:
+        return [_anchored(p) for p in patterns] if patterns is not None else None
 
 
 class MenuConfig(BaseModel):
@@ -257,6 +265,7 @@ class Runtime:
         self.source = source
         self.rules = [(r, re.compile(r.pattern, re.DOTALL)) for r in config.rules]
         self.senders = {r.name: re.compile(r.sender, re.MULTILINE) for r in config.rules if r.sender}
+        self.details = {r.name: [re.compile(p) for p in r.detail] for r in config.rules if r.detail is not None}
         self.prompt = re.compile(config.prompt, re.MULTILINE) if config.prompt else None
         self.panel_rule = re.compile(config.panel_rule) if config.panel_rule else None
         self.prefer = {state: [re.compile(p) for p in ps] for state, ps in config.approve.prefer.items()}
@@ -283,15 +292,17 @@ class Runtime:
     def dialog_lines(self, lines: list[str], box: int | None) -> list[str] | None:
         """Where a dialog can be: the whole screen while no input box shows at the bottom; else only the panel
         framed right above the box (`panel_rule`), or nowhere (None)."""
-        if box is None:
-            return lines
-        if self.panel_rule is None:
+        top = self._panel_top(lines, box)
+        return lines if box is None else lines[top + 1 : box] if top is not None else None
+
+    def _panel_top(self, lines: list[str], box: int | None) -> int | None:
+        """The rule line that frames the panel right above the input box, while the box shows."""
+        if box is None or self.panel_rule is None:
             return None
         rule = self.panel_rule
-        top = next(
+        return next(
             (i for i in range(box - 1, max(box - self.config.panel_lines, 0) - 1, -1) if rule.match(lines[i])), None
         )
-        return lines[top + 1 : box] if top is not None else None
 
     def classify(self, screen: str) -> Classification:
         lines = screen.rstrip().splitlines()
@@ -311,7 +322,10 @@ class Runtime:
             if found:
                 menu = self.parse_menu(screen) if rule.state != AgentState.BUSY else None
                 if rule.state in APPROVABLE_STATES and dialog is not None:
-                    tool, detail = self.context_of(dialog)
+                    # A panel is read with the rule that frames it, as a dialog that took the whole screen is.
+                    top = self._panel_top(lines, box)
+                    framed = lines[top:box] if top is not None else dialog
+                    tool, detail = self.context_of(framed, self.details.get(rule.name))
                     sender = None
                     if (said := self.senders.get(rule.name)) and (who := said.search("\n".join(dialog))):
                         sender = who.group(1).strip() or None
@@ -347,8 +361,11 @@ class Runtime:
                 return found.group(1).strip() or None
         return None
 
-    def context_of(self, dialog: list[str]) -> tuple[str | None, str | None]:
-        """The tool a dialog is about and what it would do, from the dialog's own lines (`ContextConfig`)."""
+    def context_of(
+        self, dialog: list[str], details: list[re.Pattern[str]] | None = None
+    ) -> tuple[str | None, str | None]:
+        """The tool a dialog is about and what it would do, from the dialog's own lines (`ContextConfig`), its
+        detail by `details` when its rule has its own."""
         context = self.config.context
         lines = dialog[-context.last_lines :]
         top = None
@@ -365,7 +382,7 @@ class Runtime:
                 ):
                     break
         text = "\n".join(lines[top or 0 :])
-        for pattern in self.context_detail:
+        for pattern in self.context_detail if details is None else details:
             found = pattern.search(text)
             detail = "\n".join(_text_of(found.group(1) or "")) if found else ""
             if detail:
