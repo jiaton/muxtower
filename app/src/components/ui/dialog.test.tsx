@@ -46,3 +46,16 @@ it('Esc closes a list open inside a dialog first, then the dialog, its edits dro
   expect(screen.queryByRole('dialog')).toBeNull()
   expect(screen.getByText('Name: saved')).toBeInTheDocument() // nothing kept
 })
+
+it('puts a title icon before the title, the dialog still named by the title alone', () => {
+  render(
+    <Dialog open>
+      <DialogContent title="Team · acme/billing" titleIcon={<span aria-hidden data-testid="dot" />} description="billing lead">
+        <p>Body</p>
+      </DialogContent>
+    </Dialog>,
+  )
+  const dialog = screen.getByRole('dialog', { name: 'Team · acme/billing' })
+  expect(screen.getByRole('heading', { name: 'Team · acme/billing' }).firstElementChild).toBe(screen.getByTestId('dot'))
+  expect(dialog).toHaveAccessibleDescription('billing lead')
+})

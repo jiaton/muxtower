@@ -99,7 +99,7 @@ test('keyboard: Space, the arrows, Space put a project in its place', async ({ b
   await page.keyboard.press('Space')
   await expect.poll(() => lifted(page)).toBe(true)
   await page.keyboard.press('ArrowDown')
-  await expect.poll(() => said(page)).toMatch(/moved to place 2 of 8/) // the demo has 8 projects
+  await expect.poll(() => said(page)).toMatch(/moved to place 2 of 9/) // the demo has 9 projects
   await page.keyboard.press('Space')
   await expect.poll(() => projects(page)).toEqual(['acme/shop-api', 'acme/web-app', 'acme/infra'])
 })

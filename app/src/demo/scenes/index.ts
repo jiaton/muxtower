@@ -1,4 +1,5 @@
 import type { Scene } from '../world'
+import { billingTeam } from './billing-team'
 import { docs } from './docs'
 import { archived, migrations } from './interrupted'
 import { changelogFork, infra, releaseNotes, releaseNotesFork, releasePostFork, shopApiLaptop, tidyUp } from './others'
@@ -23,6 +24,7 @@ export const scenes = (): Scene[] =>
     migrations(),
     ...team(),
     ...moreProjects(),
+    ...billingTeam(),
     ...archived(),
   ])
 

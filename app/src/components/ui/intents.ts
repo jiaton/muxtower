@@ -108,10 +108,8 @@ export const look = {
    *  session header's role, project and machine): moderately rounded, never a pill. Not `pill`: a word
    *  set off in running text, round. */
   tag: `${box({ ground: 'muted', radius: 'md' })} ${text({ size: 'xs', tone: 'muted' })} px-1.5`,
-  /** A table of counts, its cells ruled against each other (the team view's matrix, `matrixCell`). */
-  matrix: 'w-full border-collapse text-center',
   /** A log read row by row (Diagnostics' push log): small figures of one width, left-aligned, unruled.
-   *  Not `matrix`: records, not counts set against each other. */
+   *  Records, not counts set against each other. */
   logTable: `${text({ size: 'xs', numeric: true })} w-full border-collapse text-left`,
   /** A key on the keyboard, named where it does something (a menu item's shortcut). */
   keycap: `${box({ outline: 'default', radius: 'xs' })} ${text({ mono: true, size: 'xs', tone: 'muted' })} min-w-5 px-1 text-center`,
@@ -188,16 +186,6 @@ export const bubble = ({ state, focused = false }: { state: 'prompt' | 'pending'
       : cn(box({ ground: 'accent', faded: state === 'pending' ? 'half' : undefined }), text({ tone: 'onAccent' })),
   )
 
-/** A role in the team view (team-diagram.tsx): a card, outlined in the accent when it is the centre, in
- *  the busy colour while it works; quieter when it is outside the team (another project's). */
-export const roleCard = ({ centre = false, busy = false, outside = false }: { centre?: boolean; busy?: boolean; outside?: boolean }) =>
-  cn(
-    'rounded-md border',
-    centre ? 'border-accent' : busy ? 'border-state-busy' : 'border-border',
-    box({ ground: 'surface' }),
-    outside && box({ faded: 'dim' }),
-  )
-
 /** What is cut off at the bottom fades out (any ground: a mask, not a painted gradient): a clamped
  *  message (`Clamp`). */
 export const fadeOut = '[mask-image:linear-gradient(to_bottom,black_calc(100%-2.5em),transparent)]'
@@ -215,18 +203,3 @@ export const captionText = 'max-h-[6.5em] overflow-y-auto text-lg leading-snug'
 /** A conversation item a search led to: outlined in the accent for a moment (`ConversationView focus`). */
 export const found = (on: boolean) =>
   cn('rounded-lg transition-shadow duration-700', on && 'ring-2 ring-accent ring-offset-2 ring-offset-surface')
-
-/** A cell of the team view's "who → whom" matrix (team-diagram.tsx): shaded in the accent by how much
- *  went that way (`level` 0–4), muted on the diagonal (a role to itself). */
-export const matrixCell = ({ level, self = false }: { level: number; self?: boolean }) =>
-  cn(
-    'border border-border',
-    self
-      ? box({ ground: 'muted' })
-      : ['', 'bg-accent/15 text-fg', 'bg-accent/30 text-fg', 'bg-accent/60 text-accent-fg', 'bg-accent text-accent-fg'][
-          Math.max(0, Math.min(4, level))
-        ],
-  )
-
-/** The team view's rail: the line the centre's partners hang from, and the stub to each. */
-export const rail = { line: 'border-l-2 border-border', stub: 'border-t-2 border-border' } as const

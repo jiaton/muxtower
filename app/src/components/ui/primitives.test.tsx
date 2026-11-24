@@ -1,8 +1,9 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { Badge } from './badge'
 import { Dialog, DialogContent } from './dialog'
+import { StateDot } from './indicators'
 import { Drawer } from './drawer'
 import { axisOf, landing, landMs, Speed, type Pull } from './gesture'
 import { Pager } from './pager'
@@ -173,7 +174,14 @@ describe('Markdown', () => {
 describe('SuggestInput', () => {
   it('matches its keywords too, and inserts the value', () => {
     const onValueChange = vi.fn()
-    render(<SuggestInput aria-label="To" value="care" onValueChange={onValueChange} suggestions={[{ value: 's-1', hint: 'Careful', keywords: 'Careful' }]} />)
+    render(
+      <SuggestInput
+        aria-label="To"
+        value="care"
+        onValueChange={onValueChange}
+        suggestions={[{ value: 's-1', hint: 'Careful', keywords: 'Careful' }]}
+      />,
+    )
     fireEvent.focus(screen.getByRole('combobox', { name: 'To' }))
     fireEvent.click(screen.getByRole('option'))
     expect(onValueChange).toHaveBeenLastCalledWith('s-1')
@@ -196,6 +204,75 @@ describe('SuggestInput', () => {
     fireEvent.focus(field)
     fireEvent.click(screen.getByRole('option', { name: /notes/ }))
     expect(onValueChange).toHaveBeenLastCalledWith('~/notes')
+  })
+})
+
+describe('SuggestInput floating', () => {
+  beforeAll(() => {
+    // Radix's popover measures its anchor.
+    globalThis.ResizeObserver ??= class {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    } as unknown as typeof ResizeObserver
+  })
+  const projects = [{ value: 'acme/billing', hint: '3 sessions' }, { value: 'acme/docs' }]
+
+  it('offers every value until something is typed, ticks the current one, and says which was picked', () => {
+    const onValueChange = vi.fn()
+    const onPick = vi.fn()
+    render(
+      <SuggestInput
+        floating
+        aria-label="Project"
+        value="acme/billing"
+        onValueChange={onValueChange}
+        onPick={onPick}
+        suggestions={projects}
+      />,
+    )
+    const field = screen.getByRole('combobox', { name: 'Project' })
+    fireEvent.focus(field)
+    expect(field).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getAllByRole('option')).toHaveLength(2)
+    expect(screen.getByRole('option', { name: /billing/ })).toHaveAccessibleName(/current$/)
+    fireEvent.keyDown(field, { key: 'ArrowDown' })
+    fireEvent.keyDown(field, { key: 'ArrowDown' })
+    fireEvent.keyDown(field, { key: 'Enter' })
+    expect(onValueChange).toHaveBeenLastCalledWith('acme/docs')
+    expect(onPick).toHaveBeenCalledExactlyOnceWith('acme/docs')
+  })
+
+  it('marks a value none has as `fresh`, and passes keys it does not use to the caller', () => {
+    const onKeyDown = vi.fn()
+    render(
+      <SuggestInput
+        floating
+        fresh="new project"
+        aria-label="Project"
+        value="acme/ledger"
+        onValueChange={() => {}}
+        onKeyDown={onKeyDown}
+        suggestions={projects}
+      />,
+    )
+    const field = screen.getByRole('combobox', { name: 'Project' })
+    expect(field).toHaveAccessibleDescription('new project')
+    fireEvent.focus(field)
+    fireEvent.change(field, { target: { value: 'acme/ledger ' } })
+    expect(screen.getByText(/will be a new project/)).toHaveTextContent('acme/ledger will be a new project')
+    expect(screen.queryAllByRole('option')).toHaveLength(0)
+    fireEvent.keyDown(field, { key: 'Enter' })
+    expect(onKeyDown).toHaveBeenCalledOnce()
+  })
+})
+
+describe('StateDot', () => {
+  it('takes its state’s tone and stays out of the accessibility tree', () => {
+    const { container } = render(<StateDot state="needs_permission" />)
+    const dot = container.firstElementChild!
+    expect(dot).toHaveAttribute('aria-hidden', 'true')
+    expect(dot.className).toContain('bg-state-permission')
   })
 })
 

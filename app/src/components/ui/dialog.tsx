@@ -43,8 +43,14 @@ export function DialogContent({
   children,
   onEscapeKeyDown,
   onCloseAutoFocus,
+  titleIcon,
   ...props
-}: ComponentProps<typeof DialogPrimitive.Content> & { title: string; description?: ReactNode }) {
+}: ComponentProps<typeof DialogPrimitive.Content> & {
+  title: string
+  description?: ReactNode
+  /** Stands before the title (a project's colour dot). */
+  titleIcon?: ReactNode
+}) {
   const [returnTo] = useState(returnTarget)
   return (
     <DialogPrimitive.Portal>
@@ -68,8 +74,11 @@ export function DialogContent({
         {...props}
       >
         <div className="flex items-start gap-3">
-          <div className="flex-1">
-            <DialogPrimitive.Title className="text-lg font-semibold">{title}</DialogPrimitive.Title>
+          <div className="min-w-0 flex-1">
+            <DialogPrimitive.Title className="flex items-center gap-2 text-lg font-semibold">
+              {titleIcon}
+              <span className="min-w-0 truncate">{title}</span>
+            </DialogPrimitive.Title>
             {description ? (
               <DialogPrimitive.Description className="mt-1 text-sm text-fg-muted">{description}</DialogPrimitive.Description>
             ) : (

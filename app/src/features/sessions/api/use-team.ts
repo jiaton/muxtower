@@ -17,18 +17,7 @@ export function useUpdateTeam(daemonId: string, sessionId: string) {
   })
 }
 
-/** The tasks teammates sent it, and it sent them, newest first. */
-export function useSessionTasks(daemonId: string, sessionId: string) {
-  const client = useDaemonClient(daemonId)
-  return useQuery({
-    queryKey: daemonKey(daemonId, 'tasks', sessionId),
-    queryFn: async () =>
-      unwrap(await client!.GET('/v1/sessions/{session_id}/tasks', { params: { path: { session_id: sessionId }, query: { limit: 20 } } })),
-    enabled: Boolean(client),
-  })
-}
-
-/** A project's team at work in the last `hours` (GET /v1/projects/{project}/activity), for its diagram;
+/** A project's team at work in the last `hours` (GET /v1/projects/{project}/activity), for its Team dialog;
  *  asked again whenever the sessions change (a task sent or delivered says so), and every half minute. */
 export function useProjectActivity(daemonId: string, project: string | null | undefined, hours: number) {
   const client = useDaemonClient(daemonId)

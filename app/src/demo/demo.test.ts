@@ -159,6 +159,11 @@ describe('the demo daemon over HTTP', () => {
       'laptop~eval-report',
       'ds-tokens',
       'laptop~dotfiles',
+      'bill-pm',
+      'bill-lead',
+      'bill-meter',
+      'laptop~bill-refunds',
+      'laptop~bill-review',
       'old-1',
       'old-2',
       'laptop~old-3',
@@ -205,7 +210,8 @@ describe('the demo daemon over HTTP', () => {
       'acme/web-app',
       'acme/shop-api',
       'acme/infra',
-      'acme/docs', // the rest by name
+      'acme/billing', // the rest by name
+      'acme/docs',
       'acme/mobile',
       'labs/design-system',
       'labs/ml-pipeline',
@@ -307,7 +313,7 @@ describe('what shipped since 0.1.113, faked', () => {
     )
     for (const role of ['PM', 'tech lead', 'worker', 'reviewer']) expect(roles).toContain(role)
     expect(w.sessions().filter((s) => s.team_role?.startsWith('worker') && s.project === 'acme/shop-api')).toHaveLength(2)
-    // A PM in two projects, and a session's own tasks, newest first.
+    // A PM in three projects (acme/billing: the Team dialog's own small team), and a session's own tasks, newest first.
     expect(
       new Set(
         w
@@ -315,7 +321,7 @@ describe('what shipped since 0.1.113, faked', () => {
           .filter((s) => s.team_role?.startsWith('PM'))
           .map((s) => s.project),
       ),
-    ).toEqual(new Set(['acme/shop-api', 'acme/web-app']))
+    ).toEqual(new Set(['acme/shop-api', 'acme/web-app', 'acme/billing']))
     const own = await (await call(w, 'GET', '/v1/sessions/lead/tasks')).json()
     expect(own.length).toBeGreaterThan(10)
     expect(own[0].at >= own.at(-1).at).toBe(true)

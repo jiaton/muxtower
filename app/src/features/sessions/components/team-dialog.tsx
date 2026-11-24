@@ -1,148 +1,129 @@
-import { ArrowDownLeft, ArrowUpRight } from 'lucide-react'
-import { useState } from 'react'
-import { Banner } from '@/components/ui/banner'
-import { Button } from '@/components/ui/button'
+import { useMemo, type ReactNode } from 'react'
 import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { SuggestInput } from '@/components/ui/suggest-input'
-import type { Session, TeamTask } from '@/lib/api/types'
-import { ago } from '@/lib/time'
-import { useSessionTasks, useUpdateTeam } from '../api/use-team'
-import { useSessionEntries } from '../hooks/use-session-entries'
-import { TeamDiagram } from './team-diagram'
-import { ProjectPlaybookLine } from '@/features/playbook/components/project-playbook-line'
-
-import { Label } from '@/components/ui/label'
 import { ink, look } from '@/components/ui/intents'
-import { Loading } from '@/components/ui/skeleton'
+import { ProjectIcon } from '@/components/ui/project-hue'
+import type { Session } from '@/lib/api/types'
+import { ProjectPlaybookLine } from '@/features/playbook/components/project-playbook-line'
+import { useProjectHue } from '../api/use-project-colours'
+import { useUpdateTeam } from '../api/use-team'
+import { useSessionEntries } from '../hooks/use-session-entries'
+import { compareInProject } from '../model/project-order'
+import { TeamMembers } from './team-members'
+import { RecentTasks } from './team-tasks'
+import { SaveState, ThisSession } from './team-this-session'
 
-const count = (n: number) => `${n} session${n === 1 ? '' : 's'}`
-
-/** Counts of the values sessions have (roles, projects), for suggestions. */
-function tally(values: (string | null | undefined)[]) {
-  const counts = new Map<string, number>()
-  for (const v of values) if (v) counts.set(v, (counts.get(v) ?? 0) + 1)
-  return [...counts].map(([value, n]) => ({ value, hint: count(n) }))
-}
-
-function TaskLine({ task, sessionId }: { task: TeamTask; sessionId: string }) {
-  const sent = task.from_id === sessionId
-  const Icon = sent ? ArrowUpRight : ArrowDownLeft
+/** A section's small title, with what goes on its right (the save state). */
+function SectionHead({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <li className={`${ink.body} flex gap-2 py-1.5`}>
-      <Icon className={`${ink.quiet} mt-0.5 size-4 shrink-0`} aria-label={sent ? 'Sent' : 'Received'} />
-      <div className="min-w-0 flex-1">
-        <p className="line-clamp-2">{task.text}</p>
-        <p className={ink.meta}>
-          {sent ? `to ${task.to_id}` : `from ${task.from_label.split(' · ')[0]}`} · {ago(task.at)} · {task.status}
-        </p>
-      </div>
-    </li>
+    <div className="flex min-h-6 items-center gap-2">
+      <h3 className={`${ink.eyebrow} min-w-0 flex-1`}>{title}</h3>
+      {children}
+    </div>
   )
 }
 
-/** What a session is for in its team (a role: free text, the agents' to read), the project it works on
- *  with others, and the tasks teammates sent it or it sent them. Agents set the same through muxtower's
- *  MCP tools; this is the owner's say. */
-export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; session: Session; onClose: () => void }) {
-  const update = useUpdateTeam(daemonId, session.id)
-  const tasks = useSessionTasks(daemonId, session.id)
+/** A project's live sessions on a daemon, in the list's order (who leads first), and every session's name
+ *  there by id (a task names archived ones too). */
+function useTeam(daemonId: string, project: string | null | undefined) {
   const { entries } = useSessionEntries()
-  const sessions = entries.filter((e) => e.daemon.id === daemonId).map((e) => e.session)
-  const [role, setRole] = useState(session.team_role ?? '')
-  const [note, setNote] = useState(session.team_note ?? '')
-  const [project, setProject] = useState(session.project ?? '')
-  // Sent only when changed: one muxtower worked out stays its own (and moves with git) until someone sets it.
-  const moved = project.trim() && project.trim() !== session.project
-  const save = () =>
-    update.mutate(
-      { role: role.trim(), note: note.trim(), rename_project: false, ...(moved ? { project: project.trim() } : {}) },
-      { onSuccess: onClose },
-    )
+  return useMemo(() => {
+    const here = entries.filter((e) => e.daemon.id === daemonId)
+    const members = project
+      ? here
+          .filter((e) => e.session.project === project && !e.session.archived_at)
+          .sort(compareInProject)
+          .map((e) => e.session)
+      : []
+    return { members, names: new Map(here.map((e) => [e.session.id, e.session.name])) }
+  }, [entries, daemonId, project])
+}
 
-  // The fields right under the team's picture, its history last: editing never scrolls past history.
-  const form = (
-    <form
-      className="flex flex-col gap-3"
-      onSubmit={(e) => {
-        e.preventDefault()
-        save()
-      }}
-    >
-      <Label>
-        Role
-        <SuggestInput
-          placeholder="worker"
-          value={role}
-          onValueChange={setRole}
-          maxLength={200}
-          suggestions={tally(sessions.map((s) => s.team_role))}
-        />
-      </Label>
-      <Label>
-        Note <span className={ink.aside}>optional</span>
-        <Input placeholder="Implements what research agreed on" value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} />
-      </Label>
-      <Label>
-        <span>
-          Project {session.project_auto && !moved ? <span className={ink.aside}>· auto, from {session.project_source}</span> : null}
-        </span>
-        <SuggestInput
-          placeholder="owner/repo"
-          value={project}
-          onValueChange={setProject}
-          maxLength={120}
-          suggestions={tally(sessions.map((s) => s.project))}
-        />
-      </Label>
-      {update.error ? <Banner tone="error">{update.error.message}</Banner> : null}
-      <div className="flex justify-end">
-        <Button type="submit" disabled={update.isPending}>
-          Save
-        </Button>
-      </div>
-    </form>
+/** The team part: its members (a click opens one and closes the dialog), then what they sent each other. */
+function TeamSection({
+  daemonId,
+  project,
+  current,
+  onClose,
+}: {
+  daemonId: string
+  project: string
+  current?: string
+  onClose: () => void
+}) {
+  const { members, names } = useTeam(daemonId, project)
+  return (
+    <section aria-label="Team" className="flex flex-col gap-3">
+      <SectionHead title="Team" />
+      <TeamMembers daemonId={daemonId} members={members} current={current} onOpen={onClose} />
+      <RecentTasks daemonId={daemonId} project={project} names={names} />
+    </section>
   )
+}
+
+function TeamFrame({
+  project,
+  subtitle,
+  onClose,
+  children,
+}: {
+  project: string | null | undefined
+  subtitle?: string
+  onClose: () => void
+  children: ReactNode
+}) {
+  const hue = useProjectHue(project)
   return (
     <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent
-        title={`${session.name} in its team`}
-        description="Sessions of a project find each other by role and hand each other work."
-        className="sm:max-w-2xl"
+        title={project ? `Team · ${project}` : 'Team'}
+        titleIcon={project ? <ProjectIcon hue={hue} className="size-4" /> : null}
+        description={subtitle}
+        className="sm:max-w-xl"
       >
-        <TeamDiagram daemonId={daemonId} project={session.project} from={session.id} between={form} />
-        {session.project ? <ProjectPlaybookLine project={session.project} /> : null}
-        {/* With a project, its feed above holds this session's tasks too (a tap on its role narrows to it). */}
-        {session.project ? null : (
-          <section aria-label="Tasks" className={`${look.rule.top} mt-2 pt-3`}>
-            <h3 className={ink.eyebrow}>This session’s tasks</h3>
-            {tasks.data?.length ? (
-              <ul className={`${look.rows} flex flex-col`}>
-                {tasks.data.map((task) => (
-                  <TaskLine key={task.id} task={task} sessionId={session.id} />
-                ))}
-              </ul>
-            ) : tasks.isLoading ? (
-              <Loading label="Loading tasks…" />
-            ) : (
-              <p className={`${ink.hint} py-2`}>No tasks sent or received yet.</p>
-            )}
-          </section>
-        )}
+        {children}
+        {project ? (
+          <div className={`${look.rule.top} pt-3`}>
+            <ProjectPlaybookLine project={project} />
+          </div>
+        ) : null}
       </DialogContent>
     </Dialog>
   )
 }
 
-/** A project's team, opened from the list (a project's group): centred on the role the owner works with
- *  most. */
+/**
+ * A session's team, titled by its project (with the project's colour), the session's name under it: "This
+ * session" (its role, project and note, each saved as it is left) apart from "Team" (the project's members,
+ * then what they sent each other lately); the playbook in a line at the bottom. A bottom sheet on a phone.
+ * Agents set the same through muxtower's MCP tools; this is the owner's say.
+ */
+export function TeamDialog({ daemonId, session, onClose }: { daemonId: string; session: Session; onClose: () => void }) {
+  const update = useUpdateTeam(daemonId, session.id)
+  const project = session.project
+  return (
+    <TeamFrame project={project} subtitle={session.name} onClose={onClose}>
+      <section aria-label="This session" className="flex flex-col gap-2">
+        <SectionHead title="This session">
+          <SaveState update={update} />
+        </SectionHead>
+        <ThisSession session={session} update={update} />
+      </section>
+      <div className={`${look.rule.top} pt-3`}>
+        {project ? (
+          <TeamSection daemonId={daemonId} project={project} current={session.id} onClose={onClose} />
+        ) : (
+          <p className={ink.hint}>No project yet. Pick one above to join its team.</p>
+        )}
+      </div>
+    </TeamFrame>
+  )
+}
+
+/** A project's team, opened from its group in the list: the Team part alone. */
 export function ProjectTeamDialog({ daemonId, project, onClose }: { daemonId: string; project: string; onClose: () => void }) {
   return (
-    <Dialog open onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent title={project} description="Its team: who sends whom work, and what was sent." className="sm:max-w-2xl">
-        <TeamDiagram daemonId={daemonId} project={project} />
-        <ProjectPlaybookLine project={project} />
-      </DialogContent>
-    </Dialog>
+    <TeamFrame project={project} onClose={onClose}>
+      <TeamSection daemonId={daemonId} project={project} onClose={onClose} />
+    </TeamFrame>
   )
 }

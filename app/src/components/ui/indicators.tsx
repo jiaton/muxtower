@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight, LoaderCircle } from 'lucide-react'
+import type { AgentState } from '@/lib/api/types'
 import { cn } from '@/lib/cn'
-import { text } from './styles'
+import { stateTone, text } from './styles'
 
 type Tone = NonNullable<Parameters<typeof text>[0]>['tone']
 
@@ -49,9 +50,19 @@ const DOT = {
   warning: 'bg-state-permission',
   success: 'bg-success',
   muted: 'bg-fg-muted/50',
+  question: 'bg-state-question',
+  busy: 'bg-state-busy',
+  error: 'bg-state-error',
 } as const
 
 /** A small round mark in a tone, pulsing while something goes on. */
 export function Dot({ tone, pulse = false, className }: { tone: keyof typeof DOT; pulse?: boolean; className?: string }) {
   return <span aria-hidden className={cn('size-2.5 shrink-0 rounded-full', DOT[tone], pulse && 'animate-pulse', className)} />
+}
+
+/** A session's state as a dot in its state's tone (`stateTone`), smaller than a `Dot`, where a word beside
+ *  it names the state (a team's member row). Not `StatusIcon`: it has no shape of its own, so it never stands
+ *  alone. Not `StatusDot`: that is a machine's. */
+export function StateDot({ state, className }: { state: AgentState; className?: string }) {
+  return <Dot tone={stateTone[state]} className={cn('size-2', className)} />
 }
