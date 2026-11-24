@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 from muxtower.approval.models import ApprovalResult, Approve
 from muxtower.auth.deps import CurrentDevice
 from muxtower.auth.routes import Audit
-from muxtower.errors import Conflict
+from muxtower.errors import Conflict, status_of
 from muxtower.runtimes.models import RuntimeInfo
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.directory import SessionDirectory
@@ -240,9 +240,14 @@ def get_screen(session_id: str, _: CurrentDevice, directory: Directory, history:
     responses={202: {"description": "held: the session shows a dialog; typed in once it has gone"}},
 )
 def send_input(session_id: str, body: SendInput, device: CurrentDevice, directory: Directory, audit: Audit) -> Response:
-    held = directory.send_or_hold(session_id, body)
     # The typed text itself is never logged.
     what = f"key={body.key}" if body.key else f"text chars={len(body.text or '')} enter={body.enter}"
+    try:
+        held = directory.send_or_hold(session_id, body)
+    except Exception as error:
+        # Kept too: a send that failed leaves a trace where the daemon's own log may not be kept.
+        audit.record(device.name, "input failed", session_id, f"status={status_of(error)} {what}")
+        raise
     audit.record(device.name, "input", session_id, what + (" held" if held else ""))
     return Response(status_code=202 if held else 204)
 

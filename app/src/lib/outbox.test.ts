@@ -84,3 +84,9 @@ it('release: what was held is waited for from now, the rest as it was', () => {
   expect(a!.sentAt).toBeGreaterThan(0)
   expect(b!.sentAt).toBe(0)
 })
+
+it('never takes a failed message for a prompt with its words: it was not sent', () => {
+  const failed = { id: 'a', text: 'ok', sentAt: 0, afterSeq: 0, sending: false, failed: 'No answer from the daemon' }
+  expect(confirmed([failed], [{ seq: 1, kind: 'prompt', text: 'ok' }]).size).toBe(0)
+  expect(stateOf(failed, 0)).toBe('failed')
+})

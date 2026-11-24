@@ -23,11 +23,14 @@ export interface Outgoing {
   queued?: boolean
   /** Held by the hub while the session showed a dialog: typed in once it has gone. */
   held?: boolean
+  /** Its request failed (why, as the daemon or the browser said): not sent; shown with Retry. */
+  failed?: string
 }
 
 /** What a waiting message looks like: on its way, in the agent's queue, sent and waiting for the
- *  conversation, waited for too long, or not taken in (the session stopped working without it). */
-export type OutgoingState = 'sending' | 'held' | 'queued' | 'waiting' | 'unconfirmed' | 'undelivered'
+ *  conversation, waited for too long, not taken in (the session stopped working without it), or not sent
+ *  at all (its request failed). */
+export type OutgoingState = 'sending' | 'held' | 'queued' | 'waiting' | 'unconfirmed' | 'undelivered' | 'failed'
 
 export interface ShownOutgoing extends Outgoing {
   state: OutgoingState
@@ -39,6 +42,8 @@ interface Outbox {
   sent: Record<string, Outgoing[]>
   add: (key: string, text: string, afterSeq: number, queued?: boolean) => string
   settle: (key: string, id: string, held?: boolean) => void
+  /** Its request failed: it stays, said so, until sent again or put away. */
+  fail: (key: string, id: string, reason: string) => void
   /** Marks messages confirmed (by the prompt that did); once every one is, the session's are dropped. */
   confirm: (key: string, seqs: Map<string, number>) => void
   remove: (key: string, ids: string[]) => void
@@ -60,6 +65,10 @@ export const useOutbox = create<Outbox>()((set) => ({
         ...s.sent,
         [key]: (s.sent[key] ?? []).map((m) => (m.id === id ? { ...m, sending: false, ...(held ? { held } : {}) } : m)),
       },
+    })),
+  fail: (key, id, reason) =>
+    set((s) => ({
+      sent: { ...s.sent, [key]: (s.sent[key] ?? []).map((m) => (m.id === id ? { ...m, sending: false, failed: reason } : m)) },
     })),
   confirm: (key, seqs) =>
     set((s) => {
@@ -110,7 +119,7 @@ export function confirmed(sent: Outgoing[], items: ConversationItem[]): Map<stri
   const prompts = items.filter((i) => i.kind === 'prompt').sort((a, b) => a.seq - b.seq)
   const used = new Set(sent.flatMap((m) => (m.seq === undefined ? [] : [m.seq])))
   const done = new Map<string, number>()
-  const open = sent.filter((m) => m.seq === undefined)
+  const open = sent.filter((m) => m.seq === undefined && m.failed === undefined) // a failed one is in no conversation
   for (const prompt of prompts) {
     if (used.has(prompt.seq)) continue
     const message = open.find((m) => !done.has(m.id) && prompt.seq > m.afterSeq && same(m.text, prompt.text ?? ''))
@@ -125,6 +134,7 @@ export function confirmed(sent: Outgoing[], items: ConversationItem[]): Map<stri
 /** `idleSince`: since when the session has not been working (null while it works); `atPrompt`: it shows a
  *  dialog now. Held for a dialog: waiting while it shows; once gone, it went in then (waited for from then). */
 export const stateOf = (message: Outgoing, now: number, idleSince: number | null = null, atPrompt = false): OutgoingState => {
+  if (message.failed !== undefined) return 'failed'
   if (message.sending) return 'sending'
   if (message.held && atPrompt) return 'held'
   if (idleSince !== null && now - Math.max(idleSince, message.sentAt) >= GRACE_MS) return 'undelivered'

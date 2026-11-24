@@ -75,6 +75,7 @@ const item = (kind: ConversationItem['kind']) => (seq: number, fields: ItemField
 export const prompt = item('prompt')
 export const reply = item('reply')
 export const tool = item('tool')
+export const nextStep = item('next_step')
 
 /** How any session answers a message: honestly, since nothing runs here. */
 export const DEMO_ANSWER =

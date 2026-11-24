@@ -4,9 +4,12 @@ import { CONFIRM_MS, GRACE_MS, confirmed, newestSeq, stateOf, useOutbox, type Ou
 
 const NONE: Outgoing[] = []
 
-/** What a message box sends, told to the outbox: `sent` once its request went through, `failed` if it
- *  did not (it is then taken back out: its text goes back in the box). */
-export type Track = (text: string) => { sent: (result?: { held: boolean }) => void; failed: () => void }
+/** What a message box sends, told to the outbox: `sent` once its request went through, `failed` (and why)
+ *  if it did not: it stays at the conversation's end, said not sent, with Retry. */
+export type Track = (text: string) => { sent: (result?: { held: boolean }) => void; failed: (error: Error) => void }
+
+/** Why a message was not sent, as said under it: the daemon's reason, or that nothing answered. */
+export const whyNotSent = (error: Error) => (error instanceof TypeError ? 'No answer from the daemon' : error.message)
 
 /** The messages sent to a session that its conversation does not have yet, to show at its end, and
  *  `track` for its message box. A message the conversation has is dropped. One sent while the agent works
@@ -16,7 +19,7 @@ export type Track = (text: string) => { sent: (result?: { held: boolean }) => vo
 export function useOutgoing(daemonId: string, sessionId: string, items: ConversationItem[] | undefined, working = false, atPrompt = false) {
   const key = `${daemonId}/${sessionId}`
   const sent = useOutbox((s) => s.sent[key]) ?? NONE
-  const { add, settle, confirm, remove, release } = useOutbox.getState()
+  const { add, settle, fail, confirm, remove, release } = useOutbox.getState()
   const done = useMemo(() => confirmed(sent, items ?? []), [sent, items])
   const open = sent.filter((m) => m.seq === undefined && !done.has(m.id))
   const [now, setNow] = useState(() => Date.now())
@@ -41,7 +44,7 @@ export function useOutgoing(daemonId: string, sessionId: string, items: Conversa
 
   // Wake up when the next one is due to change: waited too long, or not gone in.
   const due = open
-    .filter((m) => !m.sending)
+    .filter((m) => !m.sending && m.failed === undefined)
     .flatMap((m) => {
       const state = stateOf(m, now, idleSince, atPrompt)
       if (state === 'undelivered' || state === 'held') return []
@@ -59,9 +62,9 @@ export function useOutgoing(daemonId: string, sessionId: string, items: Conversa
   const track = useCallback<Track>(
     (text) => {
       const id = add(key, text, newestSeq(items), busy.current)
-      return { sent: (result) => settle(key, id, result?.held), failed: () => remove(key, [id]) }
+      return { sent: (result) => settle(key, id, result?.held), failed: (error) => fail(key, id, whyNotSent(error)) }
     },
-    [add, key, items, remove, settle],
+    [add, key, items, fail, settle],
   )
   const dismiss = useCallback((id: string) => remove(key, [id]), [key, remove])
   return { pending, track: items ? track : undefined, dismiss }

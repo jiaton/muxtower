@@ -6,6 +6,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog'
 import type { Session } from '@/lib/api/types'
 import { useArchiveSession, useTerminateSession } from '../api/use-session-mutations'
 import { useHideSession } from '../api/use-session-marks'
+import { inDesktopApp } from '../model/facets'
 
 /** The confirmations of a session's actions (`session-actions.tsx`). */
 interface Mutation {
@@ -95,7 +96,7 @@ export function ArchiveDialog({ daemonId, session, ...rest }: DialogProps) {
 }
 
 /** Where a session muxtower cannot end runs (`capabilities.archive_ends` false: Claude's desktop app). */
-const runsIn = (session: Session) => (session.origin === 'claude_desktop' ? "Claude's desktop app" : 'a Claude Code muxtower does not run')
+const runsIn = (session: Session) => (inDesktopApp(session) ? "Claude's desktop app" : 'a Claude Code muxtower does not run')
 
 /** Archive, for a session muxtower cannot end: says so, and hides it here instead. */
 export function HideInsteadDialog({ daemonId, session, ...rest }: DialogProps) {

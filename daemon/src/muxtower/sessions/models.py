@@ -319,7 +319,7 @@ class ItemStatus(StrEnum):
     RUNNING = "running"  # tool
     DONE = "done"  # tool, result
     ERROR = "error"  # tool, result
-    PENDING = "pending"  # approval, question, next_step
+    PENDING = "pending"  # approval, question, next_step; prompt: sent, not taken in yet (held: Deliver)
     ALLOWED = "allowed"  # approval
     DENIED = "denied"  # approval
     ANSWERED = "answered"  # question; next_step: the owner wrote since

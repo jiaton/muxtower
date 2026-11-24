@@ -15,6 +15,8 @@ import { Banner } from '@/components/ui/banner'
 
 const BOTTOM_SLACK = 24
 const FOUND_MS = 2500 // how long the item a search led to stays outlined
+/** How long a message the agent has not taken in waits before it offers to be sent again. */
+export const SEND_AGAIN_MS = 10 * 60_000
 
 /** Where the conversation is read from, for the images its items show. */
 export interface ConversationSource {
@@ -118,6 +120,43 @@ const ItemView = memo(function ItemView({
   )
 }, sameItem)
 
+/** A message the conversation has that the agent has not taken in yet (a `pending` prompt): faded, with
+ *  where it waits (`waiting`: the Claude app's Deliver, for a session open there); a while on, still not
+ *  taken in (denied there, or the dialog put away), it offers to be sent again. */
+function WaitingPrompt({
+  item,
+  waiting,
+  onSendAgain,
+}: {
+  item: ConversationItem
+  waiting: string
+  onSendAgain?: (text: string) => void
+}) {
+  const [seen] = useState(() => Date.now())
+  const since = item.at ? Date.parse(item.at) : seen
+  const [late, setLate] = useState(() => Date.now() - since >= SEND_AGAIN_MS)
+  useEffect(() => {
+    if (late) return
+    const timer = setTimeout(() => setLate(true), Math.max(0, since + SEND_AGAIN_MS - Date.now()))
+    return () => clearTimeout(timer)
+  }, [late, since])
+  return (
+    <div className="flex flex-col items-end gap-1" data-waiting>
+      <div className={bubble({ state: 'pending' })}>
+        <Clamp>{item.text}</Clamp>
+      </div>
+      <p className={cn('flex flex-wrap items-center justify-end gap-x-1', ink.meta)}>
+        <span>{waiting}</span>
+        {late && onSendAgain ? (
+          <Button size="xs" variant="ghost" onClick={() => onSendAgain(item.text ?? '')}>
+            <RotateCw aria-hidden /> Not delivered? Send again
+          </Button>
+        ) : null}
+      </p>
+    </div>
+  )
+}
+
 const OUTGOING_LABEL: Record<ShownOutgoing['state'], string> = {
   sending: 'Sending',
   held: 'Waiting · goes in when the session is back at its prompt',
@@ -125,6 +164,7 @@ const OUTGOING_LABEL: Record<ShownOutgoing['state'], string> = {
   waiting: 'Sent',
   unconfirmed: 'Sent, not in the conversation yet',
   undelivered: 'Not delivered',
+  failed: 'Not sent',
 }
 
 /** A message sent that the conversation does not have yet: a prompt, faded until it does. Queued while the
@@ -141,20 +181,26 @@ function OutgoingView({
   onDismiss?: (id: string) => void
   onResend?: (message: ShownOutgoing) => void
 }) {
-  const stuck = message.state === 'unconfirmed' || message.state === 'undelivered'
+  const stuck = message.state === 'unconfirmed' || message.state === 'undelivered' || message.state === 'failed'
+  const failed = message.state === 'failed'
   return (
     <div className="flex flex-col items-end gap-1" data-outgoing={message.state}>
-      <div className={bubble({ state: message.state === 'undelivered' ? 'undelivered' : 'pending' })}>
+      <div className={bubble({ state: message.state === 'undelivered' || failed ? 'undelivered' : 'pending' })}>
         <Clamp>{message.text}</Clamp>
       </div>
-      <p className={cn('flex items-center gap-1', message.state === 'undelivered' ? ink.noteWarning : ink.meta)}>
+      <p
+        role={failed ? 'alert' : undefined}
+        className={cn('flex items-center gap-1', failed ? ink.noteDanger : message.state === 'undelivered' ? ink.noteWarning : ink.meta)}
+      >
         {message.state === 'sending' ? <Spinner className="size-3" /> : null}
-        {message.state === 'held' && sessionName
-          ? `Waiting · goes in when ${sessionName} is back at its prompt`
-          : OUTGOING_LABEL[message.state]}
-        {message.state === 'undelivered' && onResend ? (
+        {failed && message.failed
+          ? `Not sent: ${message.failed}`
+          : message.state === 'held' && sessionName
+            ? `Waiting · goes in when ${sessionName} is back at its prompt`
+            : OUTGOING_LABEL[message.state]}
+        {(message.state === 'undelivered' || failed) && onResend ? (
           <Button size="xs" variant="ghost" onClick={() => onResend(message)}>
-            <RotateCw aria-hidden /> Resend
+            <RotateCw aria-hidden /> {failed ? 'Retry' : 'Resend'}
           </Button>
         ) : null}
         {stuck && onDismiss ? (
@@ -181,6 +227,8 @@ export function ConversationView({
   focus,
   earlier,
   sessionName,
+  waiting = 'Not taken in yet',
+  onSendAgain,
 }: {
   items: ConversationItem[]
   pending?: ShownOutgoing[]
@@ -194,6 +242,10 @@ export function ConversationView({
   earlier?: () => void
   /** Said of a message held while the session shows a dialog. */
   sessionName?: string
+  /** Said under a message the agent has not taken in yet (a `pending` prompt). */
+  waiting?: string
+  /** Sends a message that was not taken in again. */
+  onSendAgain?: (text: string) => void
 }) {
   const scroller = useRef<HTMLDivElement>(null)
   const [focused, setFocused] = useState<number | undefined>(undefined)
@@ -257,6 +309,10 @@ export function ConversationView({
             pending.length ? null : (
               <NextStepCard key={`n${row.item.seq}`} item={row.item} onReply={onReply} />
             )
+          ) : row.item.kind === 'prompt' && row.item.status === 'pending' ? (
+            <div key={row.item.seq} data-seq={row.item.seq}>
+              <WaitingPrompt item={row.item} waiting={waiting} onSendAgain={onSendAgain} />
+            </div>
           ) : (
             <div key={row.item.seq} data-seq={row.item.seq}>
               <ItemView item={row.item} source={source} focused={row.item.seq === focused} />

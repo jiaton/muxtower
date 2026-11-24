@@ -226,3 +226,18 @@ export const isAssistant = (session: Session) => session.role === 'concierge'
 
 /** Seen and answered: nothing about it waits for the owner (its notifications can go). */
 export const isSettled = (session: Session) => !session.unread && !session.needs_attention
+
+/** A Remote Control session open in Claude's desktop app: Claude Code there holds a message muxtower sends
+ *  (one not from the owner's own apps) until Deliver is clicked there. */
+export const inDesktopApp = (session: Session): boolean => session.source === 'remote_control' && sourceOf(session) === 'Desktop app'
+
+/** Where such a session's messages wait: "the Claude app on <machine>". */
+const claudeAppOn = (session: Session) => `the Claude app on ${deviceOf(session) ?? 'its computer'}`
+
+/** Said under a message the agent has not taken in yet (a `pending` prompt). */
+export const waitingNote = (session: Session): string =>
+  inDesktopApp(session) ? `Waiting for Deliver in ${claudeAppOn(session)}` : 'Not taken in yet'
+
+/** Said by the message box of a session whose messages wait for Deliver, or null. */
+export const composerNote = (session: Session): string | null =>
+  inDesktopApp(session) ? `This session is open in ${claudeAppOn(session)}: messages wait for Deliver there` : null

@@ -1,6 +1,6 @@
 import type { Scene } from '../world'
-import { HOME, NODE, ago, demoSession, prompt, reply } from './session'
-import { talk } from './talk'
+import { HOME, NODE, ago, demoSession, nextStep, prompt, reply } from './session'
+import { heldTalk, talk } from './talk'
 import { answered, claudeInput, claudeWelcome, said } from './terminal'
 import { bash, edit, read, says, transcript, you } from './transcript'
 
@@ -126,6 +126,7 @@ export function releaseNotes(): Scene {
         resume: false,
       },
       origin: 'claude_desktop',
+      machine: 'mac',
       state_source: 'remote',
       last_message: 'Release notes for 2.4 are ready.',
       team_role: 'research',
@@ -139,10 +140,14 @@ export function releaseNotes(): Scene {
     }),
     history: [],
     footer: [],
-    items: [...NOTES_EARLIER.items, reply(NOTES_EARLIER.next, { text: NOTES, at: ago(30) })],
-    reply: talk(null, NOTES_EARLIER.next + 10),
+    items: [...NOTES_EARLIER.items, reply(NOTES_EARLIER.next, { text: NOTES, at: ago(30) }), NOTES_WAITING],
+    // Sent from here, a message waits in the desktop app for Deliver (clicked there a moment later).
+    reply: heldTalk(NOTES_EARLIER.next + 10, () => [NOTES_WAITING]),
   }
 }
+
+/** A message sent from here that the desktop app holds until Deliver is clicked there. */
+const NOTES_WAITING = prompt(NOTES_EARLIER.next + 5, { text: 'Add a line about the new export button.', at: ago(3), status: 'pending' })
 
 const SHORTER = 'Shorter, for the changelog: "2.4 adds a usage chart and payment retries, and fixes double-counted tax on refunds."'
 
@@ -163,10 +168,11 @@ export function releaseNotesFork(): Scene {
       updated_at: ago(12),
     },
     items: [
-      ...scene.items,
+      ...scene.items.filter((item) => item !== NOTES_WAITING), // a fork copies what was taken in
       prompt(NOTES_EARLIER.next + 1, { text: 'Now a one-line version for the changelog.', at: ago(14) }),
       reply(NOTES_EARLIER.next + 2, { text: SHORTER, at: ago(12) }),
     ],
+    reply: heldTalk(NOTES_EARLIER.next + 10, () => []),
   }
 }
 
@@ -213,10 +219,22 @@ export function releasePostFork(): Scene {
       updated_at: ago(18),
     },
     items: [
-      ...scene.items,
+      ...scene.items.filter((item) => item !== NOTES_WAITING),
       prompt(NOTES_EARLIER.next + 1, { text: 'Turn these into a short blog post.', at: ago(20) }),
       reply(NOTES_EARLIER.next + 2, { text: POST, at: ago(18) }),
+      // Claude desktop's next-step box: replies to pick.
+      nextStep(NOTES_EARLIER.next + 3, {
+        text: 'The draft is in posts/2-4.md.',
+        ask: 'Publish it?',
+        status: 'pending',
+        at: ago(18),
+        actions: [
+          { label: 'Post it', message: 'Post it to the blog.' },
+          { label: 'Shorter first', message: 'Make it shorter first.' },
+        ],
+      }),
     ],
+    reply: heldTalk(NOTES_EARLIER.next + 10, () => []),
   }
 }
 

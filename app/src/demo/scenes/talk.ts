@@ -1,3 +1,4 @@
+import type { ConversationItem } from '@/lib/api/types'
 import type { Step } from '../world'
 import { DEMO_ANSWER, prompt, reply } from './session'
 import { answered, claudeInput, codexAnswered, codexInput, codexSaid, codexWorking, said, working } from './terminal'
@@ -48,6 +49,27 @@ export function talk(screen: 'claude' | 'codex' | null, firstSeq: number, answer
         add: screen === 'codex' ? codexAnswered(answerText) : screen ? answered(answerText) : undefined,
         footer: screen === 'codex' ? codexInput : screen ? claudeInput : undefined,
         items: [reply(answer, { text: answerText })],
+      },
+    ]
+  }
+}
+
+/** How a session open in Claude's desktop app answers: the message waits there for Deliver (here, clicked
+ *  a moment later), and what waited before it goes in with it (`waiting`: those prompts); then the agent
+ *  works a moment and says it is a demo. */
+export function heldTalk(firstSeq: number, waiting: () => ConversationItem[]) {
+  let seq = firstSeq
+  return (text: string): Step[] => {
+    const asked = prompt(seq++, { text, at: new Date().toISOString(), status: 'pending' })
+    const answer = seq++
+    const delivered = [...waiting(), asked].map((item) => ({ ...item, status: null }))
+    return [
+      { after: 0, items: [asked] },
+      { after: 3000, session: { state: 'busy', pending: null }, items: delivered },
+      {
+        after: 1600,
+        session: { state: 'idle', unread: true, last_message: DEMO_ANSWER, finished_at: new Date().toISOString() },
+        items: [reply(answer, { text: DEMO_ANSWER })],
       },
     ]
   }

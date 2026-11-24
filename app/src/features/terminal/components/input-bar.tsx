@@ -25,9 +25,10 @@ import { QuoteCards } from './quote-cards'
 import { submitters } from '../draft-box'
 import { useTokenMenu, type TokenSource } from '@/components/ui/token-menu'
 import { composerField, composerText } from '@/components/ui/composer-field'
-import { look } from '@/components/ui/intents'
+import { ink, look } from '@/components/ui/intents'
 import { Fold } from '@/components/ui/fold'
 import { keepFocus } from '@/components/ui/gesture'
+import { composerColumns } from '@/components/ui/bar'
 import { useAttachPickers } from '@/lib/attach-picker'
 
 const NO_QUOTES: Quote[] = []
@@ -39,7 +40,8 @@ const TOUCH = '(pointer: coarse)' // a phone: its keyboard covers half the scree
  *  reply (`QuoteCards`), and goes first in the message (`withQuotes`). What is typed and quoted is kept
  *  per session until it is sent (`useDrafts`). With `track` (a session whose conversation is shown), a
  *  message leaves the textarea at once and waits at the end of the conversation (`useOutgoing`); if it
- *  cannot be sent, it comes back into the textarea. Enter sends with a keyboard; on a phone, return is a new line and Send sends, so
+ *  cannot be sent, it stays there, said not sent, with Retry. `note`: one quiet line above the row, said
+ *  of every message here (where they wait). Enter sends with a keyboard; on a phone, return is a new line and Send sends, so
  *  the keyboard can be put away and more quoted first. `keys`: the key names this session accepts; empty
  *  means all of them. `images`: the session takes pictures with a message (pasted, dropped or picked;
  *  `useAttachments`), shown above the words. Any other file (every file, where it takes no pictures) is
@@ -57,6 +59,7 @@ export function InputBar({
   guard,
   suggestion,
   keySends = true,
+  note,
 }: {
   daemonId: string
   sessionId: string
@@ -73,8 +76,11 @@ export function InputBar({
    *  too unless `keySends` is false (Live on: there ⌘↵ sends what is being said). */
   suggestion?: string | null
   keySends?: boolean
+  note?: string | null
 }) {
   const send = useSendInput(daemonId, sessionId)
+  // A message the conversation shows on its way (`track`): its failure is said there, not in a banner.
+  const sendTracked = useSendInput(daemonId, sessionId)
   const accept = useAcceptSuggestion(daemonId, sessionId)
   const draftKey = keyOf(daemonId, sessionId)
   const draft = useDrafts((s) => s.drafts[draftKey] ?? '')
@@ -177,27 +183,20 @@ export function InputBar({
     const [sentText, sentQuotes] = [text, quotes]
     const tracked = track?.(message)
     if (tracked) {
-      // Shown in the conversation already, as on its way.
+      // Shown in the conversation already, as on its way; if it fails, it says so there, with Retry.
       setText('')
       setQuotes(draftKey, [])
+      sendTracked.mutate({ text: message, enter: true }, { onSuccess: tracked.sent, onError: tracked.failed })
+      return
     }
     send.mutate(
       { text: message, enter: true },
       {
-        onSuccess: (result) => {
-          if (tracked) return tracked.sent(result)
+        onSuccess: () => {
           // Typed on (or quoted more) while it was sending: keep what is newer.
           const now = useDrafts.getState()
           if ((now.drafts[draftKey] ?? '') === sentText) setText('')
           if (now.quotes[draftKey] === sentQuotes) setQuotes(draftKey, [])
-        },
-        onError: () => {
-          if (!tracked) return // it never left the textarea
-          tracked.failed()
-          // Back in the textarea, ahead of anything typed since.
-          const now = useDrafts.getState()
-          setText([sentText, now.drafts[draftKey] ?? ''].filter(Boolean).join('\n'))
-          setQuotes(draftKey, [...sentQuotes, ...(now.quotes[draftKey] ?? [])])
         },
       },
     )
@@ -322,6 +321,13 @@ export function InputBar({
         <Banner tone="error" aligned action={<Dismiss onClick={files.dismissNotice} />}>
           {files.notice}
         </Banner>
+      ) : null}
+      {note ? (
+        // Quiet, lined up with what is typed: the lead column of the + left empty.
+        <p data-component="composer note" className={cn('flex', composerColumns.gap, ink.meta)} title={note}>
+          <span aria-hidden className={composerColumns.lead} />
+          <span className={cn('min-w-0 flex-1 truncate', composerColumns.inset)}>{note}</span>
+        </p>
       ) : null}
       {/* The + panel, the swap for the row while speaking, and the row: no gap of their own, so the panel's
           fold (its own padding below) is all that moves; the row never jumps. */}

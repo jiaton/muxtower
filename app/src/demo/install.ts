@@ -26,6 +26,9 @@ export function installDemo() {
   const origin = new URL(DEMO_DAEMON.url).origin
   const at = (url: string, place: string) => new URL(url).origin.replace(/^ws/, 'http') === place
   const hubDown = new URLSearchParams(location.search).get('hub') === 'down'
+  // `?fail=input`: every message sent fails on its way, as while the hub restarts (the rest answers).
+  const inputFails = new URLSearchParams(location.search).get('fail') === 'input'
+  const failing = (request: Request) => inputFails && request.method === 'POST' && request.url.endsWith('/input')
   // `?latency=<ms>`: every answer that long in coming, as over a real connection (measuring, e2e).
   const latency = Number(new URLSearchParams(location.search).get('latency') ?? 0)
   const later = <T,>(answer: () => Promise<T>) =>
@@ -34,6 +37,7 @@ export function installDemo() {
   const fetchOut = globalThis.fetch.bind(globalThis)
   globalThis.fetch = (input, init) => {
     const request = new Request(input, init)
+    if (at(request.url, origin) && failing(request)) return Promise.reject(new TypeError('Failed to fetch'))
     if (at(request.url, origin)) return hubDown ? Promise.reject(new TypeError('Failed to fetch')) : later(() => respond(world, request))
     if (at(request.url, DIRECT_URL)) return respondAsNode(world, request)
     return fetchOut(input, init)

@@ -43,7 +43,7 @@ import { useSpeech } from '@/features/voice/live/speech'
 import { draftBox } from '@/features/terminal/draft-box'
 import { VoiceBar } from '@/features/voice/components/voice-bar'
 import { useDictation } from '@/features/voice/hooks/use-dictation'
-import { entryKey } from '@/features/sessions/model/facets'
+import { composerNote, entryKey, waitingNote } from '@/features/sessions/model/facets'
 import type { Session } from '@/lib/api/types'
 import { useOutgoing } from '@/lib/use-outbox'
 import { withKeys } from '@/lib/shortcuts'
@@ -187,12 +187,13 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
     [writable, screen, session.runtime, session.id, daemonId, fill],
   )
   const send = useSendInput(daemonId, session.id)
-  // A reply the agent offered (its next step), sent like one typed: shown on its way, gone if it fails.
+  // A reply the agent offered (its next step), sent like one typed: shown on its way; if it fails, said so
+  // there with Retry.
   const reply = (text: string) => {
     const tracked = outgoing.track?.(text)
     send.mutate({ text, enter: true }, { onSuccess: tracked?.sent, onError: tracked?.failed })
   }
-  // One that did not go in, sent again as a new message.
+  // One that did not go in (or failed), sent again as a new message.
   const resend = (message: { id: string; text: string }) => {
     outgoing.dismiss(message.id)
     reply(message.text)
@@ -321,6 +322,8 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
                   onDismiss={outgoing.dismiss}
                   onResend={resend}
                   onReply={writable ? reply : undefined}
+                  waiting={waitingNote(session)}
+                  onSendAgain={writable ? reply : undefined}
                   source={{ daemonId, sessionId: session.id }}
                 />
               </>
@@ -373,6 +376,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
               cover={dictation.active ? <VoiceBar dictation={dictation} /> : null}
               mention={mention}
               guard={guardKey}
+              note={composerNote(session)}
             />
           </FooterBar>
         </>

@@ -5,7 +5,7 @@ import type { TokenSource } from '@/components/ui/token-menu'
 import { InputBar } from './input-bar'
 import { draftBox } from '../draft-box'
 
-const mutate = vi.fn((_body: unknown, options?: { onSuccess?: () => void; onError?: () => void }) => options?.onSuccess?.())
+const mutate = vi.fn((_body: unknown, options?: { onSuccess?: () => void; onError?: (error: Error) => void }) => options?.onSuccess?.())
 const acceptSuggestion = vi.fn()
 const acceptReset = vi.fn()
 // What the suggestion's request did, as a test sets it: a refusal shows its banner.
@@ -179,11 +179,11 @@ describe('InputBar', () => {
     expect(mutate).toHaveBeenCalledTimes(1)
   })
 
-  it('with a conversation, empties the box at once and puts the message back if it cannot be sent', () => {
+  it('with a conversation, empties the box at once; one not sent stays there, said why, and is not put back', () => {
     device(false)
     const tracked = { sent: vi.fn(), failed: vi.fn() }
     const track = vi.fn(() => tracked)
-    let fail: (() => void) | undefined
+    let fail: ((error: Error) => void) | undefined
     mutate.mockImplementationOnce((_body, options) => {
       fail = options?.onError
     })
@@ -194,10 +194,17 @@ describe('InputBar', () => {
     expect(track).toHaveBeenCalledWith('> Pick a date\n\nFriday')
     expect(useDrafts.getState()).toMatchObject({ drafts: {}, quotes: {} }) // shown in the conversation instead
     fireEvent.change(box(), { target: { value: 'and Saturday' } })
-    act(() => fail!())
-    expect(tracked.failed).toHaveBeenCalled()
-    expect(box()).toHaveValue('Friday\nand Saturday')
-    expect(useDrafts.getState().quotes['nas/s1']).toEqual([{ text: 'Pick a date', reply: '' }])
+    act(() => fail!(new TypeError('Failed to fetch')))
+    expect(tracked.failed).toHaveBeenCalledWith(new TypeError('Failed to fetch')) // said in the conversation, with Retry
+    expect(box()).toHaveValue('and Saturday') // what was typed since stays; the failed one is not put back
+    expect(useDrafts.getState().quotes['nas/s1']).toBeUndefined()
+  })
+
+  it('says one quiet line about where messages wait, when given', () => {
+    device(false)
+    render(<InputBar daemonId="nas" sessionId="s1" note="This session is open in the Claude app on build-box: messages wait for Deliver there" />)
+    expect(screen.getByText(/messages wait for Deliver there/)).toBeInTheDocument()
+    expect(screen.queryByRole('status')).toBeNull() // a hint, not a banner
   })
 
   it('takes pasted pictures where the session does, shows them over the words and sends them along', async () => {

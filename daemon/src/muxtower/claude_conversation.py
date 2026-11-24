@@ -9,7 +9,7 @@ end). Everything else (system, progress, rate limits) is not conversation.
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Any
 
 from muxtower.agent_text import describe_tool_input, tool_description
@@ -38,6 +38,11 @@ COMMAND = re.compile(r"<command-name>\s*(\S+?)\s*</command-name>(?:.*?<command-a
 # Claude Code records pasted text wrapped as `<pasted_content id="…">…</pasted_content id="…">`: shown as typed.
 PASTED = re.compile(r"\n?</?pasted_content\b[^>]*>\n?")
 QUESTION_TOOLS = {"AskUserQuestion"}
+# A controller's message (claude.ai, the apps, muxtower) is in the log once sent; Claude Code may still hold it
+# (the desktop app asks Deny or Deliver for one from muxtower). Taken in once a reply names it
+# (`user_message_uuids`) or once Claude Code writes it again as its own (`origin`: delivered): that copy, the
+# first one after it with the same words and this soon, is the same message, not a second one.
+REEMIT_WINDOW = timedelta(minutes=30)
 UNLISTED_TOOLS = {"AskUserQuestion", "ExitPlanMode", *WRAP_UP_TOOLS}  # shown as their prompt, not as a tool call
 
 
@@ -101,12 +106,46 @@ AGENT_KINDS = frozenset(
 
 
 @dataclass
+class Unanswered:
+    """A controller's prompt Claude Code has not taken in yet (its item is `pending`)."""
+
+    uuid: str
+    item_seq: int
+    text: str
+    at: datetime | None
+
+
+def _close(sent: datetime | None, again: datetime | None) -> bool:
+    return sent is not None and again is not None and timedelta(0) <= again - sent <= REEMIT_WINDOW
+
+
+def _answers(payload: dict[str, Any]) -> list[str] | None:
+    """The prompts an assistant event answers, by uuid; None when Claude Code does not say (older versions)."""
+    many, one = payload.get("user_message_uuids"), payload.get("user_message_uuid")
+    if many is None and one is None:
+        return None
+    return [str(u) for u in [*(many or []), one] if u]
+
+
+@dataclass
 class ConversationBuilder:
     items: dict[int, ConversationItem] = field(default_factory=dict)
     latest_event_seq: int = 0
     _tools: dict[str, int] = field(default_factory=dict)  # tool_use_id -> item seq
     _requests: dict[str, PendingRequest] = field(default_factory=dict)  # unresolved prompts
     _next_steps: list[int] = field(default_factory=list)  # next_step items nobody has answered yet
+    _unanswered: list[Unanswered] = field(default_factory=list)  # oldest first
+    _names_answers: bool = False  # this Claude Code says which prompts a reply answers
+
+    def _take_in(self, taken: list[Unanswered]) -> list[ConversationItem]:
+        """These prompts went in: no longer pending."""
+        self._unanswered = [u for u in self._unanswered if u not in taken]
+        out = []
+        for u in taken:
+            item = self.items.get(u.item_seq)
+            if item is not None and item.status == ItemStatus.PENDING:
+                out.append(item.model_copy(update={"status": None}))
+        return out
 
     @property
     def pending(self) -> PendingRequest | None:
@@ -168,12 +207,33 @@ class ConversationBuilder:
                 elif block.get("type") == "text" and not (payload.get("isSynthetic") or payload.get("isMeta")):
                     if text := _typed(str(block.get("text") or "").strip()):
                         texts.append(text)
+            text = "\n".join(texts)
+            again = (
+                next((u for u in self._unanswered if u.text == text and _close(u.at, at)), None)
+                if texts and event.source == "worker" and payload.get("origin")
+                else None
+            )
+            if again is not None:
+                # Delivered: Claude Code wrote the held message again as its own; it is that one, taken in.
+                return out + self._take_in([again])
             if texts:
-                out.append(ConversationItem(seq=base, at=at, kind=ConversationItemKind.PROMPT, text="\n".join(texts)))
+                uuid = payload.get("uuid")
+                held = event.source == "client" and bool(uuid)
+                status = ItemStatus.PENDING if held else None
+                prompt = ConversationItem(seq=base, at=at, kind=ConversationItemKind.PROMPT, text=text, status=status)
+                out.append(prompt)
+                if held:
+                    self._unanswered.append(Unanswered(str(uuid), base, text, at))
                 out += [i for s in self._next_steps if (i := self._set_status(s, ItemStatus.ANSWERED))]
                 self._next_steps.clear()
 
         elif kind == "assistant":
+            named = _answers(payload)
+            self._names_answers = self._names_answers or named is not None
+            if named is not None:
+                out += self._take_in([u for u in self._unanswered if u.uuid in named])
+            elif not self._names_answers:
+                out += self._take_in(list(self._unanswered))  # it cannot say which: all of them went in
             prose = [str(b.get("text") or "") for b in _blocks(payload) if b.get("type") == "text"]
             prose_text = "\n".join(p for p in prose if p.strip()).strip()
             index = 0

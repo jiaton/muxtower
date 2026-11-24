@@ -13,16 +13,7 @@ from muxtower.auth.routes import router as auth_router
 from muxtower.chips.routes import router as chips_router
 from muxtower.config import Settings
 from muxtower.diagnostics.routes import router as diagnostics_router
-from muxtower.errors import (
-    Conflict,
-    Forbidden,
-    Invalid,
-    NotFound,
-    TooLarge,
-    TooManyRequests,
-    Unauthorized,
-    Unavailable,
-)
+from muxtower.errors import STATUSES
 from muxtower.hooks.routes import router as hooks_router
 from muxtower.infra.tmux import TmuxError
 from muxtower.listen.routes import router as listen_router
@@ -58,10 +49,8 @@ def serve(app: FastAPI, settings: Settings, allowed_origins: list[str], daemon_n
         )
         app.add_middleware(PrivateNetworkAccess)  # outside CORS: it adds to the preflight's answer
 
-    errors = ((NotFound, 404), (Invalid, 400), (Conflict, 409), (Forbidden, 403), (Unauthorized, 401),
-              (TooManyRequests, 429), (TooLarge, 413), (TmuxError, 503), (Unavailable, 503))  # fmt: skip
-    # 503, not 502: Cloudflare (a tunnel) swaps an origin's 502 for its own page, and the reason is lost.
-    for error, status in errors:
+    handled: tuple[tuple[type[Exception], int], ...] = (*STATUSES, (TmuxError, 503))
+    for error, status in handled:
 
         def handler(_: Request, exc: Exception, status: int = status) -> JSONResponse:
             headers = DAEMON_AUTH_HEADER if status == 401 else None
