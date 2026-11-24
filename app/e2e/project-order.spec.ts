@@ -8,11 +8,8 @@ const DEMO = process.env.MUXTOWER_E2E_DEMO ?? 'http://127.0.0.1:4418/'
 
 test.setTimeout(150_000) // several pages at once on a cold dev server
 
-async function start(browser: Browser, width: number, height: number, touch = false, chipWheel = true) {
+async function start(browser: Browser, width: number, height: number, touch = false) {
   const context = await browser.newContext({ viewport: { width, height }, hasTouch: touch, isMobile: touch })
-  // Off: a sideways wheel over the list switches the chip (0.1.198), which hides projects.
-  if (!chipWheel)
-    await context.addInitScript(() => localStorage.setItem('muxtower.chip-switch', JSON.stringify({ state: { wheel: false }, version: 1 })))
   const page = await context.newPage()
   await page.goto(`${DEMO}#/?group=project`)
   await expect(projectHeader(page, 'acme/web-app')).toBeVisible({ timeout: 60_000 }) // a cold dev server's first page
@@ -118,8 +115,7 @@ test('the header menu moves a project up and down', async ({ browser }) => {
 })
 
 test('a mouse wheel over a header scrolls the list; trackpad deltas sideways lift nothing', async ({ browser }) => {
-  // Chip switching off: its sideways wheel is the subject of chip-switch.spec; here no wheel may be taken at all.
-  const page = await start(browser, 1440, 520, false, false)
+  const page = await start(browser, 1440, 520)
   const box = await scroller(page)
   // Every wheel event the page sees, and whether anything took it from the browser.
   await page.evaluate(() => {
@@ -145,7 +141,9 @@ test('a mouse wheel over a header scrolls the list; trackpad deltas sideways lif
   expect(await box.evaluate((el) => el.scrollLeft)).toBe(0)
   await expect.poll(() => page.evaluate(() => (window as unknown as { wheels: boolean[] }).wheels)).toEqual([false, false, false, false]) // none taken
   expect(await lifted(page)).toBe(false)
-  await expect.poll(() => projects(page)).toEqual(['acme/web-app', 'acme/shop-api', 'acme/infra']) // as the list settles
+  // Nothing moved: the whole list (the sideways swipe may rightly have switched the chip, 0.1.198).
+  await page.evaluate(() => void (location.hash = '#/?group=project'))
+  await expect.poll(() => projects(page)).toEqual(['acme/web-app', 'acme/shop-api', 'acme/infra'])
 })
 
 /** A finger: down at (x, y), moved to (x2, y2) in steps, held `holdMs` first, then let go (CDP touch events). */
