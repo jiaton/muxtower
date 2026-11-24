@@ -17,6 +17,13 @@ muxtower: approve and drive coding agents running in tmux on a remote machine (a
 - Build the wheel with the UI inside: `make wheel` (builds `app/dist` and `glasses/dist`, copies them into `daemon/src/muxtower/web/` and `web/g2/`, runs `poetry build`).
 - Release: raise `version` in `daemon/pyproject.toml` (`cd daemon && poetry version patch`), commit, tag `vX.Y.Z`, push the tag. `.github/workflows/release.yml` checks, builds and publishes it to PyPI. Nodes compare versions with their hub and install the hub's from PyPI (`daemon/src/muxtower/nodes/update.py`), so raise `PROTOCOL` in `nodes/protocol.py` whenever an older peer could no longer read the link, keeping `OLDEST` (and the code speaking it) while older nodes should still link; raising `OLDEST` makes them update.
 
+## Servers you start (dev, demo, e2e, a throwaway daemon)
+
+The machine you work on may run the real hub (port 8731) and other projects' servers.
+- Ports: never 8731. The dev daemon is `muxtower serve --dev` (port 8741), and the app's and glasses' dev servers proxy there. For anything else, take a free port (`node app/scripts/free-port-pair.mjs` prints a free pair, or bind port 0), and check that nothing answers on it before you use it. The e2e suite picks its own when `MUXTOWER_E2E_PORT` is unset, and never reuses a running server.
+- Stopping: by the PID you started (save it: `cmd & echo $! > server.pid`), or the process group you started it in. Never `pkill`/`killall`, never `pkill -f '<pattern>'`, and never a `kill $(pgrep|ps|lsof …)` you did not just check: a pattern also matches the hub and other projects' processes (a `pkill -f "port 8731"` once stopped the hub for every session).
+- Stop what you started before you report, and leave no dev server running.
+
 ## Rules for every change
 
 - This repo is generic, public-facing software. No personal names, hostnames, domains, IPs, tokens, or references to any predecessor project in code, docs, tests, fixtures, or commit messages. Examples use `example.com`, `app.example`, `127.0.0.1`.

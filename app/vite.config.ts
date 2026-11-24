@@ -7,7 +7,7 @@ import react from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
-const DEV_DAEMON = process.env.MUXTOWER_DEV_DAEMON ?? 'http://127.0.0.1:8731'
+const DEV_DAEMON = process.env.MUXTOWER_DEV_DAEMON ?? 'http://127.0.0.1:8741' // `muxtower serve --dev`, never the real hub's 8731
 // Sub-path deployments (GitHub Pages: /<repo>/) set MUXTOWER_BASE; everything else is served at /.
 const base = (process.env.MUXTOWER_BASE ?? '/').replace(/\/?$/, '/')
 

@@ -5,7 +5,7 @@
 ## Setup / Test / Run
 
 - Install: `npm ci`
-- Dev server: `npm run dev` (proxies `/v1` to `http://127.0.0.1:8731`, so a dev daemon is same-origin)
+- Dev server: `npm run dev` (proxies `/v1` to `MUXTOWER_DEV_DAEMON`, default `http://127.0.0.1:8741`: the dev daemon, `muxtower serve --dev`, so it is same-origin; never the real hub on 8731)
 - Tests: `npm test` (Vitest) · E2E: `npm run e2e` (Playwright)
 - Lint/typecheck: `npm run lint && npm run typecheck` (includes `npm run check:tokens`)
 - Regenerate API types: `npm run gen:api` (reads `../openapi.json`)

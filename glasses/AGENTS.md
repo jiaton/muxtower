@@ -5,7 +5,7 @@
 ## Setup / Test / Run
 
 - Install: `npm ci`
-- Dev server: `npm run dev` (proxies `/v1` to `MUXTOWER_DEV_DAEMON`, default `http://127.0.0.1:8731`, so the hub is same-origin as when it serves `/g2/`). In a plain browser the page drives preview glasses (buttons; arrows, Enter, Backspace).
+- Dev server: `npm run dev` (proxies `/v1` to `MUXTOWER_DEV_DAEMON`, default `http://127.0.0.1:8741`, the dev daemon, so the hub is same-origin as when it serves `/g2/`). In a plain browser the page drives preview glasses (buttons; arrows, Enter, Backspace).
 - Simulator: `evenhub-simulator http://127.0.0.1:5173/ --automation-port 9898` (`@evenrealities/evenhub-simulator`; on a headless Linux box under `xvfb-run`, needs WebKitGTK 4.1). Its panel cannot be typed into: start the dev server with `MUXTOWER_G2_DEV_TOKEN=<device token>` (dev server only; builds never contain it). Pair a test device under its own name (`e2e-…`) and revoke it by that name afterwards.
 - On a phone: the hub serves this build at `/g2/` (`make wheel` bundles it). In the Even App's developer mode, `npx evenhub qr --url https://<hub>/g2/`.
 - Packaged (`.ehpk`): `MUXTOWER_G2_CONFIG='{"hub":"https://<hub>"}' npm run pack`; app.json's network whitelist is filled with the hub's origin. A gate in front needs its credential in `gate.headers` (HTTP) and `gate.query` (the WebSocket), and the header listed in the hub's `cors.extra_headers`.

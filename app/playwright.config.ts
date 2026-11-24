@@ -1,13 +1,16 @@
+import { execFileSync } from 'node:child_process'
 import { defineConfig } from '@playwright/test'
 
 // The terminal glyph suite (e2e/glyphs.spec.ts): fixtures drawn by the real TerminalView, checked for seams
 // and drift in screenshots. Its page is served by Vite's dev server; the whole app's layout checks
 // (e2e/layout.spec.ts) run on the demo (its made-up hub, `--mode demo`), served beside it.
-// MUXTOWER_E2E_PORT: the first of two ports (the harness, then the demo); set, its servers are this
-// checkout's own, never one another worktree already runs there (whose code would be tested instead).
-const own = process.env.MUXTOWER_E2E_PORT
-const base = Number(own || 4417)
-const reuse = !process.env.CI && !own
+// MUXTOWER_E2E_PORT: the first of two ports (the harness, then the demo). Not set: two free ones are picked
+// (once: the choice is passed on to the test workers through the environment). The servers are always this
+// run's own, started and stopped by Playwright: never one another worktree or project runs on a fixed port
+// (whose code would be tested instead, and which a fixed port would collide with).
+process.env.MUXTOWER_E2E_PORT ||= execFileSync('node', ['scripts/free-port-pair.mjs'], { encoding: 'utf8' }).trim()
+const base = Number(process.env.MUXTOWER_E2E_PORT)
+const reuse = false
 process.env.MUXTOWER_E2E_DEMO = `http://127.0.0.1:${base + 1}/`
 
 export default defineConfig({

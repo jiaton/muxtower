@@ -30,6 +30,11 @@ def redact_logs() -> None:
         logging.getLogger(name).addFilter(RedactTokenFilter())
 
 
+# A dev daemon's own port: never the real one (8731), which a hub on the same machine holds. A dev app that
+# proxied to 8731 there would talk to the live hub.
+DEV_PORT = 8741
+
+
 def add_serve_parser(sub: "argparse._SubParsersAction[argparse.ArgumentParser]") -> None:
     p = sub.add_parser("serve", help="run the daemon in the foreground")
     p.add_argument("--config", type=Path, help="config.toml path")
@@ -38,14 +43,14 @@ def add_serve_parser(sub: "argparse._SubParsersAction[argparse.ArgumentParser]")
     p.add_argument("--public-url", help="https URL clients reach this daemon at (behind a proxy or tunnel)")
     p.add_argument("--allow-origin", action="append", help="origin of a separately hosted app (repeatable)")
     p.add_argument("--no-ui", action="store_true", help="do not serve the bundled web app")
-    p.add_argument("--dev", action="store_true", help="keep state in ./.dev-state")
+    p.add_argument("--dev", action="store_true", help=f"keep state in ./.dev-state; port {DEV_PORT} unless --port")
     p.set_defaults(func=cmd_serve)
 
 
 def _settings(args: argparse.Namespace) -> Settings:
     overrides = {
         "host": args.host,
-        "port": args.port,
+        "port": args.port or (DEV_PORT if args.dev else None),
         "public_url": args.public_url,
         "cors.allowed_origins": args.allow_origin,
         "serve_ui": False if args.no_ui else None,

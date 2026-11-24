@@ -5,7 +5,7 @@ Python package `muxtower`: one command, `muxtower`: `muxtower serve` runs the da
 ## Setup / Test / Run
 
 - Install: `poetry install`
-- Run the daemon (dev): `poetry run muxtower serve --dev` (binds `127.0.0.1:8731`, state in `./.dev-state/`); the app's `npm run dev` proxies to it
+- Run the daemon (dev): `poetry run muxtower serve --dev` (binds `127.0.0.1:8741`, never the real hub's 8731; state in `./.dev-state/`); the app's `npm run dev` proxies to it. Two worktrees at once: `--port <free port>` and `MUXTOWER_DEV_DAEMON=http://127.0.0.1:<port>` for the app
 - Tests: `poetry run pytest`
 - Lint/typecheck: `poetry run ruff check . && poetry run ruff format --check . && poetry run mypy src`
 - Export the contract: `make contract` at the repo root

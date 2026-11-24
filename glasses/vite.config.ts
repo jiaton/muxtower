@@ -2,7 +2,7 @@
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 
-const DEV_DAEMON = process.env.MUXTOWER_DEV_DAEMON ?? 'http://127.0.0.1:8731'
+const DEV_DAEMON = process.env.MUXTOWER_DEV_DAEMON ?? 'http://127.0.0.1:8741' // `muxtower serve --dev`, never the real hub's 8731
 
 export default defineConfig(({ command }) => ({
   // Relative, so the same build works at the hub's /g2/ and from inside an .ehpk package.
