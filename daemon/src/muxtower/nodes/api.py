@@ -2,6 +2,7 @@
 the same as a device does through the API, on this daemon's own sessions. Blocking; run from a thread."""
 
 import base64
+import os
 from collections.abc import Callable
 from typing import Any
 
@@ -21,6 +22,7 @@ from muxtower.sessions.models import CreateSession, Session, UpdateSession
 from muxtower.sessions.placement import Placements
 from muxtower.sessions.ports import ClaudeProcessPort
 from muxtower.settings.service import SettingsService
+from muxtower.teams.checkout import checkout
 from muxtower.terminal.models import Resize, SendInput
 from muxtower.usage.models import MachineUsage
 
@@ -69,6 +71,15 @@ class NodeApi:
     def running(self) -> list[dict[str, Any]]:
         """Its Claude Code processes with Remote Control on, which the hub lists itself (`processes.py`)."""
         return report(self.processes.running(), self.directory.checkout)
+
+    def place(self, cwd: str) -> dict[str, str] | None:
+        """The project a folder here belongs to, worked out as for this daemon's own sessions (git, cached):
+        {project, source}, or None when it is in no repository here."""
+        folder = os.path.expanduser(cwd)
+        if not os.path.isabs(folder):
+            return None
+        found = (self.directory.checkout or checkout)(folder)
+        return None if found.source == "folder" else {"project": found.project, "source": found.source}
 
     def handle(self, method: str, params: dict[str, Any]) -> Any:
         d = self.directory
@@ -148,6 +159,8 @@ class NodeApi:
                 return [
                     {"name": n.name, "source": n.source, "last_seen": n.last_seen.isoformat()} for n in d.names(sid)
                 ]
+            case "place":  # where a folder here sits in git, for a session the hub lists itself
+                return self.place(str(params.get("cwd") or ""))
             case "mark_read":
                 d.mark_read(sid, True)
             case "detect_folder":

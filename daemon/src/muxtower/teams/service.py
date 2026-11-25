@@ -76,6 +76,7 @@ class TeamService:
         self.changed: Callable[[], None] = lambda: None  # a role or project changed (the lists show them)
         self.renames = ProjectRenames()  # what else a rename reaches, in its transaction (`renaming.py`)
         self._lock = threading.Lock()
+        self._writing = threading.Lock()  # one write at a time: `place` checks and writes as one step
         self._records = repo.load()
         directory.team = self.kept
         directory.checkout = self.checkouts.get
@@ -135,17 +136,38 @@ class TeamService:
                 return Member(
                     session, record.role if record else None, record.note if record else None, project, source, None
                 )
+        elif record.project_auto and found is None:  # worked out where its folder is (`remote_places.py`)
+            source = record.project_source or "git"
         else:
             same = found is not None and found.project == record.project
             source = ("git" if not same else found.source) if record.project_auto and found else "set"
         assert record.project is not None
         return Member(session, record.role, record.note, record.project, source, found)
 
-    def _save(self, record: TeamRecord) -> None:
+    def place(self, session_id: str, project: str, source: str) -> bool:
+        """Keeps `project`, worked out from git where the session's folder is, for a session that has none
+        kept yet; a project set or already worked out is never replaced. Whether it was kept."""
+        with self._writing:
+            with self._lock:
+                record = self._records.get(session_id)
+            if record is not None and record.project is not None:
+                return False
+            self._write(replace(record or TeamRecord(session_id), project=project, project_auto=True,
+                                project_source=source))  # fmt: skip
+        self.changed()
+        return True
+
+    def _write(self, record: TeamRecord) -> TeamRecord | None:
+        """Stores it; returns what it replaces."""
         self.repo.save(record)
         with self._lock:
             before = self._records.get(record.session_id)
             self._records[record.session_id] = record
+        return before
+
+    def _save(self, record: TeamRecord) -> None:
+        with self._writing:
+            before = self._write(record)
         if before is None or (before.role, before.note, before.project) != (record.role, record.note, record.project):
             self.changed()
 
@@ -183,7 +205,7 @@ class TeamService:
                         project_auto=False, project_source=None)
                 for m in moved
             ]  # fmt: skip
-        with self.renames.transaction():  # one commit: the sessions and everything kept by the name
+        with self._writing, self.renames.transaction():  # one commit: the sessions and everything kept by the name
             for record in records:
                 self.repo.save(record)
             self.repo.rename_project(old, name)  # also the archived ones

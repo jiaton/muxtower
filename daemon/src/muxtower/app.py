@@ -88,6 +88,7 @@ from muxtower.sources.codex.shared import SharedCodexSource
 from muxtower.sources.remote_control.lineage_store import SqliteLineageStore, SqlitePlaceStore
 from muxtower.sources.remote_control.service import RemoteControlSource
 from muxtower.teams import placing
+from muxtower.teams.remote_places import RemotePlaces
 from muxtower.teams.renaming import ProjectRenames
 from muxtower.teams.repository import SqliteTaskRepository, SqliteTeamRepository
 from muxtower.teams.service import TeamService
@@ -220,6 +221,7 @@ def create_app(
     monitor.after_tick = directory.deliver_held  # the owner's messages held for a dialog go in after it
 
     teams = TeamService(directory, SqliteTeamRepository(db), transcript_of=directory.local.transcript_of)
+    remote_places = RemotePlaces(teams, nodes)  # projects of sessions whose folder is on another machine
     writes = WriteTracker(lambda: settings.writes.window_minutes, teams.checkouts)
     nodes.screen_feed = monitor.screen_feed  # one numbering of screens, for the stream's patches
     names = SessionNames(db)  # every name a session went by: the rename dialog's suggestions
@@ -250,6 +252,7 @@ def create_app(
                 "auto-approve": AutoApprover(approvals, audit).run_loop(bus),
                 "team-tasks": team_tasks.run_loop(bus),
                 "team-places": placing.run_loop(teams, bus),
+                "remote-places": remote_places.run_loop(bus),
                 "watches": watches.run_loop(bus),
                 "titles": titles.run_loop(bus),
                 "usage": usage.run_loop(),
@@ -350,7 +353,8 @@ def create_app(
         settings=settings, daemon_name=daemon_name, tokens=tokens, origins=OriginPolicy(allowed_origins), bus=bus,
         sessions=sessions, monitor=monitor, directory=directory, remote_control=remote_control,
         placements=placements, archiver=archiver, launcher=launcher, nodes=nodes, hub=hub, summaries=summaries,
-        concierge=concierge, teams=teams, team_tasks=team_tasks, usage=usage, recovery=recovery, writes=writes,
+        concierge=concierge, teams=teams, remote_places=remote_places, team_tasks=team_tasks, usage=usage,
+        recovery=recovery, writes=writes,
         watches=watches,
         direct=DirectAccess(nodes, node_sessions.call), feature_settings=feature_settings,
         chip_groups=chip_groups, project_order=project_order, playbook=playbook,

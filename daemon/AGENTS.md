@@ -48,6 +48,7 @@ src/muxtower/
               a node asks its hub (HUB_METHODS)
   mcp/        MCP over HTTP at /v1/mcp (JSON-RPC, JSON responses): tools to list, read, message, approve sessions
   teams/      teams: each session's role (free text) and project (from git: origin remote, repository, folder)
+              (remote_places.py: a session whose folder is on another machine, read there: a node is asked `place`)
               (describe.py: how a session is said: device, what reaches it, harness)
   terminal/   capture, input, resize, stream frames
   approval/   pending actions, approve/deny, auto-approve policy

@@ -86,6 +86,7 @@ class Nodes:
         # The id a node's session is listed under here, or None when another copy of it is the one listed
         # (`NodeSource.listed_as`): its events go out under the id clients know, or not at all.
         self.listed_as: Callable[[str, Session], str | None] = lambda node, s: f"{node}~{s.id}"
+        self.linked: list[Callable[[str], None]] = []  # told a node's name each time it connects (event loop)
 
         # --- membership ---------------------------------------------------------------------------
         self.screen_feed = ScreenFeed()  # the monitor's, set by the app
@@ -212,6 +213,8 @@ class Nodes:
                     continue
             self.repo.revoked(name, token_name)
         logger.info("node %s connected (%s)", name, hello.version)
+        for told in self.linked:
+            told(name)
         self.bus.publish("sessions", None)
 
     def detach(self, name: str, link: NodeLink) -> None:
