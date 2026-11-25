@@ -18,7 +18,9 @@ import { SortableContext, arrayMove, horizontalListSortingStrategy, sortableKeyb
 import { CSS as DndCSS } from '@dnd-kit/utilities'
 import {
   cloneElement,
+  memo,
   useEffect,
+  useMemo,
   useLayoutEffect,
   useRef,
   useState,
@@ -70,7 +72,7 @@ const MENU_PX = 8 // a lifted chip let go within this: its menu, not a move
  * let go without moving, offers its teams, Edit and Delete, under the chip it belongs to. Projects shown while there are no groups are in order of
  * activity, and do not move; "+" stays last. Not shown for a single project and no groups.
  */
-export function ProjectChips({
+export const ProjectChips = memo(function ProjectChips({
   query,
   search,
   entries,
@@ -93,7 +95,8 @@ export function ProjectChips({
   const [allTeams, setAllTeams] = useState(false)
   const [team, setTeam] = useState<{ project: string; x: number; y: number; open: boolean } | null>(null)
   const teams = menu ? teamsOfGroup(menu.group, entries) : []
-  const chips = projectChips(groups, entries, useProjectOrder())
+  const order = useProjectOrder()
+  const chips = useMemo(() => projectChips(groups, entries, order), [groups, entries, order])
 
   useLayoutEffect(() => {
     const el = row.current
@@ -128,8 +131,13 @@ export function ProjectChips({
   const [lifted, setLifted] = useState<string | null>(null)
   const dropped = useRef(false) // the click a drop makes chooses nothing
 
+  // Each chip's count, worked out again only when the sessions, the view or the chips change.
+  const counts = useMemo(
+    () => new Map((chips ?? []).map((chip) => [chip.id, filterEntries(entries, { view: query.view, group: query.group, chip }).length])),
+    [chips, entries, query.view, query.group],
+  )
   if (!chips) return null
-  const count = (chip: ProjectChip) => filterEntries(entries, { view: query.view, group: query.group, chip }).length
+  const count = (chip: ProjectChip) => counts.get(chip.id) ?? 0
   const liftedChip = lifted ? chips.find((c) => c.id === lifted) : undefined
 
   return (
@@ -311,7 +319,7 @@ export function ProjectChips({
       ) : null}
     </nav>
   )
-}
+})
 
 /** Whether the reader asked for less motion: then nothing slides, lifts or drops. */
 function useReducedMotion(): boolean {

@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { useEffect, type MouseEvent, type RefObject } from 'react'
+import { useCallback, useEffect, useRef, type MouseEvent, type RefObject } from 'react'
 import { chipMembers, projectChips, type ChipGroup } from '../model/chip-groups'
 import { chipLanding, NO_CHIP, stepChip, type SessionRef } from '../model/chip-switch'
 import type { SessionEntry } from '../model/facets'
@@ -59,9 +59,15 @@ export function useChipSwitch(
     if (next !== null) go(next)
   })
 
-  return (event: MouseEvent, next: string) => {
+  // The same function from render to render (it calls the latest `go`): the chip row it is given is drawn
+  // again only when what it shows changed, not on every session opened.
+  const latest = useRef(go)
+  useEffect(() => {
+    latest.current = go
+  })
+  return useCallback((event: MouseEvent, next: string) => {
     if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return
     event.preventDefault()
-    go(next)
-  }
+    latest.current(next)
+  }, [])
 }

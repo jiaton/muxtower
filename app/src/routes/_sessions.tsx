@@ -1,6 +1,6 @@
 import { Link, Outlet, createFileRoute, useMatch } from '@tanstack/react-router'
 import { Archive, BellOff, CheckCheck, EyeOff, Plus, RotateCcw, SearchX, Server } from 'lucide-react'
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Drawer } from '@/components/ui/drawer'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -54,13 +54,12 @@ function SessionsLayout() {
   const chipGroups = useChipGroups()
   const projectOrder = useProjectOrder()
   const saveOrder = useSaveProjectOrder()
-  const query = {
-    ...toQuery(
-      search,
-      useListPrefs((s) => s.group),
-    ),
-    chip: chipMembers(search.chip, chipGroups) ?? undefined, // the second chip row's
-  }
+  const group = useListPrefs((s) => s.group)
+  // The same object while the search and the chips are (what is given it is drawn again only on a change).
+  const query = useMemo(
+    () => ({ ...toQuery(search, group), chip: chipMembers(search.chip, chipGroups) ?? undefined }), // the second chip row's
+    [search, group, chipGroups],
+  )
   const { entries, daemons, loading } = useSessionEntries()
   const unpaired = useUnpairedDaemons()
   // Its params only, kept while equal: the layout draws again when another session opens, not on each step
@@ -84,7 +83,8 @@ function SessionsLayout() {
   useScrollMemory(listRef, listKey, !asDrawer || drawerOpen, !loading)
   useEffect(() => useListMemory.setState({ lastSearch: search }), [search])
 
-  const visible = filterEntries(entries, query)
+  const visible = useMemo(() => filterEntries(entries, query), [entries, query])
+  const facets = useMemo(() => facetsOf(entries), [entries])
   const selectedKey = open ? entryKey(open.params.daemonId, open.params.sessionId) : undefined
   const chooseChip = useChipSwitch(listRef, {
     search,
@@ -117,7 +117,6 @@ function SessionsLayout() {
   const { shown, forks } = foldForks(unfolded)
   const groups = [...groupEntries(shown, query.group, projectOrder), ...keptGroups(kept)]
   const count = visible.filter((e) => !isAssistant(e.session)).length
-  const facets = facetsOf(entries)
   const { title, within } = queryTitle(query)
   const counted = `${count} session${count === 1 ? '' : 's'}`
 

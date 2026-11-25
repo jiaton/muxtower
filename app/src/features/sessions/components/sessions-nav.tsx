@@ -1,4 +1,4 @@
-import { Link, useMatch, useNavigate, useSearch } from '@tanstack/react-router'
+import { Link, useNavigate, useRouter, useSearch } from '@tanstack/react-router'
 import { Archive, CircleAlert, CircleCheck, EyeOff, Layers, LoaderCircle, Monitor, RotateCcw, UserRound } from 'lucide-react'
 import { createContext, useContext, useState, type MouseEvent, type ReactNode } from 'react'
 import { NavCount, NavSection, navItemClass, navItemRoom, navSubItemClass } from '@/components/ui/nav'
@@ -42,13 +42,13 @@ function useSoleOpener(entries: SessionEntry[]) {
   const navigate = useNavigate()
   const split = useMediaQuery(SPLIT_QUERY)
   const group = useListPrefs((s) => s.group)
-  const openKey = useMatch({
-    from: '/_sessions/d/$daemonId/s/$sessionId',
-    shouldThrow: false,
-    select: (m) => entryKey(m.params.daemonId, m.params.sessionId),
-  })
+  const router = useRouter()
   return (event: MouseEvent, target: ListSearch) => {
     if (!split || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return
+    // The open session, read at the click: the sidebar need not draw again each time another one opens.
+    const open = router.state.matches.find((m) => m.routeId === '/_sessions/d/$daemonId/s/$sessionId')?.params as
+      { daemonId: string; sessionId: string } | undefined
+    const openKey = open ? entryKey(open.daemonId, open.sessionId) : undefined
     const sole = soleSession(entries, toQuery(target, group), openKey)
     if (!sole) return
     event.preventDefault()
