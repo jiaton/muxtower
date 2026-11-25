@@ -123,7 +123,8 @@ describe('query', () => {
     const withNews = [...entries, entry('finished', { unread: true, updated_at: '2026-10-25T09:45:00Z' })]
     expect(statusOf(withNews.at(-1)!.session)).toBe('unread')
     expect(groupEntries(withNews, 'status').map((g) => g.label)).toEqual(['Assistant', 'Needs you', 'Finished, unread', 'Working', 'Idle'])
-    expect(filterEntries(withNews, { view: 'unread', group: 'status' }).map((e) => e.session.id)).toEqual(['finished'])
+    // The assistant keeps its place in every view (assistant-place.test.ts); the view's own match is 'finished'.
+    expect(filterEntries(withNews, { view: 'unread', group: 'status' }).map((e) => e.session.id)).toEqual(['helper', 'finished'])
     expect(facetsOf(withNews).views.unread).toBe(1)
     // busy wins: it is working on the next turn already
     expect(statusOf(entry('a', { unread: true, state: 'busy' }).session)).toBe('working')
@@ -164,7 +165,11 @@ describe('query', () => {
   })
 
   it('filters by view, device, folder and text', () => {
-    const ids = (q: Parameters<typeof filterEntries>[1]) => filterEntries(entries, q).map((e) => e.session.id)
+    // What each narrowing matches; the assistant, kept in every view (assistant-place.test.ts), left out here.
+    const ids = (q: Parameters<typeof filterEntries>[1]) =>
+      filterEntries(entries, q)
+        .map((e) => e.session.id)
+        .filter((id) => id !== 'helper')
     expect(ids({ view: 'needs', group: 'status' })).toEqual(['waiting-late', 'waiting-early'])
     expect(ids({ view: 'all', group: 'status', device: NO_ENVIRONMENT })).toEqual(['away'])
     expect(ids({ view: 'all', group: 'status', device: 'hub', folder: '~/projects/api' })).toEqual(['idle-new'])

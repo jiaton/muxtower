@@ -1,6 +1,6 @@
 /** Which sessions the list shows for a query: its view, scope, chip and search text. */
 import { inChip } from './chip-groups'
-import { folderOf, placeOf, statusOf, type SessionEntry } from './facets'
+import { folderOf, isAssistant, placeOf, statusOf, type SessionEntry } from './facets'
 import { inTerms, searchTerms, textScore } from './match'
 import { worktreeOf } from './places'
 import { accountLabel, agentLabel, deviceLabel, folderLabel, placeIn, projectLabel, sourceLabel, type SessionQuery } from './query'
@@ -15,6 +15,9 @@ export function filterEntries(entries: SessionEntry[], query: SessionQuery): Ses
   return entries.filter((entry) => {
     const status = statusOf(entry.session)
     if (placeOf(entry.session) !== placeIn(query.view)) return false
+    // The assistant keeps its own place at the top of every view of the list (a chip, Unread, a device…), as
+    // the one session the owner talks to about all the others; only a search for words is asked to match it.
+    if (isAssistant(entry.session) && placeIn(query.view) === 'listed' && !(query.q ?? '').trim()) return true
     if (placeIn(query.view) === 'listed' && query.view !== 'all' && status !== query.view) return false
     if (query.device && deviceLabel(entry) !== query.device) return false
     if (query.folder && !inFolder(entry, query.folder, workspaces)) return false
