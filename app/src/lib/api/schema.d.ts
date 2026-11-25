@@ -198,6 +198,95 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/inbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Inbox
+         * @description Open and handed items, in the owner's order; `?done=1` adds the done ones of the last 30 days.
+         */
+        get: operations["get_inbox_v1_inbox_get"];
+        put?: never;
+        /**
+         * Add Inbox Item
+         * @description A new open item, first in the list.
+         */
+        post: operations["add_inbox_item_v1_inbox_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inbox/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Inbox Order
+         * @description The owner's order: these ids first to last, any others after them as they were.
+         */
+        put: operations["put_inbox_order_v1_inbox_order_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/inbox/{item_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete Inbox Item
+         * @description Deletes it, from the list or the history, without a trace.
+         */
+        delete: operations["delete_inbox_item_v1_inbox__item_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Patch Inbox Item
+         * @description Changes its text, project (null: none) or status (open, done), if it is still at `if_version`.
+         */
+        patch: operations["patch_inbox_item_v1_inbox__item_id__patch"];
+        trace?: never;
+    };
+    "/v1/inbox/{item_id}/hand": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Hand Inbox Item
+         * @description Sends it as one team task to whoever holds `role` in `project` (without regard to case), or to
+         *     `session_id`; it becomes handed, with the task's id.
+         */
+        post: operations["hand_inbox_item_v1_inbox__item_id__hand_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/me": {
         parameters: {
             query?: never;
@@ -485,6 +574,51 @@ export interface paths {
          *     Tasks or messages from or to another project's session are included, the other end named by its id.
          */
         get: operations["project_activity_v1_projects__project__activity_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project}/handoff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Handoff
+         * @description The project's default hand-off role (null: none).
+         */
+        get: operations["get_handoff_v1_projects__project__handoff_get"];
+        /**
+         * Put Handoff
+         * @description Sets it (free text; null or blank: none). It follows the project when it is renamed.
+         */
+        put: operations["put_handoff_v1_projects__project__handoff_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project}/handoff-targets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Handoff Targets
+         * @description Who an item of this project can be handed to: its live sessions' roles (with how many hold each), its
+         *     live sessions, and its default hand-off role. A project with no sessions: empty lists.
+         */
+        get: operations["handoff_targets_v1_projects__project__handoff_targets_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1998,6 +2132,12 @@ export interface components {
              */
             direct_url: string | null;
         };
+        /**
+         * DueState
+         * @description none: no due date (or done); upcoming: not yet; due: fallen due today (the owner's day); overdue: before.
+         * @enum {string}
+         */
+        DueState: "none" | "upcoming" | "due" | "overdue";
         /** ErrorFrame */
         ErrorFrame: {
             /** Message */
@@ -2097,6 +2237,120 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * HandInboxItem
+         * @description Hand it now.
+         */
+        HandInboxItem: {
+            /** Project */
+            project: string;
+            /**
+             * Role
+             * @description a role in the project (without regard to case): whoever holds it
+             */
+            role?: string | null;
+            /**
+             * Session Id
+             * @description a session, by id
+             */
+            session_id?: string | null;
+        };
+        /**
+         * HandTarget
+         * @description Whom an item goes to: whoever holds `role` in `project`, or the session `session_id`; exactly one of the two.
+         */
+        HandTarget: {
+            /** Project */
+            project: string;
+            /**
+             * Role
+             * @description a role in the project (without regard to case): whoever holds it
+             */
+            role?: string | null;
+            /**
+             * Session Id
+             * @description a session, by id
+             */
+            session_id?: string | null;
+        };
+        /**
+         * Handed
+         * @description To whom an item went, as one task (`send_task`).
+         */
+        Handed: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Project */
+            project: string;
+            /**
+             * Task Id
+             * @description the team task it went as
+             */
+            task_id: number;
+            /**
+             * To Role
+             * @description the role it was handed to (whoever held it then)
+             */
+            to_role?: string | null;
+            /**
+             * To Session
+             * @description the session that got it (the role's holder, or the one named)
+             */
+            to_session: string;
+        };
+        /**
+         * Handoff
+         * @description A project's default hand-off role: who its Inbox items go to unless the owner picks another.
+         */
+        Handoff: {
+            /**
+             * Role
+             * @description free text; null: none
+             */
+            role?: string | null;
+        };
+        /** HandoffRole */
+        HandoffRole: {
+            /** Role */
+            role: string;
+            /**
+             * Sessions
+             * @description how many of the project's sessions hold it
+             */
+            sessions: number;
+        };
+        /** HandoffSession */
+        HandoffSession: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Role */
+            role?: string | null;
+        };
+        /**
+         * HandoffTargets
+         * @description Who an item of a project can be handed to: its live roles and sessions (empty lists: no one yet).
+         */
+        HandoffTargets: {
+            /** Default Role */
+            default_role?: string | null;
+            /** Project */
+            project: string;
+            /**
+             * Roles
+             * @description distinct roles of the project's live sessions, by name
+             */
+            roles: components["schemas"]["HandoffRole"][];
+            /**
+             * Sessions
+             * @description the project's live sessions
+             */
+            sessions: components["schemas"]["HandoffSession"][];
+        };
         /** Health */
         Health: {
             /** Status */
@@ -2161,6 +2415,131 @@ export interface components {
              */
             media_type: "image/png" | "image/jpeg" | "image/gif" | "image/webp";
         };
+        /** Inbox */
+        Inbox: {
+            /**
+             * Done
+             * @description done items of the last 30 days, newest first (with ?done=1)
+             */
+            done?: components["schemas"]["InboxItem"][];
+            /**
+             * Items
+             * @description open and handed items, in the owner's order
+             */
+            items: components["schemas"]["InboxItem"][];
+        };
+        /**
+         * InboxConflict
+         * @description 409 to a stale `if_version`: the item as it is now.
+         */
+        InboxConflict: {
+            current: components["schemas"]["InboxItem"];
+            /** Detail */
+            detail: string;
+        };
+        /** InboxItem */
+        InboxItem: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Done At */
+            done_at?: string | null;
+            /**
+             * Due
+             * @description when it falls due (UTC); for a date alone, that day at the due hour, the owner's time
+             */
+            due?: string | null;
+            /**
+             * Due Fired At
+             * @description when the hub acted on its due date
+             */
+            due_fired_at?: string | null;
+            /**
+             * Due Has Time
+             * @description false: a date alone (`due` is that day at the due hour)
+             * @default false
+             */
+            due_has_time: boolean;
+            /** @default none */
+            due_state: components["schemas"]["DueState"];
+            /** @description whom it is handed to when due (hand_off) */
+            due_target?: components["schemas"]["HandTarget"] | null;
+            /** @description set once it was handed */
+            handed?: components["schemas"]["Handed"] | null;
+            /** Id */
+            id: number;
+            /** @default remind */
+            on_due: components["schemas"]["OnDue"];
+            /**
+             * Order
+             * @description its place in the owner's order: lower first
+             */
+            order: number;
+            /**
+             * Project
+             * @description the project it is about, if any
+             */
+            project?: string | null;
+            status: components["schemas"]["InboxStatus"];
+            /** Text */
+            text: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /**
+             * Version
+             * @description bumped on every change: send it back as if_version when changing it
+             */
+            version: number;
+        };
+        /** InboxOrder */
+        InboxOrder: {
+            /**
+             * Ids
+             * @description item ids, first to last; items not named keep their order after these
+             */
+            ids: number[];
+        };
+        /**
+         * InboxPatch
+         * @description What to change; a field left out stays as it is (project null: no project).
+         */
+        InboxPatch: {
+            /**
+             * Due
+             * @description when it falls due: with an offset, that instant; without one, the owner's local time (inbox.timezone); with due_has_time false only its date counts, at the due hour (inbox.due_hour). null clears it
+             */
+            due?: string | null;
+            /**
+             * Due Has Time
+             * @description false: a date alone (default: true when due has a time)
+             */
+            due_has_time?: boolean | null;
+            /** @description for hand_off: whom; null clears it */
+            due_target?: components["schemas"]["HandTarget"] | null;
+            /**
+             * If Version
+             * @description the version you read: 409 with the item as it is now when it changed since
+             */
+            if_version: number;
+            /** @description remind (default) or hand_off (needs due_target) */
+            on_due?: components["schemas"]["OnDue"] | null;
+            /** Project */
+            project?: string | null;
+            /** @description open or done (done: it leaves the list; open: back from handed or done) */
+            status?: components["schemas"]["InboxStatus"] | null;
+            /** Text */
+            text?: string | null;
+        };
+        /**
+         * InboxStatus
+         * @enum {string}
+         */
+        InboxStatus: "open" | "handed" | "done";
         /** IndexStatus */
         IndexStatus: {
             /**
@@ -2296,6 +2675,27 @@ export interface components {
             /** Label */
             label: string;
         };
+        /** NewInboxItem */
+        NewInboxItem: {
+            /**
+             * Due
+             * @description when it falls due: with an offset, that instant; without one, the owner's local time (inbox.timezone); with due_has_time false only its date counts, at the due hour (inbox.due_hour). null clears it
+             */
+            due?: string | null;
+            /**
+             * Due Has Time
+             * @description false: a date alone (default: true when due has a time)
+             */
+            due_has_time?: boolean | null;
+            /** @description for hand_off: whom; null clears it */
+            due_target?: components["schemas"]["HandTarget"] | null;
+            /** @description remind (default) or hand_off (needs due_target) */
+            on_due?: components["schemas"]["OnDue"] | null;
+            /** Project */
+            project?: string | null;
+            /** Text */
+            text: string;
+        };
         /** NextStepAction */
         NextStepAction: {
             /** Label */
@@ -2410,6 +2810,12 @@ export interface components {
          * @enum {string}
          */
         NotifyLevel: "all" | "needs" | "off";
+        /**
+         * OnDue
+         * @description What the hub does when an item falls due: remind the owner (a push), or hand it off (one team task).
+         * @enum {string}
+         */
+        OnDue: "remind" | "hand_off";
         /**
          * Option
          * @description One numbered choice in a dialog, e.g. key "2", label "Yes, allow reads during this session".
@@ -4183,6 +4589,218 @@ export interface operations {
             };
         };
     };
+    get_inbox_v1_inbox_get: {
+        parameters: {
+            query?: {
+                done?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Inbox"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_inbox_item_v1_inbox_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NewInboxItem"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboxItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_inbox_order_v1_inbox_order_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InboxOrder"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Inbox"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_inbox_item_v1_inbox__item_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_inbox_item_v1_inbox__item_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InboxPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboxItem"];
+                };
+            };
+            /** @description if_version is stale: the item as it is now */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboxConflict"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    hand_inbox_item_v1_inbox__item_id__hand_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                item_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandInboxItem"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InboxItem"];
+                };
+            };
+            /** @description no one in the project holds the role, several do, or it is done */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     me_v1_me_get: {
         parameters: {
             query?: never;
@@ -4649,6 +5267,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TeamActivity"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_handoff_v1_projects__project__handoff_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Handoff"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_handoff_v1_projects__project__handoff_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Handoff"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Handoff"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    handoff_targets_v1_projects__project__handoff_targets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoffTargets"];
                 };
             };
             /** @description Validation Error */

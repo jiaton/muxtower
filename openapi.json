@@ -1006,6 +1006,17 @@
         "title": "DirectUrl",
         "type": "object"
       },
+      "DueState": {
+        "description": "none: no due date (or done); upcoming: not yet; due: fallen due today (the owner's day); overdue: before.",
+        "enum": [
+          "none",
+          "upcoming",
+          "due",
+          "overdue"
+        ],
+        "title": "DueState",
+        "type": "string"
+      },
       "ErrorFrame": {
         "properties": {
           "message": {
@@ -1221,6 +1232,245 @@
         "title": "HTTPValidationError",
         "type": "object"
       },
+      "HandInboxItem": {
+        "description": "Hand it now.",
+        "properties": {
+          "project": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Project",
+            "type": "string"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a role in the project (without regard to case): whoever holds it",
+            "title": "Role"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a session, by id",
+            "title": "Session Id"
+          }
+        },
+        "required": [
+          "project"
+        ],
+        "title": "HandInboxItem",
+        "type": "object"
+      },
+      "HandTarget": {
+        "description": "Whom an item goes to: whoever holds `role` in `project`, or the session `session_id`; exactly one of the two.",
+        "properties": {
+          "project": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Project",
+            "type": "string"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a role in the project (without regard to case): whoever holds it",
+            "title": "Role"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "a session, by id",
+            "title": "Session Id"
+          }
+        },
+        "required": [
+          "project"
+        ],
+        "title": "HandTarget",
+        "type": "object"
+      },
+      "Handed": {
+        "description": "To whom an item went, as one task (`send_task`).",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          },
+          "task_id": {
+            "description": "the team task it went as",
+            "title": "Task Id",
+            "type": "integer"
+          },
+          "to_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the role it was handed to (whoever held it then)",
+            "title": "To Role"
+          },
+          "to_session": {
+            "description": "the session that got it (the role's holder, or the one named)",
+            "title": "To Session",
+            "type": "string"
+          }
+        },
+        "required": [
+          "to_session",
+          "project",
+          "task_id",
+          "at"
+        ],
+        "title": "Handed",
+        "type": "object"
+      },
+      "Handoff": {
+        "description": "A project's default hand-off role: who its Inbox items go to unless the owner picks another.",
+        "properties": {
+          "role": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "free text; null: none",
+            "title": "Role"
+          }
+        },
+        "title": "Handoff",
+        "type": "object"
+      },
+      "HandoffRole": {
+        "properties": {
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "sessions": {
+            "description": "how many of the project's sessions hold it",
+            "title": "Sessions",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "role",
+          "sessions"
+        ],
+        "title": "HandoffRole",
+        "type": "object"
+      },
+      "HandoffSession": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "HandoffSession",
+        "type": "object"
+      },
+      "HandoffTargets": {
+        "description": "Who an item of a project can be handed to: its live roles and sessions (empty lists: no one yet).",
+        "properties": {
+          "default_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Role"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          },
+          "roles": {
+            "description": "distinct roles of the project's live sessions, by name",
+            "items": {
+              "$ref": "#/components/schemas/HandoffRole"
+            },
+            "title": "Roles",
+            "type": "array"
+          },
+          "sessions": {
+            "description": "the project's live sessions",
+            "items": {
+              "$ref": "#/components/schemas/HandoffSession"
+            },
+            "title": "Sessions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project",
+          "roles",
+          "sessions"
+        ],
+        "title": "HandoffTargets",
+        "type": "object"
+      },
       "Health": {
         "properties": {
           "status": {
@@ -1347,6 +1597,306 @@
         ],
         "title": "ImageInput",
         "type": "object"
+      },
+      "Inbox": {
+        "properties": {
+          "done": {
+            "description": "done items of the last 30 days, newest first (with ?done=1)",
+            "items": {
+              "$ref": "#/components/schemas/InboxItem"
+            },
+            "title": "Done",
+            "type": "array"
+          },
+          "items": {
+            "description": "open and handed items, in the owner's order",
+            "items": {
+              "$ref": "#/components/schemas/InboxItem"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "Inbox",
+        "type": "object"
+      },
+      "InboxConflict": {
+        "description": "409 to a stale `if_version`: the item as it is now.",
+        "properties": {
+          "current": {
+            "$ref": "#/components/schemas/InboxItem"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          }
+        },
+        "required": [
+          "detail",
+          "current"
+        ],
+        "title": "InboxConflict",
+        "type": "object"
+      },
+      "InboxItem": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "done_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Done At"
+          },
+          "due": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "when it falls due (UTC); for a date alone, that day at the due hour, the owner's time",
+            "title": "Due"
+          },
+          "due_fired_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "when the hub acted on its due date",
+            "title": "Due Fired At"
+          },
+          "due_has_time": {
+            "default": false,
+            "description": "false: a date alone (`due` is that day at the due hour)",
+            "title": "Due Has Time",
+            "type": "boolean"
+          },
+          "due_state": {
+            "$ref": "#/components/schemas/DueState",
+            "default": "none"
+          },
+          "due_target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HandTarget"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "whom it is handed to when due (hand_off)"
+          },
+          "handed": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Handed"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "set once it was handed"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "on_due": {
+            "$ref": "#/components/schemas/OnDue",
+            "default": "remind"
+          },
+          "order": {
+            "description": "its place in the owner's order: lower first",
+            "title": "Order",
+            "type": "integer"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the project it is about, if any",
+            "title": "Project"
+          },
+          "status": {
+            "$ref": "#/components/schemas/InboxStatus"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "description": "bumped on every change: send it back as if_version when changing it",
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "text",
+          "status",
+          "created_at",
+          "updated_at",
+          "order",
+          "version"
+        ],
+        "title": "InboxItem",
+        "type": "object"
+      },
+      "InboxOrder": {
+        "properties": {
+          "ids": {
+            "description": "item ids, first to last; items not named keep their order after these",
+            "items": {
+              "type": "integer"
+            },
+            "maxItems": 1000,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "InboxOrder",
+        "type": "object"
+      },
+      "InboxPatch": {
+        "description": "What to change; a field left out stays as it is (project null: no project).",
+        "properties": {
+          "due": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "when it falls due: with an offset, that instant; without one, the owner's local time (inbox.timezone); with due_has_time false only its date counts, at the due hour (inbox.due_hour). null clears it",
+            "title": "Due"
+          },
+          "due_has_time": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "false: a date alone (default: true when due has a time)",
+            "title": "Due Has Time"
+          },
+          "due_target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HandTarget"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "for hand_off: whom; null clears it"
+          },
+          "if_version": {
+            "description": "the version you read: 409 with the item as it is now when it changed since",
+            "title": "If Version",
+            "type": "integer"
+          },
+          "on_due": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OnDue"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "remind (default) or hand_off (needs due_target)"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InboxStatus"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "open or done (done: it leaves the list; open: back from handed or done)"
+          },
+          "text": {
+            "anyOf": [
+              {
+                "maxLength": 4000,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          }
+        },
+        "required": [
+          "if_version"
+        ],
+        "title": "InboxPatch",
+        "type": "object"
+      },
+      "InboxStatus": {
+        "enum": [
+          "open",
+          "handed",
+          "done"
+        ],
+        "title": "InboxStatus",
+        "type": "string"
       },
       "IndexStatus": {
         "properties": {
@@ -1661,6 +2211,80 @@
         "title": "ModeInfo",
         "type": "object"
       },
+      "NewInboxItem": {
+        "properties": {
+          "due": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "when it falls due: with an offset, that instant; without one, the owner's local time (inbox.timezone); with due_has_time false only its date counts, at the due hour (inbox.due_hour). null clears it",
+            "title": "Due"
+          },
+          "due_has_time": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "false: a date alone (default: true when due has a time)",
+            "title": "Due Has Time"
+          },
+          "due_target": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HandTarget"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "for hand_off: whom; null clears it"
+          },
+          "on_due": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OnDue"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "remind (default) or hand_off (needs due_target)"
+          },
+          "project": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project"
+          },
+          "text": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "text"
+        ],
+        "title": "NewInboxItem",
+        "type": "object"
+      },
       "NextStepAction": {
         "properties": {
           "label": {
@@ -1885,6 +2509,15 @@
           "off"
         ],
         "title": "NotifyLevel",
+        "type": "string"
+      },
+      "OnDue": {
+        "description": "What the hub does when an item falls due: remind the owner (a push), or hand it off (one team task).",
+        "enum": [
+          "remind",
+          "hand_off"
+        ],
+        "title": "OnDue",
         "type": "string"
       },
       "Option": {
@@ -5670,6 +6303,285 @@
         ]
       }
     },
+    "/v1/inbox": {
+      "get": {
+        "description": "Open and handed items, in the owner's order; `?done=1` adds the done ones of the last 30 days.",
+        "operationId": "get_inbox_v1_inbox_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "done",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Done",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Inbox"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Inbox",
+        "tags": [
+          "inbox"
+        ]
+      },
+      "post": {
+        "description": "A new open item, first in the list.",
+        "operationId": "add_inbox_item_v1_inbox_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NewInboxItem"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Add Inbox Item",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/inbox/order": {
+      "put": {
+        "description": "The owner's order: these ids first to last, any others after them as they were.",
+        "operationId": "put_inbox_order_v1_inbox_order_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InboxOrder"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Inbox"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Inbox Order",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/inbox/{item_id}": {
+      "delete": {
+        "description": "Deletes it, from the list or the history, without a trace.",
+        "operationId": "delete_inbox_item_v1_inbox__item_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Inbox Item",
+        "tags": [
+          "inbox"
+        ]
+      },
+      "patch": {
+        "description": "Changes its text, project (null: none) or status (open, done), if it is still at `if_version`.",
+        "operationId": "patch_inbox_item_v1_inbox__item_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InboxPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxConflict"
+                }
+              }
+            },
+            "description": "if_version is stale: the item as it is now"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Patch Inbox Item",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/inbox/{item_id}/hand": {
+      "post": {
+        "description": "Sends it as one team task to whoever holds `role` in `project` (without regard to case), or to\n`session_id`; it becomes handed, with the task's id.",
+        "operationId": "hand_inbox_item_v1_inbox__item_id__hand_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "title": "Item Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HandInboxItem"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InboxItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "409": {
+            "description": "no one in the project holds the role, several do, or it is done"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Hand Inbox Item",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
     "/v1/me": {
       "get": {
         "description": "Lets a client check that its token works and learn the daemon's display name.",
@@ -6308,6 +7220,143 @@
         "summary": "Project Activity",
         "tags": [
           "teams"
+        ]
+      }
+    },
+    "/v1/projects/{project}/handoff": {
+      "get": {
+        "description": "The project's default hand-off role (null: none).",
+        "operationId": "get_handoff_v1_projects__project__handoff_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Handoff"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Handoff",
+        "tags": [
+          "inbox"
+        ]
+      },
+      "put": {
+        "description": "Sets it (free text; null or blank: none). It follows the project when it is renamed.",
+        "operationId": "put_handoff_v1_projects__project__handoff_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Handoff"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Handoff"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Handoff",
+        "tags": [
+          "inbox"
+        ]
+      }
+    },
+    "/v1/projects/{project}/handoff-targets": {
+      "get": {
+        "description": "Who an item of this project can be handed to: its live sessions' roles (with how many hold each), its\nlive sessions, and its default hand-off role. A project with no sessions: empty lists.",
+        "operationId": "handoff_targets_v1_projects__project__handoff_targets_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HandoffTargets"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Handoff Targets",
+        "tags": [
+          "inbox"
         ]
       }
     },
