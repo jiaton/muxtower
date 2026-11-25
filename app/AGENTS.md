@@ -176,6 +176,8 @@ A daemon can also be a hub: other computers' daemons join it as nodes (`docs/des
 - Vitest + React Testing Library; network mocked with MSW at the HTTP boundary (`src/test/handlers.ts`), generated from the same schema types.
 - Every `features/*/api` hook has a test; every `components/ui` primitive has a render test before a second feature uses it.
 - Playwright E2E in `e2e/`: the terminal suite (`make glyphs`: glyphs, scrollback cost, selection; above), against Vite's dev server.
+- How fast a click shows (`e2e/switch-speed.spec.ts`): on a production build of the demo, a session switch in an 80-session list must paint within `BUDGET_MS` of main-thread CPU (a trace's task CPU time from the click's first input event to the paint showing the row marked and the new header; median of several clicks), never wall clock. `MUXTOWER_SWITCH_REPORT=1` prints every interaction (session switch, chip click and wheel, a sidebar project) at 28 and 80 sessions, CPU ×1 and ×4; `MUXTOWER_SWITCH_URLS=a=<url>,b=<url>` measures builds side by side, a click on each in turn (the machine's load moves numbers more than a change does); `MUXTOWER_SWITCH_PROFILE=1` builds with React's profiling build, unminified (`MUXTOWER_PROFILE=1`), and adds each component's render time on the click's way to its paint, why the big ones drew, and a CPU call tree. The demo's `?sessions=<n>` adds made-up sessions until its hub lists n.
+- Keep a click cheap: a list row draws again only when its own session or selection changes (read the router with a `select` of what is used, never a whole match; `defaultStructuralSharing` keeps equal values); what a row offers on demand (menus, the swipe tray) is made when first wanted; a session's views come in a render after its header.
 
 ## Forbidden
 

@@ -19,8 +19,11 @@ import { extname, join } from 'node:path'
 import { expect, test, type Browser, type Locator, type Page } from '@playwright/test'
 import { callTree, interactions, startTrace, type Interaction } from './trace-cpu'
 
-/** The guard's budget (ms of main-thread CPU, CPU ×1, 80 sessions, median of the clicks). */
-const BUDGET_MS = 1000
+/** The guard's budget (ms of main-thread CPU, CPU ×1, 80 sessions, median of the clicks): about twice what
+ *  a switch costs now (30-33 ms on the 8-core machine it was measured on, 2026-11), under the 75-102 ms it
+ *  cost while every row drew again on each navigation. A shared machine's load can raise CPU time itself
+ *  (cores shared with other work), so the margin is not tighter. */
+const BUDGET_MS = 65
 
 const REPORT = !!process.env.MUXTOWER_SWITCH_REPORT
 const PROFILE = !!process.env.MUXTOWER_SWITCH_PROFILE
@@ -125,12 +128,37 @@ function installReactProfile() {
   const byName = new Map<string, { ms: number; n: number }>()
   w.__renders = byName
   let lastCommit = 0
+  // Why these drew (a profiling run): mounted, new props (which), or which hook's state changed (by its
+  // place in the component, counting every hook).
+  const WHY = ['SessionsLayout', 'RootLayout', 'SessionsNav', 'SessionView', 'ProjectChips', 'DeviceTree', 'SessionList', 'Palette']
+  const causes = new Map<string, number>()
+  w.__causes = causes
+  type Hook = { memoizedState: unknown; queue: unknown; next: Hook | null }
+  const whyRendered = (f: Fiber): string => {
+    const old = f.alternate
+    if (!old) return 'mount'
+    if (f.memoizedProps !== old.memoizedProps) {
+      const a = (old.memoizedProps ?? {}) as Record<string, unknown>
+      const b = (f.memoizedProps ?? {}) as Record<string, unknown>
+      const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter((k) => a[k] !== b[k])
+      return `props ${keys.join(',') || '(same values)'}`
+    }
+    // State, reducers and stores (a hook with an update queue): memos and effects are new at each render.
+    const changed: number[] = []
+    let h = f.memoizedState as Hook | null
+    let g = old.memoizedState as Hook | null
+    for (let i = 0; h && g; i++, h = h.next, g = g.next) if (h.queue && h.memoizedState !== g.memoizedState) changed.push(i)
+    return changed.length ? `hooks ${changed.join(',')}` : 'context or parent'
+  }
   const renderers = new Map<number, unknown>()
   type Fiber = {
     child: Fiber | null
     sibling: Fiber | null
     flags: number
     selfBaseDuration?: number
+    alternate: Fiber | null
+    memoizedProps: unknown
+    memoizedState: unknown
     actualDuration?: number
     actualStartTime?: number
     type: { name?: string; displayName?: string; render?: { name?: string }; type?: { name?: string } } | string | null
@@ -162,10 +190,21 @@ function installReactProfile() {
         const name = nameOf(f)
         // Rendered in this commit's render (not a subtree it skipped, whose fibers keep their old flags).
         if (name && f.flags & 1 && f.selfBaseDuration && (f.actualStartTime ?? -1) >= since) {
+          // Only what a step drew before its result showed (the click's way to its paint).
+          if (w.__resultAt) {
+            if (f.sibling) stack.push(f.sibling)
+            if (f.child) stack.push(f.child)
+            continue
+          }
           const e = byName.get(name) ?? { ms: 0, n: 0 }
           e.ms += f.selfBaseDuration
           e.n++
           byName.set(name, e)
+          if (WHY.includes(name)) {
+            const why = whyRendered(f)
+            const k = `${name} ← ${why}`
+            causes.set(k, (causes.get(k) ?? 0) + 1)
+          }
         }
         if (f.sibling) stack.push(f.sibling)
         if (f.child) stack.push(f.child)
@@ -243,8 +282,12 @@ async function measure(pages: Page[], kind: Kind, n: number): Promise<Measured[]
     trees.forEach((tree, k) => {
       const runs = out[k]!.runs.length || 1
       console.log(`\n${LABELS[k]} ${kind.name}: call tree (inclusive ms per step, click to paint)`)
-      for (const [fn, ms] of [...tree].sort((a, b) => b[1] - a[1]).slice(0, 40))
-        console.log(`  ${(ms / runs).toFixed(1).padStart(7)}  ${fn}`)
+      const sorted = [...tree].sort((a, b) => b[1] - a[1])
+      const top = [
+        ...sorted.filter(([fn]) => !fn.startsWith('self ')).slice(0, 60),
+        ...sorted.filter(([fn]) => fn.startsWith('self ')).slice(0, 30),
+      ]
+      for (const [fn, ms] of top) console.log(`  ${(ms / runs).toFixed(1).padStart(7)}  ${fn}`)
     })
   return out
 }
@@ -369,6 +412,13 @@ function print(label: string, sessions: number, cpu: number, m: Measured) {
   if (process.env.MUXTOWER_SWITCH_VERBOSE) {
     console.log(`    conditions held at (ms after the click): ${m.order.map((o) => o.join('/')).join('  ')}`)
     if (longs.length) console.log(`    long tasks: ${longs.join('; ')}`)
+    for (const x of r.slice(0, 3))
+      console.log(
+        `    tasks to paint: ${x.tasks
+          .filter(([, cpu]) => cpu >= 1)
+          .map(([at, cpu, what, marked]) => `+${at} ${cpu}ms ${what}${marked ? ' *' : ''}`)
+          .join(', ')}`,
+      )
   }
 }
 
@@ -377,8 +427,9 @@ async function reactProfile(pages: Page[], label: string, run: () => Promise<unk
   if (!PROFILE) return run()
   for (const page of pages)
     await page.evaluate(() => {
-      const w = window as unknown as { __profiling: boolean; __renders: Map<string, unknown> }
+      const w = window as unknown as { __profiling: boolean; __renders: Map<string, unknown>; __causes: Map<string, number> }
       w.__renders.clear()
+      w.__causes.clear()
       w.__profiling = true
     })
   await run()
@@ -388,8 +439,16 @@ async function reactProfile(pages: Page[], label: string, run: () => Promise<unk
       w.__profiling = false
       return [...w.__renders].sort((a, b) => b[1].ms - a[1].ms).slice(0, 30)
     })
-    console.log(`\n${LABELS[k]} ${label}: React render time by component (ms over all steps, renders)`)
+    console.log(`\n${LABELS[k]} ${label}: React render time by component, click to result (ms over all steps, renders)`)
     for (const [name, { ms, n }] of top) console.log(`  ${ms.toFixed(1).padStart(8)}  ${String(n).padStart(5)}  ${name}`)
+    const causes = await page.evaluate(() => {
+      const w = window as unknown as { __causes: Map<string, number> }
+      const all = [...w.__causes].sort((a, b) => b[1] - a[1])
+      w.__causes.clear()
+      return all
+    })
+    console.log(`  why they drew:`)
+    for (const [why, n] of causes) console.log(`  ${String(n).padStart(5)}  ${why}`)
   }
 }
 

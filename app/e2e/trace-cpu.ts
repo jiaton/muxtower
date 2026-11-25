@@ -70,6 +70,9 @@ export interface Interaction {
   longTasks: [number, string][]
   /** CPU (ms) by kind of work, within `toPaint`. */
   kinds: Record<string, number>
+  /** The tasks from the first input to that paint: [ms after the start, CPU ms, what ran (its longest
+   *  event), whether the result mark is in it]. */
+  tasks: [number, number, string, boolean][]
   /** Where it was in the trace (µs): from the first input's task to the end of that paint. */
   span: [number, number]
   /** No result mark in the window (the result never showed, or showed before the click). */
@@ -177,6 +180,14 @@ export function interactions(
       longTasks: long,
       kinds,
       span: [start, end],
+      tasks: spanTasks.map((t): [number, number, string, boolean] => {
+        const inner = on
+          .filter((e) => e.ts >= t.ts && e.ts < t.ts + (t.dur ?? 0) && e.ph === 'X' && KIND[e.name])
+          .sort((x, y) => (y.dur ?? 0) - (x.dur ?? 0))[0]
+        const what = inner ? `${inner.name}${inner.args?.data?.type ? ` ${String(inner.args.data.type)}` : ''}` : t.name
+        const marked = !!mark && mark.ts >= t.ts && mark.ts < t.ts + (t.dur ?? 0)
+        return [Math.round((t.ts - start) / 100) / 10, Math.round((t.tdur ?? 0) / 100) / 10, what, marked]
+      }),
       ...(mark ? {} : { missing: true }),
     })
   })
@@ -207,6 +218,9 @@ export function callTree(events: TraceEvent[], spans: [number, number][]): Map<s
     const s = samples[i]!
     if (!spans.some(([a, b]) => s.ts >= a && s.ts < b)) continue
     const dt = (s.ts - samples[i - 1]!.ts) / 1000
+    // Self time too, as "self <name>": where the time is spent, not only under what.
+    const own = `self ${nodes.get(s.node)?.name ?? '?'}`
+    inclusive.set(own, (inclusive.get(own) ?? 0) + dt)
     const seen = new Set<string>()
     for (let n: number | undefined = s.node; n !== undefined; n = nodes.get(n)?.parent) {
       const name = nodes.get(n)?.name ?? '?'
