@@ -83,6 +83,8 @@ export const SHORTCUTS = {
   cheatSheet: { area: 'global', label: 'Keyboard shortcuts', keys: [{ char: '?' }] },
   layout: { area: 'global', label: 'Session only, or back', keys: [{ code: 'KeyF', alt: true }] },
   live: { area: 'global', label: 'Live on or off (resumes it when paused)', keys: [{ code: 'KeyL', alt: true }] },
+  // Alt: it works in the message box too, where a bare N would be typed.
+  quickAdd: { area: 'global', label: 'Add to the Inbox', keys: [{ code: 'KeyN', alt: true }] },
   interrupt: { area: 'session', label: 'Interrupt the agent, while it works', keys: [{ code: 'KeyI', alt: true }] },
   view: { area: 'session', label: 'Terminal or conversation', keys: [{ code: 'KeyV', alt: true }] },
   read: { area: 'session', label: 'Mark unread (back to the list) or read', keys: [{ code: 'KeyR', alt: true }] },

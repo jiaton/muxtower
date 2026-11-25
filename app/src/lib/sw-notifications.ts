@@ -15,14 +15,35 @@ export interface NotificationRegistration {
 /** A session's notification: one per session of a daemon (`ref`), replaced in place by the next. */
 export const sessionTag = (ref: string, sessionId: string) => `${ref}:${sessionId}`
 
-/** The tag a push is shown under: its session's; else one per trigger (its newest replaces its last); else
- *  one per kind of the daemon's own news. */
-export const pushTag = (ref: string, data: { session_id?: string | null; kind?: string; trigger?: string | null }) =>
-  data.session_id
-    ? sessionTag(ref, data.session_id)
-    : data.kind === 'trigger' && data.trigger
-      ? `${ref}:trigger:${data.trigger}`
-      : sessionTag(ref, data.kind ?? 'news')
+/** What the worker reads of a push to tag it and to know where a tap goes. */
+export interface PushRef {
+  session_id?: string | null
+  kind?: string
+  trigger?: string | null
+  /** An Inbox item a push of kind `inbox` is about (one notification per item). */
+  inbox_item?: number | null
+}
+
+const inboxItemOf = (data: PushRef) => (data.kind === 'inbox' && typeof data.inbox_item === 'number' ? data.inbox_item : null)
+
+/** The tag a push is shown under: its session's; else one per Inbox item or per trigger (the newest replaces
+ *  the last); else one per kind of the daemon's own news. */
+export function pushTag(ref: string, data: PushRef): string {
+  const item = inboxItemOf(data)
+  if (data.session_id) return sessionTag(ref, data.session_id)
+  if (item !== null) return `${ref}:inbox:${item}`
+  if (data.kind === 'trigger' && data.trigger) return `${ref}:trigger:${data.trigger}`
+  return sessionTag(ref, data.kind ?? 'news')
+}
+
+/** Where a tap on it goes, under the app's base path: the session; the Inbox, with that item shown; else the
+ *  app. */
+export function pushUrl(base: string, ref: string, data: PushRef): string {
+  const item = inboxItemOf(data)
+  if (data.session_id) return `${base}d/${encodeURIComponent(ref)}/s/${encodeURIComponent(data.session_id)}`
+  if (item !== null) return `${base}inbox?item=${item}`
+  return base
+}
 
 /** What a close found and did (`lib/push-log.ts` keeps it): tags only. */
 export interface CloseOutcome {
@@ -67,4 +88,4 @@ export async function closeSessions(
 
 /** Whether a notification that replaces one of the same session alerts again: only when the owner is
  *  needed (a finished turn after a finished turn updates it quietly). */
-export const alertsAgain = (kind: string | undefined) => kind === 'attention' || kind === 'trigger'
+export const alertsAgain = (kind: string | undefined) => kind === 'attention' || kind === 'trigger' || kind === 'inbox'

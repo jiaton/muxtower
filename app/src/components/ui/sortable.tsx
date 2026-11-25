@@ -1,7 +1,8 @@
-import { KeyboardSensor, MouseSensor, TouchSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
+import { KeyboardSensor, MouseSensor, TouchSensor, useDndMonitor, useSensor, useSensors } from '@dnd-kit/core'
+import { sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable'
+import { CSS as DndCSS } from '@dnd-kit/utilities'
 import { GripVertical } from 'lucide-react'
-import { useEffect, useState, type ComponentProps } from 'react'
+import { useEffect, useRef, useState, type ComponentProps, type CSSProperties, type MouseEvent, type TouchEvent } from 'react'
 import { cn } from '@/lib/cn'
 import { Button } from './button'
 import { HOLD_MS, MOVE_PX } from './press'
@@ -68,4 +69,54 @@ export function DragHandle({ className, label, ...props }: ComponentProps<'butto
       <GripVertical aria-hidden />
     </Button>
   )
+}
+
+/** A click this soon after a drop is the drop's own (a finger let go on the row), not a tap on it. */
+const DROP_CLICK_MS = 400
+
+/** What a row of a sortable list is moved by: its node, where it is now, its ⋮⋮ handle (a mouse, the keyboard),
+ *  and what the whole row takes (`hold`: a finger held still on it picks it up; the click a drop ends with is
+ *  swallowed; a held finger opens no browser menu). */
+export interface SortableRow {
+  ref: (el: HTMLElement | null) => void
+  style: CSSProperties
+  handle: Record<string, unknown> & { ref: (el: HTMLElement | null) => void }
+  hold: {
+    onTouchStart?: (e: TouchEvent) => void
+    onContextMenu: (e: MouseEvent) => void
+    onClickCapture: (e: MouseEvent) => void
+  }
+  dragging: boolean
+}
+
+/** One row of a list in a `DndContext` with `useSortSensors` (dnd-kit's sortable): it slides as another passes
+ *  (not with reduced motion), and can be picked up by its handle or held anywhere on a touch screen. */
+export function useSortableRow(id: string | number): SortableRow {
+  const still = useReducedMotion()
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+    transition: still ? null : undefined,
+  })
+  const dropped = useRef(0)
+  useDndMonitor({
+    onDragEnd: ({ active }) => void (active.id === id && (dropped.current = performance.now())),
+    onDragCancel: ({ active }) => void (active.id === id && (dropped.current = performance.now())),
+  })
+  return {
+    ref: setNodeRef,
+    style: { transform: DndCSS.Translate.toString(transform), transition: still ? undefined : transition },
+    handle: { ...attributes, ...listeners, ref: setActivatorNodeRef },
+    hold: {
+      onTouchStart: listeners?.onTouchStart as ((e: TouchEvent) => void) | undefined,
+      onContextMenu: (e) => {
+        if (e.nativeEvent instanceof PointerEvent && e.nativeEvent.pointerType === 'touch') e.preventDefault()
+      },
+      onClickCapture: (e) => {
+        if (performance.now() - dropped.current > DROP_CLICK_MS) return
+        e.preventDefault()
+        e.stopPropagation()
+      },
+    },
+    dragging: isDragging,
+  }
 }

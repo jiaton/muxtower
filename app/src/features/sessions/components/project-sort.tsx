@@ -12,7 +12,7 @@ import { restrictToVerticalAxis } from '@dnd-kit/modifiers'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS as DndCSS } from '@dnd-kit/utilities'
 import { useRef, useState, type MouseEvent, type ReactNode, type TouchEvent } from 'react'
-import { ArrowDown, ArrowUp, MoreHorizontal } from 'lucide-react'
+import { ArrowDown, ArrowUp, MoreHorizontal, Send } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -27,6 +27,7 @@ import { sortLook, useReducedMotion, useSortSensors } from '@/components/ui/sort
 import { cn } from '@/lib/cn'
 import { useProjectHue, useSaveProjectColour } from '../api/use-project-colours'
 import { movedTo } from '../model/project-order'
+import { HandoffRoleDialog } from './handoff-role-dialog'
 
 /** The owner's order of projects (kept on the hub) and how a new one is kept. */
 export interface ProjectOrdering {
@@ -182,28 +183,36 @@ export function SortableGroup({
 }
 
 /** A project header's "⋯": Move up and Move down, the way to put it in order without dragging (off where it
- *  has nowhere to go), and its colour (`ProjectHuePicker`), kept on the hub and shown everywhere at once. */
+ *  has nowhere to go), its default hand-off role (whom its Inbox items go to), and its colour
+ *  (`ProjectHuePicker`), kept on the hub and shown everywhere at once. */
 export function ProjectMenu({ label, sort }: { label: string; sort?: HeaderSort }) {
   const hue = useProjectHue(label)
   const save = useSaveProjectColour()
+  const [handoff, setHandoff] = useState(false)
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-xs" className="shrink-0" aria-label={`More for ${label}`} title={`More for ${label}`}>
-          <MoreHorizontal />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>{label}</DropdownMenuLabel>
-        <DropdownMenuItem icon={ArrowUp} disabled={!sort?.up} onSelect={sort?.up}>
-          Move up
-        </DropdownMenuItem>
-        <DropdownMenuItem icon={ArrowDown} disabled={!sort?.down} onSelect={sort?.down}>
-          Move down
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <ProjectHuePicker hue={hue} onPick={(picked) => save.mutate({ project: label, hue: picked })} />
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <>
+      {handoff ? <HandoffRoleDialog project={label} onClose={() => setHandoff(false)} /> : null}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon-xs" className="shrink-0" aria-label={`More for ${label}`} title={`More for ${label}`}>
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>{label}</DropdownMenuLabel>
+          <DropdownMenuItem icon={ArrowUp} disabled={!sort?.up} onSelect={sort?.up}>
+            Move up
+          </DropdownMenuItem>
+          <DropdownMenuItem icon={ArrowDown} disabled={!sort?.down} onSelect={sort?.down}>
+            Move down
+          </DropdownMenuItem>
+          <DropdownMenuItem icon={Send} onSelect={() => setHandoff(true)}>
+            Default hand-off role…
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <ProjectHuePicker hue={hue} onPick={(picked) => save.mutate({ project: label, hue: picked })} />
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
   )
 }

@@ -44,8 +44,12 @@ export function DialogContent({
   onEscapeKeyDown,
   onCloseAutoFocus,
   titleIcon,
+  fill = false,
   ...props
 }: ComponentProps<typeof DialogPrimitive.Content> & {
+  /** A list that runs edge to edge under the title (rows ruled across): no side padding around it, the list
+   *  scrolling on its own, the sheet tall on a phone. */
+  fill?: boolean
   title: string
   description?: ReactNode
   /** Stands before the title (a project's colour dot). */
@@ -59,6 +63,7 @@ export function DialogContent({
         className={cn(
           'fixed inset-x-0 bottom-0 z-[80] flex max-h-[90dvh] flex-col gap-4 overflow-y-auto rounded-t-lg border border-border bg-surface p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-card',
           'sm:inset-auto sm:top-1/2 sm:left-1/2 sm:w-full sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-lg',
+          fill && 'h-[85dvh] gap-2 overflow-hidden px-0 pb-0 sm:h-auto sm:max-h-[80dvh]',
           className,
         )}
         onEscapeKeyDown={(e) => {
@@ -73,7 +78,7 @@ export function DialogContent({
         }}
         {...props}
       >
-        <div className="flex items-start gap-3">
+        <div className={cn('flex items-start gap-3', fill && 'px-5')}>
           <div className="min-w-0 flex-1">
             <DialogPrimitive.Title className="flex items-center gap-2 text-lg font-semibold">
               {titleIcon}
@@ -89,7 +94,7 @@ export function DialogContent({
             <X className="size-5" />
           </DialogPrimitive.Close>
         </div>
-        {children}
+        {fill ? <div className="min-h-0 flex-1 overflow-y-auto pb-[env(safe-area-inset-bottom)]">{children}</div> : children}
       </DialogPrimitive.Content>
     </DialogPrimitive.Portal>
   )

@@ -8,6 +8,7 @@ import { plain } from './scenes/terminal'
 import { DemoSettings } from './settings'
 import { dictionary, saveDictionary } from './dictionary'
 import { triggers } from './triggers'
+import { inboxRoute } from './inbox'
 import { keptSpoken, speakLatest } from './spoken'
 import { withAttachments } from './upload'
 import type { World } from './world'
@@ -101,6 +102,7 @@ const STARTING_COLOURS: Record<string, number> = {
   'labs/ml-pipeline': 6,
   'labs/design-system': 1,
   'personal/dotfiles': 2,
+  'acme/marketing-site': 3, // no sessions yet
 }
 function projectColours(world: World): Record<string, number> {
   const hues = { ...(PROJECT_COLOURS.get(world) ?? STARTING_COLOURS) }
@@ -376,6 +378,17 @@ export async function respond(world: World, request: Request): Promise<Response>
       return refuse(422, 'not JSON')
     }
     const answer = triggers(world, method, pathname, body)
+    if (answer) return answer
+  }
+  if (pathname.startsWith('/v1/inbox') || /^\/v1\/projects\/.+\/handoff(-targets)?$/.test(pathname)) {
+    const sent = method === 'GET' || method === 'DELETE' ? '' : await request.text()
+    let body: Record<string, unknown> = {}
+    try {
+      body = sent ? (JSON.parse(sent) as Record<string, unknown>) : {}
+    } catch {
+      return refuse(422, 'not JSON')
+    }
+    const answer = inboxRoute(world, method, pathname, body, url)
     if (answer) return answer
   }
   const fixed = ROUTES[`${method} ${pathname}`]

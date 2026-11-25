@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { alertsAgain, closeSessions, pushTag, sessionTag, type ShownNotification } from './sw-notifications'
+import { alertsAgain, closeSessions, pushTag, pushUrl, sessionTag, type ShownNotification } from './sw-notifications'
 
 function registration(...tags: string[]) {
   const closed: string[] = []
@@ -51,4 +51,16 @@ it("a trigger's push replaces its own last one, apart from other triggers and fr
   expect(pushTag('d1', { session_id: 's1', kind: 'done' })).toBe(sessionTag('d1', 's1'))
   expect(pushTag('d1', { kind: 'recovery' })).toBe(sessionTag('d1', 'recovery'))
   expect(alertsAgain('trigger')).toBe(true)
+})
+
+it("an Inbox push is one notification per item, replaced by the item's next, and a tap opens the Inbox on it", () => {
+  const due = pushTag('d1', { kind: 'inbox', inbox_item: 12 })
+  expect(due).toBe('d1:inbox:12')
+  expect(pushTag('d1', { kind: 'inbox', inbox_item: 12 })).toBe(due) // "Handed: …" later replaces "Due: …"
+  expect(pushTag('d1', { kind: 'inbox', inbox_item: 13 })).not.toBe(due)
+  expect(pushTag('d2', { kind: 'inbox', inbox_item: 12 })).not.toBe(due)
+  expect(alertsAgain('inbox')).toBe(true)
+  expect(pushUrl('/app/', 'd1', { kind: 'inbox', inbox_item: 12 })).toBe('/app/inbox?item=12')
+  expect(pushUrl('/', 'd1', { session_id: 's 1', kind: 'done' })).toBe('/d/d1/s/s%201')
+  expect(pushUrl('/', 'd1', { kind: 'login' })).toBe('/')
 })

@@ -6,7 +6,7 @@ import { clientsClaim } from 'workbox-core'
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching'
 import { NavigationRoute, registerRoute } from 'workbox-routing'
 import { NOT_THE_APP } from './lib/sw-routes'
-import { alertsAgain, closeSessions, pushTag, type CloseOutcome } from './lib/sw-notifications'
+import { alertsAgain, closeSessions, pushTag, pushUrl, type CloseOutcome } from './lib/sw-notifications'
 import { logPush, pushRecord, type PushLogEvent } from './lib/push-log'
 import { appBaseOf, openFromNotification } from './lib/push-click'
 import { savePushClick } from './lib/push-click-store'
@@ -27,8 +27,9 @@ interface PushPayload {
   client_ref: string
   session_id?: string | null // none for news of the daemon itself (its Claude login expired)
   session_name?: string | null
-  kind?: 'attention' | 'done' | 'login' | 'recovery' | 'trigger' | 'clear'
+  kind?: 'attention' | 'done' | 'login' | 'recovery' | 'trigger' | 'clear' | 'inbox'
   trigger?: string | null // the trigger a `trigger` push is about
+  inbox_item?: number | null // the Inbox item an `inbox` push is about (due, handed, or due and not handed)
   title: string
   body: string
   settled?: string[] // sessions notified about before, seen or answered since
@@ -67,7 +68,7 @@ self.addEventListener('push', (event) => {
       ),
     )
   const tag = pushTag(data.client_ref, data)
-  const url = data.session_id ? `${appBase()}d/${encodeURIComponent(data.client_ref)}/s/${encodeURIComponent(data.session_id)}` : appBase()
+  const url = pushUrl(appBase(), data.client_ref, data)
   event.waitUntil(
     // One notification per session: a newer one replaces it (a finished turn replaces a handled
     // approval), alerting again only when the owner is needed. Something waiting for you stays on screen until dismissed or settled
@@ -84,9 +85,7 @@ self.addEventListener('push', (event) => {
         icon: `${appBase()}icon-192.png`, // Android draws no SVG here
         badge: `${appBase()}badge-96.png`, // the status bar's monochrome mark; without it, the browser's
       } as NotificationOptions),
-    ]).then(([outcome]) =>
-      log('show', { kind: data.kind ?? null, ref: data.client_ref, session: data.session_id ?? null, tag }, outcome),
-    ),
+    ]).then(([outcome]) => log('show', { kind: data.kind ?? null, ref: data.client_ref, session: data.session_id ?? null, tag }, outcome)),
   )
 })
 

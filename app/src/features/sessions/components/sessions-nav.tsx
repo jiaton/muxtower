@@ -77,6 +77,7 @@ function ScopeLink({
   const openSole = useContext(SoleOpener)
   const replace = useContext(Replace)
   const target = scopeSearch(search, scope)
+  const elsewhere = Boolean(useMatch({ from: '/_sessions/inbox', shouldThrow: false })) // the Inbox is what is open
   return (
     <Link
       to="/"
@@ -84,7 +85,7 @@ function ScopeLink({
       search={target}
       onClick={(event) => openSole(event, target)}
       activeOptions={{ exact: true }}
-      data-current={isCurrentScope(search, scope)}
+      data-current={!elsewhere && isCurrentScope(search, scope)}
       className={className}
       title={title}
       style={indent ? { paddingLeft: `calc(2.25rem + ${indent}rem)` } : undefined}

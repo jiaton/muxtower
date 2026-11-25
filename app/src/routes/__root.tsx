@@ -1,8 +1,12 @@
 import { Link, Outlet, createRootRoute, useMatch } from '@tanstack/react-router'
-import { Server } from 'lucide-react'
+import { Inbox, Server } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { navItemClass } from '@/components/ui/nav'
+import { NavCount, navItemClass } from '@/components/ui/nav'
+import { useInboxItems } from '@/features/inbox/api/use-inbox'
+import { QuickAddHost } from '@/features/inbox/components/quick-add'
+import { openCount } from '@/features/inbox/model/item'
+import { useInboxDirectory } from './-inbox-directory'
 import { AppUpdateBanner } from '@/features/daemons/components/app-update-banner'
 import { WebUsageMark } from '@/features/daemons/components/web-usage-mark'
 import { NewSessionHost } from '@/features/sessions/components/new-session-host'
@@ -45,7 +49,8 @@ function Sidebar({ inDrawer = false }: { inDrawer?: boolean }) {
         )}
         <WebUsageMark />
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-2 pb-4">
+        <InboxEntry replace={inDrawer} />
         <SessionsNav replace={inDrawer} />
       </div>
       <div className={`${look.rule.top} shrink-0 p-2`}>
@@ -56,6 +61,24 @@ function Sidebar({ inDrawer = false }: { inDrawer?: boolean }) {
       </div>
     </>
   )
+}
+
+/** The Inbox, first in the sidebar on a line of its own: it is no scope of the session list (every entry under
+ *  it is). Its count is what is still open (a handed item is its taker's now). */
+function InboxEntry({ replace }: { replace: boolean }) {
+  const open = openCount(useInboxItems())
+  return (
+    <Link to="/inbox" replace={replace} className={navItemClass}>
+      <Inbox aria-hidden />
+      <span className="truncate">Inbox</span>
+      <NavCount count={open} />
+    </Link>
+  )
+}
+
+/** The quick-add box (Alt+N), with the projects an item can be for. */
+function QuickAdd() {
+  return <QuickAddHost projects={useInboxDirectory().projects} />
 }
 
 /**
@@ -108,6 +131,7 @@ function RootLayout() {
     <div className="flex h-dvh overflow-hidden pt-[env(safe-area-inset-top)]">
       <NewSessionHost />
       <PaletteHost />
+      <QuickAdd />
       {panes.sidebarDocked ? (
         <aside className={`${look.bar.side} flex w-56 shrink-0 flex-col xl:w-64`} aria-label="Navigation" data-component="sidebar">
           <Sidebar />
