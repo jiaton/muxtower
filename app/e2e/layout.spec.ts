@@ -120,9 +120,11 @@ test('desktop 1440: three layouts, panel-left with the needs-you count, one draw
   await expect(open).toBeInViewport()
   const nav = open.getByRole('navigation', { name: 'Sessions' })
   const inner = open.locator('section[aria-label="Sessions"]')
-  const [navBox, listBox] = [await nav.boundingBox(), await inner.boundingBox()]
+  // The sidebar's top is its first entry, the Inbox, above its Sessions navigation.
+  const sidebarTop = open.getByRole('link', { name: /^Inbox/ }).first()
+  const [navBox, topBox, listBox] = [await nav.boundingBox(), await sidebarTop.boundingBox(), await inner.boundingBox()]
   expect(navBox!.x).toBeLessThan(listBox!.x) // side by side, as they dock
-  expect(Math.abs(navBox!.y - listBox!.y)).toBeLessThan(80)
+  expect(Math.abs(topBox!.y - listBox!.y)).toBeLessThan(80)
   await expect(open.getByRole('radio', { name: 'Session only', exact: true })).toHaveAttribute('aria-checked', 'true')
 
   // The drawer opened: clicked again only while it is not (a click while it still slid shut was lost, CI).
