@@ -42,24 +42,24 @@ function wheel(el: HTMLElement, init: WheelEventInit) {
 afterEach(() => vi.restoreAllMocks())
 
 describe('a vertical wheel over a row that scrolls sideways', () => {
-  it('scrolls it sideways while it overflows: a trackpad’s stream at once, a mouse’s notch eased', () => {
+  it('scrolls it sideways while it overflows, following the wheel at once: a trackpad’s stream and a mouse’s notch', () => {
     const { el, left } = row()
-    expect(wheel(el, { deltaY: 30 })).toBe(true) // a trackpad: followed
+    expect(wheel(el, { deltaY: 30 })).toBe(true) // a trackpad
     expect(left()).toBe(30)
-    expect(el.scrollTo).not.toHaveBeenCalled()
-    expect(wheel(el, { deltaY: 100 })).toBe(true) // a mouse's notch: eased
-    expect(el.scrollTo).toHaveBeenLastCalledWith({ left: 130, behavior: 'smooth' })
+    expect(wheel(el, { deltaY: 100 })).toBe(true) // a mouse's notch: there already, not eased
+    expect(left()).toBe(130)
     expect(wheel(el, { deltaY: -100 })).toBe(true)
     expect(left()).toBe(30)
+    expect(el.scrollTo).not.toHaveBeenCalled()
   })
 
   it('counts lines and pages as the browser would', () => {
-    const { el } = row({ content: 2000 })
+    const { el, left } = row({ content: 2000 })
     el.style.lineHeight = '20px'
     wheel(el, { deltaY: 3, deltaMode: WheelEvent.DOM_DELTA_LINE })
-    expect(el.scrollTo).toHaveBeenLastCalledWith({ left: 60, behavior: 'smooth' })
+    expect(left()).toBe(60)
     wheel(el, { deltaY: 1, deltaMode: WheelEvent.DOM_DELTA_PAGE })
-    expect(el.scrollTo).toHaveBeenLastCalledWith({ left: 260, behavior: 'smooth' }) // a page on from where it was going
+    expect(left()).toBe(260)
   })
 
   it('takes nothing at its ends: the page or list around it scrolls', () => {

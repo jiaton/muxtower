@@ -37,6 +37,16 @@ test('a vertical wheel over the row scrolls it sideways, and at its end goes on 
   await expect.poll(left).toBe(0)
 })
 
+test('a mouse’s notch over the row scrolls it at once, not eased', async ({ page }) => {
+  const { row, max } = await start(page)
+  // Read in the same task as the wheel: an eased scroll would not have moved yet.
+  const moved = await row.evaluate((el) => {
+    el.dispatchEvent(new WheelEvent('wheel', { deltaY: 40, bubbles: true, cancelable: true }))
+    return Math.round(el.scrollLeft)
+  })
+  expect(moved).toBe(Math.min(40, max))
+})
+
 test('a sideways wheel (a trackpad) over a chip’s label scrolls the row, one to one', async ({ page }) => {
   const { max, left } = await start(page)
   await page.mouse.wheel(Math.min(4, max), 0)

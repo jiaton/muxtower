@@ -26,6 +26,23 @@ async function swipe(page: Page, n: number, dx: number) {
     )
 }
 
+/** A mouse's notches over the list's first row, `every` ms apart, dispatched in the page: each a lone wheel
+ *  event of `delta` px (Chrome on macOS: 40 a notch), sideways, or vertical with Shift. */
+async function notches(page: Page, deltas: number[], every: number, shift = false) {
+  await page.evaluate(
+    async ([ds, gap, withShift]) => {
+      for (const [i, d] of ds.entries()) {
+        if (i) await new Promise((r) => setTimeout(r, gap))
+        // Found again each time: a switch draws the list anew.
+        const row = document.querySelector('section[aria-label="Sessions"] [data-row-link]')!
+        const init = withShift ? { deltaX: 0, deltaY: d, shiftKey: true } : { deltaX: d, deltaY: 0 }
+        row.dispatchEvent(new WheelEvent('wheel', { ...init, bubbles: true, cancelable: true }))
+      }
+    },
+    [deltas, every, shift] as const,
+  )
+}
+
 /** The chip `name` chosen: clicked again only while it is not (the row draws again as its data comes, and a
  *  click on a link being replaced was lost on a loaded runner; a second click on a chosen chip lets it go). */
 async function choose(page: Page, name: string) {
@@ -79,6 +96,18 @@ test('a sideways wheel over the list steps through the chips, once per gesture, 
   await page.mouse.wheel(-120, 0)
   await page.waitForTimeout(IDLE)
   await expect(current(page)).toHaveCount(0)
+})
+
+test('a mouse wheel steps one chip per notch, notches 60 ms apart, both ways, with no rest between', async ({ page }) => {
+  await start(page, 1440, 900)
+  await notches(page, [40, 40, 40], 60) // the thumb wheel: Product, Ops, PMs
+  await expect(current(page)).toHaveText(/^PMs/)
+  await notches(page, [-40, -40, -40], 60) // back to no chip
+  await expect(current(page)).toHaveCount(0)
+  await notches(page, [40, 40], 60, true) // Shift and the vertical wheel
+  await expect(current(page)).toHaveText(/^Ops/)
+  await notches(page, [-40], 60, true)
+  await expect(current(page)).toHaveText(/^Product/)
 })
 
 test('a vertical wheel still scrolls the list and switches nothing', async ({ page }) => {

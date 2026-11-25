@@ -117,6 +117,30 @@ describe('useChipSwitch', () => {
     expect(navigate).toHaveBeenLastCalledWith(opened(expect.stringMatching(/^web-/) as unknown as string, 'a')) // nothing kept: its first
   })
 
+  it('steps in quick succession go on from the chip the last chose, before its page has drawn', () => {
+    const { hook } = setup({ search: {} })
+    act(() => void key(']'))
+    act(() => void key(']')) // no render between: still "All" shown
+    expect(navigate.mock.calls.map(([to]) => (to as { search: ListSearch }).search.chip)).toEqual(['a', 'b'])
+    navigate.mockClear()
+    hook.rerender({ search: { chip: 'b' } }) // drawn: from the chip shown again
+    act(() => void key('['))
+    expect(navigate).toHaveBeenLastCalledWith(opened(expect.stringMatching(/^web-/) as unknown as string, 'a'))
+  })
+
+  it('forgets a switch never drawn after a second: Back to the chip it left steps from there', () => {
+    vi.useFakeTimers({ toFake: ['performance'] })
+    try {
+      setup({ search: {} })
+      act(() => void key(']'))
+      vi.advanceTimersByTime(1000)
+      act(() => void key(']'))
+      expect(navigate.mock.calls.map(([to]) => (to as { search: ListSearch }).search.chip)).toEqual(['a', 'a'])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('opens the chip’s first session when the remembered one is gone', () => {
     act(() => useChipMemory.getState().remember('b', { daemonId: 'd1', sessionId: 'deleted' }))
     setup({ search: { chip: 'a' } })
