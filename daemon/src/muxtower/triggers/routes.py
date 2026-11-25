@@ -161,7 +161,7 @@ def fire_by_name(body: FireByName, request: Request, device: CurrentDevice, audi
 
 async def _fire(request: Request, trigger_id: str, secret: str | None, key: str | None) -> Firing:
     store = _store(request)
-    if not secret or not store.secret_matches(trigger_id, secret):
+    if not secret or not await asyncio.to_thread(store.secret_matches, trigger_id, secret):
         raise NotFound("no such trigger")  # a wrong secret is told nothing more
     raw = await request.body()
     if len(raw) > MAX_BODY:
@@ -171,10 +171,11 @@ async def _fire(request: Request, trigger_id: str, secret: str | None, key: str 
         payload = json.loads(raw) if raw else None
     except ValueError:
         payload = raw.decode(errors="replace")  # plain text: taken as it is
-    trigger = store.get(trigger_id)
-    # Off the event loop: an action may take a while (a session started on another machine).
+    trigger = await asyncio.to_thread(store.get, trigger_id)
+    # Off the event loop (as every database read): an action may take a while (a session started elsewhere).
     firing = await asyncio.to_thread(_service(request).fire, trigger, payload, key, "webhook", len(raw))
-    request.app.state.audit.record("webhook", "trigger_fire", trigger_id, f"webhook {firing.outcome}")
+    audit = request.app.state.audit
+    await asyncio.to_thread(audit.record, "webhook", "trigger_fire", trigger_id, f"webhook {firing.outcome}")
     return firing
 
 

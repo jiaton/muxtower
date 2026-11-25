@@ -43,6 +43,7 @@ from muxtower.infra.audit import AuditLog
 from muxtower.infra.bus import EventBus
 from muxtower.infra.db import Database
 from muxtower.infra.tmux import TmuxCli
+from muxtower.infra.watchdog import LoopWatchdog
 from muxtower.listen.service import ListenService
 from muxtower.mcp.service import McpTools
 from muxtower.net import ClientAddress
@@ -247,7 +248,9 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         tasks: list[asyncio.Task[None]] = []
+        watchdog = LoopWatchdog()
         if run_loops:
+            watchdog.start(asyncio.get_running_loop())  # a blocked loop is logged with what blocks it
             loops = {
                 "monitor": monitor.run_loop(bus, settings.tick_seconds),
                 "push": push.run_loop(bus),
@@ -294,6 +297,7 @@ def create_app(
                 task.add_done_callback(_log_crash)
                 tasks.append(task)
         yield
+        watchdog.stop()
         for task in tasks:
             task.cancel()
         for source in (codex, codex_shared):

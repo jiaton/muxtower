@@ -24,11 +24,16 @@ async def receive_hook(name: str, request: Request) -> Response:
     except ValueError as exc:
         raise HTTPException(status_code=422, detail="not a hook event") from exc
     app = request.app.state
-    if app.sessions.apply_hook(session_id, token, event):
+
+    def apply() -> bool:  # the database (and its lock): never on the event loop
+        entered = app.sessions.apply_hook(session_id, token, event)
+        if event.hook_event_name == "PostToolUse" and (record := app.sessions.repo.get(session_id)):
+            cwd = getattr(event, "cwd", None) or record.cwd  # where its tools run, for a relative path
+            app.writes.record(session_id, event.tool_name, event.tool_input, str(cwd))
+        return bool(entered)
+
+    if await asyncio.to_thread(apply):
         app.bus.publish(f"attention:{session_id}", None)
-    if event.hook_event_name == "PostToolUse" and (record := app.sessions.repo.get(session_id)):
-        cwd = getattr(event, "cwd", None) or record.cwd  # where its tools run, for a relative path
-        await asyncio.to_thread(app.writes.record, session_id, event.tool_name, event.tool_input, str(cwd))
     app.bus.publish("sessions", None)
     app.monitor.wake()  # its state changed: its screen most likely too
     return Response(status_code=200)

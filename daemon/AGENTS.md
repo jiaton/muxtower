@@ -63,7 +63,8 @@ src/muxtower/
               for command hooks (relay.py), the ingest endpoint
   notify/     Web Push (VAPID, subscriptions, dispatcher)
   auth/       device tokens, pairing, request/WS auth dependencies
-  infra/      tmux adapter (subprocess, argv only), SQLite (one shared connection) + migrations, event bus, audit log
+  infra/      tmux adapter (subprocess, argv only), SQLite (one shared connection) + migrations, event bus, audit log,
+              watchdog.py (logs a blocked event loop with the stack it is stuck in)
   system/     health, /v1/me
   vendor/     third-party code copied in (with LICENSE + VENDORED.md); only adapters import it; not linted
   agent_text.py  one-line descriptions of tool inputs, shared by hooks and sources
@@ -96,6 +97,13 @@ Split a file past 250 lines or once it mixes two domains.
 
 ## Background work
 
+- Nothing on the event loop blocks: no tmux, subprocess, file or SQLite call (the database's lock may be held by a
+  slow thread), no node call, in an `async def` route, a WebSocket handler or a loop's own code; they go through
+  `asyncio.to_thread`. A blocked loop stops every answer, stream and node link (their keepalive pings go
+  unanswered); `infra/watchdog.py` logs one blocked past a second with what it was running.
+- No thread of the daemon gets a lower OS priority (`nice`, the idle IO class): it shares the GIL and the locks
+  with the event loop, and a thread the OS seldom runs while it holds one holds up the whole daemon while the
+  machine is busy. A background job keeps to a share of the time by pausing instead (`search/indexer.py`).
 - A loop's stop reason is distinguishable: crashed (logged with traceback by a done-callback), cancelled at shutdown, or finished.
 - One capture loop serves every consumer (list, stream, push, auto-approve) through a shared in-memory cache owned by `terminal/`; consumers never call tmux on their own cadence. A session source works the same way: one poll loop fills its cache, everything else reads it. A cache shared by a loop thread and request threads is guarded by a lock that is never held across I/O.
 - A source routes nothing itself: `sessions/directory.py` checks capabilities and dispatches; routes call the directory, never a source.

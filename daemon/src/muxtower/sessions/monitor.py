@@ -30,6 +30,7 @@ WAKE_SETTLE = 0.04  # seconds: keys typed in a row arrive within this, and are c
 MIN_GAP = 0.1  # seconds between ticks, however often hooks or input wake the loop
 TIMINGS_KEPT = 120  # ticks whose timing is kept (a couple of minutes)
 REREAD_SECONDS = 5.0  # a pane with no output since is still read this often
+TICK_TIMEOUT = 30.0  # seconds a tick may take before that is logged (it goes on; no other starts meanwhile)
 
 
 @dataclass
@@ -221,13 +222,18 @@ class Monitor(Reconciler):
         WAKE_SETTLE), and ticks stay MIN_GAP apart however often something wakes it."""
         logger.info("monitor loop started (every %ss)", interval)
         self._loop, self._woken = asyncio.get_running_loop(), asyncio.Event()
+        running: asyncio.Future[TickResult] | None = None
         while True:
             self._woken.clear()  # a wake during this tick asks for another
             started = time.monotonic()
+            if running is None or running.done():
+                running = asyncio.ensure_future(asyncio.to_thread(self.tick))
             try:
-                result = await asyncio.wait_for(asyncio.to_thread(self.tick), timeout=30)
+                # Shielded: a tick that overruns goes on in its thread, and the next one waits for it rather
+                # than starting beside it (slow tmux would otherwise pile ticks up in the shared thread pool).
+                result = await asyncio.wait_for(asyncio.shield(running), timeout=TICK_TIMEOUT)
             except TimeoutError:
-                logger.warning("monitor tick timed out")
+                logger.warning("monitor tick still running after %ss", TICK_TIMEOUT)
             except Exception:
                 logger.exception("monitor tick failed")
             else:

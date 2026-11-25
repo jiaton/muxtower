@@ -15,7 +15,8 @@ import secrets
 import threading
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from concurrent.futures import Future, ThreadPoolExecutor
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from typing import Any
 
@@ -81,6 +82,10 @@ class Nodes:
         self.repo = repo
         self.bus = bus
         self._lock = threading.Lock()
+        # What links report is kept from a thread of its own, newest last: never on the event loop, which
+        # would stop every node's link (and the API) while the database is slow or its lock taken.
+        self._saver = ThreadPoolExecutor(1, thread_name_prefix="node-saves")
+        self._unsaved: dict[str, tuple[NodeRecord, Future[None]]] = {}
         self.nodes = {r.name: Node(r, _parse(r.sessions, r.name)) for r in repo.list()}
         self.loop: asyncio.AbstractEventLoop | None = None  # the loop links run on, once one connects
         # The id a node's session is listed under here, or None when another copy of it is the one listed
@@ -90,6 +95,33 @@ class Nodes:
 
         # --- membership ---------------------------------------------------------------------------
         self.screen_feed = ScreenFeed()  # the monitor's, set by the app
+
+    def persist(self, record: NodeRecord) -> "Future[None]":
+        """Keeps what `record` holds now, from the saver thread (any thread; never waits): done once it, or
+        something newer for the same node, is written."""
+        snapshot = replace(record)  # its lists are replaced, never changed in place
+        with self._lock:
+            queued = self._unsaved.get(record.name)
+            done: Future[None] = queued[1] if queued else Future()
+            self._unsaved[record.name] = (snapshot, done)
+        if queued is None:
+            self._saver.submit(self._save, record.name)
+        return done
+
+    def _save(self, name: str) -> None:
+        with self._lock:
+            snapshot, done = self._unsaved.pop(name)
+        try:
+            self.repo.save(snapshot)
+        except Exception as exc:
+            logger.exception("could not keep what %s reported", name)
+            done.set_exception(exc)
+        else:
+            done.set_result(None)
+
+    def flush(self, timeout: float = 10) -> None:
+        """Waits until what was handed to `persist` so far is written (tests, shutdown)."""
+        self._saver.submit(lambda: None).result(timeout)
 
     def claim(self, wanted: str) -> tuple[str, str]:
         """A new node named after `wanted` (made unique): (its name, its token, shown once)."""
@@ -200,18 +232,19 @@ class Nodes:
             watched = {sid: list(h) for sid, h in node.screens.items()}
         if old is not None:
             old.close()
-        self.repo.save(node.record)
+        self.persist(node.record)
         for session_id, histories in watched.items():
             for history in histories:
                 await link.notify("watch_screen", {"session_id": session_id, "history": history})
-        for token_name in self.repo.revocations(name):  # devices revoked while it was away (`direct.py`)
+        # Devices revoked while it was away (`direct.py`); the database off the event loop.
+        for token_name in await asyncio.to_thread(self.repo.revocations, name):
             try:
                 await link.call("revoke_token", {"name": token_name}, 20)
             except Exception as exc:  # noqa: BLE001 - an older node made none; tried again next time otherwise
                 if "unknown method" not in str(exc):
                     logger.warning("could not revoke %s on %s yet: %s", token_name, name, exc)
                     continue
-            self.repo.revoked(name, token_name)
+            await asyncio.to_thread(self.repo.revoked, name, token_name)
         logger.info("node %s connected (%s)", name, hello.version)
         for told in self.linked:
             told(name)
@@ -225,7 +258,7 @@ class Nodes:
                 return
             node.link = None
             node.record.last_seen = datetime.now(UTC)
-        self.repo.save(node.record)
+        self.persist(node.record)
         logger.info("node %s disconnected", name)
         self.bus.publish("sessions", None)
 
@@ -263,7 +296,7 @@ class Nodes:
             if node is None or node.record.running == raw:
                 return
             node.record.running = raw
-        self.repo.save(node.record)
+        self.persist(node.record)
         self.bus.publish("sessions", None)
 
     def _sessions(self, name: str, raw: list[dict[str, Any]]) -> None:
@@ -275,7 +308,7 @@ class Nodes:
             before, node.sessions = node.sessions, fresh
             node.record.sessions = raw
             node.record.last_seen = datetime.now(UTC)
-        self.repo.save(node.record)
+        self.persist(node.record)
         for session in fresh.values():
             prior = before.get(session.id)
             # Not on first sight (like every source): no alerts for prompts that were there before.

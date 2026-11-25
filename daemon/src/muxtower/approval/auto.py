@@ -31,7 +31,7 @@ class AutoApprover:
 
     async def _try(self, session_id: str) -> None:
         for _ in range(int(RETRY_FOR_SECONDS / RETRY_SECONDS)):
-            if not self._eligible(session_id):
+            if not await asyncio.to_thread(self._eligible, session_id):  # the database: off the loop
                 return
             try:
                 result = await asyncio.to_thread(self.approvals.approve, session_id, None, True)

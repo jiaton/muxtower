@@ -51,6 +51,7 @@ def test_its_sessions_are_listed_under_hub_ids_and_offline_from_its_last_report(
     assert views["mac~a1"].node == "mac" and views["mac~a1"].machine == "mac"
     assert views["mac~a1"].offline and not views["mac~a1"].capabilities.screen  # never linked yet
 
+    hub.flush()  # kept from a thread of its own, off the event loop
     _, restarted = nodes(tmp_path)[:2]  # the hub restarts: still listed, offline
     assert {v.id for v in restarted.views()} == {"mac~a1", "cse_1"}
     assert restarted.owns("mac~a1") and not restarted.owns("a1")  # a plain id is this daemon's own

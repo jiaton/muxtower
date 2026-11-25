@@ -83,7 +83,8 @@ def list_sessions(_: CurrentDevice, directory: Directory) -> list[Session]:
 async def create_session(body: CreateSession, device: CurrentDevice, launcher: LauncherDep, audit: Audit) -> Session:
     session = await asyncio.to_thread(launcher.create, body)
     headless = " headless" if body.headless else ""
-    audit.record(device.name, "create", session.id, f"runtime={session.runtime} cwd={session.cwd}{headless}")
+    detail = f"runtime={session.runtime} cwd={session.cwd}{headless}"
+    await asyncio.to_thread(audit.record, device.name, "create", session.id, detail)
     return session
 
 
@@ -92,7 +93,7 @@ async def claude_login(request: Request, device: CurrentDevice, audit: Audit) ->
     """Starts `claude auth login` on this daemon's machine (`sessions/login.py`): open `url`, sign in, and
     type the code the page gives into the session it returns."""
     started = await asyncio.to_thread(start_claude_login, request.app.state.sessions)
-    audit.record(device.name, "claude-login", started.session.id)
+    await asyncio.to_thread(audit.record, device.name, "claude-login", started.session.id)
     return started
 
 
@@ -193,15 +194,19 @@ async def terminate_session(
     touched). One a restart interrupted, or a live one muxtower started (`capabilities.terminate`): archived
     (ended, its history kept: nothing ends without it), as POST /archive does; any other is never ended this
     way (409): POST /archive says what ending it means."""
-    session = directory.get(session_id)
-    if session.archived_at:
-        directory.terminate(session_id)
-        audit.record(device.name, "delete", session_id)
-    elif not session.capabilities.terminate and not session.interrupted_at:
-        raise Conflict("this session was not started by muxtower: archive it (POST /archive) to end it")
-    else:
-        await asyncio.to_thread(archiver.archive, session_id)
-        audit.record(device.name, "archive", session_id)
+
+    def end() -> None:  # the database, tmux: never on the event loop
+        session = directory.get(session_id)
+        if session.archived_at:
+            directory.terminate(session_id)
+            audit.record(device.name, "delete", session_id)
+        elif not session.capabilities.terminate and not session.interrupted_at:
+            raise Conflict("this session was not started by muxtower: archive it (POST /archive) to end it")
+        else:
+            archiver.archive(session_id)
+            audit.record(device.name, "archive", session_id)
+
+    await asyncio.to_thread(end)
     request.app.state.bus.publish("sessions", None)
 
 
@@ -212,7 +217,7 @@ async def archive_session(
     """Ends the session (closes its tmux pane, archives it on Remote Control) and keeps its conversation
     to read under `archived_at` (`capabilities.archive`)."""
     await asyncio.to_thread(archiver.archive, session_id)
-    audit.record(device.name, "archive", session_id)
+    await asyncio.to_thread(audit.record, device.name, "archive", session_id)
     request.app.state.bus.publish("sessions", None)
 
 

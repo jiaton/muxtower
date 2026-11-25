@@ -77,7 +77,7 @@ class DirectAccess:
             raise Invalid("a node's address must be https: an https page cannot reach http")
         node = self.nodes.node(name)
         node.record.direct_url = url.rstrip("/") if url else None
-        self.nodes.repo.save(node.record)
+        self.nodes.persist(node.record).result(10)  # in order with what links report
 
     def tokens(self, device: str) -> list["DirectNode"]:
         """Blocking. A device token on every connected node with an address, for `device` (made anew)."""

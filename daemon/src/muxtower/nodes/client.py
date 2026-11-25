@@ -40,6 +40,10 @@ START_ASK_SECONDS = 60.0  # start_session: the hub may start it on another node,
 # say this machine is all there is. Only for the first STARTING_SECONDS: later a link down is told at once.
 LINK_WAIT_SECONDS = 5.0
 STARTING_SECONDS = 20.0
+# Keepalive: the hub must answer a ping within PONG_SECONDS, or the link is taken for dead and made again. The
+# hub answers from its event loop, which nothing slow may block (`infra/watchdog.py` logs what does).
+PING_SECONDS = 20.0
+PONG_SECONDS = 20.0
 
 
 def link_url(hub: str) -> str:
@@ -172,7 +176,7 @@ class HubClient:
         subprotocols = [Subprotocol("muxtower"), Subprotocol(f"bearer.{joined.token}")]
         async with connect(
             link_url(joined.url), additional_headers=self.headers, subprotocols=subprotocols,
-            max_size=protocol.MAX_FRAME_BYTES, open_timeout=20, ping_interval=20, ping_timeout=20,
+            max_size=protocol.MAX_FRAME_BYTES, open_timeout=20, ping_interval=PING_SECONDS, ping_timeout=PONG_SECONDS,
         ) as ws:  # fmt: skip
             self._ws = ws
             self.connected, self.error, self.down_since = True, None, None

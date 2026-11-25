@@ -123,7 +123,7 @@ def stream_cookie(request: Request, device: CurrentDevice) -> Response:
 
 
 def _authenticate(ws: WebSocket) -> tuple[str | None, bool]:
-    """(device name or None, whether the client offered the muxtower subprotocol)."""
+    """Blocking (the database). (device name or None, whether the client offered the muxtower subprotocol)."""
     state = ws.app.state
     offered = [p.strip() for p in ws.headers.get("sec-websocket-protocol", "").split(",") if p.strip()]
     origin, host = ws.headers.get("origin"), ws.headers.get("host")
@@ -168,7 +168,7 @@ class _Connection:
             return
         session_id = message.session_id or ""
         if message.topic == "spoken":
-            self.handle_spoken(message.type, session_id)
+            await self.handle_spoken(message.type, session_id)
             return
         if message.topic == "conversation":
             await self.handle_conversation(message.type, session_id)
@@ -200,14 +200,14 @@ class _Connection:
         bus.subscribe(f"screen:{session_id}", self.queue)
         await self.send(ScreenFrame(session_id=session_id, ansi=screen.ansi or screen.text))
 
-    def handle_spoken(self, kind: str, session_id: str) -> None:
+    async def handle_spoken(self, kind: str, session_id: str) -> None:
         """Listening to a session (or no longer): its spoken summaries come here; it is summarized meanwhile."""
         listen, bus = getattr(self.app.state, "listen", None), self.app.state.bus
         if listen is None or not session_id:
             return
         if kind == "subscribe" and session_id not in self.listening:
             self.listening.add(session_id)
-            listen.listen(session_id)
+            await asyncio.to_thread(listen.listen, session_id)  # looks the session up (the database, git)
             bus.subscribe(f"spoken:{session_id}", self.queue)
         elif kind == "unsubscribe" and session_id in self.listening:
             self.listening.discard(session_id)
@@ -285,7 +285,7 @@ class _Connection:
 
 @router.websocket("/stream")
 async def stream(ws: WebSocket) -> None:
-    device, wants_subprotocol = _authenticate(ws)
+    device, wants_subprotocol = await asyncio.to_thread(_authenticate, ws)
     if not ws.app.state.origins.websocket_allowed(ws.headers.get("origin"), ws.headers.get("host")):
         await ws.close(code=4403)
         return

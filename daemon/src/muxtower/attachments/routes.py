@@ -56,5 +56,6 @@ async def upload_attachment(
     except BaseException:
         await asyncio.to_thread(upload.abort)
         raise
-    audit.record(device.name, "attachment", session_id, f"name={attachment.name} size={attachment.size}")
+    detail = f"name={attachment.name} size={attachment.size}"
+    await asyncio.to_thread(audit.record, device.name, "attachment", session_id, detail)
     return attachment

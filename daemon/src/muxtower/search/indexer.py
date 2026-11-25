@@ -1,5 +1,5 @@
 """Keeps the full-text index (`index.py`) up with the conversations this daemon has, in a thread of its own
-at the lowest CPU and IO priority, never on the event loop and never per item:
+that keeps to a small share of the time (`pause_after`), never on the event loop and never per item:
 
 - Claude Code transcripts are read on from where the last read stopped (bytes and lines kept in the
   index, so a restart goes on, never starts over), at most `budget` bytes a tick: a backfill is spread out,
@@ -11,10 +11,8 @@ at the lowest CPU and IO priority, never on the event loop and never per item:
 Only prompts and replies are indexed, each capped (`text.py`). A node indexes its own sessions; the hub
 asks it (`search.service`). Off (`search.full_text`), it does nothing and the index file is deleted."""
 
-import ctypes
 import logging
 import os
-import sys
 import threading
 import time
 from collections.abc import Callable
@@ -35,6 +33,7 @@ ITEM_SOURCES_A_TICK = 3  # conversations fetched whole a tick (Remote Control's 
 SWEEP_TICKS = 12  # sources no session has any more: dropped this often
 ROLLOUT_MAX = 32 * 1024 * 1024  # a Codex rollout read again whole up to this size
 ITEMS_LIMIT = 400
+DUTY = 0.1  # at most this share of the time spent indexing (`pause_after`)
 
 
 @dataclass(frozen=True)
@@ -50,20 +49,12 @@ def _conversation(directory: Any, session_id: str) -> list[Any]:
     return list(directory.conversation(session_id, 0, ITEMS_LIMIT).items)
 
 
-def _lowest_priority() -> None:
-    """This thread at nice 19, and (Linux) the idle IO class: indexing gives way to everything else."""
-    tid = threading.get_native_id()
-    try:
-        os.setpriority(os.PRIO_PROCESS, tid, 19)
-    except (AttributeError, OSError):
-        pass
-    if sys.platform == "linux":
-        try:  # ioprio_set(IOPRIO_WHO_PROCESS, tid, IOPRIO_CLASS_IDLE << 13); x86_64 251, aarch64 30
-            number = {"x86_64": 251, "aarch64": 30}.get(os.uname().machine)
-            if number:
-                ctypes.CDLL(None, use_errno=True).syscall(number, 1, tid, 3 << 13)
-        except (OSError, AttributeError):
-            pass
+def pause_after(busy_seconds: float, tick: float) -> float:
+    """How long to wait after a round that kept this thread busy `busy_seconds`: a tick, and long enough for
+    indexing to take at most DUTY of the time. Its thread is not given a lower OS priority: it shares the
+    GIL and the database's lock with the event loop, and a thread the OS seldom runs while it holds either
+    would hold up the whole daemon (the API, every stream, every node's link) as long as the machine is busy."""
+    return max(tick, busy_seconds * (1 - DUTY) / DUTY)
 
 
 class Indexer:
@@ -217,9 +208,9 @@ class Indexer:
         self._stop.set()
 
     def _run(self) -> None:
-        _lowest_priority()
         started, reported = time.monotonic(), False
         while not self._stop.is_set():
+            began = time.thread_time()
             try:
                 added = self.tick()
                 if not added and not reported and self.read_bytes:
@@ -230,4 +221,4 @@ class Indexer:
                     )  # fmt: skip
             except Exception:
                 logger.exception("search indexing failed this round")
-            self._stop.wait(self.tick_seconds)
+            self._stop.wait(pause_after(time.thread_time() - began, self.tick_seconds))

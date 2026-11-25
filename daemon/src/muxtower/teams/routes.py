@@ -119,13 +119,15 @@ async def project_activity(
     Tasks or messages from or to another project's session are included, the other end named by its id."""
     members = {m.session.id for m in await asyncio.to_thread(teams.members) if m.project == project}
     since = datetime.now(UTC) - timedelta(hours=hours)
-    sent = [t for t in tasks.repo.since(since, 500) if t.to_id in members or (t.from_id or "") in members]
+    recent = await asyncio.to_thread(tasks.repo.since, since, 500)
+    sent = [t for t in recent if t.to_id in members or (t.from_id or "") in members]
     typed = []
-    for at, actor, to_id in audit.messages(since):
+    for at, actor, to_id in await asyncio.to_thread(audit.messages, since):
         from_id = actor.removeprefix("session ") if actor.startswith("session ") else None
         if to_id in members or (from_id or "") in members:
             typed.append(TeamMessage(at=at, from_id=from_id, from_label=actor, to_id=to_id))
-    owner = {sid: n for sid, n in audit.owner_touches(since).items() if sid in members}
+    touches = await asyncio.to_thread(audit.owner_touches, since)
+    owner = {sid: n for sid, n in touches.items() if sid in members}
     return TeamActivity(
         project=project, members=sorted(members), tasks=[TeamTask(**vars(t)) for t in sent], messages=typed, owner=owner
     )
