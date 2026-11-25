@@ -170,15 +170,40 @@ def test_the_list_offers_it_with_why_not_now_without_asking_its_machine(tmp_path
     assert where.asked == []  # its transcript is looked for only when asked
 
 
-def test_the_claude_app_holding_it_is_expected_but_a_terminal_s_claude_code_blocks_it(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("live", "holder", "blocked_by"),
+    [
+        (False, None, None),  # no process has it open: no writer, so never two
+        (True, "claude-desktop", None),  # the Claude app's: it lets go once archived
+        (True, "cli", "cli"),  # a terminal's: no archive ends it
+        (True, "sdk-cli", "sdk-cli"),
+        (True, "", ""),  # a process whose file does not say how it started: not the app's
+    ],
+)
+def test_only_no_holder_or_the_claude_app_alone_lets_it_be_continued(
+    tmp_path: Path, live: bool, holder: str | None, blocked_by: str | None
+) -> None:
     port = _port()
     app, where = _app(tmp_path, port)
     client = _client(app)
-    where.place = Place(AGENT, where.place.cwd, True, True, "claude-desktop")  # the app lets go once archived
-    assert client.get("/v1/sessions/cse_desk/continue").json()["step"] == "ready"
-    where.place = Place(AGENT, where.place.cwd, True, True, "cli")  # a terminal's: no archive ends it
-    said = "This conversation is still running in another Claude Code process on build-box (cli): quit it there first"
-    assert client.get("/v1/sessions/cse_desk/continue").json()["reason"] == said
+    where.place = Place(AGENT, where.place.cwd, True, live, holder)
+    checked = client.get("/v1/sessions/cse_desk/continue").json()
+    if blocked_by is None:
+        assert checked["step"] == "ready" and checked["reason"] is None
+        archive = port.archive_session
+        let_go = Place(AGENT, where.place.cwd, True, False)
+
+        def archived(session_id: str) -> None:  # the app lets go of it once it is archived
+            archive(session_id)
+            where.place = let_go
+
+        port.archive_session = archived  # type: ignore[method-assign]
+        assert client.post("/v1/sessions/cse_desk/continue").json()["step"] == "done"
+        assert len(_archives(port)) == 1
+        return
+    how = f" ({blocked_by})" if blocked_by else ""
+    said = f"This conversation is still running in another Claude Code process on build-box{how}: quit it there first"
+    assert checked["step"] == "blocked" and checked["reason"] == said
     assert client.post("/v1/sessions/cse_desk/continue").json()["detail"] == said
     assert _archives(port) == []
 

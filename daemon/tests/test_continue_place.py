@@ -33,7 +33,8 @@ def test_by_its_own_id_once_the_app_let_go(tmp_path: Path) -> None:
     _files(tmp_path, 2**22 + 12345)  # no such process
     processes = ClaudeProcesses(tmp_path)
     assert look(processes, None, AGENT) == Place(AGENT, None, True, False)
-    assert look(processes, "cse_X", None).live is False
+    # No process has it open any more: still found by its bridge (the file stays), with no holder.
+    assert look(processes, "cse_X", None) == Place(AGENT, "/work/shop", True, False, None)
 
 
 def test_without_its_transcript(tmp_path: Path) -> None:
