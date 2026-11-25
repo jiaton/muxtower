@@ -1,6 +1,6 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { BookPlus, History, MessagesSquare, Reply, SquareTerminal, Unplug } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react'
 import { QueryState } from '@/components/query-state'
 import { Banner } from '@/components/ui/banner'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -208,6 +208,11 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
       ? 'On an empty prompt, ← moves this conversation to the background in Claude Code. Tap again to send.'
       : null
   const termItems = view === 'terminal' && !!screen
+  // The header (and the message box) show at once; the views, the costly part (a terminal's lines, a
+  // conversation's Markdown), come in a render of their own right after, which React does in the
+  // background: the click that opened the session paints first, and a quick click on to another session
+  // is not held up by this one's views. Their room is kept meanwhile, so nothing moves.
+  const viewsReady = useDeferredValue(true, false)
   const fullScreen = canFullScreen()
   return (
     <Pane className="flex-1" aria-label={session.name} data-component="session">
@@ -278,58 +283,62 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
 
       <div ref={views} className="contents">
         <CodeActionContext.Provider value={runAsCommand}>
-          <Pager
-            className={session.offline || session.interrupted_at ? 'hidden' : 'flex-1'}
-            label="Session views"
-            index={both && view === 'conversation' ? 1 : 0}
-            onIndexChange={(page) => both && setView(page === 1 ? 'conversation' : 'terminal')}
-            pastStart={pullDrawer ?? undefined}
-          >
-            {screen ? (
-              <>
-                {terminal.error ? <Banner tone="error">{terminal.error.message}</Banner> : null}
-                {session.alt_screen && hasConversation ? (
-                  // A full-screen agent (Claude Code's fullscreen TUI) leaves tmux no scrollback to scroll.
-                  <Button
-                    variant="plain"
-                    onClick={() => setView('conversation')}
-                    className={`${look.bar.bottom} ${ink.quietAction} ${ink.meta} flex shrink-0 items-center gap-2 px-3 py-1.5 text-left sm:px-4`}
-                  >
-                    <History className="size-3.5 shrink-0" aria-hidden />
-                    <span className="min-w-0 flex-1 truncate">Full-screen app: earlier output is in the conversation</span>
-                    <span className={`${ink.accent} shrink-0`}>Show</span>
-                  </Button>
-                ) : null}
-                <TerminalView
-                  ansi={terminal.ansi}
-                  stale={terminal.stale}
-                  fontSize={terminal.fontSize}
-                  onNeedMore={terminal.loadMore}
-                  loadingMore={terminal.loadingMore}
-                  onFit={terminal.fit ? terminal.onFit : undefined}
-                  onFitRequest={() => setFit(session.id, true)}
-                />
-              </>
-            ) : null}
-            {hasConversation ? (
-              <>
-                {conversation.error ? <Banner tone="error">{conversation.error.message}</Banner> : null}
-                <ConversationView
-                  sessionName={session.name}
-                  items={earlier.data && jump !== null && !inLatest ? earlier.data : (conversation.data ?? [])}
-                  focus={jump ?? undefined}
-                  earlier={earlier.data && jump !== null && !inLatest ? clearJump : undefined}
-                  pending={outgoing.pending}
-                  onDismiss={outgoing.dismiss}
-                  onResend={resend}
-                  onReply={writable ? reply : undefined}
-                  waiting={waitingNote(session)}
-                  onSendAgain={writable ? reply : undefined}
-                  source={{ daemonId, sessionId: session.id }}
-                />
-              </>
-            ) : null}
-          </Pager>
+          {viewsReady ? (
+            <Pager
+              className={session.offline || session.interrupted_at ? 'hidden' : 'flex-1'}
+              label="Session views"
+              index={both && view === 'conversation' ? 1 : 0}
+              onIndexChange={(page) => both && setView(page === 1 ? 'conversation' : 'terminal')}
+              pastStart={pullDrawer ?? undefined}
+            >
+              {screen ? (
+                <>
+                  {terminal.error ? <Banner tone="error">{terminal.error.message}</Banner> : null}
+                  {session.alt_screen && hasConversation ? (
+                    // A full-screen agent (Claude Code's fullscreen TUI) leaves tmux no scrollback to scroll.
+                    <Button
+                      variant="plain"
+                      onClick={() => setView('conversation')}
+                      className={`${look.bar.bottom} ${ink.quietAction} ${ink.meta} flex shrink-0 items-center gap-2 px-3 py-1.5 text-left sm:px-4`}
+                    >
+                      <History className="size-3.5 shrink-0" aria-hidden />
+                      <span className="min-w-0 flex-1 truncate">Full-screen app: earlier output is in the conversation</span>
+                      <span className={`${ink.accent} shrink-0`}>Show</span>
+                    </Button>
+                  ) : null}
+                  <TerminalView
+                    ansi={terminal.ansi}
+                    stale={terminal.stale}
+                    fontSize={terminal.fontSize}
+                    onNeedMore={terminal.loadMore}
+                    loadingMore={terminal.loadingMore}
+                    onFit={terminal.fit ? terminal.onFit : undefined}
+                    onFitRequest={() => setFit(session.id, true)}
+                  />
+                </>
+              ) : null}
+              {hasConversation ? (
+                <>
+                  {conversation.error ? <Banner tone="error">{conversation.error.message}</Banner> : null}
+                  <ConversationView
+                    sessionName={session.name}
+                    items={earlier.data && jump !== null && !inLatest ? earlier.data : (conversation.data ?? [])}
+                    focus={jump ?? undefined}
+                    earlier={earlier.data && jump !== null && !inLatest ? clearJump : undefined}
+                    pending={outgoing.pending}
+                    onDismiss={outgoing.dismiss}
+                    onResend={resend}
+                    onReply={writable ? reply : undefined}
+                    waiting={waitingNote(session)}
+                    onSendAgain={writable ? reply : undefined}
+                    source={{ daemonId, sessionId: session.id }}
+                  />
+                </>
+              ) : null}
+            </Pager>
+          ) : (
+            <div className={session.offline || session.interrupted_at ? 'hidden' : 'flex-1'} />
+          )}
         </CodeActionContext.Provider>
       </div>
 
