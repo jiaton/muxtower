@@ -117,4 +117,4 @@ it("shows each project's stored hue in all four places, neutral where none is st
 
   openPalette()
   await waitFor(() => expect(shown()).toEqual({ group: '5', sidebar: '5', tag: '5', palette: '5' }))
-}, 15_000)
+}, 30_000) // the whole app, four places: the heaviest test here (timed out at 15 s on a loaded machine)
