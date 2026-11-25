@@ -105,10 +105,15 @@ export default defineConfig(({ mode }) => ({
   resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
   server: {
     // Same-origin in dev, exactly like the bundled UI served by `muxtower serve`: no CORS involved.
-    proxy: {
-      '/v1': { target: DEV_DAEMON, ws: true },
-      '/config.json': DEV_DAEMON,
-    },
+    // The demo's hub is simulated in the page (`src/demo/`): it reaches no daemon (a dev server once fetched
+    // the real hub's /config.json this way and listed it).
+    proxy:
+      mode === 'demo'
+        ? undefined
+        : {
+            '/v1': { target: DEV_DAEMON, ws: true },
+            '/config.json': DEV_DAEMON,
+          },
   },
   test: {
     environment: 'jsdom',
