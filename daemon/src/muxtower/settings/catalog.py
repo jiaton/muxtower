@@ -28,7 +28,7 @@ class Field:
         return self.key.startswith(HUB_ONLY)
 
 
-HUB_ONLY = ("triggers.", "listen.", "tts.")
+HUB_ONLY = ("triggers.", "listen.", "tts.", "inbox.")
 
 FIELDS: tuple[Field, ...] = (
     Field("recovery.mode", "After a restart", "Interrupted sessions", "choice", "now",
@@ -107,6 +107,12 @@ FIELDS: tuple[Field, ...] = (
     Field("usage.rss_mb", "Usage alerts", "Memory above (MB)", "number", "now"),
     Field("triggers.start_mode", "Triggers", "Sessions a trigger starts: permission mode", "per_runtime", "now",
           "per agent; never above its New sessions default unless agents may start sessions above it"),
+    Field("inbox.cleanup", "Inbox", "Weekly: the concierge asks you about stale items", "bool", "now",
+          "one task to the concierge a week, only when there are any"),
+    Field("inbox.stale_days", "Inbox", "An item is stale after (days untouched)", "number", "now"),
+    Field("inbox.due_hour", "Inbox", "A due date without a time falls due at (hour, 0 to 23)", "number", "now"),
+    Field("inbox.timezone", "Inbox", "Your time zone", "text", "now",
+          "an IANA name, e.g. Europe/Berlin; empty: the hub's own"),
 )  # fmt: skip
 
 BY_KEY = {f.key: f for f in FIELDS}

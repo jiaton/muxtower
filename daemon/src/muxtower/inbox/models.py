@@ -22,6 +22,22 @@ class InboxStatus(StrEnum):
     DONE = "done"
 
 
+class OnDue(StrEnum):
+    """What the hub does when an item falls due: remind the owner (a push), or hand it off (one team task)."""
+
+    REMIND = "remind"
+    HAND_OFF = "hand_off"
+
+
+class DueState(StrEnum):
+    """none: no due date (or done); upcoming: not yet; due: fallen due today (the owner's day); overdue: before."""
+
+    NONE = "none"
+    UPCOMING = "upcoming"
+    DUE = "due"
+    OVERDUE = "overdue"
+
+
 def _project(project: str | None) -> str | None:
     if project is None:
         return None
@@ -37,6 +53,24 @@ def _text(text: str) -> str:
     if not text.strip():
         raise ValueError("an item needs some text")
     return text.strip()
+
+
+class HandTarget(BaseModel):
+    """Whom an item goes to: whoever holds `role` in `project`, or the session `session_id`; exactly one of the two."""
+
+    project: str = Field(min_length=1, max_length=MAX_PROJECT_NAME)
+    role: str | None = Field(
+        default=None,
+        max_length=ROLE_CHARS,
+        description="a role in the project (without regard to case): whoever holds it",
+    )
+    session_id: str | None = Field(default=None, max_length=200, description="a session, by id")
+
+    @model_validator(mode="after")
+    def _one(self) -> "HandTarget":
+        if (self.role is None) == (self.session_id is None):
+            raise ValueError("give exactly one of role and session_id")
+        return self
 
 
 class Handed(BaseModel):
@@ -60,6 +94,15 @@ class InboxItem(BaseModel):
     handed: Handed | None = Field(default=None, description="set once it was handed")
     order: int = Field(description="its place in the owner's order: lower first")
     version: int = Field(description="bumped on every change: send it back as if_version when changing it")
+    due: datetime | None = Field(
+        default=None,
+        description="when it falls due (UTC); for a date alone, that day at the due hour, the owner's time",
+    )
+    due_has_time: bool = Field(default=False, description="false: a date alone (`due` is that day at the due hour)")
+    on_due: OnDue = OnDue.REMIND
+    due_target: HandTarget | None = Field(default=None, description="whom it is handed to when due (hand_off)")
+    due_state: DueState = DueState.NONE
+    due_fired_at: datetime | None = Field(default=None, description="when the hub acted on its due date")
 
 
 class Inbox(BaseModel):
@@ -72,6 +115,17 @@ class Inbox(BaseModel):
 class NewInboxItem(BaseModel):
     text: str = Field(min_length=1, max_length=TEXT_CHARS)
     project: str | None = Field(default=None, max_length=MAX_PROJECT_NAME)
+    due: datetime | None = Field(
+        default=None,
+        description="when it falls due: with an offset, that instant; without one, the owner's local time "
+        "(inbox.timezone); with due_has_time false only its date counts, at the due hour (inbox.due_hour). "
+        "null clears it",
+    )
+    due_has_time: bool | None = Field(
+        default=None, description="false: a date alone (default: true when due has a time)"
+    )
+    on_due: OnDue | None = Field(default=None, description="remind (default) or hand_off (needs due_target)")
+    due_target: HandTarget | None = Field(default=None, description="for hand_off: whom; null clears it")
 
     @field_validator("text")
     @classmethod
@@ -93,6 +147,17 @@ class InboxPatch(BaseModel):
         default=None, description="open or done (done: it leaves the list; open: back from handed or done)"
     )
     if_version: int = Field(description="the version you read: 409 with the item as it is now when it changed since")
+    due: datetime | None = Field(
+        default=None,
+        description="when it falls due: with an offset, that instant; without one, the owner's local time "
+        "(inbox.timezone); with due_has_time false only its date counts, at the due hour (inbox.due_hour). "
+        "null clears it",
+    )
+    due_has_time: bool | None = Field(
+        default=None, description="false: a date alone (default: true when due has a time)"
+    )
+    on_due: OnDue | None = Field(default=None, description="remind (default) or hand_off (needs due_target)")
+    due_target: HandTarget | None = Field(default=None, description="for hand_off: whom; null clears it")
 
     @field_validator("text")
     @classmethod
@@ -125,22 +190,8 @@ class InboxOrder(BaseModel):
     )
 
 
-class HandInboxItem(BaseModel):
-    """Exactly one of role and session_id."""
-
-    project: str = Field(min_length=1, max_length=MAX_PROJECT_NAME)
-    role: str | None = Field(
-        default=None,
-        max_length=ROLE_CHARS,
-        description="a role in the project (without regard to case): whoever holds it",
-    )
-    session_id: str | None = Field(default=None, max_length=200, description="a session, by id")
-
-    @model_validator(mode="after")
-    def _one(self) -> "HandInboxItem":
-        if (self.role is None) == (self.session_id is None):
-            raise ValueError("give exactly one of role and session_id")
-        return self
+class HandInboxItem(HandTarget):
+    """Hand it now."""
 
 
 class Handoff(BaseModel):

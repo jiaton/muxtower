@@ -2,11 +2,13 @@
 
 import os
 import tomllib
+from datetime import UTC, datetime, tzinfo
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from muxtower.attachments.models import DEFAULT_MAX_MB
 
@@ -212,6 +214,35 @@ class TriggerSettings(BaseModel):
     start_mode: dict[str, str] = Field(default_factory=_trigger_start_modes)
 
 
+class InboxSettings(BaseModel):
+    """`[inbox]`: the owner's Inbox (`inbox/`), kept on the hub. `cleanup`: once a week the concierge is sent
+    the items nobody touched for `stale_days`, to ask the owner about. A due date alone falls due at
+    `due_hour` (0 to 23), in `timezone` (IANA, e.g. Europe/Berlin; empty: this machine's own zone)."""
+
+    cleanup: bool = True
+    stale_days: int = Field(default=14, ge=1, le=365)
+    due_hour: int = Field(default=9, ge=0, le=23)
+    timezone: str = ""
+
+    @field_validator("timezone")
+    @classmethod
+    def _known_zone(cls, zone: str) -> str:
+        zone = zone.strip()
+        if zone:
+            try:
+                ZoneInfo(zone)
+            except (ZoneInfoNotFoundError, ValueError) as exc:
+                raise ValueError(f"no time zone {zone!r}: use an IANA name such as Europe/Berlin") from exc
+        return zone
+
+    def zone(self) -> tzinfo:
+        """The owner's time zone: the one set, else this machine's."""
+        if self.timezone:
+            return ZoneInfo(self.timezone)
+        local = datetime.now().astimezone().tzinfo
+        return local if local is not None else UTC
+
+
 class SessionSettings(BaseModel):
     """`[sessions]`: where a new session starts when it is given no folder (`default_cwd`, ~ for the home
     folder): the app's New session, and an agent's start_session without cwd. Unset, or not a folder
@@ -282,6 +313,7 @@ class Settings(BaseModel):
     attachments: AttachmentSettings = Field(default_factory=AttachmentSettings)
     launch: LaunchSettings = Field(default_factory=LaunchSettings)
     triggers: TriggerSettings = Field(default_factory=TriggerSettings)
+    inbox: InboxSettings = Field(default_factory=InboxSettings)
     sessions: SessionSettings = Field(default_factory=SessionSettings)
     hub: HubSettings = Field(default_factory=HubSettings)
     # What the config file, the environment or an override set (dotted keys): the settings page shows
