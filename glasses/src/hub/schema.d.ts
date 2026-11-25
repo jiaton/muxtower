@@ -754,6 +754,37 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_id}/continue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Continue Check
+         * @description Whether this Remote Control session (the Claude app's, claude.ai's) can be continued in a terminal, and
+         *     if not why (`blocked`); while it is, how far it got (`closing`, `starting`), and how it ended (`done`,
+         *     `failed`).
+         */
+        get: operations["continue_check_v1_sessions__session_id__continue_get"];
+        put?: never;
+        /**
+         * Continue In Terminal
+         * @description Continue in terminal: archives it on the Claude account (it leaves the Claude apps), reads that back,
+         *     then resumes its conversation in a muxtower pane on the machine it ran on, in its folder; the Remote Control
+         *     entry becomes that pane session (`session_id`), with its name, project, role, note, chips and read state.
+         *     Nothing is started unless it was closed there. A second call while it runs, or after, does nothing again;
+         *     after a pane that did not start (`failed`, `retry`), it starts the pane again. 409: it cannot be
+         *     continued (said why), and nothing was done.
+         */
+        post: operations["continue_in_terminal_v1_sessions__session_id__continue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_id}/conversation": {
         parameters: {
             query?: never;
@@ -1573,6 +1604,12 @@ export interface components {
              */
             archive_ends: boolean;
             /**
+             * Continue Terminal
+             * @description a Remote Control session only (the Claude app's, claude.ai's) that can be continued in a muxtower terminal on its machine (POST /continue); when not now, `Session.continue_blocked` says why
+             * @default false
+             */
+            continue_terminal: boolean;
+            /**
              * Conversation
              * @description structured conversation items exist (GET /conversation)
              */
@@ -1689,6 +1726,36 @@ export interface components {
             /** Value */
             value: string;
         };
+        /** Continuation */
+        Continuation: {
+            /**
+             * Machine
+             * @description the machine it is continued on
+             */
+            machine?: string | null;
+            /**
+             * Reason
+             * @description blocked or failed: why, said to the owner
+             */
+            reason?: string | null;
+            /**
+             * Retry
+             * @description failed after it was closed on the Claude account: POST again starts it
+             * @default false
+             */
+            retry: boolean;
+            /**
+             * Session Id
+             * @description done: the pane session it is now
+             */
+            session_id?: string | null;
+            step: components["schemas"]["ContinueStep"];
+        };
+        /**
+         * ContinueStep
+         * @enum {string}
+         */
+        ContinueStep: "ready" | "blocked" | "closing" | "starting" | "done" | "failed";
         /** Conversation */
         Conversation: {
             /** Items */
@@ -2861,6 +2928,11 @@ export interface components {
             /** Can Auto Approve */
             can_auto_approve: boolean;
             capabilities: components["schemas"]["Capabilities"];
+            /**
+             * Continue Blocked
+             * @description why it cannot be continued in a terminal now (`capabilities.continue_terminal`); its transcript is checked only when asked (GET /continue)
+             */
+            continue_blocked?: string | null;
             /**
              * Created At
              * Format: date-time
@@ -5083,6 +5155,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Session"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    continue_check_v1_sessions__session_id__continue_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Continuation"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    continue_in_terminal_v1_sessions__session_id__continue_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Continuation"];
                 };
             };
             /** @description Validation Error */

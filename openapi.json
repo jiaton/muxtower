@@ -193,6 +193,12 @@
             "title": "Archive Ends",
             "type": "boolean"
           },
+          "continue_terminal": {
+            "default": false,
+            "description": "a Remote Control session only (the Claude app's, claude.ai's) that can be continued in a muxtower terminal on its machine (POST /continue); when not now, `Session.continue_blocked` says why",
+            "title": "Continue Terminal",
+            "type": "boolean"
+          },
           "conversation": {
             "description": "structured conversation items exist (GET /conversation)",
             "title": "Conversation",
@@ -416,6 +422,72 @@
         ],
         "title": "Condition",
         "type": "object"
+      },
+      "Continuation": {
+        "properties": {
+          "machine": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "the machine it is continued on",
+            "title": "Machine"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "blocked or failed: why, said to the owner",
+            "title": "Reason"
+          },
+          "retry": {
+            "default": false,
+            "description": "failed after it was closed on the Claude account: POST again starts it",
+            "title": "Retry",
+            "type": "boolean"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "done: the pane session it is now",
+            "title": "Session Id"
+          },
+          "step": {
+            "$ref": "#/components/schemas/ContinueStep"
+          }
+        },
+        "required": [
+          "step"
+        ],
+        "title": "Continuation",
+        "type": "object"
+      },
+      "ContinueStep": {
+        "enum": [
+          "ready",
+          "blocked",
+          "closing",
+          "starting",
+          "done",
+          "failed"
+        ],
+        "title": "ContinueStep",
+        "type": "string"
       },
       "Conversation": {
         "properties": {
@@ -2952,6 +3024,18 @@
           },
           "capabilities": {
             "$ref": "#/components/schemas/Capabilities"
+          },
+          "continue_blocked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "why it cannot be continued in a terminal now (`capabilities.continue_terminal`); its transcript is checked only when asked (GET /continue)",
+            "title": "Continue Blocked"
           },
           "created_at": {
             "format": "date-time",
@@ -6903,6 +6987,90 @@
           }
         },
         "summary": "Set Auto Read",
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/continue": {
+      "get": {
+        "description": "Whether this Remote Control session (the Claude app's, claude.ai's) can be continued in a terminal, and\nif not why (`blocked`); while it is, how far it got (`closing`, `starting`), and how it ended (`done`,\n`failed`).",
+        "operationId": "continue_check_v1_sessions__session_id__continue_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Continuation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Continue Check",
+        "tags": [
+          "sessions"
+        ]
+      },
+      "post": {
+        "description": "Continue in terminal: archives it on the Claude account (it leaves the Claude apps), reads that back,\nthen resumes its conversation in a muxtower pane on the machine it ran on, in its folder; the Remote Control\nentry becomes that pane session (`session_id`), with its name, project, role, note, chips and read state.\nNothing is started unless it was closed there. A second call while it runs, or after, does nothing again;\nafter a pane that did not start (`failed`, `retry`), it starts the pane again. 409: it cannot be\ncontinued (said why), and nothing was done.",
+        "operationId": "continue_in_terminal_v1_sessions__session_id__continue_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Continuation"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Continue In Terminal",
         "tags": [
           "sessions"
         ]
