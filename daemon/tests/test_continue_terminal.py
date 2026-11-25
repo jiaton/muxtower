@@ -371,6 +371,17 @@ def test_a_session_read_before_is_read_as_the_pane(tmp_path: Path) -> None:
     assert not app.state.directory.get(done["session_id"]).unread
 
 
+def test_reads_of_the_pane_are_not_passed_on_to_the_archived_entry(tmp_path: Path) -> None:
+    port = _port(unread=True)
+    app, _ = _app(tmp_path, port)
+    client = _client(app)
+    pane = client.post("/v1/sessions/cse_desk/continue").json()["session_id"]
+    app.state.remote_control.tick()  # the next poll: it is no longer listed
+    assert client.post(f"/v1/sessions/{pane}/read", json={}).status_code == 204
+    assert client.post("/v1/sessions/cse_desk/read", json={}).status_code == 204  # its old id leads to the pane
+    assert [c for c in port.calls if c[0] == "mark_read"] == []
+
+
 def test_it_is_audited_without_content(tmp_path: Path) -> None:
     app, _ = _app(tmp_path, _port())
     done = _client(app).post("/v1/sessions/cse_desk/continue").json()
