@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from muxtower.terminal.ports import PaneInfo, PaneRef
+from muxtower.terminal.ports import LaunchMarks, PaneInfo, PaneRef
 
 
 @dataclass
@@ -23,6 +23,7 @@ class FakeTmux:
         self.missing: set[str] = set()  # binaries not installed
         self.servers: dict[str, str | None] = {}  # socket -> server identity (`server_id`)
         self.exits_with: str | None = None  # the next session started exits at once, saying this
+        self.unlisted: set[str] = set()  # pane ids left out of `list_panes` although they live (a bad listing)
 
     def add_pane(self, socket: str, session: str, command: str, cwd: str = "/tmp") -> FakePane:  # noqa: S108
         self._next += 1
@@ -58,7 +59,14 @@ class FakeTmux:
         return binary not in self.missing
 
     def list_panes(self, socket: str) -> list[PaneInfo]:
-        return [p.info for (s, _), p in self.panes.items() if s == socket]
+        return [p.info for (s, _), p in self.panes.items() if s == socket and p.info.pane_id not in self.unlisted]
+
+    def launch_marks(self, pane: PaneRef) -> LaunchMarks | None:
+        found = self.panes.get((pane.socket, pane.pane_id))
+        if found is None:
+            return None
+        env = {k: v for k, v in found.env.items() if k.startswith("MUXTOWER_")}
+        return LaunchMarks(found.info.session_name, " ".join(found.argv), env, 1700000000.0)
 
     def capture(self, pane: PaneRef, ansi: bool = False, history: int = 0) -> str | None:
         found = self.panes.get((pane.socket, pane.pane_id))

@@ -232,3 +232,22 @@ def test_a_long_first_prompt_arrives_whole_and_an_agent_that_exits_at_once_is_an
         assert all(p.session_name != "fails" for p in tmux.list_panes(socket))  # closed
     finally:
         _drop(socket)
+
+
+def test_launch_marks_read_what_muxtower_left_on_a_pane(tmp_path: Path) -> None:
+    from muxtower.infra.tmux import TmuxCli
+    from muxtower.terminal.ports import PaneRef
+
+    socket = f"mxt-test-{uuid.uuid4().hex[:8]}"
+    tmux = TmuxCli()
+    env = {"MUXTOWER_SESSION_ID": "0a1b2c3d4e5f", "MUXTOWER_HOOK_TOKEN": "made-up-token"}
+    try:
+        pane = tmux.new_session(socket, "mxt-0a1b2c3d", str(tmp_path), ["sh", "-c", "sleep 30"], env, 80, 24)
+        marks = tmux.launch_marks(pane)
+        assert marks is not None and marks.session_name == "mxt-0a1b2c3d"
+        assert marks.env == env and "sleep 30" in marks.start_command and marks.created > 0
+        assert tmux.launch_marks(PaneRef(socket, "%999")) is None  # not there: never another pane's marks
+        tmux.kill_pane(pane)
+        assert tmux.launch_marks(pane) is None
+    finally:
+        _drop(socket)

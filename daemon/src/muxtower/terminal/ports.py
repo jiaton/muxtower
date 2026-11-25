@@ -17,6 +17,18 @@ class PaneInfo:
 
 
 @dataclass(frozen=True)
+class LaunchMarks:
+    """What muxtower left on a pane it started: its tmux session's environment (`MUXTOWER_*` only, never
+    logged: it holds the session's hook token) and the command it was started with. A pane is known as
+    muxtower's by these, never by its current command (Claude Code's is its version on macOS)."""
+
+    session_name: str
+    start_command: str
+    env: dict[str, str]
+    created: float = 0.0  # when its tmux session was made (epoch seconds), 0 if unknown
+
+
+@dataclass(frozen=True)
 class PaneRef:
     """Where a session's pane lives: a tmux server (socket name, "default" = the user's own) + pane id."""
 
@@ -43,6 +55,11 @@ class TmuxPort(Protocol):
         ...
 
     def list_panes(self, socket: str) -> list[PaneInfo]: ...
+    def launch_marks(self, pane: PaneRef) -> LaunchMarks | None:
+        """The pane asked for directly: None when it is no longer there (or has exited); else what muxtower
+        left on it, if anything."""
+        ...
+
     def capture(self, pane: PaneRef, ansi: bool = False, history: int = 0) -> str | None: ...
     def send_text(self, pane: PaneRef, text: str) -> None: ...
     def paste(self, pane: PaneRef, text: str) -> None: ...

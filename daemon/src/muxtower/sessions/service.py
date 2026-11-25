@@ -249,6 +249,17 @@ class SessionService:
             record.agent_id = agent
             self.repo.upsert(record)
 
+    def restore(self, record: SessionRecord, runtime: Runtime, hook_token: str | None, mcp: bool) -> None:
+        """A session muxtower started whose record was lost while its agent ran on: kept again, its hooks
+        (and MCP) wired to it again with the token its process holds, their files written anew."""
+        if hook_token:
+            record.hook_token_hash = _hash(hook_token)
+            if harnessed := harness(runtime.config.hooks):
+                url = f"{self.config.local_url}/v1/hooks/{harnessed.name}"
+                mcp_url = f"{self.config.local_url}/v1/mcp" if mcp else None
+                harnessed.launch_args(HookLaunch(record.id, hook_token, url, self.hook_files, mcp_url))
+        self.repo.upsert(record)
+
     def forget(self, session_id: str) -> None:
         self.repo.delete(session_id)
         self.live.pop(session_id, None)

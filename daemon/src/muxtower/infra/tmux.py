@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import time
 
-from muxtower.terminal.ports import PaneInfo, PaneRef
+from muxtower.terminal.ports import LaunchMarks, PaneInfo, PaneRef
 
 logger = logging.getLogger("muxtower.tmux")
 
@@ -146,6 +146,23 @@ class TmuxCli:
                 info = PaneInfo(socket, pane_id, session, command, cwd, pid, server, activity, alternate, attached)
                 panes.append(info)
         return panes
+
+    def launch_marks(self, pane: PaneRef) -> LaunchMarks | None:
+        shown = self._run(
+            pane.socket, "display-message", "-p", "-t", pane.pane_id,
+            "#{pane_id}\t#{pane_dead}\t#{session_created}\t#{session_name}\t#{pane_start_command}", check=False,
+        )  # fmt: skip
+        parts = shown.stdout.rstrip("\n").split("\t", 4) if shown.returncode == 0 else []
+        if len(parts) != 5 or parts[0] != pane.pane_id or parts[1] == "1":
+            return None  # gone (tmux answers for another pane when the one asked for is not there)
+        env = self._run(pane.socket, "show-environment", "-t", f"={parts[3]}", check=False)
+        found = {}
+        for line in env.stdout.splitlines() if env.returncode == 0 else []:
+            name, eq, value = line.partition("=")
+            if eq and name.startswith("MUXTOWER_"):
+                found[name] = value
+        created = float(parts[2]) if parts[2].isdigit() else 0.0
+        return LaunchMarks(session_name=parts[3], start_command=parts[4], env=found, created=created)
 
     def capture(self, pane: PaneRef, ansi: bool = False, history: int = 0) -> str | None:
         """The pane's text (`ansi`: with its colors, for showing it). Plain text joins wrapped lines (-J),

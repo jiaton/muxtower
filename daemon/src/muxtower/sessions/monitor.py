@@ -69,6 +69,7 @@ class Monitor(Reconciler):
         self.timings: deque[TickTiming] = deque(maxlen=TIMINGS_KEPT)  # the latest ticks, for `usage/`
         self._captured: dict[str, tuple[float, float]] = {}  # session id -> when last read (wall, monotonic)
         self._seen_servers: dict[str, str] = {}  # socket -> the tmux server seen alive there this run
+        self._not_ours: dict[tuple[str, str, int], float] = {}  # mxt- panes found not to be ours: when
         self._loop: asyncio.AbstractEventLoop | None = None
         self._woken: asyncio.Event | None = None
         self.after_tick: Callable[[], None] | None = None  # set by the app: messages held for a prompt go in
