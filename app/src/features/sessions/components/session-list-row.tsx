@@ -30,8 +30,14 @@ export function SessionListRow({
   const { daemon, session } = entry
   // The session shown on the page (not merely marked, as a phone's list marks the one just left): marking
   // it unread, hiding or deleting it from its row leaves it first, or being on screen would read it again.
-  const page = useMatch({ from: '/_sessions/d/$daemonId/s/$sessionId', shouldThrow: false })
-  const open = page?.params.daemonId === daemon.id && page?.params.sessionId === session.id
+  // Selected as a boolean: a row draws again only when it becomes, or stops being, the one open (not on
+  // every navigation, which would draw the whole list again on each click).
+  const open =
+    useMatch({
+      from: '/_sessions/d/$daemonId/s/$sessionId',
+      shouldThrow: false,
+      select: (m) => m.params.daemonId === daemon.id && m.params.sessionId === session.id,
+    }) ?? false
   const [pressed, setPressed] = useState<{ x: number; y: number } | null>(null)
   const items = (actions: SessionAction[]) => (
     <>

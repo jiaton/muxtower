@@ -42,8 +42,11 @@ function useSoleOpener(entries: SessionEntry[]) {
   const navigate = useNavigate()
   const split = useMediaQuery(SPLIT_QUERY)
   const group = useListPrefs((s) => s.group)
-  const open = useMatch({ from: '/_sessions/d/$daemonId/s/$sessionId', shouldThrow: false })
-  const openKey = open ? entryKey(open.params.daemonId, open.params.sessionId) : undefined
+  const openKey = useMatch({
+    from: '/_sessions/d/$daemonId/s/$sessionId',
+    shouldThrow: false,
+    select: (m) => entryKey(m.params.daemonId, m.params.sessionId),
+  })
   return (event: MouseEvent, target: ListSearch) => {
     if (!split || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return
     const sole = soleSession(entries, toQuery(target, group), openKey)

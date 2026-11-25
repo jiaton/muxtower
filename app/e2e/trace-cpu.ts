@@ -126,12 +126,15 @@ export function interactions(
   // Paint ends: the main thread's Paint (or, where compositing paints elsewhere, its Commit).
   const paints = on.filter((e) => e.ph === 'X' && (e.name === 'Paint' || e.name === 'Commit')).sort((a, b) => a.ts - b.ts)
   const out: Interaction[] = []
-  anchors.forEach((a, i) => {
-    const next = anchors[i + 1]?.ts ?? Infinity
-    // The first input of this interaction: the earliest press within 300 ms before the anchor.
+  // Each interaction from the task that took its first input: the earliest press within 300 ms before the
+  // anchor; it ends where the next one starts.
+  const starts = anchors.map((a) => {
     const first = dispatches.find((d) => inputs.includes(typeOf(d)) && d.ts <= a.ts && a.ts - d.ts < 300_000) ?? a
-    const startTask = taskAt(first.ts) ?? first
-    const start = startTask.ts
+    return (taskAt(first.ts) ?? first).ts
+  })
+  anchors.forEach((a, i) => {
+    const next = starts[i + 1] ?? Infinity
+    const start = starts[i]!
     const mark = marks.find((m) => m.ts >= start && m.ts < next)
     const anchorTask = taskAt(a.ts) ?? a
     const after = Math.max(mark?.ts ?? 0, anchorTask.ts + (anchorTask.dur ?? 0))

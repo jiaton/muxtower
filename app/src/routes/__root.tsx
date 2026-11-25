@@ -85,7 +85,8 @@ function RootLayout() {
       ),
     daemons.map((d) => d.updatedAt).join(),
   )
-  const sessionOpen = Boolean(useMatch({ from: '/_sessions/d/$daemonId/s/$sessionId', shouldThrow: false }))
+  // A boolean: the shell draws again only when a session opens or closes, not on each switch between two.
+  const sessionOpen = Boolean(useMatch({ from: '/_sessions/d/$daemonId/s/$sessionId', shouldThrow: false, select: () => true }))
   const panes = usePanes(sessionOpen)
   useLayoutShortcut(panes.split)
   const open = useLayoutDrawer((s) => s.open)
