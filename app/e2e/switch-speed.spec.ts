@@ -16,7 +16,7 @@ import { createReadStream, existsSync, mkdtempSync, rmSync, statSync } from 'nod
 import { createServer, type Server } from 'node:http'
 import { tmpdir } from 'node:os'
 import { extname, join } from 'node:path'
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Browser, type Locator, type Page } from '@playwright/test'
 import { callTree, interactions, startTrace, type Interaction } from './trace-cpu'
 
 /** The guard's budget (ms of main-thread CPU, CPU ×1, 80 sessions, median of the clicks). */
@@ -125,6 +125,7 @@ function installReactProfile() {
   const byName = new Map<string, { ms: number; n: number }>()
   w.__renders = byName
   let lastCommit = 0
+  const renderers = new Map<number, unknown>()
   type Fiber = {
     child: Fiber | null
     sibling: Fiber | null
@@ -142,9 +143,9 @@ function installReactProfile() {
   }
   w.__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
     supportsFiber: true,
-    renderers: new Map(),
+    renderers,
     inject(renderer: unknown) {
-      ;(this.renderers as Map<number, unknown>).set(1, renderer)
+      renderers.set(1, renderer)
       return 1
     },
     checkDCE() {},
@@ -181,69 +182,85 @@ interface Measured {
   name: string
   runs: Interaction[]
   eventTiming: number[]
-  /** When the first and the last condition held, after the click (ms, wall clock: which came first). */
+  /** When each condition held, after the click (ms, wall clock, from before Playwright's click: which came
+   *  first). */
   order: number[][]
 }
 
-/** Runs `act` (one interaction) `n` times inside one trace, each waiting for its result. */
-async function measure(
-  page: Page,
-  name: string,
-  n: number,
-  setup: (i: number) => Promise<{ act: () => Promise<unknown>; conditions: Condition[] } | null>,
-  { anchor = 'click', inputs = ['pointerdown', 'mousedown'] } = {},
-): Promise<Measured> {
+type Step = { act: () => Promise<unknown>; conditions: Condition[] } | null
+
+/** One kind of interaction: how to make its `i`-th step on a page, and the input events that start it. */
+interface Kind {
+  name: string
+  step: (page: Page, i: number) => Promise<Step>
+  anchor?: string
+  inputs?: string[]
+}
+
+/** One step, in a trace of its own: set the result to wait for, act, wait for it and what it set off. */
+async function once(page: Page, kind: Kind, i: number, into: Measured, tree: Map<string, number>) {
+  const step = await kind.step(page, i)
+  if (!step) return
+  await page.evaluate((c) => (window as unknown as { __expectResult: (c: unknown) => void }).__expectResult(c), step.conditions)
+  const known = await page.evaluate(() => [...(window as unknown as { __interactions: Map<number, number> }).__interactions.keys()])
   const cdp = await page.context().newCDPSession(page)
   const stop = await startTrace(cdp, PROFILE)
-  const eventTiming: number[] = []
-  const order: number[][] = []
-  for (let i = 0; i < n; i++) {
-    const step = await setup(i)
-    if (!step) continue
-    await page.evaluate((c) => (window as unknown as { __expectResult: (c: unknown) => void }).__expectResult(c), step.conditions)
-    const known = await page.evaluate(() => [...(window as unknown as { __interactions: Map<number, number> }).__interactions.keys()])
-    const t0 = await page.evaluate(() => performance.now())
-    await step.act()
-    await page
-      .waitForFunction(() => (window as unknown as { __resultAt: number }).__resultAt > 0, null, { timeout: 5000 })
-      .catch(() => console.log(`${name}: no result after click ${i}`))
-    await page.waitForTimeout(700) // what the click set off, and the Event Timing entry
-    const got = await page.evaluate(
-      ([seen, t]) => {
-        const w = window as unknown as { __interactions: Map<number, number>; __conditionAt: number[] }
-        const fresh = [...w.__interactions].filter(([id]) => !seen.includes(id)).map(([, ms]) => ms)
-        return { et: fresh.length ? Math.max(...fresh) : -1, at: w.__conditionAt.map((x) => Math.round(x ? x - t : -1)) }
-      },
-      [known, t0] as const,
-    )
-    eventTiming.push(got.et)
-    order.push(got.at)
-  }
+  const t0 = await page.evaluate(() => performance.now())
+  await step.act()
+  await page
+    .waitForFunction(() => (window as unknown as { __resultAt: number }).__resultAt > 0, null, { timeout: 5000 })
+    .catch(() => console.log(`${kind.name}: no result after step ${i}`))
+  await page.waitForTimeout(700) // what the click set off, and the Event Timing entry
   const events = await stop()
   await cdp.detach()
-  const runs = interactions(events, { anchor, inputs, resultMark: 'result' })
-  if (PROFILE) {
-    const tree = callTree(
-      events,
-      runs.map((r) => r.span),
-    )
-    const top = [...tree].sort((a, b) => b[1] - a[1]).slice(0, 40)
-    console.log(`\n${name}: call tree (inclusive ms over ${runs.length} clicks, click to paint)`)
-    for (const [fn, ms] of top) console.log(`  ${(ms / runs.length).toFixed(1).padStart(7)}  ${fn}`)
-  }
-  return { name, runs, eventTiming, order }
+  const got = await page.evaluate(
+    ([seen, t]) => {
+      const w = window as unknown as { __interactions: Map<number, number>; __conditionAt: number[] }
+      const fresh = [...w.__interactions].filter(([id]) => !seen.includes(id)).map(([, ms]) => ms)
+      return { et: fresh.length ? Math.max(...fresh) : -1, at: w.__conditionAt.map((x) => Math.round(x ? x - t : -1)) }
+    },
+    [known, t0] as const,
+  )
+  const [run] = interactions(events, {
+    anchor: kind.anchor ?? 'click',
+    inputs: kind.inputs ?? ['pointerdown', 'mousedown'],
+    resultMark: 'result',
+  })
+  if (!run) return
+  into.runs.push(run)
+  into.eventTiming.push(got.et)
+  into.order.push(got.at)
+  if (PROFILE) for (const [fn, ms] of callTree(events, [run.span])) tree.set(fn, (tree.get(fn) ?? 0) + ms)
 }
 
-const median = (xs: number[]) => {
+/** `n` steps of `kind` on each page, taken in turn (a step on the first, then on the second…): pages
+ *  measured side by side see the machine's load alike. */
+async function measure(pages: Page[], kind: Kind, n: number): Promise<Measured[]> {
+  const out = pages.map((): Measured => ({ name: kind.name, runs: [], eventTiming: [], order: [] }))
+  const trees = pages.map(() => new Map<string, number>())
+  for (let i = 0; i < n; i++) for (const [k, page] of pages.entries()) await once(page, kind, i, out[k]!, trees[k]!)
+  if (PROFILE)
+    trees.forEach((tree, k) => {
+      const runs = out[k]!.runs.length || 1
+      console.log(`\n${LABELS[k]} ${kind.name}: call tree (inclusive ms per step, click to paint)`)
+      for (const [fn, ms] of [...tree].sort((a, b) => b[1] - a[1]).slice(0, 40))
+        console.log(`  ${(ms / runs).toFixed(1).padStart(7)}  ${fn}`)
+    })
+  return out
+}
+
+/** The `q` quantile (0.5: the median) of what was measured; -1 for nothing. */
+const quantile = (xs: number[], q: number) => {
   const s = xs.filter((x) => x >= 0).sort((a, b) => a - b)
-  return s.length ? s[Math.floor((s.length - 1) / 2)]! : -1
+  return s.length ? s[Math.floor((s.length - 1) * q)]! : -1
 }
+const median = (xs: number[]) => quantile(xs, 0.5)
 
-async function open(page: Page, sessions: number, cpu: number) {
+async function open(page: Page, url: string, sessions: number, cpu: number) {
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.addInitScript(installResultWatch)
   if (PROFILE) await page.addInitScript(installReactProfile)
-  await page.goto(`${base}${sessions ? `?sessions=${sessions}` : ''}#/d/demo/s/web-app`)
+  await page.goto(`${url}${sessions ? `?sessions=${sessions}` : ''}#/d/demo/s/web-app`)
   await expect(page.locator('textarea').first()).toBeVisible({ timeout: 30_000 })
   await expect(list(page).locator('[data-row-link]').first()).toBeVisible()
   await page.waitForTimeout(1500)
@@ -252,9 +269,10 @@ async function open(page: Page, sessions: number, cpu: number) {
 }
 
 /** A session switch: a click on another row (spread through the list), its row marked and its header shown. */
-async function sessionSwitches(page: Page, n: number) {
-  const rows = list(page).locator('[data-row-link]:visible')
-  return measure(page, 'session switch', n, async (i) => {
+const sessionSwitch: Kind = {
+  name: 'session switch',
+  step: async (page, i) => {
+    const rows = list(page).locator('[data-row-link]:visible')
     const count = await rows.count()
     const row: Locator = rows.nth((i * 7 + 3) % count)
     if ((await row.getAttribute('aria-current')) === 'page') return null
@@ -263,85 +281,84 @@ async function sessionSwitches(page: Page, n: number) {
     await row.scrollIntoViewIfNeeded()
     return {
       act: () => row.click(),
-      conditions: [
-        { sel: `[data-row="${key}"] [aria-current="page"]` },
-        { sel: 'section:has(textarea) header h1', text: name },
-      ],
+      conditions: [{ sel: `[data-row="${key}"] [aria-current="page"]` }, { sel: 'section:has(textarea) header h1', text: name }],
     }
-  })
+  },
 }
 
-const CHIPS = ['Product', 'Ops', 'PMs', 'Product', 'Ops', 'PMs', 'Product', 'Ops', 'PMs']
+const CHIPS = ['Product', 'Ops', 'PMs']
+const ROWS = 'section[aria-label="Sessions"] [data-row-link]'
 
-async function chipClicks(page: Page, n: number) {
-  return measure(page, 'chip click', n, async (i) => {
-    const chip = chips(page).getByRole('link', { name: new RegExp(`^${CHIPS[i % CHIPS.length]}`) })
+/** A chip clicked: it is marked and the list shows its sessions (and, beside it, its session opens). */
+const chipClick: Kind = {
+  name: 'chip click',
+  step: async (page, i) => {
+    const name = CHIPS[i % CHIPS.length]!
+    const chip = chips(page).getByRole('link', { name: new RegExp(`^${name}`) })
     if ((await chip.getAttribute('data-current')) === 'true') return null
     return {
       act: () => chip.click(),
-      conditions: [
-        { sel: 'nav[aria-label="Projects"] a[data-current="true"]', textStarts: CHIPS[i % CHIPS.length] },
-        { changed: 'section[aria-label="Sessions"] [data-row-link]' },
-      ],
+      conditions: [{ sel: 'nav[aria-label="Projects"] a[data-current="true"]', textStarts: name }, { changed: ROWS }],
     }
-  })
+  },
 }
 
-async function chipWheels(page: Page, n: number) {
-  const box = (await list(page).locator('[data-row-link]').first().boundingBox())!
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
-  // Forward through the chips to the end, then back: always a step.
-  let dir = 1
-  return measure(
-    page,
-    'chip wheel',
-    n,
-    async () => {
-      const links = chips(page).getByRole('link')
-      const total = await links.count()
-      const at = await links.evaluateAll((ls) => ls.findIndex((l) => l.getAttribute('data-current') === 'true'))
-      if (at >= total - 1) dir = -1
-      if (at <= 0 && dir < 0 && at === -1) dir = 1
-      await page.waitForTimeout(400) // past the wheel gesture's rest
-      return {
-        act: () => page.mouse.wheel(120 * dir, 0),
-        conditions: [{ changed: 'nav[aria-label="Projects"] a[data-current="true"]' }, { changed: 'section[aria-label="Sessions"] [data-row-link]' }],
-      }
-    },
-    { anchor: 'wheel', inputs: ['wheel'] },
-  )
+/** A sideways wheel over the list: the next chip (forward to the end, then back). */
+const wheelDirection = new WeakMap<Page, number>()
+const chipWheel: Kind = {
+  name: 'chip wheel',
+  anchor: 'wheel',
+  inputs: ['wheel'],
+  step: async (page) => {
+    const box = (await list(page).locator('[data-row-link]').first().boundingBox())!
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    const links = chips(page).getByRole('link')
+    const total = await links.count()
+    const at = await links.evaluateAll((ls) => ls.findIndex((l) => l.getAttribute('data-current') === 'true'))
+    let dir = wheelDirection.get(page) ?? 1
+    if (at >= total - 1) dir = -1
+    if (at === -1) dir = 1
+    wheelDirection.set(page, dir)
+    await page.waitForTimeout(400) // past the wheel gesture's rest
+    return {
+      act: () => page.mouse.wheel(120 * dir, 0),
+      conditions: [{ changed: 'nav[aria-label="Projects"] a[data-current="true"]' }, { changed: ROWS }],
+    }
+  },
 }
 
-const PROJECTS = ['acme/docs', 'acme/mobile', 'labs/ml-pipeline', 'acme/web', 'acme/docs', 'acme/mobile', 'labs/ml-pipeline', 'acme/web', 'acme/docs']
+const PROJECTS = ['acme/docs', 'acme/mobile', 'labs/ml-pipeline', 'acme/web']
 
-async function sidebarProjects(page: Page, n: number) {
-  return measure(page, 'sidebar project', n, async (i) => {
+/** A project picked in the sidebar: marked there, and the list shows it. */
+const sidebarProject: Kind = {
+  name: 'sidebar project',
+  step: async (page, i) => {
+    const name = PROJECTS[i % PROJECTS.length]!
     const link = sidebar(page)
       .getByRole('link')
-      .filter({ hasText: new RegExp(`^${PROJECTS[i % PROJECTS.length]}`) })
+      .filter({ hasText: new RegExp(`^${name}`) })
       .first()
     if ((await link.count()) === 0 || (await link.getAttribute('data-current')) === 'true') return null
     return {
       act: () => link.click(),
-      conditions: [
-        { sel: 'aside[aria-label="Navigation"] a[data-current="true"]', textStarts: PROJECTS[i % PROJECTS.length] },
-        { changed: 'section[aria-label="Sessions"] [data-row-link]' },
-      ],
+      conditions: [{ sel: 'aside[aria-label="Navigation"] a[data-current="true"]', textStarts: name }, { changed: ROWS }],
     }
-  })
+  },
 }
 
-function print(sessions: number, cpu: number, m: Measured) {
+function print(label: string, sessions: number, cpu: number, m: Measured) {
   const r = m.runs
+  const paint = r.map((x) => x.toPaint)
   const kinds = [...new Set(r.flatMap((x) => Object.keys(x.kinds)))]
   const kindText = kinds.map((k) => `${k} ${median(r.map((x) => x.kinds[k] ?? 0))}`).join(', ')
   const longs = r.flatMap((x) => x.longTasks.map(([ms, what]) => `${ms} ${what}`))
   console.log(
     [
+      `${label}`,
       `${sessions || 'demo'} sessions`,
       `×${cpu}`,
       m.name.padEnd(16),
-      `to paint ${median(r.map((x) => x.toPaint))} ms CPU (max ${Math.max(...r.map((x) => x.toPaint))})`,
+      `to paint ${median(paint)} ms CPU (min ${quantile(paint, 0)}, p25 ${quantile(paint, 0.25)}, max ${quantile(paint, 1)})`,
       `wall ${median(r.map((x) => x.wallToPaint))}`,
       `event timing ${median(m.eventTiming)}`,
       `all it set off ${median(r.map((x) => x.total))}`,
@@ -349,55 +366,82 @@ function print(sessions: number, cpu: number, m: Measured) {
       `n=${r.length}${r.some((x) => x.missing) ? ` (${r.filter((x) => x.missing).length} without a result)` : ''}`,
     ].join(' | '),
   )
-  console.log(`    conditions held at (ms after the click): ${m.order.map((o) => o.join('/')).join('  ')}`)
-  if (longs.length) console.log(`    long tasks: ${longs.join('; ')}`)
+  if (process.env.MUXTOWER_SWITCH_VERBOSE) {
+    console.log(`    conditions held at (ms after the click): ${m.order.map((o) => o.join('/')).join('  ')}`)
+    if (longs.length) console.log(`    long tasks: ${longs.join('; ')}`)
+  }
 }
 
-async function reactProfile(page: Page, label: string, run: () => Promise<unknown>) {
+/** React render time by component over `run` (the profiling build), per page. */
+async function reactProfile(pages: Page[], label: string, run: () => Promise<unknown>) {
   if (!PROFILE) return run()
-  await page.evaluate(() => {
-    const w = window as unknown as { __profiling: boolean; __renders: Map<string, unknown> }
-    w.__renders.clear()
-    w.__profiling = true
-  })
+  for (const page of pages)
+    await page.evaluate(() => {
+      const w = window as unknown as { __profiling: boolean; __renders: Map<string, unknown> }
+      w.__renders.clear()
+      w.__profiling = true
+    })
   await run()
-  const top = await page.evaluate(() => {
-    const w = window as unknown as { __profiling: boolean; __renders: Map<string, { ms: number; n: number }> }
-    w.__profiling = false
-    return [...w.__renders].sort((a, b) => b[1].ms - a[1].ms).slice(0, 30)
-  })
-  console.log(`\n${label}: React render time by component (ms over all clicks, renders)`)
-  for (const [name, { ms, n }] of top) console.log(`  ${ms.toFixed(1).padStart(8)}  ${String(n).padStart(5)}  ${name}`)
+  for (const [k, page] of pages.entries()) {
+    const top = await page.evaluate(() => {
+      const w = window as unknown as { __profiling: boolean; __renders: Map<string, { ms: number; n: number }> }
+      w.__profiling = false
+      return [...w.__renders].sort((a, b) => b[1].ms - a[1].ms).slice(0, 30)
+    })
+    console.log(`\n${LABELS[k]} ${label}: React render time by component (ms over all steps, renders)`)
+    for (const [name, { ms, n }] of top) console.log(`  ${ms.toFixed(1).padStart(8)}  ${String(n).padStart(5)}  ${name}`)
+  }
+}
+
+// MUXTOWER_SWITCH_URLS="before=http://…,after=http://…": several builds, measured side by side.
+const TARGETS = (process.env.MUXTOWER_SWITCH_URLS ?? '')
+  .split(',')
+  .filter(Boolean)
+  .map((t) => t.split('=') as [string, string])
+const LABELS = TARGETS.length ? TARGETS.map(([l]) => l) : ['this build']
+
+async function pagesFor(browser: Browser, sessions: number, cpu: number): Promise<Page[]> {
+  const urls = TARGETS.length ? TARGETS.map(([, u]) => u) : [base]
+  const pages: Page[] = []
+  for (const url of urls) {
+    const page = await (await browser.newContext()).newPage()
+    await open(page, url, sessions, cpu)
+    pages.push(page)
+  }
+  return pages
 }
 
 if (REPORT) {
   for (const sessions of SIZES)
     for (const cpu of CPUS)
-      test(`report: ${sessions || 'demo'} sessions, CPU ×${cpu}`, async ({ page }) => {
-        test.setTimeout(300_000)
-        await open(page, sessions, cpu)
+      test(`report: ${sessions || 'demo'} sessions, CPU ×${cpu}`, async ({ browser }) => {
+        test.setTimeout(900_000)
+        const pages = await pagesFor(browser, sessions, cpu)
         const tag = `${sessions || 'demo'} sessions ×${cpu}`
-        let m!: Measured
-        await reactProfile(page, `${tag} session switch`, async () => (m = await sessionSwitches(page, CLICKS)))
-        print(sessions, cpu, m)
-        await reactProfile(page, `${tag} chip click`, async () => (m = await chipClicks(page, CLICKS)))
-        print(sessions, cpu, m)
-        await reactProfile(page, `${tag} chip wheel`, async () => (m = await chipWheels(page, CLICKS)))
-        print(sessions, cpu, m)
+        const show = (ms: Measured[]) => ms.forEach((m, k) => print(LABELS[k]!, sessions, cpu, m))
+        for (const kind of [sessionSwitch, chipClick, chipWheel]) {
+          let m: Measured[] = []
+          await reactProfile(pages, `${tag} ${kind.name}`, async () => (m = await measure(pages, kind, CLICKS)))
+          show(m)
+        }
         // Back to every project, from the chip row (the sidebar's projects pick within it).
-        const current = chips(page).locator('a[data-current="true"]')
-        if (await current.count()) await current.click()
-        await page.waitForTimeout(500)
-        await reactProfile(page, `${tag} sidebar project`, async () => (m = await sidebarProjects(page, CLICKS)))
-        print(sessions, cpu, m)
+        for (const page of pages) {
+          const current = chips(page).locator('a[data-current="true"]')
+          if (await current.count()) await current.click()
+          await page.waitForTimeout(500)
+        }
+        let m: Measured[] = []
+        await reactProfile(pages, `${tag} sidebar project`, async () => (m = await measure(pages, sidebarProject, CLICKS)))
+        show(m)
+        for (const page of pages) await page.context().close()
       })
 } else {
-  test('a session switch paints within its budget (main-thread CPU, 80 sessions)', async ({ page }) => {
+  test('a session switch paints within its budget (main-thread CPU, 80 sessions)', async ({ browser }) => {
     test.setTimeout(180_000)
-    await open(page, 80, 1)
-    const m = await sessionSwitches(page, CLICKS)
-    print(80, 1, m)
-    expect(m.runs.filter((r) => !r.missing).length).toBeGreaterThanOrEqual(5)
-    expect(median(m.runs.map((r) => r.toPaint))).toBeLessThan(BUDGET_MS)
+    const pages = await pagesFor(browser, 80, 1)
+    const [m] = await measure(pages.slice(0, 1), sessionSwitch, CLICKS)
+    print('', 80, 1, m!)
+    expect(m!.runs.filter((r) => !r.missing).length).toBeGreaterThanOrEqual(5)
+    expect(median(m!.runs.map((r) => r.toPaint))).toBeLessThan(BUDGET_MS)
   })
 }

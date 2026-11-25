@@ -35,7 +35,7 @@ export async function startTrace(cdp: CDPSession, sampling = false): Promise<() 
     },
   })
   const events: TraceEvent[] = []
-  const onData = (e: { value: TraceEvent[] }) => void events.push(...e.value)
+  const onData = (e: { value: object[] }) => void events.push(...(e.value as TraceEvent[]))
   cdp.on('Tracing.dataCollected', onData)
   return async () => {
     const done = new Promise<void>((resolve) => cdp.once('Tracing.tracingComplete', () => resolve()))
@@ -146,7 +146,9 @@ export function interactions(
     const windowEnd = Math.min(next, start + 1_500_000)
     const kinds: Record<string, number> = {}
     // Kinds by self time: each event's tdur minus its nested known events', counted once.
-    const known = on.filter((e) => e.ph === 'X' && KIND[e.name] && e.ts >= start && e.ts < end).sort((x, y) => x.ts - y.ts || (y.dur ?? 0) - (x.dur ?? 0))
+    const known = on
+      .filter((e) => e.ph === 'X' && KIND[e.name] && e.ts >= start && e.ts < end)
+      .sort((x, y) => x.ts - y.ts || (y.dur ?? 0) - (x.dur ?? 0))
     const stack: TraceEvent[] = []
     const self = new Map<TraceEvent, number>()
     for (const e of known) {
@@ -193,8 +195,7 @@ export function callTree(events: TraceEvent[], spans: [number, number][]): Map<s
       cpuProfile?: { nodes?: { id: number; parent?: number; callFrame: { functionName: string; url?: string } }[]; samples?: number[] }
       timeDeltas?: number[]
     }
-    for (const n of data.cpuProfile?.nodes ?? [])
-      nodes.set(n.id, { name: n.callFrame.functionName || '(anonymous)', parent: n.parent })
+    for (const n of data.cpuProfile?.nodes ?? []) nodes.set(n.id, { name: n.callFrame.functionName || '(anonymous)', parent: n.parent })
     let t = samples.at(-1)?.ts ?? profileStart
     ;(data.cpuProfile?.samples ?? []).forEach((id, i) => {
       t += data.timeDeltas?.[i] ?? 0
