@@ -1,4 +1,4 @@
-import { Outlet, RouterProvider, createMemoryHistory, createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
+import { Outlet, RouterProvider, createMemoryHistory, createRootRoute, createRoute, createRouter, useParams } from '@tanstack/react-router'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { http, HttpResponse } from 'msw'
 import { expect, it } from 'vitest'
@@ -27,7 +27,7 @@ function renderWith(element: (daemonId: string) => React.ReactNode) {
     getParentRoute: () => root,
     path: '/d/$daemonId/s/$sessionId',
     component: function Opened() {
-      return <p>opened {opened.useParams().sessionId}</p>
+      return <p>opened {useParams({ strict: false }).sessionId}</p>
     },
   })
   const router = createRouter({ routeTree: root.addChildren([home, opened]), history: createMemoryHistory() })

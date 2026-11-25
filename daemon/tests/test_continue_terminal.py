@@ -226,6 +226,7 @@ def test_nothing_starts_when_the_archive_cannot_be_read_back(tmp_path: Path) -> 
     failed = client.post("/v1/sessions/cse_desk/continue").json()
     assert failed["step"] == "failed" and "Remote Control still lists it as active" in failed["reason"]
     assert _panes(tmux) == []
+    assert client.get("/v1/sessions/cse_desk/continue").json() == failed  # no longer listed: said as it stopped
     # Tried again once Remote Control has it archived: it goes on.
     port.archive_session = FakeRemoteControl.archive_session.__get__(port)  # type: ignore[method-assign]
     assert client.post("/v1/sessions/cse_desk/continue").json()["step"] == "done"

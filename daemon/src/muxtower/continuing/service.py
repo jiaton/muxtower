@@ -62,7 +62,8 @@ class Continuer:
     def check(self, session_id: str) -> Continuation:
         """Blocking (a node may be asked). How far a run got, or whether one can start (and if not, why)."""
         if job := self.store.get(session_id):
-            if job.step != ContinueStep.FAILED or job.closed:
+            listed = self.remote is not None and self.remote.owns(session_id)
+            if job.step != ContinueStep.FAILED or job.closed or not listed:  # else: tried again from the start
                 return _view(job)
         session = self.directory.get(session_id)
         reason, _ = self.blocked(session)
