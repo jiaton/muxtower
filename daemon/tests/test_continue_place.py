@@ -12,11 +12,11 @@ from muxtower.sessions.claude_processes import ClaudeProcesses
 AGENT = "3c3c3c3c-0000-4000-8000-000000000001"
 
 
-def _files(claude: Path, pid: int, transcript: bool = True) -> None:
+def _files(claude: Path, pid: int, transcript: bool = True, entrypoint: str = "claude-desktop") -> None:
     (claude / "sessions").mkdir(parents=True, exist_ok=True)
-    (claude / "sessions" / f"{pid}.json").write_text(
-        json.dumps({"pid": pid, "sessionId": AGENT, "cwd": "/work/shop", "bridgeSessionId": "session_X"})
-    )
+    (claude / "sessions" / f"{pid}.json").write_text(json.dumps({
+        "pid": pid, "sessionId": AGENT, "cwd": "/work/shop", "bridgeSessionId": "session_X", "entrypoint": entrypoint,
+    }))  # fmt: skip
     if transcript:
         (claude / "projects" / "-work-shop").mkdir(parents=True, exist_ok=True)
         (claude / "projects" / "-work-shop" / f"{AGENT}.jsonl").write_text('{"type": "user", "uuid": "u1"}\n')
@@ -25,7 +25,7 @@ def _files(claude: Path, pid: int, transcript: bool = True) -> None:
 def test_found_by_its_bridge_while_its_app_has_it_open(tmp_path: Path) -> None:
     _files(tmp_path, os.getpid())  # a process that runs
     processes = ClaudeProcesses(tmp_path)
-    assert look(processes, "cse_X", None) == Place(AGENT, "/work/shop", True, True)
+    assert look(processes, "cse_X", None) == Place(AGENT, "/work/shop", True, True, "claude-desktop")
     assert look(processes, "cse_OTHER", None) == Place(None, None, False, False)
 
 
@@ -38,4 +38,9 @@ def test_by_its_own_id_once_the_app_let_go(tmp_path: Path) -> None:
 
 def test_without_its_transcript(tmp_path: Path) -> None:
     _files(tmp_path, os.getpid(), transcript=False)
-    assert look(ClaudeProcesses(tmp_path), "cse_X", None) == Place(AGENT, "/work/shop", False, True)
+    assert look(ClaudeProcesses(tmp_path), "cse_X", None) == Place(AGENT, "/work/shop", False, True, "claude-desktop")
+
+
+def test_a_terminal_s_claude_code_that_has_it_open_says_so(tmp_path: Path) -> None:
+    _files(tmp_path, os.getpid(), entrypoint="cli")
+    assert look(ClaudeProcesses(tmp_path), "cse_X", None).holder == "cli"

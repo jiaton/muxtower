@@ -19,6 +19,7 @@ def look(processes: Any, remote_id: str | None, agent_id: str | None) -> Place:
     transcript = processes.transcript_for(agent) if hasattr(processes, "transcript_for") else None
     # Where it went on, if it did (a move to the background): that is the conversation now.
     resumed = agent_id_of(transcript) or agent
-    holds = getattr(processes, "holds", None)
-    live = bool(holds and any(holds(a) for a in dict.fromkeys((agent, resumed))))
-    return Place(resumed, (found[1] if found else None) or None, transcript is not None, live)
+    ask = getattr(processes, "holder", None)
+    holders = [h for a in dict.fromkeys((agent, resumed)) if ask and (h := ask(a)) is not None]
+    holder = holders[0] if holders else None
+    return Place(resumed, (found[1] if found else None) or None, transcript is not None, holder is not None, holder)

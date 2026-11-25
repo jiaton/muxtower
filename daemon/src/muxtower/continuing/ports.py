@@ -12,17 +12,21 @@ class Place:
     cwd: str | None  # the folder its Claude Code ran in: resumed there
     transcript: bool  # its transcript is on that machine
     live: bool  # a Claude Code process there still has it open
+    holder: str | None = None  # how that process was started (`entrypoint`: claude-desktop, cli…)
 
     def as_json(self) -> dict[str, Any]:
-        return {"agent_id": self.agent_id, "cwd": self.cwd, "transcript": self.transcript, "live": self.live}
+        return {
+            "agent_id": self.agent_id, "cwd": self.cwd, "transcript": self.transcript, "live": self.live,
+            "holder": self.holder,
+        }  # fmt: skip
 
     @staticmethod
     def of(raw: Any) -> "Place":
         raw = raw if isinstance(raw, dict) else {}
-        agent, cwd = raw.get("agent_id"), raw.get("cwd")
+        agent, cwd, holder = raw.get("agent_id"), raw.get("cwd"), raw.get("holder")
         return Place(
             agent if isinstance(agent, str) else None, cwd if isinstance(cwd, str) else None,
-            raw.get("transcript") is True, raw.get("live") is True,
+            raw.get("transcript") is True, raw.get("live") is True, holder if isinstance(holder, str) else None,
         )  # fmt: skip
 
 

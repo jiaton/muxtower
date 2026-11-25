@@ -289,6 +289,11 @@ class ClaudeProcesses:
     def holds(self, agent_id: str) -> bool:
         """Whether a Claude Code process alive here has this conversation open (the Claude desktop app's, a
         terminal's): another one resuming it would write the same transcript."""
+        return self.holder(agent_id) is not None
+
+    def holder(self, agent_id: str) -> str | None:
+        """How the live Claude Code process that has this conversation open was started (its `entrypoint`:
+        `claude-desktop`, `cli`…; "" when its file does not say), or None when no process here has it."""
         for path, info in self.files.read():
             if not isinstance(info, dict) or info.get("sessionId") != agent_id:
                 continue
@@ -297,8 +302,8 @@ class ClaudeProcesses:
             except (TypeError, ValueError):
                 continue
             if runs(pid, info, self.proc):
-                return True
-        return False
+                return str(info.get("entrypoint") or "")
+        return None
 
     def _first_of(self, path: Path) -> str | None:
         with self._firsts_lock:

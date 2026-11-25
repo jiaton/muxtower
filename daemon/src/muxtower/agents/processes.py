@@ -63,9 +63,12 @@ class AgentProcesses:
                 return found  # type: ignore[no-any-return]
         return None
 
-    def holds(self, agent_id: str) -> bool:
-        """Whether a live process here has this conversation open (`ClaudeProcesses.holds`)."""
-        return any((ask := getattr(p, "holds", None)) and ask(agent_id) for p in self.plugins)
+    def holder(self, agent_id: str) -> str | None:
+        """How the live process here that has this conversation open was started (`ClaudeProcesses.holder`)."""
+        for p in self.plugins:
+            if (ask := getattr(p, "holder", None)) and (found := ask(agent_id)) is not None:
+                return found  # type: ignore[no-any-return]
+        return None
 
     def ended_bridges(self) -> dict[str, str]:
         """Bridges of muxtower's tmux sessions whose agent has ended (`ClaudeProcesses.ended_bridges`)."""

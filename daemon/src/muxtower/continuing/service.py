@@ -34,6 +34,7 @@ from muxtower.sources.remote_control.service import RemoteControlSource
 logger = logging.getLogger("muxtower.continuing")
 
 RUNTIME = "claude-code"
+DESKTOP = "claude-desktop"  # the entrypoint of the Claude desktop app's Claude Code: it lets go once archived
 READ_BACKS = 3  # reads of Remote Control, a second apart, before its archive counts as not done
 LET_GO_SECONDS = 20.0  # how long its machine's process has, once archived, to close the conversation
 FAILED = (Conflict, Invalid, NotFound, Unavailable)  # what a step may fail with (the rest is a bug: logged)
@@ -120,6 +121,12 @@ class Continuer:
             return f"Its conversation was not found on {session.machine}: no Claude Code there names it", None
         if not place.transcript:
             return f"Its transcript is not on {session.machine}", None
+        if place.live and place.holder != DESKTOP:  # a terminal's Claude Code, which no archive ends
+            how = f" ({place.holder})" if place.holder else ""
+            return (
+                f"This conversation is still running in another Claude Code process on {session.machine}{how}: "
+                "quit it there first"
+            ), None
         return None, (node, place)
 
     # --- the run ------------------------------------------------------------------------------
@@ -201,10 +208,15 @@ class Continuer:
         self._save(job)
         try:
             place = self._let_go(job)
-            if place.live:
+            if place.live and place.holder == DESKTOP:
                 raise Conflict(
                     f"the Claude app on {job.machine} still has it open: close that conversation there, or quit "
                     "the app, then Retry"
+                )
+            if place.live:
+                raise Conflict(
+                    f"this conversation is still running in another Claude Code process on {job.machine}: quit it "
+                    "there first, then Retry"
                 )
             if not place.transcript:
                 raise Conflict(f"its transcript is no longer on {job.machine}")
