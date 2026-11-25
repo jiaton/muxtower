@@ -12,7 +12,7 @@ import { useShortcut } from '@/lib/use-shortcut'
 import { reasonOf, useAddInboxItem } from '../api/use-inbox'
 import type { InboxProject } from '../model/item'
 import { useQuickAdd } from '../store'
-import { DueEditor, dueSummary, useDueDraft } from './due-editor'
+import { DueEditor, draftSummary, useDueDraft } from './due-editor'
 
 /** The quick-add box: a line for the item and, if it is for one, a project and a due date. Enter adds it. */
 export function QuickAddForm({ projects, onDone }: { projects: InboxProject[]; onDone: () => void }) {
@@ -63,7 +63,7 @@ export function QuickAddForm({ projects, onDone }: { projects: InboxProject[]; o
             </Button>
           </div>
           <DueEditor draft={due} projects={projects} />
-          <p className={ink.hint}>{dueSummary(due)}</p>
+          <p className={ink.hint}>{draftSummary(due)}</p>
         </div>
       ) : (
         <Button variant="ghost" size="sm" className="self-start" onClick={() => setWithDue(true)}>

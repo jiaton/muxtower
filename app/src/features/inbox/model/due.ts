@@ -19,7 +19,8 @@ export interface DueLabel {
   tone: 'overdue' | 'today' | 'later'
 }
 
-const clock = (d: Date) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+/** A time of day as every due date says it ("5:00 PM"): the rows, the summary line, one formatter. */
+export const clock = (d: Date) => d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
 export const dayName = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
 
 /** "overdue", "due today", "tomorrow", "in 3 days", "Due Dec 25" (a time after it, when one was set), from
@@ -81,4 +82,15 @@ export function dueParts(item: Pick<InboxItem, 'due' | 'due_has_time'>): { day: 
   if (!item.due) return null
   const at = new Date(item.due)
   return { day: dayStart(at), time: item.due_has_time ? `${pad(at.getHours())}:${pad(at.getMinutes())}` : null }
+}
+
+/** A due date being picked, in a line: "Due Dec 25", or "Due Dec 25 at 2:30 PM" (`time` "HH:MM", as the
+ *  rows say it); without a day, that one is to be picked. */
+export function dueSummary(day: Date | undefined, time: string | null): string {
+  if (!day) return 'Pick a day.'
+  if (!time) return `Due ${dayName(day)}`
+  const [h, m] = time.split(':').map(Number)
+  const at = new Date(day)
+  at.setHours(h ?? 0, m ?? 0, 0, 0)
+  return `Due ${dayName(day)} at ${clock(at)}`
 }

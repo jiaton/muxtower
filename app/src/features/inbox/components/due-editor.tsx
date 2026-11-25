@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label, LabelNote } from '@/components/ui/label'
 import { Segmented } from '@/components/ui/segmented'
 import type { InboxItem, InboxPatch, OnDue } from '@/lib/api/types'
-import { QUICK_DUE, dayFromToday, dayName, dueBody, dueParts } from '../model/due'
+import { QUICK_DUE, dayFromToday, dueBody, dueParts, dueSummary } from '../model/due'
 import type { InboxProject } from '../model/item'
 import { HandPicker, useHandPick } from './hand-picker'
 
@@ -77,12 +77,8 @@ export function DueEditor({ draft, projects }: { draft: DueDraft; projects: Inbo
   )
 }
 
-/** What the draft says, in a line: "Due Dec 25 at 5:00 PM", or that no day is picked. */
-export function dueSummary(draft: DueDraft): string {
-  if (!draft.day) return 'Pick a day.'
-  const at = draft.time ? ` at ${draft.time}` : ''
-  return `Due ${dayName(draft.day)}${at}`
-}
+/** What the draft says, in a line ("Due Dec 25 at 2:30 PM"), its time as the rows say it. */
+export const draftSummary = (draft: DueDraft) => dueSummary(draft.day, draft.time || null)
 
 /** Due date…: set it, change it or clear it. `onSave` gets the fields to send (a cleared one: `due` null). */
 export function DueDialog({
@@ -105,7 +101,7 @@ export function DueDialog({
     <Dialog open onOpenChange={(open) => open || onClose()}>
       <DialogContent title="Due date" description={<span className="line-clamp-2">“{item.text}”</span>}>
         <DueEditor draft={draft} projects={projects} />
-        <p className={ink.hint}>{dueSummary(draft)}</p>
+        <p className={ink.hint}>{draftSummary(draft)}</p>
         <div className="flex flex-wrap justify-end gap-2">
           {item.due ? (
             <Button variant="ghost" className="mr-auto" onClick={() => save({ due: null })}>

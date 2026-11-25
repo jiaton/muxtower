@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import type { InboxItem } from '@/lib/api/types'
 import { item } from '../test/hub'
-import { dayFromToday, dueBody, dueLabel, splitDue } from './due'
+import { dayFromToday, dueBody, dueLabel, dueSummary, splitDue } from './due'
 
 // Noon on a Wednesday, local time.
 const NOW = new Date(2026, 10, 25, 12, 0).getTime()
@@ -47,4 +47,14 @@ it('sends a due date in the owner’s local time, a date alone without a time', 
   expect(dueBody(day, null)).toEqual({ due: '2026-11-26T00:00:00', due_has_time: false })
   expect(dueBody(day, '14:30')).toEqual({ due: '2026-11-26T14:30:00', due_has_time: true })
   expect(dayFromToday(30, NOW).getDate()).toBe(25) // Dec 25
+})
+
+it('says a picked time the way the rows do: the summary and the row agree', () => {
+  const day = dayFromToday(1, NOW)
+  expect(dueSummary(day, '14:30')).toBe('Due Nov 26 at 2:30 PM')
+  expect(dueSummary(day, '09:05')).toBe('Due Nov 26 at 9:05 AM')
+  expect(dueSummary(day, null)).toBe('Due Nov 26')
+  expect(dueSummary(undefined, '14:30')).toBe('Pick a day.')
+  const row = dueLabel(item(1, 'x', { due: new Date(2026, 10, 25, 14, 30).toISOString(), due_has_time: true, due_state: 'upcoming' }), NOW)
+  expect(row?.text).toBe('due today · 2:30 PM')
 })

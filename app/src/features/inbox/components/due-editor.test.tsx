@@ -36,6 +36,7 @@ it('each quick choice picks its day, and a time can be added', async () => {
   fireEvent.click(within(dialog).getByRole('button', { name: 'In 30 days' }))
   expect(within(dialog).getByText(dueSummaryOf(30))).toBeInTheDocument()
   fireEvent.change(within(dialog).getByLabelText('Time'), { target: { value: '16:45' } })
+  expect(within(dialog).getByText(`${dueSummaryOf(30)} at 4:45 PM`)).toBeInTheDocument() // as the rows say a time
   fireEvent.click(within(dialog).getByRole('button', { name: 'Save' }))
   await waitFor(() => expect(hub.patches()[0]?.body).toMatchObject(dueBody(dayFromToday(30), '16:45')))
 })
