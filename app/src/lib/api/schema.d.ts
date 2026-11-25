@@ -771,7 +771,7 @@ export interface paths {
         put?: never;
         /**
          * Continue In Terminal
-         * @description Continue in terminal: archives it on the Claude account (it leaves the Claude apps), reads that back,
+         * @description Continue in terminal: archives it on the Claude account (the desktop app lets go of it), reads that back,
          *     then resumes its conversation in a muxtower pane on the machine it ran on, in its folder; the Remote Control
          *     entry becomes that pane session (`session_id`), with its name, project, role, note, chips and read state.
          *     Nothing is started unless it was closed there. A second call while it runs, or after, does nothing again;

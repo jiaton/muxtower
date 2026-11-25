@@ -7035,7 +7035,7 @@
         ]
       },
       "post": {
-        "description": "Continue in terminal: archives it on the Claude account (it leaves the Claude apps), reads that back,\nthen resumes its conversation in a muxtower pane on the machine it ran on, in its folder; the Remote Control\nentry becomes that pane session (`session_id`), with its name, project, role, note, chips and read state.\nNothing is started unless it was closed there. A second call while it runs, or after, does nothing again;\nafter a pane that did not start (`failed`, `retry`), it starts the pane again. 409: it cannot be\ncontinued (said why), and nothing was done.",
+        "description": "Continue in terminal: archives it on the Claude account (the desktop app lets go of it), reads that back,\nthen resumes its conversation in a muxtower pane on the machine it ran on, in its folder; the Remote Control\nentry becomes that pane session (`session_id`), with its name, project, role, note, chips and read state.\nNothing is started unless it was closed there. A second call while it runs, or after, does nothing again;\nafter a pane that did not start (`failed`, `retry`), it starts the pane again. 409: it cannot be\ncontinued (said why), and nothing was done.",
         "operationId": "continue_in_terminal_v1_sessions__session_id__continue_post",
         "parameters": [
           {
