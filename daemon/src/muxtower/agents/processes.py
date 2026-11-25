@@ -55,6 +55,18 @@ class AgentProcesses:
                 return found  # type: ignore[no-any-return]
         return None
 
+    def conversation_of(self, remote_id: str) -> tuple[str, str] | None:
+        """A Remote Control session's conversation id and folder, from what its process left
+        (`ClaudeProcesses.conversation_of`)."""
+        for p in self.plugins:
+            if (ask := getattr(p, "conversation_of", None)) and (found := ask(remote_id)):
+                return found  # type: ignore[no-any-return]
+        return None
+
+    def holds(self, agent_id: str) -> bool:
+        """Whether a live process here has this conversation open (`ClaudeProcesses.holds`)."""
+        return any((ask := getattr(p, "holds", None)) and ask(agent_id) for p in self.plugins)
+
     def ended_bridges(self) -> dict[str, str]:
         """Bridges of muxtower's tmux sessions whose agent has ended (`ClaudeProcesses.ended_bridges`)."""
         found: dict[str, str] = {}

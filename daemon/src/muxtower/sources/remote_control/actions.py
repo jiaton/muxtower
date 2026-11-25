@@ -3,9 +3,10 @@ read, archive it, find its folder. Each acts on Remote Control at once; the cach
 poll, or right away where the answer depends on it (a prompt is answered from a fresh read of the log)."""
 
 import threading
+from typing import Any
 
 from muxtower.claude_conversation import PendingRequest
-from muxtower.errors import Conflict
+from muxtower.errors import Conflict, NotFound
 from muxtower.runtimes.models import AgentState
 from muxtower.sessions.models import ConversationItem, Session
 from muxtower.sources.remote_control import prompts
@@ -33,6 +34,9 @@ class RcActions:
         raise NotImplementedError
 
     def _refresh(self, session_id: str) -> None:
+        raise NotImplementedError
+
+    def _active(self) -> list[dict[str, Any]]:
         raise NotImplementedError
 
     def _answerable(self, session_id: str) -> tuple[PendingRequest, Session]:
@@ -89,6 +93,28 @@ class RcActions:
         with self._lock:
             self.sessions.pop(session_id, None)
             self._unsent.pop(session_id, None)
+
+    def close(self, session_id: str) -> None:
+        """Archived on Remote Control, as `archive` does, whether or not it is listed now (Continue in
+        terminal: a Retry after it went)."""
+        self.port.archive_session(session_id)
+        with self._lock:
+            self.sessions.pop(session_id, None)
+            self._unsent.pop(session_id, None)
+
+    def closed(self, session_id: str) -> bool:
+        """Read back from Remote Control: archived there (no longer active), or gone."""
+        try:
+            status = self.port.get_session(session_id).get("status")
+        except NotFound:
+            return True
+        if status is not None:
+            return bool(status != "active")
+        return all(s.get("id") != session_id for s in self._active())  # its details say nothing: the listing
+
+    def refresh(self, session_id: str) -> None:
+        """Its log and details read again now (what it is doing, before acting on it)."""
+        self._refresh(session_id)
 
     def send_key(self, session_id: str, key: str) -> None:
         self.get(session_id)

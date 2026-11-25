@@ -52,6 +52,7 @@ export function docs(): Scene {
         place: false,
         images: false,
         resume: false,
+        continue_terminal: false,
       },
       state: 'busy',
       state_source: 'screen',

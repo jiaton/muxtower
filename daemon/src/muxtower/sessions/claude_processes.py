@@ -274,11 +274,31 @@ class ClaudeProcesses:
     def agent_for_remote(self, remote_id: str) -> str | None:
         """The conversation's own id of a Remote Control session, from a process file that named it (left
         after its process ended, until Claude Code tidies it away); None when none is left."""
+        found = self.conversation_of(remote_id)
+        return found[0] if found else None
+
+    def conversation_of(self, remote_id: str) -> tuple[str, str] | None:
+        """The conversation's own id of a Remote Control session and the folder its Claude Code runs in (where
+        `claude --resume` finds it), from a process file that named it; None when none is left."""
         for _, info in self.files.read():
             agent = info.get("sessionId") if isinstance(info, dict) else None
             if _remote_id(info) == remote_id and isinstance(agent, str) and re.fullmatch(r"[0-9a-f-]{36}", agent):
-                return agent
+                return agent, str(info.get("cwd") or "")
         return None
+
+    def holds(self, agent_id: str) -> bool:
+        """Whether a Claude Code process alive here has this conversation open (the Claude desktop app's, a
+        terminal's): another one resuming it would write the same transcript."""
+        for path, info in self.files.read():
+            if not isinstance(info, dict) or info.get("sessionId") != agent_id:
+                continue
+            try:
+                pid = int(info.get("pid") or path.stem)
+            except (TypeError, ValueError):
+                continue
+            if runs(pid, info, self.proc):
+                return True
+        return False
 
     def _first_of(self, path: Path) -> str | None:
         with self._firsts_lock:

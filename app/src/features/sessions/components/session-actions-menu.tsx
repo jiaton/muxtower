@@ -25,6 +25,7 @@ const MENU_LABEL: Record<SessionAction['id'], (session: Session) => string> = {
   rename: () => 'Rename',
   place: () => 'Move…',
   team: () => 'Team…',
+  continue: () => 'Continue in terminal…',
   hide: (s) => (s.hidden ? 'Show in the list' : 'Hide from the list'),
   archive: () => 'Archive',
   interrupt: () => 'Interrupt (Esc)',
@@ -36,6 +37,7 @@ const MENU_LABEL: Record<SessionAction['id'], (session: Session) => string> = {
 const DETAIL: Partial<Record<SessionAction['id'], (session: Session) => string>> = {
   team: (s) => roleShown(s) ?? 'No role yet',
   archive: () => 'Ends the agent, keeps the history',
+  continue: () => 'Closes it in the Claude app, goes on in a terminal',
   resume: (s) => (s.archived_at ? 'Starts it again, its conversation where it left off' : ''),
 }
 

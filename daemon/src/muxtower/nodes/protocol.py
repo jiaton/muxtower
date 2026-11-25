@@ -49,10 +49,12 @@ METHODS = frozenset({
     "release_size", "update", "terminate", "archive", "mark_read", "detect_folder", "create", "image", "recover",
     "resume_archived", "search", "search_status", "accept_suggestion",
     "settings", "set_settings", "mint_token", "revoke_token", "names", "default_folder", "ended_bridges",
-    "carries", "attachment", "place",
+    "carries", "attachment", "place", "claude_conversation",
 })  # fmt: skip
 
 # place: the project a folder there belongs to, read from git there (`teams/remote_places.py`); read only.
+# claude_conversation: a Remote Control session's conversation there, before it is continued in a terminal
+# (`continuing/place.py`); read only.
 
 # What a node may ask of its hub (protocol 2): one of its sessions calls a team tool.
 # chip_groups, project_order, project_colours: the app's groups, order and colours of projects (`chips/`);

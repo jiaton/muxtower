@@ -9,6 +9,7 @@ from typing import Any
 from pydantic import BaseModel
 
 from muxtower.auth.service import TokenService
+from muxtower.continuing.place import look
 from muxtower.errors import Invalid
 from muxtower.infra.audit import AuditLog
 from muxtower.nodes.attachments import NodeUploads
@@ -159,6 +160,12 @@ class NodeApi:
                 return [
                     {"name": n.name, "source": n.source, "last_seen": n.last_seen.isoformat()} for n in d.names(sid)
                 ]
+            case "claude_conversation":  # a Remote Control session's conversation here (`continuing/place.py`)
+                remote_id, agent_id = params.get("remote_id"), params.get("agent_id")
+                return look(
+                    self.processes, remote_id if isinstance(remote_id, str) else None,
+                    agent_id if isinstance(agent_id, str) else None,
+                ).as_json()  # fmt: skip
             case "place":  # where a folder here sits in git, for a session the hub lists itself
                 return self.place(str(params.get("cwd") or ""))
             case "mark_read":

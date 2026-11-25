@@ -95,6 +95,11 @@ class Capabilities(BaseModel):
         description="an archived session that can be started again with its conversation (POST /resume); when it "
         "cannot, `Session.resume_blocked` says why",
     )
+    continue_terminal: bool = Field(
+        default=False,
+        description="a Remote Control session only (the Claude app's, claude.ai's) that can be continued in a "
+        "muxtower terminal on its machine (POST /continue); when not now, `Session.continue_blocked` says why",
+    )
 
 
 class ResumeBlock(BaseModel):
@@ -196,6 +201,11 @@ class Session(BaseModel):
     )
     resume_blocked: ResumeBlock | None = Field(
         default=None, description="an archived session that cannot be started again: why (`capabilities.resume`)"
+    )
+    continue_blocked: str | None = Field(
+        default=None,
+        description="why it cannot be continued in a terminal now (`capabilities.continue_terminal`); its "
+        "transcript is checked only when asked (GET /continue)",
     )
     fork_of: str | None = Field(
         default=None, description="the session it was forked from, as listed here (a side chat's too)"

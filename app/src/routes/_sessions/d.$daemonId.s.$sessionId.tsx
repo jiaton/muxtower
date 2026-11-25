@@ -17,6 +17,7 @@ import { useDaemonSessions, useSession } from '@/features/sessions/api/use-sessi
 import { useMentionSource } from '@/features/mentions/hooks/use-mention-source'
 import { SessionActionsMenu } from '@/features/sessions/components/session-actions-menu'
 import { SessionSkeleton } from '@/features/sessions/components/session-skeleton'
+import { ContinueLink } from '@/features/sessions/components/continue-dialog'
 import { FullScreenItem } from '@/features/sessions/components/full-screen-item'
 import { canFullScreen, usePanes } from '@/lib/layout-prefs'
 import { useLayoutDrawer } from '@/lib/layout-drawer'
@@ -377,6 +378,7 @@ function SessionView({ daemonId, session }: { daemonId: string; session: Session
               mention={mention}
               guard={guardKey}
               note={composerNote(session)}
+              noteAction={<ContinueLink daemonId={daemonId} session={session} />}
             />
           </FooterBar>
         </>

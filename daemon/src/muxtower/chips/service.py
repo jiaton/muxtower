@@ -111,6 +111,19 @@ class ChipGroupStore:
             )
         return self.load()
 
+    def replace_session(self, old: str, new: str) -> bool:
+        """A session that goes on as another (Continue in terminal): every group holding it holds the new one in
+        its place. Whether any changed."""
+        groups = self.load()
+        changed = False
+        for group in groups.groups:
+            if old in group.sessions:
+                group.sessions = list(dict.fromkeys(new if s == old else s for s in group.sessions))
+                changed = True
+        if changed:
+            self.replace(groups)
+        return changed
+
     def rename_project(self, old: str, new: str) -> bool:
         """A project renamed (`teams/renaming.py`): every group holding it holds the new name in its place
         (once, should it hold that already). Whether any changed."""

@@ -17,6 +17,7 @@ from datetime import datetime
 from typing import Any
 
 from muxtower.approval.models import ApprovalResult
+from muxtower.continuing.ports import Place
 from muxtower.errors import Conflict, Invalid, NotFound
 from muxtower.nodes.hub import Node, Nodes
 from muxtower.runtimes.models import AgentState
@@ -241,6 +242,12 @@ class NodeSource:
         except Invalid as exc:
             raise Conflict(f"{name} cannot do this yet: update muxtower there ({exc})") from exc
         return self.view(self.nodes.all()[name], Session.model_validate(result))
+
+    def claude_conversation(self, name: str, remote_id: str | None, agent_id: str | None) -> Place:
+        """A Remote Control session's conversation as node `name` sees it (`continuing/place.py`). Invalid: a
+        node too old to say."""
+        found = self.call(name, "claude_conversation", {"remote_id": remote_id, "agent_id": agent_id})
+        return Place.of(found)
 
     def update(self, session_id: str, patch: UpdateSession) -> Session:
         node, _ = self._require(session_id)

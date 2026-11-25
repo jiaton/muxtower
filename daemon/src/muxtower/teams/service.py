@@ -117,6 +117,13 @@ class TeamService:
             self.taken_over(was.session_id, session_id)
         self._save(replace(was, session_id=session_id) if was else TeamRecord(session_id, agent_id=agent_id))
 
+    def carried(self, old: str, new: str, agent_id: str) -> None:
+        """A session that goes on as another (Continue in terminal): its role, note and project, and its names."""
+        with self._lock:
+            was = self._records.get(old)
+        self.taken_over(old, new)
+        self._save(replace(was, session_id=new, agent_id=agent_id) if was else TeamRecord(new, agent_id=agent_id))
+
     def member(self, session: Session) -> Member:
         """Blocking (git). A session as a team sees it; its project worked out (and kept) on first sight."""
         with self._lock:

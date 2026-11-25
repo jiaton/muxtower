@@ -11,6 +11,7 @@ import {
   Pin,
   PinOff,
   SquarePlus,
+  SquareTerminal,
   RotateCcw,
   Trash2,
   Users,
@@ -25,6 +26,7 @@ import { presetForSession } from '../model/new-here'
 import { useNodeNames } from '@/lib/daemons/use-nodes'
 import { useSendInput } from '@/features/terminal/api/use-terminal'
 import { useNewSessionRequest } from '../store'
+import { ContinueDialog } from './continue-dialog'
 import { PlaceDialog } from './place-dialog'
 import { RenameDialog } from './rename-dialog'
 import { ResumeDialog } from './resume-dialog'
@@ -32,7 +34,7 @@ import { ArchiveDialog, DeleteDialog, HideInsteadDialog } from './session-dialog
 import { TeamDialog } from './team-dialog'
 
 export interface SessionAction {
-  id: 'read' | 'pin' | 'new' | 'rename' | 'place' | 'team' | 'hide' | 'archive' | 'interrupt' | 'delete' | 'resume'
+  id: 'read' | 'pin' | 'new' | 'rename' | 'place' | 'team' | 'continue' | 'hide' | 'archive' | 'interrupt' | 'delete' | 'resume'
   label: string
   icon: LucideIcon
   tone?: 'accent' | 'neutral' | 'danger'
@@ -48,7 +50,8 @@ export interface SessionAction {
 export const ACTION_KEYS: Partial<Record<SessionAction['id'], string>> = MENU_KEYS // the registry's
 
 /** What the owner can do to a session from anywhere it is shown (a list row's swipe tray or menu, the
- *  session's own menu): mark read or unread, pin or unpin, rename, move (say where it runs), hide or show, interrupt,
+ *  session's own menu): mark read or unread, pin or unpin, rename, move (say where it runs), continue in a terminal
+ *  (a session only in the Claude app), hide or show, interrupt,
  *  archive (the one way to end it: the agent ends, its history is kept); rename, move and archive only where
  *  its capabilities allow. An archived session can only be deleted from the archive;
  *  one a restart interrupted can be started again or archived. Renders
@@ -74,7 +77,7 @@ export function SessionActions({
   const input = useSendInput(daemonId, session.id)
   const startHere = useNewSessionRequest((s) => s.start)
   const here = presetForSession(daemonId, session, useNodeNames(daemonId)) // null: not where one can start
-  const [dialog, setDialog] = useState<'rename' | 'place' | 'team' | 'archive' | 'delete' | 'resume' | null>(null)
+  const [dialog, setDialog] = useState<'rename' | 'place' | 'team' | 'continue' | 'archive' | 'delete' | 'resume' | null>(null)
   const ids = { daemonId, sessionId: session.id }
   const leaving = (then: () => void) => (open ? () => void navigate({ to: '/', search: true }).then(then) : then)
 
@@ -121,6 +124,17 @@ export function SessionActions({
     if (session.capabilities.place)
       live.push({ id: 'place', label: 'Move', icon: FolderInput, tone: 'neutral', run: () => setDialog('place'), menuOnly: true })
     live.push({ id: 'team', label: 'Team', icon: Users, tone: 'neutral', run: () => setDialog('team'), menuOnly: true })
+    // A session only in the Claude app or on claude.ai: closed there, and resumed in a terminal on its machine.
+    if (session.capabilities.continue_terminal)
+      live.push({
+        id: 'continue',
+        label: 'Continue in terminal',
+        icon: SquareTerminal,
+        tone: 'neutral',
+        menuOnly: true,
+        run: () => setDialog('continue'),
+        disabled: session.continue_blocked ?? undefined,
+      })
     live.push(
       session.hidden
         ? { id: 'hide', label: 'Show', icon: Eye, tone: 'neutral', run: () => hide.mutate({ ...ids, hidden: false }) }
@@ -147,6 +161,7 @@ export function SessionActions({
       {dialog === 'rename' ? <RenameDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} /> : null}
       {dialog === 'place' ? <PlaceDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} /> : null}
       {dialog === 'team' ? <TeamDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} /> : null}
+      {dialog === 'continue' ? <ContinueDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} /> : null}
       {dialog === 'archive' && session.capabilities.archive_ends === false ? (
         <HideInsteadDialog daemonId={daemonId} session={session} onClose={() => setDialog(null)} onDone={leaving(() => {})} />
       ) : dialog === 'archive' ? (

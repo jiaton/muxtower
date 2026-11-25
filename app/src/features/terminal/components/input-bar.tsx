@@ -60,6 +60,7 @@ export function InputBar({
   suggestion,
   keySends = true,
   note,
+  noteAction,
 }: {
   daemonId: string
   sessionId: string
@@ -77,6 +78,8 @@ export function InputBar({
   suggestion?: string | null
   keySends?: boolean
   note?: string | null
+  /** What can be done about the note: a link after it (e.g. Continue in terminal). */
+  noteAction?: ReactNode
 }) {
   const send = useSendInput(daemonId, sessionId)
   // A message the conversation shows on its way (`track`): its failure is said there, not in a banner.
@@ -327,6 +330,7 @@ export function InputBar({
         <p data-component="composer note" className={cn('flex', composerColumns.gap, ink.meta)} title={note}>
           <span aria-hidden className={composerColumns.lead} />
           <span className={cn('min-w-0 flex-1 truncate', composerColumns.inset)}>{note}</span>
+          {noteAction ? <span className="shrink-0">{noteAction}</span> : null}
         </p>
       ) : null}
       {/* The + panel, the swap for the row while speaking, and the row: no gap of their own, so the panel's

@@ -135,6 +135,16 @@ class SessionMarks:
     def set_auto_read(self, session_id: str, auto_read: bool) -> None:
         self._change(session_id, auto_read=auto_read)
 
+    def carry(self, old: str, new: str, unread: bool) -> None:
+        """A session that goes on as another (Continue in terminal): hidden, pinned, its pushes and auto-read
+        as they were, and unread if it was (else read now)."""
+        was = self.get(old)
+        self._change(new, hidden=was.hidden, pinned=was.pinned, notify=was.notify, auto_read=was.auto_read)
+        if unread:
+            self.mark_unread(new)
+        else:
+            self.seen(new)
+
     def turn_finished(self, session_id: str, at: datetime | None = None) -> bool:
         """A turn ended: unread, or, for an auto-read session, read up to now (a mark to come back to stays).
         True when it was read."""

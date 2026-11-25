@@ -50,6 +50,7 @@ export const MENU_KEYS = {
   rename: 'r',
   place: 'm', // move
   team: 't',
+  continue: 'c', // in a terminal
   hide: 'h',
   archive: 'a',
   interrupt: 's', // stop what it is doing
@@ -63,6 +64,7 @@ const MENU_LABEL: Record<keyof typeof MENU_KEYS, string> = {
   rename: 'Rename',
   place: 'Move',
   team: 'Team',
+  continue: 'Continue in terminal',
   hide: 'Hide or show',
   archive: 'Archive',
   interrupt: 'Interrupt',

@@ -106,6 +106,8 @@ class SessionDirectory(OwnerMarks):
         self.team: Callable[[str], TeamRecord | None] | None = None  # set by the team service: a session's role
         self.checkout: Callable[[str], Checkout] | None = None  # set by the team service: git, per folder here
         self.writing: Callable[[str], list[AlsoWriting]] | None = None  # set by the app: `writes/`
+        # set by the app: whether a Remote Control session can be continued in a terminal, and why not now
+        self.continuing: Callable[[Session], tuple[bool, str | None]] | None = None
         self._held: dict[str, list[SendInput]] = {}  # the owner's messages waiting for a prompt to go (`hold`)
         self._held_lock = threading.Lock()
         self.listed: Callable[[list[Session]], object] | None = None  # set by the app: told each new list
@@ -214,7 +216,15 @@ class SessionDirectory(OwnerMarks):
             return archived
         source = self.source_of(session_id)
         if source is None:
-            return self._decorate(self._linked(self.local.get(session_id)))
+            try:
+                return self._decorate(self._linked(self.local.get(session_id)))
+            except NotFound:
+                # A Remote Control session no longer listed that another session took on (Continue in
+                # terminal, a former bridge): that one.
+                owner = self.local.repo.remote_ids().get(session_id)
+                if not owner or owner == session_id:
+                    raise
+                return self._get(owner)
         # A remote id whose agent also runs in tmux here answers with the one merged entry.
         owner = self.local.repo.remote_ids().get(session_id)  # one its agent ran before: that session now
         merged = next((s for s in self._locals() if s.remote_id == session_id or s.id == owner), None)

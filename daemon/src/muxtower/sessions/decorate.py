@@ -63,6 +63,12 @@ def decorate(session: Session, directory: SessionDirectory) -> Session:
     if d.concierge_id and session.id == d.concierge_id:
         update["role"] = SessionRole.CONCIERGE
         update["capabilities"] = session.capabilities.model_copy(update={"archive": False})  # it is restarted
+    if d.continuing and session.source == SessionSource.REMOTE_CONTROL and session.node is None:
+        offered, why = d.continuing(session.model_copy(update=update))  # where it runs, as decorated
+        if offered:
+            caps = update.get("capabilities", session.capabilities)
+            update["capabilities"] = caps.model_copy(update={"continue_terminal": True})  # type: ignore[attr-defined]
+            update["continue_blocked"] = why
     return session.model_copy(update=update) if update else session
 
 

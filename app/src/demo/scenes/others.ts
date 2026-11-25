@@ -124,6 +124,7 @@ export function releaseNotes(): Scene {
         place: false,
         images: false,
         resume: false,
+        continue_terminal: false,
       },
       origin: 'claude_desktop',
       machine: 'mac',

@@ -2,6 +2,7 @@ import type { components } from './schema'
 
 type Schemas = components['schemas']
 export type Session = Schemas['Session']
+export type Continuation = Schemas['Continuation']
 export type UpdateTeam = Schemas['UpdateTeam']
 export type TeamTask = Schemas['TeamTask']
 export type TeamActivity = Schemas['TeamActivity']

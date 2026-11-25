@@ -34,6 +34,10 @@ from muxtower.concierge.events_repository import SqliteConciergeEvents
 from muxtower.concierge.service import ConciergeService
 from muxtower.concierge.store import FileConciergeStore
 from muxtower.config import Settings
+from muxtower.continuing.carry import CarryOver
+from muxtower.continuing.place import look
+from muxtower.continuing.repository import SqliteJobStore
+from muxtower.continuing.service import Continuer
 from muxtower.diagnostics.service import DiagnosticsService
 from muxtower.infra.audit import AuditLog
 from muxtower.infra.bus import EventBus
@@ -334,6 +338,19 @@ def create_app(
          "playbook": playbook, "triggers": triggers},
         lambda topic: bus.publish(topic, None),
     )  # fmt: skip
+    continuer = Continuer(
+        directory, remote_control, launcher, SqliteJobStore(db),
+        lambda node, remote_id, agent_id: (
+            look(processes, remote_id, agent_id) if node is None
+            else node_sessions.claude_conversation(node, remote_id, agent_id)
+        ),
+        audit,
+    )  # fmt: skip
+    continuer.is_node = lambda machine: machine in nodes.all()
+    continuer.online = node_sessions.online
+    continuer.carry = CarryOver(sessions.repo, marks, teams, chip_groups, lambda topic: bus.publish(topic, None))
+    continuer.changed = lambda: bus.publish("sessions", None)
+    directory.continuing = continuer.offer
     trigger_service = TriggerService(
         triggers, team_tasks, mcp.session_tools.start_as,
         lambda sid: (s := directory.find(sid)) is not None and s.archived_at is None, push.notify_trigger,
@@ -354,7 +371,7 @@ def create_app(
         sessions=sessions, monitor=monitor, directory=directory, remote_control=remote_control,
         placements=placements, archiver=archiver, launcher=launcher, nodes=nodes, hub=hub, summaries=summaries,
         concierge=concierge, teams=teams, remote_places=remote_places, team_tasks=team_tasks, usage=usage,
-        recovery=recovery, writes=writes,
+        recovery=recovery, writes=writes, continuer=continuer,
         watches=watches,
         direct=DirectAccess(nodes, node_sessions.call), feature_settings=feature_settings,
         chip_groups=chip_groups, project_order=project_order, playbook=playbook,
