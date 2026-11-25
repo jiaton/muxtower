@@ -53,7 +53,11 @@ src/muxtower/
   chips/      the app's groups of projects (`service.py`), order of projects (`project_order.py`) and their colours
               (`project_colours.py`: given as the hub first lists a project, under a lock), kept on the hub;
               a node asks its hub (HUB_METHODS)
-  mcp/        MCP over HTTP at /v1/mcp (JSON-RPC, JSON responses): tools to list, read, message, approve sessions
+  mcp/        MCP over HTTP at /v1/mcp (JSON-RPC, JSON responses): tools to list, read, message, approve sessions;
+              `McpTools.listed`: the concierge alone also gets `concierge_tools` (the Inbox's); no other list changes
+  inbox/      the owner's Inbox, kept on the hub (a node asks it, HUB_METHODS): items with a version (a stale
+              edit is a 409), handed as one team task, due dates acted on by the hub's own loop (schedule.py,
+              firing.py: claimed in the same transaction, so exactly once), the weekly nudge to the concierge
   teams/      teams: each session's role (free text) and project (from git: origin remote, repository, folder)
               (remote_places.py: a session whose folder is on another machine, read there: a node is asked `place`)
               (describe.py: how a session is said: device, what reaches it, harness)
