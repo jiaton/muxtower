@@ -15,15 +15,17 @@ from muxtower.nodes import client as node_client
 from tests.fakes import FakeTmux
 from tests.integration.test_node_link import Running, _free_port, _settings, _until, hub  # noqa: F401 - fixture
 
-HOLD = 5.0  # seconds the hub's database lock is held: well past the pong timeout below
+HOLD = 8.0  # seconds the hub's database lock is held: twice the pong timeout below
 
 
 def test_the_link_stays_up_while_the_hubs_database_is_held(
     hub: tuple[FastAPI, str],  # noqa: F811 - the fixture
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:  # fmt: skip
-    monkeypatch.setattr(node_client, "PING_SECONDS", 0.5)
-    monkeypatch.setattr(node_client, "PONG_SECONDS", 2.0)
+    # Short enough that the hold spans two pong timeouts, wide enough that a loaded machine (CI, the shared NAS)
+    # does not miss a pong on its own (0.5 / 2.0 did, 2 reconnects at load ~6).
+    monkeypatch.setattr(node_client, "PING_SECONDS", 1.0)
+    monkeypatch.setattr(node_client, "PONG_SECONDS", 4.0)
     hub_app, hub_url = hub
     node_tmux = FakeTmux()
     node = create_app(_settings(tmp_path, "mac", _free_port()), tmux=node_tmux, run_loops=False)
@@ -53,7 +55,7 @@ def test_the_link_stays_up_while_the_hubs_database_is_held(
             assert httpx.get(f"{hub_url}/v1/health", timeout=10).status_code == 200
             assert time.monotonic() - began < 1.0  # the hub's event loop runs meanwhile
             assert node.state.hub.status().connected
-        time.sleep(2.0)  # pings after the hold too
+        time.sleep(4.0)  # pings after the hold too
         assert node.state.hub.status().connected and connects == []  # never dropped, never linked again
         assert hub_app.state.nodes.node("mac").online
 
