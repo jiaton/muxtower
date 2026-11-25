@@ -22,7 +22,7 @@ export interface Chord {
   shift?: boolean
 }
 
-export type ShortcutArea = 'global' | 'session' | 'composer' | 'list' | 'menu' | 'live'
+export type ShortcutArea = 'global' | 'session' | 'composer' | 'list' | 'menu' | 'chipMenu' | 'live'
 
 export const AREA_LABEL: Record<ShortcutArea, string> = {
   global: 'Anywhere',
@@ -30,6 +30,7 @@ export const AREA_LABEL: Record<ShortcutArea, string> = {
   composer: 'The message box',
   list: 'The session list',
   menu: "A session's menu (open)",
+  chipMenu: "A chip's menu (open)",
   live: 'Live',
 }
 
@@ -68,6 +69,11 @@ const MENU_LABEL: Record<keyof typeof MENU_KEYS, string> = {
   delete: 'Delete (or the Delete key)',
 }
 
+/** The keys a chip's menu (a right click or long press on a chip of the projects row) picks its items by,
+ *  while it is open. Delete is the session menu's X (or the Delete key) here too. Its teams take 1 to 6. */
+export const CHIP_MENU_KEYS = { edit: 'e', delete: 'x', moreTeams: 'm' } as const
+export const CHIP_TEAM_KEYS = ['1', '2', '3', '4', '5', '6'] as const
+
 const letter = (l: string): Chord => ({ code: `Key${l.toUpperCase()}` })
 
 export const SHORTCUTS = {
@@ -95,6 +101,10 @@ export const SHORTCUTS = {
       { area: 'menu', label: MENU_LABEL[id as keyof typeof MENU_KEYS], keys: [letter(l)] },
     ]),
   ) as Record<`menu-${keyof typeof MENU_KEYS}`, Shortcut>),
+  chipEdit: { area: 'chipMenu', label: 'Edit the group', keys: [letter(CHIP_MENU_KEYS.edit)] },
+  chipDelete: { area: 'chipMenu', label: 'Delete the group (or the Delete key)', keys: [letter(CHIP_MENU_KEYS.delete)] },
+  chipTeam: { area: 'chipMenu', label: "A project's team (in the menu's order)", keys: CHIP_TEAM_KEYS.map((d) => ({ char: d })) },
+  chipMoreTeams: { area: 'chipMenu', label: 'More teams', keys: [letter(CHIP_MENU_KEYS.moreTeams)] },
   liveSend: { area: 'live', label: 'Send what is being said', keys: [{ code: 'Enter', cmd: true }] },
   liveCancel: { area: 'live', label: 'Let a waiting send go', keys: [{ code: 'Escape' }] },
 } satisfies Record<string, Shortcut>

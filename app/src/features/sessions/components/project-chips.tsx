@@ -1,4 +1,5 @@
 import { Plus } from 'lucide-react'
+import { CHIP_MENU_KEYS, CHIP_TEAM_KEYS } from '@/lib/shortcuts'
 import { useProjectOrder } from '../api/use-project-order'
 import {
   DndContext,
@@ -51,7 +52,7 @@ import { chip } from '@/components/ui/chip'
 import { lifted as liftedLook, liftedFrom } from '@/components/ui/intents'
 
 /** Teams a group's menu lists before "More teams…". */
-const TEAMS_SHOWN = 6
+const TEAMS_SHOWN = CHIP_TEAM_KEYS.length // each with its number key
 
 const DRAG_PX = 6 // a mouse moved this far is dragging, not clicking
 const LIFT_MS = 250 // a finger held this long picks a chip up (before it, a swipe scrolls the row)
@@ -242,13 +243,18 @@ export function ProjectChips({
           {menu ? (
             <>
               <DropdownMenuLabel>{menu.label}</DropdownMenuLabel>
-              {(allTeams ? teams : teams.slice(0, TEAMS_SHOWN)).map((project) => (
-                <DropdownMenuItem key={project} onSelect={() => setTeam({ project, x: menu.x, y: menu.y, open: true })}>
+              {(allTeams ? teams : teams.slice(0, TEAMS_SHOWN)).map((project, i) => (
+                <DropdownMenuItem
+                  key={project}
+                  shortcut={CHIP_TEAM_KEYS[i]}
+                  onSelect={() => setTeam({ project, x: menu.x, y: menu.y, open: true })}
+                >
                   Team · {project}
                 </DropdownMenuItem>
               ))}
               {!allTeams && teams.length > TEAMS_SHOWN ? (
                 <DropdownMenuItem
+                  shortcut={CHIP_MENU_KEYS.moreTeams}
                   onSelect={(e) => {
                     e.preventDefault() // the menu stays, with the rest
                     setAllTeams(true)
@@ -258,8 +264,14 @@ export function ProjectChips({
                 </DropdownMenuItem>
               ) : null}
               {teams.length ? <DropdownMenuSeparator /> : null}
-              <DropdownMenuItem onSelect={() => setEditing(menu.group)}>Edit</DropdownMenuItem>
-              <DropdownMenuItem tone="danger" onSelect={() => saveAll(groups.filter((g) => g.id !== menu.group.id))}>
+              <DropdownMenuItem shortcut={CHIP_MENU_KEYS.edit} onSelect={() => setEditing(menu.group)}>
+                Edit
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                tone="danger"
+                shortcut={CHIP_MENU_KEYS.delete}
+                onSelect={() => saveAll(groups.filter((g) => g.id !== menu.group.id))}
+              >
                 Delete
               </DropdownMenuItem>
             </>

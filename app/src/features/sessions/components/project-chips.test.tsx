@@ -92,6 +92,13 @@ it('scrolls the chosen chip into view', async () => {
   rect.mockRestore()
 })
 
+/** A menu item's text without its key (the <kbd data-hint> each item shows at its right). */
+const labelOf = (item: HTMLElement) =>
+  [...item.childNodes]
+    .filter((n) => !(n instanceof HTMLElement && n.matches('kbd[data-hint]')))
+    .map((n) => n.textContent)
+    .join('')
+
 function watchPut() {
   const put: string[][] = []
   server.use(
@@ -126,11 +133,7 @@ it("a right click opens the chip's own menu, under it: its name, its teams, Edit
   fireEvent.contextMenu(await screen.findByRole('link', { name: /One/ }))
   const menu = await screen.findByRole('menu')
   expect(within(menu).getByText('One')).toBeInTheDocument()
-  expect(
-    within(menu)
-      .getAllByRole('menuitem')
-      .map((i) => i.textContent),
-  ).toEqual(['Team · a', 'Edit', 'Delete'])
+  expect(within(menu).getAllByRole('menuitem').map(labelOf)).toEqual(['Team · a', 'Edit', 'Delete'])
 })
 
 it('a chip dragged with the mouse lands where it is let go, the order saved, and the drop chooses nothing', async () => {
@@ -233,10 +236,7 @@ it('a group’s menu offers its teams, six then "More teams…", and one chosen 
   show(entries, [{ id: 'all', name: 'All', projects: ['a', 'b', 'c', 'd', 'e', 'f', 'g'], sessions: [] }])
   fireEvent.contextMenu(await screen.findByRole('link', { name: /All/ }))
   const menu = await screen.findByRole('menu')
-  const items = () =>
-    within(menu)
-      .getAllByRole('menuitem')
-      .map((i) => i.textContent)
+  const items = () => within(menu).getAllByRole('menuitem').map(labelOf)
   expect(items()).toEqual(['Team · a', 'Team · b', 'Team · c', 'Team · d', 'Team · e', 'Team · f', 'More teams…', 'Edit', 'Delete'])
   fireEvent.click(within(menu).getByRole('menuitem', { name: 'More teams…' }))
   expect(items()).toContain('Team · g')
@@ -249,12 +249,7 @@ it('a group of single sessions offers the teams they are in', async () => {
   show(entries, [{ id: 'few', name: 'Few', projects: [], sessions: ['b', 'a', 'b'] }])
   fireEvent.contextMenu(await screen.findByRole('link', { name: /Few/ }))
   const menu = await screen.findByRole('menu')
-  expect(
-    within(menu)
-      .getAllByRole('menuitem')
-      .map((i) => i.textContent)
-      .slice(0, 2),
-  ).toEqual(['Team · b', 'Team · a'])
+  expect(within(menu).getAllByRole('menuitem').map(labelOf).slice(0, 2)).toEqual(['Team · b', 'Team · a'])
 })
 
 it('slides the others aside as a chip moves, unless the reader asked for less motion', async () => {
@@ -306,4 +301,24 @@ it('Edit: a held project no session has shows "No sessions"; Remove takes it out
   ])
   expect(within(dialog).queryByText('acme/old')).toBeNull() // gone from the dialog, which stays open
   expect(within(dialog).getByRole('textbox', { name: 'Group name' })).toHaveValue('Focus')
+})
+
+it("a chip's menu picks its items by their keys while it is open: E edits, X deletes, 1 opens the first team", async () => {
+  const put = watchPut()
+  show(entries, three)
+  const open = async () => {
+    fireEvent.contextMenu(await screen.findByRole('link', { name: /One/ }))
+    return screen.findByRole('menu')
+  }
+  // Each item says its key (as the session menu's do).
+  const menu = await open()
+  expect(within(menu).getByRole('menuitem', { name: /Edit/ })).toHaveAttribute('aria-keyshortcuts', 'E')
+  expect(within(menu).getByRole('menuitem', { name: /Delete/ })).toHaveAttribute('aria-keyshortcuts', 'X Delete')
+  expect(within(menu).getByRole('menuitem', { name: /Team · a/ })).toHaveAttribute('aria-keyshortcuts', '1')
+  fireEvent.keyDown(menu, { key: 'e', code: 'KeyE' })
+  expect(await screen.findByRole('dialog')).toBeInTheDocument() // the group's editor
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape', code: 'Escape' })
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  fireEvent.keyDown(await open(), { key: 'x', code: 'KeyX' })
+  await waitFor(() => expect(put.at(-1)).toEqual(['two', 'three'])) // One deleted
 })
