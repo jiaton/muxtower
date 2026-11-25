@@ -5,12 +5,12 @@
  * Sessions the group held that are no longer known (archived, gone) are not shown, and not kept on save.
  * A project the group holds that no session has, live or archived, is `gone`: the dialog offers to remove it
  * (a rename or a typo leaves one); one only archived sessions have is still a project. A project whose every
- * session is placed only by its folder (`projectGroupOf` none) is a `folder`, said as one.
+ * session belongs to by its folder (`belongs.ts`) is a `folder`, said as one.
  */
 import type { Session } from '@/lib/api/types'
-import { MAX_PROJECTS, MAX_ROLES, MAX_SESSIONS, OTHER, projectIn, projectLabel, type ChipGroup, type ChipMembers } from './chip-groups'
-import { placeOf, projectGroupOf, roleKeyOf, roleLabels, statusOf, type SessionEntry } from './facets'
-import { workspacesOf } from './workspaces'
+import { MAX_PROJECTS, MAX_ROLES, MAX_SESSIONS, OTHER, chipProjectOf, projectLabel, type ChipGroup, type ChipMembers } from './chip-groups'
+import { belongingsOf } from './belongs'
+import { placeOf, roleKeyOf, roleLabels, statusOf, type SessionEntry } from './facets'
 
 export type PickState = 'all' | 'some' | 'none'
 
@@ -50,11 +50,11 @@ const recent = (a: SessionEntry, b: SessionEntry) => Date.parse(b.session.update
 function projectsOf(entries: SessionEntry[], held: string[]): { order: string[]; by: Map<string, SessionEntry[]>; kinds: Kinds } {
   const by = new Map<string, SessionEntry[]>()
   const kinds: Kinds = { known: new Set(), projects: new Set() }
-  const workspaces = workspacesOf(entries)
+  const places = belongingsOf(entries)
   for (const entry of entries) {
-    const project = projectIn(entry, workspaces)
+    const project = chipProjectOf(entry, places)
     kinds.known.add(project)
-    if (projectGroupOf(entry.session) !== null) kinds.projects.add(project)
+    if (places(entry).kind === 'project') kinds.projects.add(project)
     if (placeOf(entry.session) === 'archived') continue
     by.set(project, [...(by.get(project) ?? []), entry])
   }

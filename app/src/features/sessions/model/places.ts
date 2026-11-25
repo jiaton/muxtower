@@ -1,5 +1,5 @@
 import type { Session } from '@/lib/api/types'
-import { folderOf } from './facets'
+import { folderOf, projectOf } from './facets'
 
 /**
  * Where a session is listed under its device, one place each, in this order: its project as the daemon
@@ -10,9 +10,7 @@ import { folderOf } from './facets'
  */
 export type PlaceKind = 'project' | 'repository' | 'worktree' | 'folder'
 
-/** Its project, when that is what places it (not a folder's name, which the folder tree says better). */
-export const projectOf = (session: Session): string | null =>
-  session.project && session.project_source !== 'folder' ? session.project : null
+export { projectOf }
 
 /** What kind of place `homeOf` is. */
 export const homeKind = (session: Session): PlaceKind => (projectOf(session) ? 'project' : session.git ? 'repository' : 'folder')

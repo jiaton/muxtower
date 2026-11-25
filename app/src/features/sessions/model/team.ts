@@ -1,9 +1,9 @@
 /** A project's team, as a card shows it: every known session of the project (team project, `my_team`'s),
  *  on every device, not only the one whose row it is shown on. */
-import { OTHER, projectIn, type ChipGroup } from './chip-groups'
+import { belongingsOf } from './belongs'
+import { OTHER, chipProjectOf, type ChipGroup } from './chip-groups'
 import { placeOf, type SessionEntry } from './facets'
 import { compareEntries } from './query'
-import { workspacesOf } from './workspaces'
 
 /** The team project of the sessions a row lists, when they all have the same one (not a workspace, whose
  *  row holds several). */
@@ -33,8 +33,8 @@ export function folderToStart(members: SessionEntry[], device?: string): { entry
 /** The team project of the sessions a chip's project holds, when they share one. */
 export function teamProject(entries: SessionEntry[], project: string): string | null {
   if (project === OTHER) return null
-  const workspaces = workspacesOf(entries)
-  const projects = new Set(entries.filter((e) => projectIn(e, workspaces) === project).map((e) => e.session.project ?? null))
+  const places = belongingsOf(entries)
+  const projects = new Set(entries.filter((e) => chipProjectOf(e, places) === project).map((e) => e.session.project ?? null))
   const [only] = projects
   return projects.size === 1 ? only : null
 }

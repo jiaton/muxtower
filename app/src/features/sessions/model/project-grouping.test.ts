@@ -1,7 +1,8 @@
 import { expect, it } from 'vitest'
 import type { Session } from '@/lib/api/types'
 import type { Daemon } from '@/lib/daemons/types'
-import { placeGroupOf, projectGroupOf, type SessionEntry } from './facets'
+import { belongsOf } from './belongs'
+import { projectGroupOf, type SessionEntry } from './facets'
 import { teamOf } from './team'
 import { filterEntries, groupEntries } from './query'
 import { presetForProject } from './new-here'
@@ -16,6 +17,8 @@ const e = (id: string, over: Partial<Session>): SessionEntry => ({
     cwd: `/home/me/${id}`, updated_at: new Date(Date.UTC(2026, 10, 15, 0, at++)).toISOString(), ...over,
   } as Session,
 }) // prettier-ignore
+/** Alone: no other session to make its folder a workspace. */
+const placeGroupOf = (session: Session) => belongsOf(session, new Set())
 const git = (repo: string, remote: string | null = null, worktree = repo) => ({ repo, worktree, remote, branch: 'main' })
 
 it('names one project the same on every device: the team project, else the repository, else none (its folder)', () => {

@@ -2,6 +2,7 @@
  * Switching the second chip row's chip without a click (a sideways wheel over the list, `[` and `]`), and
  * where a switch lands beside the list: the session last opened under that chip, else its first.
  */
+import { belongingsOf } from './belongs'
 import { isAssistant, type SessionEntry } from './facets'
 import { foldForks } from './forks'
 import { filterEntries, groupEntries, type SessionQuery } from './query'
@@ -32,7 +33,7 @@ export interface SessionRef {
 export function listOrder(entries: SessionEntry[], query: SessionQuery, projectOrder: readonly string[] = []): SessionEntry[] {
   const { shown: unfolded } = foldSideChats(filterEntries(entries, query))
   const { shown } = foldForks(unfolded)
-  return groupEntries(shown, query.group, projectOrder)
+  return groupEntries(shown, query.group, projectOrder, belongingsOf(entries))
     .flatMap((g) => g.entries)
     .filter((e) => !isAssistant(e.session))
 }

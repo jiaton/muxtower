@@ -13,7 +13,7 @@ import {
   statusOf,
   type SessionEntry,
 } from './facets'
-import { OTHER_LABEL } from './chip-groups'
+import { OTHER_PLACE, belongingsOf } from './belongs'
 import { withRepositories } from './folders'
 import { isWorkspace, looseIn, workspacesOf } from './workspaces'
 import { anchorOf, homeKind, worktreeOf, type PlaceKind } from './places'
@@ -48,7 +48,8 @@ export interface Facets {
   sources: Facet[]
   /** Empty when every session runs as the same account (or none says). */
   accounts: Facet[]
-  /** The projects they work on across devices (`projectGroupOf`; a folder is none), the most sessions first. */
+  /** The projects they work on across devices (where they belong, `belongs.ts`; a folder is none), the most
+   *  sessions first. */
   projects: Facet[]
 }
 
@@ -79,6 +80,8 @@ const facetsCache = new WeakMap<SessionEntry[], Facets>()
 
 function countFacets(entries: SessionEntry[]): Facets {
   const counted = entries.filter((e) => !isAssistant(e.session) && placeOf(e.session) === 'listed')
+  const places = belongingsOf(entries)
+  const workspaces = workspacesOf(entries) // among every known session, as `places`
   return {
     views: {
       all: counted.length,
@@ -90,8 +93,8 @@ function countFacets(entries: SessionEntry[]): Facets {
       interrupted: entries.filter((e) => placeOf(e.session) === 'interrupted').length,
     },
     projects: facet(
-      counted.filter((e) => projectLabel(e)),
-      (e) => projectLabel(e)!,
+      counted.filter((e) => projectLabel(e, places)),
+      (e) => projectLabel(e, places)!,
       '',
     ),
     devices: facet(counted, deviceLabel, NO_ENVIRONMENT).map((device) => {
@@ -113,12 +116,11 @@ function countFacets(entries: SessionEntry[]): Facets {
         return { ...f, kind: homeKind(session), at: anchorOf(session) }
       })
       // A workspace (a folder holding repositories) only holds: its loose sessions are its "Other".
-      const workspaces = workspacesOf(counted)
       const placed = homes.flatMap((f): Facet[] =>
         f.kind === 'folder' && isWorkspace(workspaces, device.label, f.label)
           ? [
               { ...f, count: 0, needs: 0 },
-              { label: looseIn(f.label), count: f.count, needs: f.needs, under: f.label, name: OTHER_LABEL, kind: 'folder', last: true },
+              { label: looseIn(f.label), count: f.count, needs: f.needs, under: f.label, name: OTHER_PLACE, kind: 'folder', last: true },
             ]
           : [f],
       )

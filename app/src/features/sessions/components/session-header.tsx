@@ -31,7 +31,7 @@ export function SessionHeader({
   actions?: ReactNode
 }) {
   const tags = headerTags(session)
-  const grouped = projectGroupOf(session) // the project as the list groups it, which its colour is kept by
+  const grouped = projectGroupOf(session) // where it belongs, when a project (`belongs.ts`' first step): its colour's key
   const hue = useProjectHue(grouped)
   return (
     <PaneHeader

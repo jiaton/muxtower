@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { ago } from '@/lib/time'
 import { DIALOG_KIND, DIALOG_REASON } from '@/lib/agent-state'
+import type { Belongings } from '../model/belongs'
 import {
   NO_ENVIRONMENT,
   agentOf,
@@ -11,7 +12,6 @@ import {
   folderName,
   folderOf,
   isAssistant,
-  placeGroupOf,
   roleShown,
   sourceOf,
   type SessionEntry,
@@ -42,6 +42,8 @@ export interface RowContext {
   deviceTag?: boolean
   /** Sessions picked by role (every project's PM): each row says which project, as a tag. */
   projectTag?: boolean
+  /** Where each session belongs, among every known one (`belongingsOf`): what the project tag says. */
+  places?: Belongings
 }
 
 /** One line of Markdown as plain text: no emphasis marks, code ticks or heading hashes. */
@@ -107,8 +109,8 @@ export function SessionRow({
             <span className={cn('min-w-0 flex-1 truncate', session.unread || session.needs_attention ? ink.emphasis : ink.strong)}>
               {session.name}
             </span>
-            {context.projectTag ? (
-              <span className={`${look.tag} max-w-40 shrink-0 self-center truncate`}>{placeGroupOf(session).name}</span>
+            {context.projectTag && context.places ? (
+              <span className={`${look.tag} max-w-40 shrink-0 self-center truncate`}>{context.places(entry).name}</span>
             ) : null}
             {context.deviceTag ? <span className={`${look.tag} shrink-0 self-center`}>{deviceOf(session) ?? NO_ENVIRONMENT}</span> : null}
             {writing ? (

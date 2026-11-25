@@ -4,6 +4,7 @@
  * status, by device and folder, by agent or by account (each offered only when there is more than one),
  * or by source. Lives in the URL, so back, reload and links keep it.
  */
+import { belongingsOf, type Belongings } from './belongs'
 import type { ChipMembers } from './chip-groups'
 import { filterEntries } from './filter'
 import { compareInProject, orderPlaces } from './project-order'
@@ -12,7 +13,6 @@ import { anchorOf, homeKind, homeOf, worktreeOf, type PlaceKind } from './places
 import {
   NO_ENVIRONMENT,
   folderName,
-  placeGroupOf,
   shortFolderNames,
   SOURCES,
   STATUSES,
@@ -23,7 +23,6 @@ import {
   compareAgents,
   deviceOf,
   isAssistant,
-  projectGroupOf,
   roleKeyOf,
   roleLabels,
   sourceOf,
@@ -51,7 +50,7 @@ export interface SessionQuery {
   source?: string
   /** An account label (`accountOf`). */
   account?: string
-  /** A project (`projectGroupOf`). */
+  /** A project (where its sessions belong, `belongs.ts`). */
   project?: string
   q?: string
   /** What the chosen chip of the second row holds (`chip-groups.ts`). */
@@ -90,12 +89,19 @@ export const folderLabel = (entry: SessionEntry) => homeOf(entry.session) ?? UNK
 export const agentLabel = (entry: SessionEntry) => agentOf(entry.session)
 export const sourceLabel = (entry: SessionEntry) => sourceOf(entry.session)
 export const accountLabel = (entry: SessionEntry) => accountOf(entry.session)
-export const projectLabel = (entry: SessionEntry) => projectGroupOf(entry.session)
+/** Its project, where it belongs (`belongs.ts`: `places`, every known session's); null for a folder or Other. */
+export const projectLabel = (entry: SessionEntry, places: Belongings) => {
+  const place = places(entry)
+  return place.kind === 'project' ? place.name : null
+}
 
 /** The groups of the list by project: each entry's group key and label, and each folder group's paths.
  *  A folder is grouped by its name, the same name on several machines one group; where one machine has two
  *  folders of that name, each is named with as much of its path as tells them apart. */
-export function placeGroups(entries: SessionEntry[]): {
+export function placeGroups(
+  entries: SessionEntry[],
+  places: Belongings = belongingsOf(entries),
+): {
   keyOf: Map<string, string>
   label: Map<string, string>
   kind: Map<string, 'project' | 'folder' | 'other'>
@@ -106,7 +112,7 @@ export function placeGroups(entries: SessionEntry[]): {
   const kind = new Map<string, 'project' | 'folder' | 'other'>()
   const paths = new Map<string, string[]>()
   const folders = entries.flatMap((e) => {
-    const place = placeGroupOf(e.session)
+    const place = places(e)
     return place.kind === 'folder' ? [{ e, path: place.name, machine: deviceLabel(e), name: folderName(place.name) }] : []
   })
   // A name two folders of one machine share: those folders get longer names.
@@ -119,7 +125,7 @@ export function placeGroups(entries: SessionEntry[]): {
   }
   const longer = shortFolderNames([...new Set(folders.filter((f) => clash.has(f.name)).map((f) => f.path))])
   for (const e of entries) {
-    const place = placeGroupOf(e.session)
+    const place = places(e)
     const name =
       place.kind === 'folder'
         ? clash.has(folderName(place.name))
@@ -246,8 +252,14 @@ function folderSections(entries: SessionEntry[]): Section[] | undefined {
 }
 
 /** Groups in display order: the assistant, when there is one, in a group of its own at the top, then
- *  what the owner pinned, then the rest; by project, in `projectOrder` (the owner's, `project-order.ts`). */
-export function groupEntries(entries: SessionEntry[], by: GroupBy, projectOrder: readonly string[] = []): Group[] {
+ *  what the owner pinned, then the rest; by project, in `projectOrder` (the owner's, `project-order.ts`), each
+ *  where it belongs among every known session (`places`: `belongingsOf` all of them, when `entries` are a part). */
+export function groupEntries(
+  entries: SessionEntry[],
+  by: GroupBy,
+  projectOrder: readonly string[] = [],
+  places: Belongings = belongingsOf(entries),
+): Group[] {
   const sorted = [...entries].sort(compareEntries)
   const assistant = sorted.filter((e) => isAssistant(e.session))
   const pinned = sorted.filter((e) => !isAssistant(e.session) && e.session.pinned)
@@ -274,22 +286,22 @@ export function groupEntries(entries: SessionEntry[], by: GroupBy, projectOrder:
   if (by === 'project') {
     // A stable order (`project-order.ts`): nothing moves for what the sessions do.
     const inGroup = [...rest].sort(compareInProject)
-    const places = placeGroups(inGroup)
-    const byPlace = bucket(inGroup, (e) => places.keyOf.get(e.key)!)
+    const grouped = placeGroups(inGroup, places)
+    const byPlace = bucket(inGroup, (e) => grouped.keyOf.get(e.key)!)
     const keys = orderPlaces(
       [...byPlace.keys()],
-      (k) => places.kind.get(k)!,
-      (k) => places.label.get(k)!,
+      (k) => grouped.kind.get(k)!,
+      (k) => grouped.label.get(k)!,
       projectOrder,
     )
     return [
       ...groups,
       ...keys.map((key) => ({
         key,
-        label: places.label.get(key)!,
-        title: places.paths.get(key)?.join('\n'),
+        label: grouped.label.get(key)!,
+        title: grouped.paths.get(key)?.join('\n'),
         kind:
-          places.kind.get(key) === 'folder' ? ('folder' as const) : places.kind.get(key) === 'project' ? ('project' as const) : undefined,
+          grouped.kind.get(key) === 'folder' ? ('folder' as const) : grouped.kind.get(key) === 'project' ? ('project' as const) : undefined,
         entries: byPlace.get(key)!,
         implies: { project: true },
       })),

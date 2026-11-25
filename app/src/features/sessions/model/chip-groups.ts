@@ -2,17 +2,14 @@ import { inProjectOrder } from './project-order'
 /**
  * The second chip row: groups of projects the owner makes (kept on the hub, `GET/PUT /v1/chip-groups`),
  * or, while there are none, the most recently active projects one chip each. Chosen together with a view
- * of the first row (Focus + Needs you). A session's project is the one set for it (set_project), else its
- * repository's, else its folder's name; a session with none of these, in the home folder, `/`, a temp
- * folder, a workspace (a folder holding repositories, `workspaces.ts`) or no folder at all, is in Other.
+ * of the first row (Focus + Needs you). A session counts under where it belongs (`belongs.ts`, as the list
+ * groups it), named by `chipKeyOf`: its project, its folder's name, or Other.
  */
-import type { Session } from '@/lib/api/types'
-import { folderName, folderOf, placeOf, roleKeyOf, type SessionEntry } from './facets'
-import { inWorkspace, workspacesOf } from './workspaces'
+import { OTHER, OTHER_PLACE, chipKeyOf, belongingsOf, type Belongings } from './belongs'
+import { placeOf, roleKeyOf, type SessionEntry } from './facets'
 
-/** The pseudo project of sessions that have none (as the hub keeps it in a group). */
-export const OTHER = ':other'
-export const OTHER_LABEL = 'Other'
+export { OTHER }
+export const OTHER_LABEL = OTHER_PLACE
 /** Project chips shown while there are no groups. */
 export const AUTO_CHIPS = 6
 /** As the hub takes them (`chips/service.py`). */
@@ -41,27 +38,8 @@ export interface ProjectChip extends ChipMembers {
   label: string
 }
 
-const TEMP = /^\/(?:private\/)?(?:tmp|var\/folders)(?:\/|$)/
-
-/** Whether a folder holds no project of its own: home, `/`, a temp folder, or none. */
-export function isNoPlace(cwd: string | null | undefined): boolean {
-  if (!cwd?.trim()) return true
-  const folder = folderOf({ cwd } as Session)
-  return folder === null || folder === '~' || folder === '/' || TEMP.test(cwd)
-}
-
-/** The project a session counts under in the chips; `workspaces` (`workspacesOf` the known sessions) say
- *  which folders hold repositories, where a session with nothing else to place it is in Other. */
-export function chipProject(session: Session, workspaces?: ReadonlySet<string>, entry?: SessionEntry): string {
-  if (session.project && session.project_source === 'set') return session.project
-  if (session.git) return session.project && session.project_source !== 'folder' ? session.project : folderName(session.git.repo)
-  if (isNoPlace(session.cwd)) return OTHER
-  if (workspaces && entry && inWorkspace(entry, workspaces)) return OTHER
-  return session.project ?? folderName(folderOf(session) ?? '') ?? OTHER
-}
-
-/** `chipProject` of an entry among these sessions. */
-export const projectIn = (entry: SessionEntry, workspaces: ReadonlySet<string>) => chipProject(entry.session, workspaces, entry)
+/** The chip project of an entry, by `places` (`belongingsOf` every known session). */
+export const chipProjectOf = (entry: SessionEntry, places: Belongings) => chipKeyOf(places(entry))
 
 export const projectLabel = (project: string) => (project === OTHER ? OTHER_LABEL : project)
 
@@ -69,11 +47,11 @@ export const projectLabel = (project: string) => (project === OTHER ? OTHER_LABE
  *  active; Other last. */
 export function projectsByActivity(entries: SessionEntry[]): string[] {
   const best = new Map<string, { needs: boolean; at: number }>()
-  const workspaces = workspacesOf(entries)
+  const places = belongingsOf(entries)
   for (const entry of entries) {
     const { session } = entry
     if (placeOf(session) !== 'listed') continue
-    const project = projectIn(entry, workspaces)
+    const project = chipProjectOf(entry, places)
     const seen = best.get(project) ?? { needs: false, at: 0 }
     best.set(project, { needs: seen.needs || session.needs_attention, at: Math.max(seen.at, Date.parse(session.updated_at) || 0) })
   }
@@ -111,8 +89,8 @@ export function chipMembers(id: string | undefined, groups: ChipGroup[]): ChipMe
 }
 
 /** Whether a chip holds a session: its project whole, its role (in any project), or the session itself. */
-export function inChip(entry: SessionEntry, chip: ChipMembers, workspaces: ReadonlySet<string>): boolean {
-  if (chip.projects.includes(projectIn(entry, workspaces)) || chip.sessions.includes(entry.session.id)) return true
+export function inChip(entry: SessionEntry, chip: ChipMembers, places: Belongings): boolean {
+  if (chip.projects.includes(chipProjectOf(entry, places)) || chip.sessions.includes(entry.session.id)) return true
   const role = chip.roles?.length ? roleKeyOf(entry.session) : null
   return role !== null && chip.roles!.includes(role)
 }

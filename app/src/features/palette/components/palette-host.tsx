@@ -8,7 +8,8 @@ import { StatusIcon } from '@/components/ui/status-icon'
 import { useProjectHue } from '@/features/sessions/api/use-project-colours'
 import { useSessionEntries } from '@/features/sessions/hooks/use-session-entries'
 import { SessionActions, type SessionAction } from '@/features/sessions/components/session-actions'
-import { deviceOf, entryKey, isAssistant, placeGroupOf, roleNameOf, type SessionEntry } from '@/features/sessions/model/facets'
+import { belongingsOf, type Belonging } from '@/features/sessions/model/belongs'
+import { deviceOf, entryKey, isAssistant, roleNameOf, type SessionEntry } from '@/features/sessions/model/facets'
 import { presetForSession } from '@/features/sessions/model/new-here'
 import { useNewSessionRequest, useSessionViews } from '@/features/sessions/store'
 import { toggleLive } from '@/features/voice/live/engine'
@@ -101,6 +102,7 @@ function Palette({ entries, current, actions = [] }: { entries: SessionEntry[]; 
   const text = useTextSearch(query, open)
   const jump = useJump((s) => s.go)
   const byKey = useMemo(() => new Map(entries.map((e) => [e.key, e])), [entries])
+  const places = belongingsOf(entries)
   // The session in front shows a message box: its file picker.
   const attachFile = useAttachPickers((s) => (current ? s.pickers[current.key] : undefined))
 
@@ -157,7 +159,7 @@ function Palette({ entries, current, actions = [] }: { entries: SessionEntry[]; 
       items: sessions.map((e): PaletteItem => ({
         id: e.key,
         label: e.session.name,
-        children: <SessionItem session={e.session} />,
+        children: <SessionItem session={e.session} place={places(e)} />,
         onSelect: () => openSession(e),
       })),
     },
@@ -239,8 +241,7 @@ function HitItem({ hit, name }: { hit: SearchHit; name: string }) {
 
 /** A session as the list shows it, in one line and a half: its state, name, its project as a tag in its
  *  colour, device, time; its role (and the folder or place, when it has no project). */
-function SessionItem({ session }: { session: Session }) {
-  const place = placeGroupOf(session)
+function SessionItem({ session, place }: { session: Session; place: Belonging }) {
   const project = place.kind === 'project' ? place.name : null
   const hue = useProjectHue(project)
   const where = [roleNameOf(session), project ? null : place.name].filter(Boolean).join(' · ')

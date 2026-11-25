@@ -23,6 +23,7 @@ import { useOpenedHere } from '@/features/sessions/hooks/use-opened-here'
 import { useChipSwitch } from '@/features/sessions/hooks/use-chip-switch'
 import { useScrollMemory } from '@/features/sessions/hooks/use-scroll-memory'
 import { useSessionEntries } from '@/features/sessions/hooks/use-session-entries'
+import { belongingsOf } from '@/features/sessions/model/belongs'
 import { agentsDiffer, entryKey, folderName, isAssistant } from '@/features/sessions/model/facets'
 import { keptEntries, keptGroups } from '@/features/sessions/model/kept'
 import { facetsOf } from '@/features/sessions/model/counts'
@@ -115,7 +116,8 @@ function SessionsLayout() {
   // forks are listed under the session they were forked from.
   const { shown: unfolded, sideChats } = foldSideChats(visible)
   const { shown, forks } = foldForks(unfolded)
-  const groups = [...groupEntries(shown, query.group, projectOrder), ...keptGroups(kept)]
+  const places = belongingsOf(entries) // where each belongs among every known session, not only those shown
+  const groups = [...groupEntries(shown, query.group, projectOrder, places), ...keptGroups(kept)]
   const count = visible.filter((e) => !isAssistant(e.session)).length
   const { title, within } = queryTitle(query)
   const counted = `${count} session${count === 1 ? '' : 's'}`
@@ -181,6 +183,7 @@ function SessionsLayout() {
                   showAccount: facets.accounts.length > 0 && !query.account,
                   showAgent: agentsDiffer([...visible, ...kept].map((e) => e.session)),
                   projectTag: byRole(query.chip) || searchTerms(query.q ?? '').roles.length > 0,
+                  places,
                   replace: asDrawer, // picked in the drawer: in place of the page it opened on (Back closed it)
                 }}
                 extra={({ daemon, session }) =>

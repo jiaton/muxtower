@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import type { Session } from '@/lib/api/types'
 import type { Daemon } from '@/lib/daemons/types'
+import { belongingsOf } from './belongs'
 import { inChip } from './chip-groups'
 import { groupPicks } from './chip-picks'
 import { ROLE_SHOWN, roleKeyOf, roleLabels, roleNameOf, roleShown, type SessionEntry } from './facets'
@@ -53,13 +54,13 @@ const ids = (list: SessionEntry[]) => list.map((x) => x.session.id).sort()
 
 it('a chip of roles holds that role in every project; several roles, any of them', () => {
   const pms = { projects: [], sessions: [], roles: ['pm'] }
-  expect(ids(team.filter((x) => inChip(x, pms, new Set())))).toEqual(['a1', 'b1'])
+  expect(ids(team.filter((x) => inChip(x, pms, belongingsOf(team))))).toEqual(['a1', 'b1'])
   const both = { projects: [], sessions: [], roles: ['pm', 'research'] }
-  expect(ids(team.filter((x) => inChip(x, both, new Set())))).toEqual(['a1', 'b1', 'b2'])
+  expect(ids(team.filter((x) => inChip(x, both, belongingsOf(team))))).toEqual(['a1', 'b1', 'b2'])
   const mixed = { projects: ['fund'], sessions: [], roles: ['pm'] } // with a project whole
-  expect(ids(team.filter((x) => inChip(x, mixed, new Set())))).toEqual(['a1', 'b1', 'c1', 'c2'])
+  expect(ids(team.filter((x) => inChip(x, mixed, belongingsOf(team))))).toEqual(['a1', 'b1', 'c1', 'c2'])
   expect(ids(filterEntries(team, { view: 'all', group: 'status', chip: pms }))).toEqual(['a1', 'b1'])
-  expect(team.filter((x) => inChip(x, { projects: ['acme/web'], sessions: [] }, new Set()))).toHaveLength(2) // groups saved before roles
+  expect(team.filter((x) => inChip(x, { projects: ['acme/web'], sessions: [] }, belongingsOf(team)))).toHaveLength(2) // groups saved before roles
 })
 
 it('the group dialog offers the roles there are, the most held first, and saves the ones picked', () => {

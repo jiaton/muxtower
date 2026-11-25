@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { Session } from '@/lib/api/types'
 import type { Daemon } from '@/lib/daemons/types'
-import { OTHER, chipProject, chipMembers, projectChips, projectsByActivity, type ChipGroup } from './chip-groups'
+import { belongsOf, chipKeyOf } from './belongs'
+import { OTHER, chipMembers, projectChips, projectsByActivity, type ChipGroup } from './chip-groups'
 import type { SessionEntry } from './facets'
 import { filterEntries } from './query'
 import { parseListSearch, scopeSearch, toQuery } from './search'
@@ -17,6 +18,8 @@ function entry(id: string, over: Partial<Session> = {}): SessionEntry {
   return { key: `d1/${id}`, daemon, session }
 }
 
+/** Alone: no other session to make its folder a workspace. */
+const chipProject = (session: Session) => chipKeyOf(belongsOf(session, new Set()))
 const git = (repo: string) => ({ repo, worktree: repo, branch: 'main', remote: null }) as Session['git']
 
 describe('a session’s project', () => {

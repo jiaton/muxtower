@@ -1,5 +1,5 @@
 import type { Session } from '@/lib/api/types'
-import type { SessionEntry } from './facets'
+import { projectOf, type SessionEntry } from './facets'
 
 /** Where a new session starts, given in advance: the daemon, the computer joined to it (null: the
  *  daemon's own), the folder (empty: the machine's default) and, when it joins one, the team project. */
@@ -39,7 +39,7 @@ const folderOfSession = (s: Session) => s.git?.worktree ?? s.cwd ?? ''
 export function presetForSession(daemonId: string, session: Session, nodes: readonly string[]): NewSessionPreset | null {
   const node = computerOf(session, nodes)
   if (node === undefined) return null
-  const project = session.project && session.project_source !== 'folder' ? session.project : null
+  const project = projectOf(session)
   const started = folderOfSession(session)
   const now = session.working_dir?.replace(/\/+$/, '')
   const places: NewSessionPlace[] | null =

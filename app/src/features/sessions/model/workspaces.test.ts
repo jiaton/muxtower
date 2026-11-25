@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { Session } from '@/lib/api/types'
 import type { Daemon } from '@/lib/daemons/types'
-import { OTHER, chipProject, projectIn } from './chip-groups'
+import { belongingsOf, belongsOf, chipKeyOf } from './belongs'
+import { OTHER, chipProjectOf } from './chip-groups'
 import { facetsOf } from './counts'
 import type { SessionEntry } from './facets'
 import { nestFolders } from './folders'
 import { filterEntries } from './query'
-import { looseIn, workspacesOf } from './workspaces'
+import { looseIn } from './workspaces'
 
 const daemon = { id: 'd1', name: 'nas', url: 'http://nas.test', token: 't' } as Daemon
 const entry = (id: string, over: Partial<Session>): SessionEntry => ({
@@ -33,18 +34,13 @@ const entries = [
 ]
 
 describe('a folder holding repositories is a workspace', () => {
-  const ws = workspacesOf(entries)
   it('its loose sessions are Other; a folder without repositories keeps its name; a set project stays', () => {
-    const project = (id: string) =>
-      projectIn(
-        entries.find((e) => e.session.id === id)!,
-        ws,
-      )
+    const project = (id: string) => chipProjectOf(entries.find((e) => e.session.id === id)!, belongingsOf(entries))
     expect(project('loose')).toBe(OTHER)
     expect(project('notes')).toBe('notes')
     expect(project('set')).toBe('release')
     expect(project('m1')).toBe('acme/muxtower')
-    expect(chipProject(entries[3].session)).toBe('projects') // without the others to tell: its folder's name
+    expect(chipKeyOf(belongsOf(entries[3].session, new Set()))).toBe('projects') // without the others to tell: its folder's name
   })
 
   it('in the sidebar it only holds, counting everything under it, its loose sessions in "Other", last', () => {
