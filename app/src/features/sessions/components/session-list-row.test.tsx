@@ -43,6 +43,15 @@ describe('SessionListRow', () => {
     expect(screen.getByRole('menuitemradio', { name: /All/ })).toBeInTheDocument()
   })
 
+  it('makes its ⋯ menu only once a mouse points at it or it takes focus (a long list draws no menus)', async () => {
+    const row = await renderRow()
+    expect(screen.queryByRole('button', { name: 'Actions for Round two' })).toBeNull()
+    fireEvent.pointerEnter(row.parentElement!.parentElement!, { pointerType: 'touch' })
+    expect(screen.queryByRole('button', { name: 'Actions for Round two' })).toBeNull() // a finger has its swipe tray
+    fireEvent.focus(row)
+    expect(screen.getByRole('button', { name: 'Actions for Round two', hidden: true })).toBeInTheDocument()
+  })
+
   it('turns on marking read automatically from its menu, and then shows it on the row', async () => {
     const { http, HttpResponse } = await import('msw')
     const { addDaemon } = await import('@/test/render')

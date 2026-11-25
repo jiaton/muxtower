@@ -146,6 +146,8 @@ async function round(page: Page, i: number, t: Timings) {
   for (const _ of [0, 1])
     for (let g = 0; g < groups; g++) await step(page, t, 'fold or unfold a group', () => quietly(headers.nth(g).click({ timeout: 1000 })))
   await step(page, t, 'open a session from the list', () => openSession(page, i))
+  // A row's ⋯ is made once a mouse points at the row.
+  await quietly(list(page).locator('[data-row-link]:visible').first().hover({ timeout: 1000 }))
   await step(page, t, "a row's ⋯", () =>
     quietly(
       list(page)

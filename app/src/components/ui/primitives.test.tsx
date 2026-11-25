@@ -288,10 +288,12 @@ describe('SwipeActions', () => {
       </SwipeActions>,
     )
     const row = screen.getByRole('button', { name: 'row' })
-    const tray = screen.getByRole('button', { name: 'Hide', hidden: true }).parentElement!
+    const tray = document.querySelector('[data-swipe-row]')!.firstElementChild as HTMLElement
     expect(tray).toHaveAttribute('aria-hidden', 'true') // closed
+    expect(screen.queryByRole('button', { name: 'Hide', hidden: true })).toBeNull() // made once a finger touches the row
     Object.defineProperty(tray, 'offsetWidth', { value: 64 })
     fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 90, clientY: 10, pointerId: 1 })
+    expect(screen.getByRole('button', { name: 'Hide', hidden: true })).toBeInTheDocument()
     row.parentElement!.setPointerCapture = () => {}
     fireEvent.pointerMove(row, { pointerType: 'touch', clientX: 10, clientY: 12, pointerId: 1 })
     fireEvent.pointerUp(row, { pointerType: 'touch', clientX: 10, clientY: 12, pointerId: 1 })
@@ -310,7 +312,7 @@ describe('SwipeActions', () => {
       </SwipeActions>,
     )
     const row = screen.getByText('row').parentElement!
-    const tray = screen.getByRole('button', { name: 'Hide', hidden: true }).parentElement!
+    const tray = document.querySelector('[data-swipe-row]')!.firstElementChild as HTMLElement
     Object.defineProperty(tray, 'offsetWidth', { value: 128 })
     row.setPointerCapture = () => {}
     fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 100, clientY: 10, pointerId: 1 })
@@ -331,7 +333,7 @@ describe('SwipeActions', () => {
       </SwipeActions>,
     )
     const row = screen.getByRole('button', { name: 'row' })
-    const tray = screen.getByRole('button', { name: 'Hide', hidden: true }).parentElement!
+    const tray = document.querySelector('[data-swipe-row]')!.firstElementChild as HTMLElement
     Object.defineProperty(tray, 'offsetWidth', { value: 64 })
     fireEvent.pointerDown(row, { pointerType: 'touch', clientX: 30, clientY: 10, pointerId: 1 })
     expect(fireEvent.touchMove(row, { touches: [{ clientX: 110, clientY: 12 }] })).toBe(true) // not held for the row

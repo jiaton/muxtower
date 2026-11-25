@@ -23,6 +23,9 @@ export function SwipeActions({ actions, children }: { actions: ReactNode; childr
   const [offset, setOffset] = useState(0)
   const [dragging, setDragging] = useState(false)
   const [slide, setSlide] = useState(landMs(Infinity))
+  // The tray is made once a finger first touches the row (before it can move), not with every row of a
+  // list a mouse never swipes.
+  const [touched, setTouched] = useState(false)
   const open = offset < 0 && !dragging
   const width = () => tray.current?.offsetWidth ?? 0
 
@@ -73,7 +76,7 @@ export function SwipeActions({ actions, children }: { actions: ReactNode; childr
           setOffset(0) // an action ran: close
         }}
       >
-        {actions}
+        {touched ? actions : null}
       </div>
       <div
         ref={row}
@@ -85,6 +88,7 @@ export function SwipeActions({ actions, children }: { actions: ReactNode; childr
         onPointerDown={(e) => {
           swiped.current = false
           if (e.pointerType === 'mouse') return
+          setTouched(true)
           gesture.current = { x: e.clientX, y: e.clientY, dx: 0, from: offset, speed: new Speed() }
           gesture.current.speed.add(e.clientX) // from the first touch: a short flick has few moves
         }}
