@@ -37,12 +37,13 @@ class PushPayload(BaseModel):
     session_id: str | None = Field(default=None, description="none for news of the daemon itself")
     session_name: str | None = None
     state: AgentState | None = None
-    kind: Literal["attention", "done", "login", "recovery", "trigger", "clear"] = Field(
+    kind: Literal["attention", "done", "login", "recovery", "trigger", "inbox", "clear"] = Field(
         description="a session needs the owner, or finished a turn; the daemon's Claude login expired; a "
-        "restart interrupted sessions there; a trigger's news (`trigger`: its name); clear: only `settled` (the "
-        "device shows other notifications)"
+        "restart interrupted sessions there; a trigger's news (`trigger`: its name); an Inbox item fell due "
+        "(`inbox_item`); clear: only `settled` (the device shows other notifications)"
     )
     trigger: str | None = Field(default=None, description="the trigger a `trigger` push is about: one per name")
+    inbox_item: int | None = Field(default=None, description="the Inbox item an `inbox` push is about: one per item")
     title: str
     body: str
     settled: list[str] = Field(

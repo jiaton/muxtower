@@ -89,9 +89,15 @@ class PushService:
         """A trigger's news (its event, or trouble with it): to every device; its newest replaces its last."""
         return self._to_all("trigger", f"Trigger {name}"[:80], body[:300], trigger=name)
 
+    def notify_inbox(self, title: str, body: str, item_id: int) -> int:
+        """An Inbox item fell due (a reminder, or a hand-off that went out or could not): to every device; one
+        per item."""
+        return self._to_all("inbox", title[:80], body[:300], inbox_item=item_id)
+
     def _to_all(
-        self, kind: Literal["login", "recovery", "trigger"], title: str, body: str, trigger: str | None = None
-    ) -> int:
+        self, kind: Literal["login", "recovery", "trigger", "inbox"], title: str, body: str,
+        trigger: str | None = None, inbox_item: int | None = None,
+    ) -> int:  # fmt: skip
         sent = 0
         for sub in self._paired():
             payload = PushPayload(
@@ -101,6 +107,7 @@ class PushService:
                 title=title,
                 body=body,
                 trigger=trigger,
+                inbox_item=inbox_item,
             )
             if self.sender.send(sub, payload.model_dump_json()):
                 sent += 1

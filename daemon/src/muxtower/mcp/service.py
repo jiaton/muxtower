@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from muxtower.concierge.service import ConciergeService
 from muxtower.errors import Invalid
-from muxtower.mcp.caller import CALLER
+from muxtower.mcp.caller import CALLER, Caller
 from muxtower.mcp.describe import line
 from muxtower.mcp.reach import events_everywhere, listing_everywhere, reaching, starting_anywhere
 from muxtower.mcp.sender import headed, sender_label
@@ -122,6 +122,24 @@ class McpTools:
         }
         tools = [replace(t, run=everywhere[t.name](t)) if t.name in everywhere else t for t in tools]
         self.tools = {t.name: t for t in tools}
+        # Tools for the concierge alone (the Inbox): no other caller lists or calls them. Set by the app.
+        self.concierge_tools: dict[str, Tool] = {}
+        self.is_node: Callable[[], bool] = lambda: False
+
+    def is_concierge(self, caller: Caller) -> bool:
+        """The concierge, on the hub: a node's sessions never get its tools."""
+        concierge = self.concierge.session_id if self.concierge else None
+        return concierge is not None and caller.session_id == concierge and not self.is_node()
+
+    def listed(self, caller: Caller) -> list[Tool]:
+        """The tools `caller` sees: everyone's, and the concierge's own after them for the concierge."""
+        mine = list(self.concierge_tools.values()) if self.is_concierge(caller) else []
+        return [*self.tools.values(), *mine]
+
+    def find(self, name: str, caller: Caller) -> Tool | None:
+        if name in self.tools:
+            return self.tools[name]
+        return self.concierge_tools.get(name) if self.is_concierge(caller) else None
 
     def _target(self, session_id: str) -> Session:
         session = self.directory.get(session_id)

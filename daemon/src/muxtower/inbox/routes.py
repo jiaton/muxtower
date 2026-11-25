@@ -6,9 +6,10 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 
 from muxtower.auth.deps import CurrentDevice
-from muxtower.errors import Unavailable
+from muxtower.errors import Invalid
 from muxtower.inbox.models import (
     HandInboxItem,
     Handoff,
@@ -20,6 +21,7 @@ from muxtower.inbox.models import (
     InboxPatch,
     NewInboxItem,
 )  # fmt: skip
+from muxtower.inbox.service import InboxService
 
 router = APIRouter(prefix="/v1", tags=["inbox"])
 
@@ -28,16 +30,48 @@ STALE: dict[int | str, dict[str, Any]] = {
 }
 
 
-def answer(service: Any, params: dict[str, Any], actor: str) -> Any:
-    """An Inbox request, as JSON: a device's here, or one a node passed on (`nodes/asked.py`)."""
-    raise Unavailable("the Inbox is not built yet")
+def answer(service: InboxService | None, params: dict[str, Any], actor: str) -> Any:
+    """An Inbox request, as JSON: a device's here, or one a node passed on (`nodes/asked.py`). Blocking."""
+    if service is None:
+        raise Invalid("unknown method inbox")
+    op, body = params.get("op"), params.get("body") or {}
+    item_id = int(params.get("id") or 0)
+    project = str(params.get("project") or "")
+    try:
+        if op == "list":
+            return service.inbox(bool(params.get("done"))).model_dump(mode="json")
+        if op == "add":
+            return service.add(NewInboxItem.model_validate(body), actor).model_dump(mode="json")
+        if op == "patch":
+            item, changed = service.patch(item_id, body, actor)
+            if changed:
+                return {"item": item.model_dump(mode="json")}
+            stale = InboxConflict(detail=f"item {item_id} changed since version {body.get('if_version')}", current=item)
+            return {"stale": stale.model_dump(mode="json")}
+        if op == "delete":
+            service.delete(item_id, actor)
+            return {}
+        if op == "order":
+            return service.order(InboxOrder.model_validate(body).ids, actor).model_dump(mode="json")
+        if op == "hand":
+            return service.hand(item_id, HandInboxItem.model_validate(body), actor).model_dump(mode="json")
+        if op == "targets":
+            return service.targets(project).model_dump(mode="json")
+        if op == "get_handoff":
+            return Handoff(role=service.store.handoff(project)).model_dump(mode="json")
+        if op == "put_handoff":
+            role = service.set_handoff(project, Handoff.model_validate(body).role, actor)
+            return Handoff(role=role).model_dump(mode="json")
+    except ValidationError as exc:
+        raise Invalid(f"bad request: {exc.errors()[0]['msg']}") from exc
+    raise Invalid(f"unknown inbox request {op}")
 
 
 def _do(request: Request, actor: str, op: str, **params: Any) -> Any:
     answered = request.app.state.hub.ask("inbox", {"op": op, **params})
     if answered is not None:
         return answered
-    return answer(getattr(request.app.state, "inbox", None), {"op": op, **params}, actor)
+    return answer(request.app.state.inbox, {"op": op, **params}, actor)
 
 
 @router.get("/inbox")
@@ -49,13 +83,13 @@ def get_inbox(request: Request, device: CurrentDevice, done: bool = False) -> In
 @router.post("/inbox", status_code=201)
 def add_inbox_item(body: NewInboxItem, request: Request, device: CurrentDevice) -> InboxItem:
     """A new open item, first in the list."""
-    return InboxItem.model_validate(_do(request, device.name, "add", body=body.model_dump()))
+    return InboxItem.model_validate(_do(request, device.name, "add", body=body.model_dump(mode="json")))
 
 
 @router.patch("/inbox/{item_id}", response_model=InboxItem, responses=STALE)
 def patch_inbox_item(item_id: int, body: InboxPatch, request: Request, device: CurrentDevice) -> Any:
     """Changes its text, project (null: none) or status (open, done), if it is still at `if_version`."""
-    patch = body.model_dump(exclude_unset=True)
+    patch = body.model_dump(mode="json", exclude_unset=True)
     answered = _do(request, device.name, "patch", id=item_id, body=patch)
     if "stale" in answered:
         conflict = InboxConflict.model_validate(answered["stale"])
@@ -72,7 +106,7 @@ def delete_inbox_item(item_id: int, request: Request, device: CurrentDevice) -> 
 @router.put("/inbox/order")
 def put_inbox_order(body: InboxOrder, request: Request, device: CurrentDevice) -> Inbox:
     """The owner's order: these ids first to last, any others after them as they were."""
-    return Inbox.model_validate(_do(request, device.name, "order", body=body.model_dump()))
+    return Inbox.model_validate(_do(request, device.name, "order", body=body.model_dump(mode="json")))
 
 
 @router.post(
@@ -82,7 +116,7 @@ def put_inbox_order(body: InboxOrder, request: Request, device: CurrentDevice) -
 def hand_inbox_item(item_id: int, body: HandInboxItem, request: Request, device: CurrentDevice) -> InboxItem:
     """Sends it as one team task to whoever holds `role` in `project` (without regard to case), or to
     `session_id`; it becomes handed, with the task's id."""
-    return InboxItem.model_validate(_do(request, device.name, "hand", id=item_id, body=body.model_dump()))
+    return InboxItem.model_validate(_do(request, device.name, "hand", id=item_id, body=body.model_dump(mode="json")))
 
 
 @router.get("/projects/{project:path}/handoff-targets")
@@ -101,4 +135,5 @@ def get_handoff(project: str, request: Request, device: CurrentDevice) -> Handof
 @router.put("/projects/{project:path}/handoff")
 def put_handoff(project: str, body: Handoff, request: Request, device: CurrentDevice) -> Handoff:
     """Sets it (free text; null or blank: none). It follows the project when it is renamed."""
-    return Handoff.model_validate(_do(request, device.name, "put_handoff", project=project, body=body.model_dump()))
+    answered = _do(request, device.name, "put_handoff", project=project, body=body.model_dump(mode="json"))
+    return Handoff.model_validate(answered)

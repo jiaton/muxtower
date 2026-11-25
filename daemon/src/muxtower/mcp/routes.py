@@ -60,7 +60,7 @@ def _error(msg_id: Any, code: int, message: str) -> dict[str, Any]:
 
 
 async def _call(tools: McpTools, params: dict[str, Any], caller: Caller, audit: AuditLog) -> dict[str, Any]:
-    tool = tools.tools.get(str(params.get("name")))
+    tool = tools.find(str(params.get("name")), caller)
     if tool is None:
         raise KeyError(params.get("name"))
     args = tool.args.model_validate(params.get("arguments") or {})
@@ -96,7 +96,7 @@ async def _handle(message: Any, tools: McpTools, caller: Caller, audit: AuditLog
     elif method == "ping":
         result = {}
     elif method == "tools/list":
-        result = {"tools": [t.schema() for t in tools.tools.values()]}
+        result = {"tools": [t.schema() for t in tools.listed(caller)]}
     elif method == "tools/call":
         try:
             result = await _call(tools, params, caller, audit)

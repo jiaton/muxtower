@@ -39,6 +39,11 @@ from muxtower.continuing.place import look
 from muxtower.continuing.repository import SqliteJobStore
 from muxtower.continuing.service import Continuer
 from muxtower.diagnostics.service import DiagnosticsService
+from muxtower.inbox.firing import InboxWork
+from muxtower.inbox.schedule import InboxSchedule
+from muxtower.inbox.service import InboxService
+from muxtower.inbox.store import InboxStore
+from muxtower.inbox.tools import InboxTools
 from muxtower.infra.audit import AuditLog
 from muxtower.infra.bus import EventBus
 from muxtower.infra.db import Database
@@ -267,6 +272,7 @@ def create_app(
                 "search-index": _indexing(indexer),
                 "listen": listen.run_loop(bus),
                 "attachments": attachments.run_loop(),
+                "inbox": inbox_schedule.run_loop(),
             }
             if summaries.available:
 
@@ -336,10 +342,25 @@ def create_app(
     playbook = PlaybookStore(db)  # the owner's team playbook: kept here when this daemon is the hub
     triggers = TriggerStore(db)  # outside events that reach an agent (`triggers/`): kept on the hub
     chip_groups, project_order = ChipGroupStore(db), ProjectOrderStore(db)
+    # The owner's Inbox: kept on the hub, its due dates acted on by the hub's own loop (`inbox/`).
+    inbox_store = InboxStore(db)
+    inbox = InboxService(db, inbox_store, lambda: settings.inbox, teams, directory, team_tasks, audit)
+    inbox_work = InboxWork(inbox)
+    inbox_work.notify = push.notify_inbox
+    inbox_work.concierge = lambda: concierge.session_id if concierge is not None else None
+    inbox_schedule = InboxSchedule(inbox_work, lambda: hub_store.load() is None)
+
+    def inbox_changed() -> None:
+        inbox_schedule.wake()
+        bus.publish("inbox", None)
+
+    inbox.changed = inbox_changed
+    mcp.concierge_tools = {t.name: t for t in InboxTools(inbox).tools()}
+    mcp.is_node = lambda: hub_store.load() is not None
     teams.renames = ProjectRenames(
         db,
         {"chip-groups": chip_groups, "project-order": project_order, "project-colours": project_colours,
-         "playbook": playbook, "triggers": triggers},
+         "playbook": playbook, "triggers": triggers, "inbox": inbox},
         lambda topic: bus.publish(topic, None),
     )  # fmt: skip
     continuer = Continuer(
@@ -379,7 +400,7 @@ def create_app(
         watches=watches,
         direct=DirectAccess(nodes, node_sessions.call), feature_settings=feature_settings,
         chip_groups=chip_groups, project_order=project_order, playbook=playbook,
-        project_colours=project_colours,
+        project_colours=project_colours, inbox=inbox,
         search=search, indexer=indexer, listen=listen, tts=tts,
         triggers=triggers, trigger_service=trigger_service,
         node_sessions=node_sessions, mcp=mcp, asr=asr, asr_dictionary=dictionary_store,

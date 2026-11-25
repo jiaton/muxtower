@@ -88,7 +88,15 @@ async def _reply(ws: WebSocket, tools: McpTools, name: str, frame: dict[str, Any
     triggers = partial(trigger_routes.answer, state.triggers, state.trigger_service, state.audit)
     try:
         answer = asked.answer(
-            tools, name, frame, state.chip_groups, state.playbook, triggers, state.project_order, state.project_colours
+            tools,
+            name,
+            frame,
+            state.chip_groups,
+            state.playbook,
+            triggers,
+            state.project_order,
+            state.project_colours,
+            state.inbox,
         )
         await ws.send_text(await answer)
     except (WebSocketDisconnect, RuntimeError):
