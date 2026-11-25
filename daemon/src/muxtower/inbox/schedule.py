@@ -25,7 +25,10 @@ class InboxSchedule:
     def wake(self) -> None:
         """From any thread: look again now (an item changed)."""
         if self._loop is not None and self._wake is not None:
-            self._loop.call_soon_threadsafe(self._wake.set)
+            try:
+                self._loop.call_soon_threadsafe(self._wake.set)
+            except RuntimeError:  # its loop has ended (shutting down): nothing to wake
+                pass
 
     def _round(self) -> datetime | None:
         """Blocking: due dates acted on, the nudge; when the next due date falls."""

@@ -400,7 +400,7 @@ def create_app(
         watches=watches,
         direct=DirectAccess(nodes, node_sessions.call), feature_settings=feature_settings,
         chip_groups=chip_groups, project_order=project_order, playbook=playbook,
-        project_colours=project_colours, inbox=inbox,
+        project_colours=project_colours, inbox=inbox, inbox_work=inbox_work, inbox_schedule=inbox_schedule,
         search=search, indexer=indexer, listen=listen, tts=tts,
         triggers=triggers, trigger_service=trigger_service,
         node_sessions=node_sessions, mcp=mcp, asr=asr, asr_dictionary=dictionary_store,
