@@ -26,6 +26,16 @@ async function swipe(page: Page, n: number, dx: number) {
     )
 }
 
+/** The chip `name` chosen: clicked again only while it is not (the row draws again as its data comes, and a
+ *  click on a link being replaced was lost on a loaded runner; a second click on a chosen chip lets it go). */
+async function choose(page: Page, name: string) {
+  const link = chips(page).getByRole('link', { name: new RegExp(`^${name}`) })
+  await expect(async () => {
+    if ((await link.getAttribute('data-current')) !== 'true') await link.click()
+    await expect(link).toHaveAttribute('data-current', 'true', { timeout: 2000 })
+  }).toPass({ timeout: 15_000 })
+}
+
 async function start(page: Page, width: number, height: number) {
   await page.setViewportSize({ width, height })
   await page.goto(`${DEMO}#/`)
@@ -106,26 +116,19 @@ test('each chip opens the session last opened under it again', async ({ page }) 
   const open = () => page.evaluate(() => decodeURIComponent(location.hash.split('?')[0]!))
   const rows = list(page).locator('[data-row-link]')
   const session = /^#\/d\/demo\/s\//
-  await chips(page)
-    .getByRole('link', { name: /^Product/ })
-    .click()
-  await expect(current(page)).toHaveText(/^Product/)
+  await choose(page, 'Product')
   await expect.poll(open).toMatch(session) // nothing remembered yet: its first
   const first = await open()
   await rows.nth(1).click() // not its first, which a switch would open anyway
   await expect.poll(open).not.toBe(first)
   const product = await open()
-  await chips(page).getByRole('link', { name: /^Ops/ }).click()
-  await expect(current(page)).toHaveText(/^Ops/)
+  await choose(page, 'Ops')
   await expect.poll(open).not.toBe(product)
   const opsFirst = await open()
   await rows.last().click()
   await expect.poll(open).not.toBe(opsFirst)
   const ops = await open()
-  await chips(page)
-    .getByRole('link', { name: /^Product/ })
-    .click()
-  await expect(current(page)).toHaveText(/^Product/)
+  await choose(page, 'Product')
   await expect.poll(open).toBe(product)
   // And by the wheel, back to Ops' session.
   await page.mouse.move(...(await center(rows.first())))
