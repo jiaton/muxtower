@@ -19,7 +19,7 @@ export const PROGRESS: Partial<Record<Continuation['step'], string>> = {
 const runLabel = (last: Continuation | undefined) =>
   last?.step === 'failed' ? (last.retry ? 'Retry' : 'Try again') : 'Continue in terminal'
 
-/** Continue in terminal, said first: it closes in the Claude app (everywhere on the account), then goes on in a
+/** Continue in terminal, said first: it closes in the Claude app (archived on the account), then goes on in a
  *  terminal on its machine with its whole conversation, typed into as the owner. Why it cannot is said here
  *  (its transcript is looked for as it opens), then how far it got, and how it ended; once it runs in its
  *  pane, that session opens. */
@@ -47,8 +47,9 @@ export function ContinueDialog({ daemonId, session, onClose }: { daemonId: strin
       <DialogContent title="Continue in terminal">
         <div className="flex flex-col gap-3">
           <p className={ink.body}>
-            {session.name} closes in the Claude app (and on claude.ai and your phone), then goes on in a terminal on {where}, its whole
-            conversation kept. muxtower then types into it as you: nothing waits for Deliver.
+            {session.name} closes in the Claude app and goes on in a terminal on {where}, its whole conversation kept. You can still follow
+            it from the Claude apps (claude.ai, your phone): the terminal is on Remote Control. muxtower types into it as you, so nothing
+            waits for Deliver.
           </p>
           {check.isLoading ? <p className={ink.hint}>Looking for its conversation on {where}…</p> : null}
           {blocked ? <Banner tone="warning">{blocked}</Banner> : null}

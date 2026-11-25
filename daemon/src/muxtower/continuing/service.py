@@ -4,12 +4,13 @@ Control peer, whose outward actions Claude refuses and whose messages wait for D
 
 1. It must run on this daemon's machine or a linked node that is online (not in Anthropic's cloud), have its
    transcript there, and be between turns (`blocked`).
-2. It is closed everywhere first: archived on the Claude account (as Archive does), read back so; if that
+2. It is closed in the Claude app first: archived on the Claude account (as Archive does), read back so; if that
    fails or cannot be read back, nothing is started. Never two live copies writing one transcript: it is
    started only once no process on its machine has the conversation open any more (the desktop app lets go).
 3. It is resumed in a pane there, in its folder (`claude --resume <conversation>`), by the normal launcher.
 4. The Remote Control entry folds into the pane session (`carry.py`): one session, its name, project, role,
-   note, chips and read state kept.
+   note, chips and read state kept. The pane runs with Remote Control, as every pane does, so the Claude apps
+   show it again, now as this pane's session (the owner can still follow it there; owner's choice, 0.1.216).
 
 Each run is kept (`Job`): a second click while it runs, or after, starts nothing again; a pane that did not
 start is said so and started again on the next POST (Retry), its conversation safe in its transcript."""

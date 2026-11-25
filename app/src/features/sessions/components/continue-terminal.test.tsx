@@ -97,7 +97,9 @@ it('it says what happens, shows its progress, then opens the pane session', asyn
   )
   renderActions(desk)
   fireEvent.click(await screen.findByRole('button', { name: 'Continue in terminal' }))
-  expect(await screen.findByText(/closes in the Claude app \(and on claude.ai and your phone\), then goes on in a terminal on build-box/)).toBeInTheDocument()
+  expect(
+    await screen.findByText(/closes in the Claude app and goes on in a terminal on build-box.*still follow it from the Claude apps/),
+  ).toBeInTheDocument()
   const run = await screen.findAllByRole('button', { name: 'Continue in terminal' })
   await waitFor(() => expect(run.at(-1)).toBeEnabled())
   fireEvent.click(run.at(-1)!)

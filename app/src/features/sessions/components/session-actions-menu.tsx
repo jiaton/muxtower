@@ -15,7 +15,7 @@ import { withKeys, type ShortcutId } from '@/lib/shortcuts'
 import { useShortcut } from '@/lib/use-shortcut'
 import { useUpdateSession } from '../api/use-session-mutations'
 import { NotifyItems } from './notify-items'
-import { roleShown } from '../model/facets'
+import { deviceOf, roleShown } from '../model/facets'
 import { ACTION_KEYS, SessionActions, type SessionAction } from './session-actions'
 
 const MENU_LABEL: Record<SessionAction['id'], (session: Session) => string> = {
@@ -37,7 +37,7 @@ const MENU_LABEL: Record<SessionAction['id'], (session: Session) => string> = {
 const DETAIL: Partial<Record<SessionAction['id'], (session: Session) => string>> = {
   team: (s) => roleShown(s) ?? 'No role yet',
   archive: () => 'Ends the agent, keeps the history',
-  continue: () => 'Closes it in the Claude app, goes on in a terminal',
+  continue: (s) => `Closes it in the Claude app, goes on in a terminal on ${deviceOf(s) ?? 'its machine'}`,
   resume: (s) => (s.archived_at ? 'Starts it again, its conversation where it left off' : ''),
 }
 
