@@ -18,6 +18,7 @@ import { folderSuggestions } from '../model/counts'
 import { agentName } from '../model/facets'
 import { useNewSessionPrefs } from '../store'
 import { AgentMark } from './agent-mark'
+import { NewSessionPlaces } from './new-session-places'
 
 import { splitArgs } from '../model/launch'
 import { LaunchOptions } from './launch-options'
@@ -194,6 +195,7 @@ export function NewSessionDialog({
               <Switch checked={headless} onCheckedChange={setHeadless} aria-label="Headless" />
             </label>
           ) : null}
+          {preset?.places && preset.places.length > 1 ? <NewSessionPlaces places={preset.places} cwd={cwd} onPick={setCwd} /> : null}
           <Label>
             Directory
             <SuggestInput

@@ -72,3 +72,29 @@ it("started from a session, the new one is set to that session's project", async
   expect(sent).toHaveLength(1)
   expect(teams[0]).toEqual({ project: 'acme/shop', rename_project: false })
 })
+
+it('from a session working deeper than it started: both folders, where it works now first and picked', async () => {
+  const places = [
+    { label: 'Where it works now' as const, cwd: '/home/me/workspace/launch-plan' },
+    { label: 'Where it started' as const, cwd: '/home/me/workspace' },
+  ]
+  const sent = show((daemonId) => ({ daemonId, node: null, cwd: places[0]!.cwd, places }))
+  const now = await screen.findByRole('button', { name: 'Where it works now: …/launch-plan' })
+  const started = screen.getByRole('button', { name: 'Where it started: …/workspace' })
+  expect(now.compareDocumentPosition(started) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  expect(now).toHaveAttribute('aria-pressed', 'true')
+  expect(started).toHaveAttribute('aria-pressed', 'false')
+  expect(screen.getByRole('combobox')).toHaveValue('/home/me/workspace/launch-plan')
+  fireEvent.click(started)
+  expect(screen.getByRole('combobox')).toHaveValue('/home/me/workspace')
+  expect(started).toHaveAttribute('aria-pressed', 'true')
+  fireEvent.click(screen.getByRole('button', { name: 'Start' }))
+  await waitFor(() => expect(sent).toHaveLength(1))
+  expect(sent[0]).toMatchObject({ cwd: '/home/me/workspace' })
+})
+
+it('one folder: no choice to make, as before', async () => {
+  show((daemonId) => ({ daemonId, node: null, cwd: '/home/me/workspace' }))
+  expect(await screen.findByRole('combobox')).toHaveValue('/home/me/workspace')
+  expect(screen.queryByRole('button', { name: /Where it/ })).toBeNull()
+})

@@ -21,6 +21,7 @@ from muxtower.sessions.naming import seen as seen_name
 from muxtower.sessions.ports import ClaudeProcessPort
 from muxtower.sessions.reconcile import Reconciler
 from muxtower.sessions.service import SessionService
+from muxtower.sessions.transcript_cwd import TranscriptCwds
 from muxtower.terminal.patches import ScreenFeed
 from muxtower.terminal.ports import PaneInfo
 
@@ -75,6 +76,7 @@ class Monitor(Reconciler):
         self._woken: asyncio.Event | None = None
         self.after_tick: Callable[[], None] | None = None  # set by the app: messages held for a prompt go in
         self.screen_feed = ScreenFeed()  # shared with the hub's node screens (app.py)
+        self.cwds = TranscriptCwds()  # where each agent works now, read once per version of its transcript
 
     def wake(self) -> None:
         """From any thread: look again soon instead of at the next interval (input was just sent, a hook
@@ -167,6 +169,8 @@ class Monitor(Reconciler):
             in_background = bool(moved and pid and moved(pid, text))
             if transcript:
                 svc.know_agent(record, transcript)
+            if (works_in := self.cwds.latest(transcript) if transcript else None) != live.works_in:
+                live.works_in, result.sessions_changed = works_in, True
             if remote_id and remote_id != live.remote_id:  # a new bridge (a restart, a resume): the old ones stay its
                 formers = getattr(self.processes, "former_remote_ids", None)
                 svc.repo.note_remote_ids(record.id, [remote_id, *(formers(pid) if formers else [])])
@@ -192,6 +196,7 @@ class Monitor(Reconciler):
                 result.sessions_changed = True
             if entered:
                 result.attention.append(record.id)
+        self.cwds.forget({t for live in svc.live.values() if (t := live.transcript)})
         self.timings.append(TickTiming(now, time.perf_counter() - started, slowest))
         if self.after_tick is not None:
             try:

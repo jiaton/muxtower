@@ -40,7 +40,8 @@ def merged(local: Session, remote: Session, named: bool = False) -> Session:
             "updated_at": remote.updated_at,
             "output_at": remote.output_at,
             "cwd": local.cwd or remote.cwd,
-            "working_dir": deeper(local.cwd, remote.cwd) or local.working_dir,
+            # Its transcript's latest folder (it follows a `cd`), else the remote side's.
+            "working_dir": local.working_dir or deeper(local.cwd, remote.cwd),
             "last_message": local.last_message or remote.last_message,
             "capabilities": local.capabilities.model_copy(update={"conversation": True}),
             "fork_of": local.fork_of or remote.fork_of,

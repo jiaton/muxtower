@@ -61,4 +61,19 @@ describe('presets for a new session', () => {
     const s = hub({ cwd: '/w/feature/src', git: { repo: '/code/shop', worktree: '/w/feature' } as Session['git'] })
     expect(presetForSession('d1', s, NODES)?.cwd).toBe('/w/feature')
   })
+  it('where its agent works now, inside where it started: that first, then the start; equal: just the one', () => {
+    const deeper = nodeTmux({ cwd: '/Users/me/workspace', working_dir: '/Users/me/workspace/launch-plan' })
+    expect(presetForSession('d1', deeper, NODES)).toEqual({
+      daemonId: 'd1',
+      node: 'mac',
+      cwd: '/Users/me/workspace/launch-plan',
+      places: [
+        { label: 'Where it works now', cwd: '/Users/me/workspace/launch-plan' },
+        { label: 'Where it started', cwd: '/Users/me/workspace' },
+      ],
+    })
+    const same = nodeTmux({ cwd: '/Users/me/workspace', working_dir: '/Users/me/workspace/' })
+    expect(presetForSession('d1', same, NODES)).toEqual({ daemonId: 'd1', node: 'mac', cwd: '/Users/me/workspace' })
+    expect(presetForSession('d1', nodeTmux({ working_dir: null }), NODES)).not.toHaveProperty('places')
+  })
 })

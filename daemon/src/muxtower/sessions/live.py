@@ -73,6 +73,7 @@ class LiveSession:
     remote_id: str | None = None  # the same agent's Remote Control session (see claude_processes.py)
     transcript: str | None = None  # its Claude Code transcript file, when it has one
     hook_transcript: str | None = None  # the transcript its hooks last named
+    works_in: str | None = None  # the folder its transcript's latest line was written in (`transcript_cwd.py`)
     title: str | None = None  # the name its Claude Code goes by, when it has one
     title_origin: AgentName | None = None  # where that name came from, and since when
     alt_screen: bool = False  # draws full screen: tmux keeps no scrollback for it

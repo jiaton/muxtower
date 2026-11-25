@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 from muxtower.runtimes.models import ATTENTION_STATES
 from muxtower.sessions.interrupted import interrupted_view
 from muxtower.sessions.launch import mode_of
+from muxtower.sessions.merged import deeper
 from muxtower.sessions.models import Capabilities, Session
 from muxtower.sessions.naming import as_seen, chosen
 from muxtower.sessions.ports import SessionRecord, SessionSource
@@ -29,6 +30,7 @@ def session_view(svc: "SessionService", record: SessionRecord) -> Session:
         permission_mode=mode_of(record.launch_args, runtime.config) if runtime else None,
         runtime=record.runtime,
         cwd=record.cwd,
+        working_dir=deeper(record.cwd, live.works_in) if live.works_in else None,
         source=record.source,
         tmux_socket=record.pane.socket,
         tmux_session=record.tmux_session,

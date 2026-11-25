@@ -23,6 +23,8 @@ src/muxtower/
               claude_processes.py: links a pane's Claude Code to its Remote Control session (one entry per agent)
               and to its transcript (claude_files.py: its process files and transcripts, read again only once they
               change); transcripts.py: a tmux session's conversation, read from that transcript;
+              transcript_cwd.py: where its agent works now (`working_dir`), its transcript's latest folder, read
+              once per version of the file (then only what was appended);
               marks.py: the owner's marks (unread, hidden, notify level); decorate.py: what the directory fills in; archive.py / archiving.py: archived sessions (ended, kept
               to read); placement.py: where the owner says a session runs; merged.py: a tmux pane and its Remote Control session as one entry; turns.py: finished turns;
               former_bridges.py: Remote Control sessions on their own that a live session's conversation ran before, found by

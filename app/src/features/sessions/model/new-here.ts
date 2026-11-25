@@ -8,6 +8,14 @@ export interface NewSessionPreset {
   node: string | null
   cwd: string
   project?: string
+  /** The folders to pick from when there is more than one (`cwd` is the first): where its agent works now,
+   *  then where it started. */
+  places?: NewSessionPlace[]
+}
+
+export interface NewSessionPlace {
+  label: 'Where it works now' | 'Where it started'
+  cwd: string
 }
 
 /** The computer a session runs on, as the new-session dialog names it: a node's name, or null for the
@@ -26,12 +34,22 @@ const folderOfSession = (s: Session) => s.git?.worktree ?? s.cwd ?? ''
 
 /** "New session here", on a session: its machine, its folder, and its project (set, or from git), which the
  *  new one is set to; none for one whose project is only its folder's name (no project). Null where its
- *  computer cannot start one. */
+ *  computer cannot start one. Its folder is where its agent works now (`working_dir`, a folder inside the one
+ *  it started in), offered with the one it started in; else that one alone. */
 export function presetForSession(daemonId: string, session: Session, nodes: readonly string[]): NewSessionPreset | null {
   const node = computerOf(session, nodes)
   if (node === undefined) return null
   const project = session.project && session.project_source !== 'folder' ? session.project : null
-  return { daemonId, node, cwd: folderOfSession(session), ...(project ? { project } : {}) }
+  const started = folderOfSession(session)
+  const now = session.working_dir?.replace(/\/+$/, '')
+  const places: NewSessionPlace[] | null =
+    now && now !== started.replace(/\/+$/, '')
+      ? [
+          { label: 'Where it works now', cwd: now },
+          { label: 'Where it started', cwd: started },
+        ]
+      : null
+  return { daemonId, node, cwd: places ? now! : started, ...(project ? { project } : {}), ...(places ? { places } : {}) }
 }
 
 /** The first of `entries` whose computer can start a session, with that computer. */
