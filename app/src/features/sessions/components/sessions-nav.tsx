@@ -1,4 +1,4 @@
-import { Link, useNavigate, useRouter, useSearch } from '@tanstack/react-router'
+import { Link, useMatch, useNavigate, useRouter, useSearch } from '@tanstack/react-router'
 import { Archive, CircleAlert, CircleCheck, EyeOff, Layers, LoaderCircle, Monitor, RotateCcw, UserRound } from 'lucide-react'
 import { createContext, useContext, useState, type MouseEvent, type ReactNode } from 'react'
 import { NavCount, NavSection, navItemClass, navItemRoom, navSubItemClass } from '@/components/ui/nav'
@@ -77,7 +77,9 @@ function ScopeLink({
   const openSole = useContext(SoleOpener)
   const replace = useContext(Replace)
   const target = scopeSearch(search, scope)
-  const elsewhere = Boolean(useMatch({ from: '/_sessions/inbox', shouldThrow: false })) // the Inbox is what is open
+  // The Inbox is what is open. A boolean (`select`), not the whole match: every link would draw again at each
+  // navigation otherwise (0.1.218's switch speed).
+  const elsewhere = useMatch({ from: '/_sessions/inbox', shouldThrow: false, select: () => true }) === true
   return (
     <Link
       to="/"
