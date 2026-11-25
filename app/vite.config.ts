@@ -52,6 +52,10 @@ function kwsWasmFromCdn(): Plugin {
 const ANALYTICS_TOKEN = (process.env.MUXTOWER_APP_ANALYTICS_TOKEN ?? '').trim()
 if (ANALYTICS_TOKEN && !/^[0-9a-f]{32}$/.test(ANALYTICS_TOKEN)) throw new Error('MUXTOWER_APP_ANALYTICS_TOKEN: expected 32 hex digits')
 
+// MUXTOWER_PROFILE=1 (measuring only): React's profiling build and unminified code, so a trace's call tree and a
+// commit's fibers carry the components' names (`e2e/switch-speed.spec.ts`).
+const PROFILE = process.env.MUXTOWER_PROFILE === '1'
+
 export default defineConfig(({ mode }) => ({
   base,
   define: {
@@ -60,7 +64,7 @@ export default defineConfig(({ mode }) => ({
   },
   // Source maps written beside the bundle but not linked from it ('hidden'): the stack of an error a device
   // reports (`lib/error-report.ts`) is mapped back with them, and no browser fetches them.
-  build: mode === 'demo' ? { outDir: 'dist-demo' } : { sourcemap: 'hidden' },
+  build: { ...(mode === 'demo' ? { outDir: 'dist-demo' } : { sourcemap: 'hidden' as const }), ...(PROFILE ? { minify: false } : {}) },
   worker: { format: 'es', plugins: () => [kwsWasmFromCdn()] },
   optimizeDeps: { exclude: ['@sherpaw/kws'] },
   plugins: [
@@ -102,7 +106,12 @@ export default defineConfig(({ mode }) => ({
           },
         }),
   ],
-  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  resolve: {
+    alias: {
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      ...(PROFILE ? { 'react-dom/client': 'react-dom/profiling' } : {}),
+    },
+  },
   server: {
     // Same-origin in dev, exactly like the bundled UI served by `muxtower serve`: no CORS involved.
     // The demo's hub is simulated in the page (`src/demo/`): it reaches no daemon (a dev server once fetched

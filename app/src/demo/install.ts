@@ -4,6 +4,7 @@ import { useLive } from '@/features/voice/live/engine'
 import type { Heard } from '@/features/voice/live/pipeline'
 import { useDaemonsStore } from '@/lib/daemons/store'
 import { scenes } from './scenes'
+import { crowd } from './scenes/crowd'
 import { DEMO_DAEMON, NODE, demoSession } from './scenes/session'
 import { respond } from './server'
 import { DemoSocket } from './socket'
@@ -22,7 +23,11 @@ export const DIRECT_URL = 'https://laptop.demo.invalid'
 export function installDemo() {
   // The clip recorder can hold the demo's own story (its scenes' timed steps), so that only it moves things.
   let held = false
-  const world = new World(scenes(), (run, ms) => void setTimeout(() => held || run(), ms))
+  // `?sessions=<n>`: made-up sessions added until the hub lists n (measuring the list at size, e2e).
+  const cast = scenes()
+  const listed = cast.filter((s) => !s.session.archived_at).length
+  const total = Number(new URLSearchParams(location.search).get('sessions') ?? 0)
+  const world = new World([...cast, ...crowd(listed, total)], (run, ms) => void setTimeout(() => held || run(), ms))
   const origin = new URL(DEMO_DAEMON.url).origin
   const at = (url: string, place: string) => new URL(url).origin.replace(/^ws/, 'http') === place
   const hubDown = new URLSearchParams(location.search).get('hub') === 'down'
