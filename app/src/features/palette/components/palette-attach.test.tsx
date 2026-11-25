@@ -18,7 +18,10 @@ const entry = {
 } as unknown as SessionEntry // prettier-ignore
 vi.mock('@tanstack/react-router', async (actual) => ({
   ...(await actual<typeof import('@tanstack/react-router')>()),
-  useMatch: () => ({ params: { daemonId: 'box', sessionId: 's1' } }),
+  useMatch: (opts?: { select?: (match: unknown) => unknown }) => {
+    const match = { params: { daemonId: 'box', sessionId: 's1' } }
+    return opts?.select ? opts.select(match) : match
+  },
   useNavigate: () => () => undefined,
 }))
 vi.mock('@/features/sessions/hooks/use-session-entries', () => ({ useSessionEntries: () => ({ entries: [entry] }) }))

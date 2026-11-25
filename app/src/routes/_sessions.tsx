@@ -63,7 +63,13 @@ function SessionsLayout() {
   }
   const { entries, daemons, loading } = useSessionEntries()
   const unpaired = useUnpairedDaemons()
-  const open = useMatch({ from: '/_sessions/d/$daemonId/s/$sessionId', shouldThrow: false })
+  // Its params only, kept while equal: the layout draws again when another session opens, not on each step
+  // of the router's navigation (the match itself is a new object at each).
+  const open = useMatch({
+    from: '/_sessions/d/$daemonId/s/$sessionId',
+    shouldThrow: false,
+    select: (m) => ({ params: m.params }),
+  })
   const panes = usePanes(Boolean(open))
   const asDrawer = panes.listInDrawer // beside an open session the layout leaves out, as on a phone
   const listPane = useRef<HTMLElement>(null)

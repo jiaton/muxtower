@@ -47,9 +47,14 @@ export function paletteKey(e: KeyboardEvent): boolean {
  *  commands, some on the session in front. Its commands on that session are the session's own actions
  *  (`SessionActions`), so they open the same dialogs. */
 export function PaletteHost() {
-  const page = useMatch({ from: '/_sessions/d/$daemonId/s/$sessionId', shouldThrow: false })
+  // The open session's key only: drawn again when it changes, not at each step of a navigation.
+  const openKey = useMatch({
+    from: '/_sessions/d/$daemonId/s/$sessionId',
+    shouldThrow: false,
+    select: (m) => entryKey(m.params.daemonId, m.params.sessionId),
+  })
   const { entries } = useSessionEntries()
-  const current = page ? entries.find((e) => e.key === entryKey(page.params.daemonId, page.params.sessionId)) : undefined
+  const current = openKey ? entries.find((e) => e.key === openKey) : undefined
   const note = useRecentSessions((s) => s.note)
   useEffect(() => {
     if (current) note(current.key)

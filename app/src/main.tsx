@@ -15,10 +15,13 @@ import './styles/tokens.css'
 // The demo build (`src/demo/`) lives on a static site that serves one page for it: it routes by the hash.
 // A page that fails to draw shows our own screen (reported, reloading once on its own), not the router's.
 const defaultErrorComponent = ({ error }: { error: unknown }) => <AppErrorScreen error={error} />
+// Structural sharing: what a hook reads from the router (search params, a match's params) keeps its
+// identity while equal. Without it each step of a navigation hands every reader a new object (validated
+// search is parsed again), and the list, the sidebar and the chips drew again at each, several times a click.
 const router = createRouter(
   import.meta.env.MODE === 'demo'
-    ? { routeTree, history: createHashHistory(), defaultErrorComponent }
-    : { routeTree, basepath: import.meta.env.BASE_URL, defaultErrorComponent },
+    ? { routeTree, history: createHashHistory(), defaultErrorComponent, defaultStructuralSharing: true }
+    : { routeTree, basepath: import.meta.env.BASE_URL, defaultErrorComponent, defaultStructuralSharing: true },
 )
 
 declare module '@tanstack/react-router' {

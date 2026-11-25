@@ -197,7 +197,8 @@ export function SessionsNav({ replace = false }: { replace?: boolean }) {
   const hues = useProjectColours() // each project's colour, a dot before its name
   const facets = facetsOf(entries)
   const usage = useMachineUsage()
-  const search = parseListSearch(useSearch({ strict: false }) as Record<string, unknown>)
+  // Parsed in the selector, so it keeps its identity while equal (structural sharing).
+  const search = useSearch({ strict: false, select: (s) => parseListSearch(s as Record<string, unknown>), structuralSharing: true })
   const openSole = useSoleOpener(entries)
 
   return (
