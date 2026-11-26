@@ -6,15 +6,19 @@ import { C, only } from './theme'
 const TONES = [C.accent, '#0f8a5a', '#a35a00']
 
 /** Which machine each part of a screen is on: a bracket beside the window along that machine's rows, and
- *  its name (and what it is, e.g. "hub") at the bracket's middle. Drawn in the picture, outside the window. */
+ *  its name (and what it is, e.g. "hub") at the bracket's middle. Drawn in the picture, outside the window;
+ *  gone again after a `machines-off` (fading out). */
 export function Machines({ events, t, boxes, first }: { events: ClipEvent[]; t: number; boxes: Record<string, Box>; first?: string }) {
   const machines = only(events, 'machine')
+  const off = only(events, 'machines-off').find((o) => o.t <= t)
+  const left = off ? Math.max(0, 1 - (t - off.t) / 0.3) : 1
+  if (!left) return null
   return (
     <>
       {machines.map((m, i) => {
         const box = boxes[m.view ?? first ?? '']
         if (!box || m.t > t) return null
-        const seen = Math.min(1, (t - m.t) / 0.4)
+        const seen = Math.min(1, (t - m.t) / 0.4) * left
         const top = box.inner.y + m.rect.y * box.k + 4
         const bottom = box.inner.y + (m.rect.y + m.rect.height) * box.k - 4
         const x = box.x - 30

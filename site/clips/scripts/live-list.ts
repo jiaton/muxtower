@@ -33,6 +33,16 @@ const row = (page: Page, name: string) =>
     .filter({ visible: true })
     .first()
 
+/** Scrolls the list `row` is in (smoothly, as a finger would) until the row sits `below` px under its top. */
+const scrollTo = (target: ReturnType<typeof row>, below: number) =>
+  target.evaluate((el, below) => {
+    let list = el.parentElement
+    while (list && !(list.scrollHeight > list.clientHeight && getComputedStyle(list).overflowY !== 'visible')) list = list.parentElement
+    if (!list) return
+    const top = el.getBoundingClientRect().top - list.getBoundingClientRect().top
+    list.scrollBy({ top: top - below, behavior: 'smooth' })
+  }, below)
+
 /** The same scene on every screen: everyone at work, nothing waiting, this session open. */
 async function scene(page: Page) {
   await page.evaluate(
@@ -116,6 +126,8 @@ async function run(r: Recorder) {
 
   r.caption('Swipe a row for quick actions')
   await phone.focus(null)
+  await scrollTo(row(page, 'docs'), 240)
+  await r.wait(600)
   await phone.swipe(row(page, 'docs'), -230, 380)
   await r.wait(100)
   await phone.click(page.getByRole('button', { name: 'Pin', exact: true }).filter({ visible: true }).first(), 300)
@@ -125,14 +137,7 @@ async function run(r: Recorder) {
   r.caption('Hold it for everything else')
   await phone.focus(null)
   // Down the list to the release notes and their forks, the tree in view.
-  await row(page, 'Release notes for 2.4').evaluate((el) => {
-    let list = el.parentElement
-    while (list && !(list.scrollHeight > list.clientHeight && getComputedStyle(list).overflowY !== 'visible'))
-      list = list.parentElement
-    if (!list) return
-    const top = el.getBoundingClientRect().top - list.getBoundingClientRect().top
-    list.scrollBy({ top: top - 160, behavior: 'smooth' })
-  })
+  await scrollTo(row(page, 'Release notes for 2.4'), 160)
   await r.wait(700)
   await phone.press(row(page, 'Release notes for 2.4'), 600)
   await r.wait(500)

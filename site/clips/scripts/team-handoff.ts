@@ -1,8 +1,9 @@
 /** Clip 2, "One team, two machines": the acme-shop team, its agents on the hub (build-box) and on the
  *  laptop, the list grouped by machine. The PM gives each agent its role, hands the work to the tech lead,
  *  who splits it across the machines and watches the workers; their reports go back up, and the demo agent
- *  gets its task. The list, the conversations and their tool calls are the app's own; the arrows between
- *  rows (who handed work to whom) are drawn. */
+ *  gets its task. Last, the project's Team: its members, the tasks they sent each other, the playbook. The
+ *  list, the conversations, their tool calls and the Team are the app's own; the arrows between rows (who
+ *  handed work to whom) are drawn. */
 import type { Page } from 'playwright'
 import type { ClipScript, Recorder } from '../record.ts'
 
@@ -36,6 +37,28 @@ const TEAM = {
 } as const
 type Member = (typeof TEAM)[keyof typeof TEAM]
 const send = (to: Member) => `send_task → ${to.role} · ${to.on}`
+/** The tasks the clip shows sent, as the hub keeps them: the project's Team lists them (Recent tasks). */
+const TASKS: [Member, Member, string][] = [
+  [TEAM.pm, TEAM.lead, 'Ship order tracking: a page that shows where an order is.'],
+  [TEAM.lead, TEAM.backend, 'Add GET /orders/:id/tracking, with tests.'],
+  [TEAM.lead, TEAM.frontend, 'Build the tracking page on the new endpoint.'],
+  [TEAM.lead, TEAM.pm, 'Order tracking is done: API and page.'],
+  [TEAM.pm, TEAM.demo, 'Add order tracking to the demo.'],
+]
+const tasks = () =>
+  TASKS.map(([from, to, text], i) => {
+    const at = new Date(Date.now() - (TASKS.length - i) * 1000).toISOString()
+    return {
+      id: i + 1,
+      at,
+      from_id: from.id,
+      from_label: `${from.name} (${from.role})`,
+      to_id: to.id,
+      text,
+      status: 'delivered',
+      delivered_at: at,
+    }
+  })
 
 const row = (page: Page, m: Member) =>
   page
@@ -54,26 +77,29 @@ export const teamHandoff: ClipScript = {
 
 async function setup(page: Page) {
   await page.evaluate(
-    async ([team, project, laptop, pmItems, leadItems]) => {
+    async ([team, project, laptop, pmItems, leadItems, tasks]) => {
       const clip = (window as never as { muxtowerClip: Record<string, (...a: unknown[]) => unknown> }).muxtowerClip
       clip.hold!()
       // Only the team: the demo's own sessions go, and its groups of projects (one project needs none).
       for (const s of clip.sessions!() as { id: string }[]) clip.remove!(s.id)
       Object.values(team).forEach((m, i) => {
         const there = m.on === laptop
-        clip.add!({
-          id: m.id,
-          name: m.name,
-          cwd: there ? `/Users/dev/code/${project}` : `/home/dev/code/${project}`,
-          machine: m.on,
-          node: there ? laptop : null,
-          project,
-          team_role: null,
-          state: 'idle',
-          last_message: 'Ready for work.',
-          // In this order on each machine; changes keep it (`mark`).
-          updated_at: new Date(Date.now() - (i + 1) * 60_000).toISOString(),
-        })
+        clip.add!(
+          {
+            id: m.id,
+            name: m.name,
+            cwd: there ? `/Users/dev/code/${project}` : `/home/dev/code/${project}`,
+            machine: m.on,
+            node: there ? laptop : null,
+            project,
+            team_role: null,
+            state: 'idle',
+            last_message: 'Ready for work.',
+            // In this order on each machine; changes keep it (`mark`).
+            updated_at: new Date(Date.now() - (i + 1) * 60_000).toISOString(),
+          },
+          m.id === team.pm.id ? tasks : undefined,
+        )
       })
       clip.setItems!(team.pm.id, pmItems)
       clip.setItems!(team.lead.id, leadItems)
@@ -91,6 +117,7 @@ async function setup(page: Page) {
       LAPTOP,
       [item(1, 'prompt', 'Ship order tracking for acme-shop. Set up the team and run it.')],
       [item(1, 'prompt', '[muxtower task from Order tracking (pm)] Ship order tracking: a page that shows where an order is.')],
+      tasks(),
     ] as const,
   )
   await page.waitForTimeout(900)
@@ -190,5 +217,30 @@ async function run(r: Recorder) {
   await r.arrow(row(page, pm), row(page, demo), send(demo), 1800)
   await r.hook('mark', demo.id, { state: 'busy', last_message: 'Adding order tracking to the demo' })
   await r.focus(row(page, demo))
+  await r.wait(1400)
+
+  r.caption('Open the project’s team')
+  await r.focus(null)
+  r.machinesOff() // grouped by project next: the rows leave their machines' brackets
+  await r.click(page.getByRole('button', { name: 'List options' }).filter({ visible: true }).first(), 300)
+  await r.click(page.getByRole('menuitemradio', { name: 'Project' }), 500)
+  await r.click(
+    page
+      .getByRole('button', { name: `Team of ${PROJECT}` })
+      .filter({ visible: true })
+      .first(),
+    300,
+  )
+  const dialog = page.getByRole('dialog').filter({ visible: true }).first()
+  await dialog.getByText(TASKS[4]![2]).waitFor()
+  await r.focus(dialog)
   await r.wait(1600)
+  // Down to its end: the last tasks and the playbook's line.
+  await dialog.evaluate((el) => {
+    const scroller = [el, ...el.querySelectorAll('*')].find(
+      (e) => e.scrollHeight > e.clientHeight + 4 && /auto|scroll/.test(getComputedStyle(e).overflowY),
+    )
+    scroller?.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' })
+  })
+  await r.wait(2400)
 }

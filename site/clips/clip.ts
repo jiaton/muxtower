@@ -30,6 +30,8 @@ export type ClipEvent =
   | { t: number; kind: 'arrow'; view?: string; from: Rect; to: Rect; label: string; ms: number }
   /** A machine's part of the screen (its group of rows, top to bottom): a bracket beside the window, named. */
   | { t: number; kind: 'machine'; view?: string; rect: Rect; label: string; note?: string }
+  /** The machines' brackets fade out (the rows they name are about to move). */
+  | { t: number; kind: 'machines-off'; view?: string }
   /** A key pressed, shown as a key cap (`label`, e.g. "⏎ Enter"). */
   | { t: number; kind: 'key'; label: string }
   /** A line that appears in the drawn terminal. */

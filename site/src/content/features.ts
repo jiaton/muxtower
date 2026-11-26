@@ -33,12 +33,12 @@ export const featureCells = {
       'Silence uploads nothing',
       'Commands are heard on the device, never typed',
     ],
-    clip: 'Live: speaking into one session, then another, and saying send',
+    clip: 'Live: speaking into one session, then another, and saying send; then a finished turn read aloud',
   },
   keys: {
     title: 'Keyboard all the way',
     text: '⌘K opens any session or command, and searches every conversation on every machine. Select a line, Reply, Enter.',
-    clip: 'Replying to a selected line from the keyboard, on the live terminal',
+    clip: '⌘K finding a session by what it said, then replying to a selected line from the keyboard, on the live terminal',
   },
   api: {
     title: 'Build your own client',

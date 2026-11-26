@@ -31,6 +31,8 @@ export interface Screen {
   arrow(from: Locator, to: Locator, label: string, ms: number): Promise<void>
   /** Names a machine beside the window: the part from `top` to `bottom` (its group of rows) is on it. */
   machine(top: Locator, bottom: Locator, label: string, note?: string): Promise<void>
+  /** Takes the machines' names away (before the rows they bracket move). */
+  machinesOff(): void
   /** Calls the demo's clip hook (`window.muxtowerClip`). */
   hook(name: string, ...args: unknown[]): Promise<unknown>
   /** Changes sessions the way the demo's scenes do (`World.play`). */
@@ -241,6 +243,7 @@ export async function record(script: ClipScript, demoUrl: string, outDir: string
         const rect = { x: a.x, y: a.y, width: a.width, height: b.y + b.height - a.y }
         events.push({ t: now(), kind: 'machine', ...at, rect, label, note })
       },
+      machinesOff: () => void events.push({ t: now(), kind: 'machines-off', ...at }),
       hook: (name, ...args) =>
         page.evaluate(([name, args]) => (window as never as Hook).muxtowerClip[name as string]!(...(args as unknown[])), [
           name,

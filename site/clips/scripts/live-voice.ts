@@ -1,7 +1,7 @@
 /** Clip 3, "Talk instead of type": Live mode, and what sets it apart. What is said lands in the
  *  message box and "send" sends it; it follows to the next session without being turned on again; while
  *  nothing is said nothing goes anywhere; "pause" and "resume" are commands, heard on the phone, and never
- *  written. The demo has no microphone or speech recognition: the recorder sets Live's state through the
+ *  written. Then Read aloud: a turn that ends is summed up, its caption over the message box. The demo has no microphone or speech recognition: the recorder sets Live's state through the
  *  demo's clip hook, and the words said show as bubbles. */
 import type { Page } from 'playwright'
 import type { ClipScript, Recorder } from '../record.ts'
@@ -10,6 +10,8 @@ const A = 'shop-api'
 const B = 'web-app'
 const SAID_A = 'Retry the failed webhooks'
 const SAID_B = 'Use the chart library we already have'
+/** How web-app's turn ends (the demo's made-up summary of it is what Read aloud says, `demo/spoken.ts`). */
+const DONE_B = "The billing page now shows daily usage for the last 30 days, with the plan's limit as a line."
 const at = new Date().toISOString()
 const item = (seq: number, kind: string, text: string) => ({
   seq,
@@ -145,7 +147,7 @@ async function run(r: Recorder) {
   await r.wait(900)
   await r.click(rowOf(B), 300)
   await r.focus(null)
-  await r.wait(1500)
+  await r.wait(1100)
   await r.focus(footer)
   await r.wait(600)
   await dictate(B, SAID_B, 1700)
@@ -155,11 +157,25 @@ async function run(r: Recorder) {
   await r.wait(700)
 
   r.caption('Silent? Nothing is uploaded')
-  await r.wait(1700)
+  await r.wait(1200)
 
   r.caption('Commands are heard on the device, never typed')
   await command('pause', { phase: 'paused' })
   await r.wait(1200)
   await command('resume', { phase: 'listening' })
-  await r.wait(1400)
+  await r.wait(800)
+
+  r.caption('Read aloud sums up each finished turn')
+  await r.click(
+    page
+      .getByRole('button', { name: /^Read aloud/ })
+      .filter({ visible: true })
+      .first(),
+    500,
+  )
+  await r.play(B, [{ after: 0, session: { state: 'idle', unread: false, last_message: DONE_B }, items: [item(6, 'reply', DONE_B)] }])
+  const caption = page.getByRole('status', { name: 'Being read aloud' }).filter({ visible: true }).first()
+  await caption.waitFor()
+  await r.focus(caption)
+  await r.wait(2200)
 }

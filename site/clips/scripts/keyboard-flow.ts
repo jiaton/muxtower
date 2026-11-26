@@ -1,4 +1,5 @@
-/** Clip 4, "Keyboard flow", on the live terminal: the session's own screen (Claude Code as it is in tmux,
+/** Clip 4, "Keyboard flow": ⌘K finds a session by what its agent said (a search of every conversation)
+ *  and opens it, on the live terminal: the session's own screen (Claude Code as it is in tmux,
  *  forwarded), not the conversation read from its history. A passage of what the agent wrote on screen
  *  is selected and quoted (Reply); focus goes to that quote's own reply, Enter goes on to the message
  *  box, and Enter sends both, typed into the pane. Each key shows as a key cap. */
@@ -10,6 +11,10 @@ const ID = 'shop-api'
 const PASSAGE = 'retries up to 3 times with backoff'
 const QUOTE_REPLY = 'Make it 2 retries'
 const MAIN = 'Then open a PR'
+/** Typed into ⌘K: words of the agent's answer, found in its conversation. */
+const SEARCH = 'retries up to'
+/** Where the clip starts: another session, the one to find not in front. */
+const START = 'web-app'
 const gray = (s: string) => `\x1b[90m${s}\x1b[0m`
 
 export const keyboardFlow: ClipScript = {
@@ -43,12 +48,29 @@ async function setup(page: Page) {
   const terminal = page.locator('[aria-label="Terminal"]').filter({ visible: true })
   if (await terminal.count()) await terminal.first().click()
   await page.waitForTimeout(600)
+  // Another session in front: ⌘K brings this one back.
+  await page.evaluate((id) => void (location.hash = `#/d/demo/s/${id}`), START)
+  await page.waitForTimeout(900)
 }
 
 async function run(r: Recorder) {
   const { page } = r
   // On the session's screen, not the list (whose row shows the same last words).
   const screen = (text: string) => page.getByRole('log', { name: 'Session output' }).getByText(text, { exact: false }).last()
+  r.caption('⌘K finds any session, or what it said')
+  await r.wait(600)
+  await r.key('Control+KeyK', '⌘ K')
+  await r.wait(400)
+  const palette = page.getByRole('dialog').filter({ visible: true }).first()
+  await r.typeKeys(SEARCH, 800)
+  // Its sessions, then what was said in their conversations (the palette is in the window's middle: no
+  // camera move, which would cost the clip's bytes).
+  await palette.getByText('In conversations', { exact: false }).waitFor()
+  await r.wait(1400)
+  await r.key('Enter', '⏎ Enter')
+  await page.waitForFunction((id) => location.hash.includes(`/s/${id}`), ID)
+  await r.wait(900)
+
   r.caption('Works on the live terminal too')
   await r.focus(screen(PASSAGE))
   await r.wait(1100)

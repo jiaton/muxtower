@@ -40,7 +40,7 @@ export const team = {
     'Open a project’s team: who is on it, and the tasks sent lately.',
     'A playbook, in your words, tells every team how you work.',
   ],
-  clip: 'A team on two machines: the PM sets roles, the tech lead splits the work and watches, reports come back',
+  clip: 'A team on two machines: the PM sets roles, the tech lead splits the work and watches, reports come back; then the project’s team, with its recent tasks',
 }
 
 export const features = {
