@@ -7,12 +7,23 @@ import { ink } from './intents'
 const SWIPE_PX = 50 // a sideways move this far, let go: the next or the previous picture
 const DOUBLE_TAP_MS = 300
 const ZOOM = 2
+const CONTROLS_PX = 56 // the foot of a video, where the browser draws its controls: a drag there scrubs
+
+/** Where a pointer went down on a video (`VideoPlayer`): on its controls, or on its picture. */
+function onVideo(e: PointerEvent<HTMLDivElement>): 'controls' | 'picture' | null {
+  const target = e.target
+  if (!(target instanceof HTMLVideoElement)) return null
+  return e.clientY > target.getBoundingClientRect().bottom - CONTROLS_PX ? 'controls' : 'picture'
+}
 
 /**
- * Pictures shown large, one at a time, in a dialog: `count` of them, `index` the one shown, each drawn by
- * `slide(i)`. ←/→ (and the arrows on screen with a mouse) or a swipe go to the previous or next, "3 / 7"
- * says where; a double tap (or double click) zooms in, and the zoomed picture follows a drag; Esc or a tap
- * outside closes. Its pointer events stay in it: a swipe here never turns the page's views or goes back.
+ * Pictures and videos shown large, one at a time, in a dialog: `count` of them, `index` the one shown, each
+ * drawn by `slide(i)` (an <img>, or a `VideoPlayer`). ←/→ (and the arrows on screen with a mouse) or a swipe
+ * go to the previous or next, "3 / 7" says where; a double tap (or double click) zooms a picture in, and the
+ * zoomed picture follows a drag; Esc or a tap outside closes. A video is the browser's own player: a tap on
+ * it is the player's (never captured, never a zoom), a drag along its controls scrubs rather than swipes,
+ * and it pauses when the viewer moves on or closes. Its pointer events stay in it: a swipe here never turns
+ * the page's views or goes back.
  */
 export function ImageViewer({
   count,
@@ -37,10 +48,13 @@ export function ImageViewer({
   const gesture = useRef<{ x: number; y: number; dx: number; dy: number; from: { x: number; y: number } } | null>(null)
   const lastTap = useRef(0)
   const [pan, setPan] = useState({ x: 0, y: 0 })
+  const stage = useRef<HTMLDivElement>(null)
+  const pause = () => stage.current?.querySelectorAll('video').forEach((v) => v.pause())
 
   const go = (by: number) => {
     const next = at + by
     if (next < 0 || next >= count) return
+    pause()
     setZoom(null)
     setPan({ x: 0, y: 0 })
     onIndexChange(next)
@@ -48,7 +62,9 @@ export function ImageViewer({
 
   const down = (e: PointerEvent<HTMLDivElement>) => {
     e.stopPropagation()
-    e.currentTarget.setPointerCapture?.(e.pointerId)
+    const video = onVideo(e)
+    if (video === 'controls') return void (gesture.current = null)
+    if (!video) e.currentTarget.setPointerCapture?.(e.pointerId) // captured, a click would miss the player
     gesture.current = { x: e.clientX, y: e.clientY, dx: 0, dy: 0, from: pan }
   }
   const moveTo = (e: PointerEvent<HTMLDivElement>) => {
@@ -66,6 +82,7 @@ export function ImageViewer({
     if (!g) return
     const tapped = Math.abs(g.dx) < 8 && Math.abs(g.dy) < 8
     if (tapped) {
+      if (e.target instanceof HTMLVideoElement) return // the player's: play, pause, show its controls
       const now = Date.now()
       if (now - lastTap.current < DOUBLE_TAP_MS) {
         const box = e.currentTarget.getBoundingClientRect()
@@ -79,7 +96,7 @@ export function ImageViewer({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => (o ? undefined : (setZoom(null), onClose()))}>
+    <Dialog open={open} onOpenChange={(o) => (o ? undefined : (pause(), setZoom(null), onClose()))}>
       {open ? (
         <DialogContent
           title={title(at)}
@@ -92,6 +109,7 @@ export function ImageViewer({
         >
           <div className="relative flex min-h-0 items-center justify-center">
             <div
+              ref={stage}
               data-testid="image-stage"
               className="flex max-h-[70dvh] w-full touch-none items-center justify-center overflow-hidden select-none"
               onPointerDown={down}
@@ -115,7 +133,7 @@ export function ImageViewer({
                 <Button
                   variant="secondary"
                   size="icon"
-                  aria-label="Previous picture"
+                  aria-label="Previous"
                   disabled={at === 0}
                   onClick={() => go(-1)}
                   className="absolute left-1 hidden pointer-fine:inline-flex"
@@ -125,7 +143,7 @@ export function ImageViewer({
                 <Button
                   variant="secondary"
                   size="icon"
-                  aria-label="Next picture"
+                  aria-label="Next"
                   disabled={at === count - 1}
                   onClick={() => go(1)}
                   className="absolute right-1 hidden pointer-fine:inline-flex"

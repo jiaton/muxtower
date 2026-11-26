@@ -1,31 +1,30 @@
 import { ImageOff } from 'lucide-react'
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
 import { ImageViewer } from '@/components/ui/image-viewer'
+import { VideoPlayer, VideoThumb } from '@/components/ui/video'
+import { mediaKind } from '@/lib/media'
+import { useObjectUrl } from '@/lib/use-object-url'
 import { useSessionImage } from '../api/use-session-image'
 import { Spinner } from '@/components/ui/indicators'
 import { Button } from '@/components/ui/button'
 import { ink, look } from '@/components/ui/intents'
 
 const baseName = (path: string) => path.split('/').pop() ?? path
+const isVideo = (path: string) => mediaKind(path) === 'video'
 
-/** A blob as a URL for <img>, given back when the image goes. */
-function useObjectUrl(blob: Blob | undefined) {
-  const url = useMemo(() => (blob ? URL.createObjectURL(blob) : undefined), [blob])
-  useEffect(() => () => (url ? URL.revokeObjectURL(url) : undefined), [url])
-  return url
-}
-
-/** One image's file, as a URL for <img> (cached: a thumbnail and its large view load it once). */
+/** One picture's or video's file, as a URL for <img> or <video> (cached: a thumbnail and its large view
+ *  load it once). */
 function useImageUrl(daemonId: string, sessionId: string, path: string) {
   const image = useSessionImage(daemonId, sessionId, path)
   return { url: useObjectUrl(image.data), failed: image.isError }
 }
 
-/** Every image a conversation shows, in order, opened large one at a time (`ImageViewer`). */
+/** Every picture and video a conversation shows, in order, opened large one at a time (`ImageViewer`). */
 const Gallery = createContext<((path: string) => void) | null>(null)
 
-/** Around a conversation: its images (`paths`, all of them, in the order it shows them) as one gallery, so
- *  any of them opens large and the others are a swipe or an arrow key away. */
+/** Around a conversation: its pictures and videos (`paths`, all of them, in the order it shows them; a video
+ *  by its extension, `mediaKind`) as one gallery, so any of them opens large and the others are a swipe or
+ *  an arrow key away. */
 export function ConversationGallery({
   daemonId,
   sessionId,
@@ -58,6 +57,7 @@ export function ConversationGallery({
 function Large({ daemonId, sessionId, path }: { daemonId: string; sessionId: string; path: string }) {
   const { url, failed } = useImageUrl(daemonId, sessionId, path)
   if (!url) return failed ? <ImageOff className="size-6" aria-label={`${baseName(path)} not available`} /> : <Spinner />
+  if (isVideo(path)) return <VideoPlayer src={url} label={baseName(path)} />
   return <img src={url} alt={baseName(path)} draggable={false} />
 }
 
@@ -71,8 +71,18 @@ function SessionImage({ daemonId, sessionId, path, onOpen }: { daemonId: string;
       </span>
     )
   return (
-    <Button variant="plain" title={path} className={`${look.panel} overflow-hidden`} onClick={onOpen}>
-      <img src={url} alt={baseName(path)} className="block max-h-48 max-w-full object-contain" />
+    <Button
+      variant="plain"
+      title={path}
+      aria-label={isVideo(path) ? `Play ${baseName(path)}` : undefined}
+      className={`${look.panel} overflow-hidden`}
+      onClick={onOpen}
+    >
+      {isVideo(path) ? (
+        <VideoThumb src={url} className="aspect-video h-36" />
+      ) : (
+        <img src={url} alt={baseName(path)} className="block max-h-48 max-w-full object-contain" />
+      )}
     </Button>
   )
 }

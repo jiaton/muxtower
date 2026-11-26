@@ -1,4 +1,5 @@
 import { File as FileIcon, TriangleAlert } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { cn } from '@/lib/cn'
 import { Button } from './button'
 import { keepFocus } from './gesture'
@@ -9,7 +10,8 @@ import { box, text } from './styles'
  * A file attached to a message, beside its pictures and as tall as one: a file icon, its name cut in the
  * middle (`head` may end in an ellipsis, `tail` — the last letters and the extension — always shows), its
  * size, and a × on the corner. `uploading`: a bar along its foot fills with `progress` (0–1); `error`: why,
- * in the danger tone, and Retry where `onRetry` is given.
+ * in the danger tone, and Retry where `onRetry` is given. `thumb` (a video's `VideoThumb`, in a button that
+ * shows it) takes the file icon's place, unless it failed.
  */
 export function FileChip({
   name,
@@ -21,6 +23,7 @@ export function FileChip({
   error,
   onRetry,
   onRemove,
+  thumb,
 }: {
   name: string
   head: string
@@ -31,6 +34,7 @@ export function FileChip({
   error?: string
   onRetry?: () => void
   onRemove: () => void
+  thumb?: ReactNode
 }) {
   const failed = status === 'error'
   const percent = Math.round(Math.min(1, Math.max(0, progress)) * 100)
@@ -50,6 +54,8 @@ export function FileChip({
       >
         {failed ? (
           <TriangleAlert className={cn(text({ tone: 'danger' }), 'size-5 shrink-0')} aria-hidden />
+        ) : thumb ? (
+          <span className="size-10 shrink-0">{thumb}</span>
         ) : (
           <FileIcon className={cn(text({ tone: 'muted' }), 'size-5 shrink-0')} aria-hidden />
         )}

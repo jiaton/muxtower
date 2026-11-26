@@ -21,3 +21,17 @@ it('opens any image of the conversation in one gallery of all of them, in order'
   fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowRight' })
   expect(screen.getByRole('dialog')).toHaveTextContent('c.png')
 })
+
+it('shows a video as its first frame with a play mark, and plays it in the same gallery', () => {
+  const items = [item(1, ['/tmp/a.png']), item(2, ['/tmp/demo.webm'])]
+  render(<ConversationView items={items} source={{ daemonId: 'd1', sessionId: 's1' }} />, { wrapper: wrapper() })
+  const thumb = screen.getByRole('button', { name: 'Play demo.webm' })
+  expect(thumb.querySelector('video')?.controls).toBe(false) // a still, not a player
+  fireEvent.click(thumb)
+  expect(screen.getByText('2 / 2')).toBeInTheDocument()
+  const player = screen.getByLabelText('demo.webm', { selector: 'video' }) as HTMLVideoElement
+  expect(player.controls).toBe(true)
+  expect(player.autoplay).toBe(false)
+  fireEvent.keyDown(screen.getByRole('dialog'), { key: 'ArrowLeft' })
+  expect(screen.getByRole('img', { name: 'a.png' })).toBeInTheDocument()
+})
