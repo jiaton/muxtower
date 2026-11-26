@@ -6,8 +6,10 @@ import { Markdown } from '@/components/ui/markdown'
 import type { ConversationItem } from '@/lib/api/types'
 import { cn } from '@/lib/cn'
 import type { ShownOutgoing } from '@/lib/outbox'
+import { conversationMedia } from '../model/gallery'
 import { conversationRows, toolName, toolRunSummary } from '../model/rows'
 import { ConversationGallery, ConversationImages } from './conversation-images'
+import { SharedFileItem } from './shared-file'
 import { NextStepCard } from './next-step-card'
 import { Chevron, Spinner } from '@/components/ui/indicators'
 import { bubble, found, ink, look } from '@/components/ui/intents'
@@ -18,7 +20,7 @@ const FOUND_MS = 2500 // how long the item a search led to stays outlined
 /** How long a message the agent has not taken in waits before it offers to be sent again. */
 export const SEND_AGAIN_MS = 10 * 60_000
 
-/** Where the conversation is read from, for the images its items show. */
+/** Where the conversation is read from, for the images and shared files its items show. */
 export interface ConversationSource {
   daemonId: string
   sessionId: string
@@ -109,6 +111,12 @@ const ItemView = memo(function ItemView({
         <Images source={source} items={[item]} />
       </div>
     )
+  if (item.kind === 'shared' && item.shared)
+    return (
+      <div className={found(focused)}>
+        <SharedFileItem item={item} source={source} />
+      </div>
+    )
   const label = item.kind === 'question' ? 'Question' : (item.tool_name ?? 'Approval')
   return (
     <div className={`${look.alertCard} ${ink.body} px-3 py-2`}>
@@ -123,15 +131,7 @@ const ItemView = memo(function ItemView({
 /** A message the conversation has that the agent has not taken in yet (a `pending` prompt): faded, with
  *  where it waits (`waiting`: the Claude app's Deliver, for a session open there); a while on, still not
  *  taken in (denied there, or the dialog put away), it offers to be sent again. */
-function WaitingPrompt({
-  item,
-  waiting,
-  onSendAgain,
-}: {
-  item: ConversationItem
-  waiting: string
-  onSendAgain?: (text: string) => void
-}) {
+function WaitingPrompt({ item, waiting, onSendAgain }: { item: ConversationItem; waiting: string; onSendAgain?: (text: string) => void }) {
   const [seen] = useState(() => Date.now())
   const since = item.at ? Date.parse(item.at) : seen
   const [late, setLate] = useState(() => Date.now() - since >= SEND_AGAIN_MS)
@@ -271,8 +271,9 @@ export function ConversationView({
     return () => clearTimeout(done)
   }, [focus, hasFocus])
 
-  // Every image the conversation shows, in its order: one gallery (a tap on any opens it there).
-  const allImages = useMemo(() => [...new Set(items.flatMap((item) => item.images ?? []))], [items])
+  // Every picture and video the conversation shows, shared ones too, in its order: one gallery (a tap on
+  // any opens it there).
+  const allMedia = useMemo(() => conversationMedia(items), [items])
   const view = (
     <div className={`${look.surface} relative flex min-h-0 flex-1 flex-col overflow-hidden`}>
       <div
@@ -342,7 +343,7 @@ export function ConversationView({
     </div>
   )
   return source ? (
-    <ConversationGallery daemonId={source.daemonId} sessionId={source.sessionId} paths={allImages}>
+    <ConversationGallery daemonId={source.daemonId} sessionId={source.sessionId} media={allMedia}>
       {view}
     </ConversationGallery>
   ) : (

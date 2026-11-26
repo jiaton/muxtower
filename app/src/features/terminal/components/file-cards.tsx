@@ -4,9 +4,9 @@ import { FileChip } from '@/components/ui/file-chip'
 import { keepFocus } from '@/components/ui/gesture'
 import { ImageViewer } from '@/components/ui/image-viewer'
 import { VideoPlayer, VideoThumb } from '@/components/ui/video'
+import { formatSize, splitName } from '@/lib/file-name'
 import { mediaKind } from '@/lib/media'
 import { useObjectUrl } from '@/lib/use-object-url'
-import { formatSize, splitName } from '../files'
 import type { FileItem } from '../hooks/use-files'
 
 /** The row above what is typed: the message's pictures, then its files; it scrolls sideways when they do

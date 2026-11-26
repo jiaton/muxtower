@@ -25,6 +25,7 @@ export type ClaimResult = Schemas['ClaimResult']
 export type StreamSubscribe = Omit<Schemas['StreamSubscribe'], 'encoding'> & { encoding?: Schemas['StreamSubscribe']['encoding'] }
 export type StreamPing = Schemas['StreamPing']
 export type ConversationItem = Schemas['ConversationItem']
+export type SharedFile = Schemas['SharedFile']
 export type Conversation = Schemas['Conversation']
 export type TurnSummary = Schemas['TurnSummary']
 export type ServerFrame = Schemas['StreamSchema']['server']

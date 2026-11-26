@@ -1,108 +1,136 @@
 import { ImageOff } from 'lucide-react'
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { ImageViewer } from '@/components/ui/image-viewer'
 import { VideoPlayer, VideoThumb } from '@/components/ui/video'
-import { mediaKind } from '@/lib/media'
 import { useObjectUrl } from '@/lib/use-object-url'
 import { useSessionImage } from '../api/use-session-image'
+import { isGone, useSharedFile } from '../api/use-shared-file'
+import { isExpired, pathMedia, type GalleryMedia } from '../model/gallery'
 import { Spinner } from '@/components/ui/indicators'
 import { Button } from '@/components/ui/button'
 import { ink, look } from '@/components/ui/intents'
 
-const baseName = (path: string) => path.split('/').pop() ?? path
-const isVideo = (path: string) => mediaKind(path) === 'video'
-
 /** One picture's or video's file, as a URL for <img> or <video> (cached: a thumbnail and its large view
- *  load it once). */
-function useImageUrl(daemonId: string, sessionId: string, path: string) {
-  const image = useSessionImage(daemonId, sessionId, path)
-  return { url: useObjectUrl(image.data), failed: image.isError }
+ *  load it once): by its path, or as a file an agent shared. `gone`: a shared file the daemon no longer
+ *  keeps (expired, or a 404). */
+function useMediaUrl(daemonId: string, sessionId: string, media: GalleryMedia) {
+  const expired = media.from === 'shared' && isExpired(media.file)
+  const image = useSessionImage(daemonId, sessionId, media.from === 'path' ? media.path : '', media.from === 'path')
+  const shared = useSharedFile(daemonId, sessionId, media.from === 'shared' && !expired ? media.file : undefined)
+  const query = media.from === 'path' ? image : shared
+  return { url: useObjectUrl(query.data), failed: query.isError, gone: expired || (media.from === 'shared' && isGone(shared.error)) }
 }
 
 /** Every picture and video a conversation shows, in order, opened large one at a time (`ImageViewer`). */
-const Gallery = createContext<((path: string) => void) | null>(null)
+const Gallery = createContext<((key: string) => void) | null>(null)
 
-/** Around a conversation: its pictures and videos (`paths`, all of them, in the order it shows them; a video
- *  by its extension, `mediaKind`) as one gallery, so any of them opens large and the others are a swipe or
- *  an arrow key away. */
+/** Around a conversation: its pictures and videos (`media`, all of them, in the order it shows them:
+ *  `conversationMedia`) as one gallery, so any of them opens large and the others are a swipe or an arrow
+ *  key away. */
 export function ConversationGallery({
   daemonId,
   sessionId,
-  paths,
+  media,
   children,
 }: {
   daemonId: string
   sessionId: string
-  paths: string[]
+  media: GalleryMedia[]
   children: ReactNode
 }) {
   const [index, setIndex] = useState<number | null>(null)
-  const open = useCallback((path: string) => setIndex(Math.max(0, paths.indexOf(path))), [paths])
+  const open = useCallback(
+    (key: string) =>
+      setIndex(
+        Math.max(
+          0,
+          media.findIndex((m) => m.key === key),
+        ),
+      ),
+    [media],
+  )
   return (
     <Gallery.Provider value={open}>
       {children}
       <ImageViewer
-        count={paths.length}
+        count={media.length}
         index={index}
         onIndexChange={setIndex}
         onClose={() => setIndex(null)}
-        title={(i) => baseName(paths[i] ?? '')}
-        description={(i) => paths[i]}
-        slide={(i) => <Large key={paths[i]} daemonId={daemonId} sessionId={sessionId} path={paths[i] ?? ''} />}
+        title={(i) => media[i]?.name ?? ''}
+        description={(i) => media[i]?.description}
+        slide={(i) => (media[i] ? <Large key={media[i].key} daemonId={daemonId} sessionId={sessionId} media={media[i]} /> : null)}
       />
     </Gallery.Provider>
   )
 }
 
-function Large({ daemonId, sessionId, path }: { daemonId: string; sessionId: string; path: string }) {
-  const { url, failed } = useImageUrl(daemonId, sessionId, path)
-  if (!url) return failed ? <ImageOff className="size-6" aria-label={`${baseName(path)} not available`} /> : <Spinner />
-  if (isVideo(path)) return <VideoPlayer src={url} label={baseName(path)} />
-  return <img src={url} alt={baseName(path)} draggable={false} />
+function Large({ daemonId, sessionId, media }: { daemonId: string; sessionId: string; media: GalleryMedia }) {
+  const { url, failed, gone } = useMediaUrl(daemonId, sessionId, media)
+  if (gone) return <p className={ink.meta}>Expired</p>
+  if (!url) return failed ? <ImageOff className="size-6" aria-label={`${media.name} not available`} /> : <Spinner />
+  if (media.kind === 'video') return <VideoPlayer src={url} label={media.name} />
+  return <img src={url} alt={media.name} draggable={false} />
 }
 
-function SessionImage({ daemonId, sessionId, path, onOpen }: { daemonId: string; sessionId: string; path: string; onOpen: () => void }) {
-  const { url, failed } = useImageUrl(daemonId, sessionId, path)
+/** A picture or video small, opening large in its conversation's gallery when tapped. Loading or failed,
+ *  a placeholder that says so; a shared file that is gone, `gone` instead (its item says "Expired"). */
+export function MediaThumb({
+  daemonId,
+  sessionId,
+  media,
+  gone: whenGone = null,
+}: {
+  daemonId: string
+  sessionId: string
+  media: GalleryMedia
+  gone?: ReactNode
+}) {
+  const open = useContext(Gallery)
+  const { url, failed, gone } = useMediaUrl(daemonId, sessionId, media)
+  if (gone) return whenGone
   if (!url)
     return (
       <span className={`${look.panel} ${ink.meta} flex h-24 w-32 flex-col items-center justify-center gap-1 px-2 text-center`}>
         {failed ? <ImageOff className="size-4" aria-hidden /> : <Spinner />}
-        <span className="w-full truncate">{failed ? `${baseName(path)} not available` : baseName(path)}</span>
+        <span className="w-full truncate">{failed ? `${media.name} not available` : media.name}</span>
       </span>
     )
+  const video = media.kind === 'video'
   return (
     <Button
       variant="plain"
-      title={path}
-      aria-label={isVideo(path) ? `Play ${baseName(path)}` : undefined}
+      title={media.description}
+      aria-label={video ? `Play ${media.name}` : undefined}
       className={`${look.panel} overflow-hidden`}
-      onClick={onOpen}
+      onClick={() => open?.(media.key)}
     >
-      {isVideo(path) ? (
+      {video ? (
         <VideoThumb src={url} className="aspect-video h-36" />
       ) : (
-        <img src={url} alt={baseName(path)} className="block max-h-48 max-w-full object-contain" />
+        <img src={url} alt={media.name} className="block max-h-48 max-w-full object-contain" />
       )}
     </Button>
   )
 }
 
-/** The images an item shows (`ConversationItem.images`), small; one opens large when tapped, in its
- *  conversation's gallery (`ConversationGallery`), or on its own outside one. */
+/** The pictures and videos an item shows by path (`ConversationItem.images`), small; one opens large when
+ *  tapped, in its conversation's gallery (`ConversationGallery`), or on its own outside one. */
 export function ConversationImages({ daemonId, sessionId, paths }: { daemonId: string; sessionId: string; paths: string[] }) {
   const gallery = useContext(Gallery)
-  if (!paths.length) return null
-  const thumbs = (open: (path: string) => void) => (
+  const media = useMemo(() => paths.map(pathMedia), [paths])
+  if (!media.length) return null
+  const thumbs = (
     <div className="flex flex-wrap gap-2">
-      {paths.map((path) => (
-        <SessionImage key={path} daemonId={daemonId} sessionId={sessionId} path={path} onOpen={() => open(path)} />
+      {media.map((m) => (
+        <MediaThumb key={m.key} daemonId={daemonId} sessionId={sessionId} media={m} />
       ))}
     </div>
   )
-  if (gallery) return thumbs(gallery)
+  if (gallery) return thumbs
   return (
-    <ConversationGallery daemonId={daemonId} sessionId={sessionId} paths={paths}>
-      <Gallery.Consumer>{(open) => thumbs(open!)}</Gallery.Consumer>
+    <ConversationGallery daemonId={daemonId} sessionId={sessionId} media={media}>
+      {thumbs}
     </ConversationGallery>
   )
 }
