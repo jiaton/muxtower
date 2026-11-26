@@ -31,8 +31,10 @@ from pydantic import BaseModel, Field
 from muxtower.errors import (
     Conflict,
     Forbidden,
+    Gone,
     Invalid,
     NotFound,
+    NotMedia,
     TooLarge,
     TooManyRequests,
     Unauthorized,
@@ -76,8 +78,8 @@ REACH_TOOLS = frozenset({
 })  # fmt: skip
 
 ERRORS: dict[int, type[Exception]] = {
-    400: Invalid, 401: Unauthorized, 403: Forbidden, 404: NotFound, 409: Conflict, 413: TooLarge,
-    429: TooManyRequests, 502: Unavailable,
+    400: Invalid, 401: Unauthorized, 403: Forbidden, 404: NotFound, 409: Conflict, 410: Gone, 413: TooLarge,
+    415: NotMedia, 429: TooManyRequests, 502: Unavailable,
 }  # fmt: skip
 
 

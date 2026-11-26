@@ -26,6 +26,7 @@ from muxtower.notify.routes import router as push_router
 from muxtower.playbook.routes import router as playbook_router
 from muxtower.recovery.routes import router as recovery_router
 from muxtower.search.routes import router as search_router
+from muxtower.sessions.media_routes import router as media_router
 from muxtower.sessions.routes import router as sessions_router
 from muxtower.settings.routes import router as settings_router
 from muxtower.shared.routes import router as shared_router
@@ -66,7 +67,7 @@ def serve(app: FastAPI, settings: Settings, allowed_origins: list[str], daemon_n
                push_router, hooks_router, nodes_router, teams_router, usage_router, recovery_router,
                settings_router, chips_router, diagnostics_router, playbook_router, search_router,
                listen_router, tts_router, triggers_router, attachments_router, continue_router,
-               inbox_router, shared_router, plan_usage_router)  # fmt: skip
+               inbox_router, shared_router, plan_usage_router, media_router)  # fmt: skip
     for router in routers:
         app.include_router(router)
 

@@ -344,6 +344,32 @@ class NextStepAction(BaseModel):
     message: str = Field(description="sent as the owner's message when picked")
 
 
+class MediaKind(StrEnum):
+    IMAGE = "image"
+    VIDEO = "video"
+
+
+class MediaSource(StrEnum):
+    FILE = "file"  # a file the conversation names: GET /v1/sessions/{id}/media?path=
+    INLINE = "inline"  # an image inside a tool's result (no file): GET /v1/sessions/{id}/items/{seq}/media/{index}
+
+
+class MediaRef(BaseModel):
+    """An image or a video an item shows. The bytes are never in the conversation: each is fetched on its own."""
+
+    source: MediaSource
+    kind: MediaKind = Field(
+        description="file: by its name (what it is, the content decides when served); inline: as the content says"
+    )
+    path: str | None = Field(
+        default=None,
+        description="file: as the conversation wrote it (absolute, ~/…, or relative to the session's folder); "
+        "sent back as is",
+    )
+    index: int | None = Field(default=None, description="inline: its place among the item's inline images, from 0")
+    media_type: str | None = Field(default=None, description="inline: as the content says, e.g. image/png")
+
+
 class ConversationItem(BaseModel):
     """One normalized entry of a session's conversation. `seq` orders items; an item can be sent again
     with the same `seq` when its status changes (a tool finishing, a prompt being answered)."""
@@ -363,8 +389,13 @@ class ConversationItem(BaseModel):
     )
     images: list[str] = Field(
         default_factory=list,
-        description="paths of the images it shows (a file looked at or sent, a path in a message), for "
-        "GET /v1/sessions/{id}/image",
+        description="absolute paths of the images it shows, for GET /v1/sessions/{id}/image (older apps; `media` "
+        "has them all)",
+    )
+    media: list[MediaRef] = Field(
+        default_factory=list,
+        description="the images and videos it shows: files it names (never a tool's input) and images inside a "
+        "tool's result",
     )
     shared: SharedFile | None = Field(
         default=None, description="shared: the file, for GET /v1/sessions/{id}/shared/{file_id}"
@@ -374,6 +405,8 @@ class ConversationItem(BaseModel):
     def _images(self) -> "ConversationItem":
         if not self.images:
             self.images = shown_images(self.kind, self.tool_name, self.text)
+        if not self.media:
+            self.media = [MediaRef(source=MediaSource.FILE, kind=MediaKind.IMAGE, path=p) for p in self.images]
         return self
 
 

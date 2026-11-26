@@ -1037,6 +1037,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_id}/items/{seq}/media/{index}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Inline Media
+         * @description An image inside a tool's result (`MediaRef.index` of the item `seq`), as the conversation holds it, from the
+         *     machine the session runs on. The same types and headers as a file.
+         */
+        get: operations["get_inline_media_v1_sessions__session_id__items__seq__media__index__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/sessions/{session_id}/media": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Media
+         * @description A file the session's conversation names (`MediaRef.path`, sent back as the conversation wrote it), from the
+         *     machine it runs on. Typed by its content: PNG, JPEG, GIF, WebP, AVIF, MP4 or WebM, nothing else (no SVG).
+         *     Always `X-Content-Type-Options: nosniff` and `Content-Security-Policy: sandbox; default-src 'none'`. Takes a
+         *     single `Range`.
+         */
+        get: operations["get_media_v1_sessions__session_id__media_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_id}/names": {
         parameters: {
             query?: never;
@@ -1983,10 +2027,15 @@ export interface components {
             description?: string | null;
             /**
              * Images
-             * @description paths of the images it shows (a file looked at or sent, a path in a message), for GET /v1/sessions/{id}/image
+             * @description absolute paths of the images it shows, for GET /v1/sessions/{id}/image (older apps; `media` has them all)
              */
             images?: string[];
             kind: components["schemas"]["ConversationItemKind"];
+            /**
+             * Media
+             * @description the images and videos it shows: files it names (never a tool's input) and images inside a tool's result
+             */
+            media?: components["schemas"]["MediaRef"][];
             /** Seq */
             seq: number;
             /** @description shared: the file, for GET /v1/sessions/{id}/shared/{file_id} */
@@ -2709,6 +2758,40 @@ export interface components {
              */
             version?: string | null;
         };
+        /**
+         * MediaKind
+         * @enum {string}
+         */
+        MediaKind: "image" | "video";
+        /**
+         * MediaRef
+         * @description An image or a video an item shows. The bytes are never in the conversation: each is fetched on its own.
+         */
+        MediaRef: {
+            /**
+             * Index
+             * @description inline: its place among the item's inline images, from 0
+             */
+            index?: number | null;
+            /** @description file: by its name (what it is, the content decides when served); inline: as the content says */
+            kind: components["schemas"]["MediaKind"];
+            /**
+             * Media Type
+             * @description inline: as the content says, e.g. image/png
+             */
+            media_type?: string | null;
+            /**
+             * Path
+             * @description file: as the conversation wrote it (absolute, ~/…, or relative to the session's folder); sent back as is
+             */
+            path?: string | null;
+            source: components["schemas"]["MediaSource"];
+        };
+        /**
+         * MediaSource
+         * @enum {string}
+         */
+        MediaSource: "file" | "inline";
         /** ModeInfo */
         ModeInfo: {
             /**
@@ -6302,6 +6385,168 @@ export interface operations {
             };
             /** @description Successful Response */
             204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_inline_media_v1_sessions__session_id__items__seq__media__index__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+                seq: number;
+                index: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the image, typed by its content */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/avif": unknown;
+                    "image/gif": unknown;
+                    "image/jpeg": unknown;
+                    "image/png": unknown;
+                    "image/webp": unknown;
+                    "video/mp4": unknown;
+                    "video/webm": unknown;
+                };
+            };
+            /** @description the conversation shows no such image or video */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description the session's machine cannot be reached now (a node whose link is down) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description it was there and is no longer (deleted since): show it as gone, quietly */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description larger than 25 MB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description not an image or a video by its content (whatever its name says), or not a regular file */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_media_v1_sessions__session_id__media_get: {
+        parameters: {
+            query: {
+                path: string;
+            };
+            header?: never;
+            path: {
+                session_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the file, typed by its content */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/avif": unknown;
+                    "image/gif": unknown;
+                    "image/jpeg": unknown;
+                    "image/png": unknown;
+                    "image/webp": unknown;
+                    "video/mp4": unknown;
+                    "video/webm": unknown;
+                };
+            };
+            /** @description the part a single `Range: bytes=…` asked for (video seeking) */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description the conversation shows no such image or video */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description the session's machine cannot be reached now (a node whose link is down) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description it was there and is no longer (deleted since): show it as gone, quietly */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description larger than 25 MB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description not an image or a video by its content (whatever its name says), or not a regular file */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description a range outside the file */
+            416: {
                 headers: {
                     [name: string]: unknown;
                 };
