@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, model_validator
 from muxtower.runtimes.models import AgentState, Option, PendingQuestion
 from muxtower.sessions.images import shown_images
 from muxtower.sessions.ports import SessionSource
+from muxtower.shared.models import SharedFile
 
 
 class StateSource(StrEnum):
@@ -323,6 +324,7 @@ class ConversationItemKind(StrEnum):
     QUESTION = "question"  # a question to the owner and how it ended
     RESULT = "result"  # the end of a turn
     NEXT_STEP = "next_step"  # the agent's closing recap, its question and replies to pick (Claude desktop)
+    SHARED = "shared"  # a file the agent shared with the owner (`share_file`): `shared`, its caption as `text`
 
 
 class ItemStatus(StrEnum):
@@ -363,6 +365,9 @@ class ConversationItem(BaseModel):
         default_factory=list,
         description="paths of the images it shows (a file looked at or sent, a path in a message), for "
         "GET /v1/sessions/{id}/image",
+    )
+    shared: SharedFile | None = Field(
+        default=None, description="shared: the file, for GET /v1/sessions/{id}/shared/{file_id}"
     )
 
     @model_validator(mode="after")

@@ -101,6 +101,7 @@ AGENT_KINDS = frozenset(
         ConversationItemKind.QUESTION,
         ConversationItemKind.RESULT,
         ConversationItemKind.NEXT_STEP,
+        ConversationItemKind.SHARED,
     }
 )
 

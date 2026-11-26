@@ -1212,6 +1212,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sessions/{session_id}/shared/{file_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Shared
+         * @description A file the session's agent shared (`ConversationItem.shared`), from the machine it ran on. Served
+         *     with its own Content-Type and `Content-Disposition: inline` for raster images (not SVG), MP4, WebM and
+         *     PDF; anything else as `application/octet-stream`, `attachment`. Always `X-Content-Type-Options:
+         *     nosniff` and `Content-Security-Policy: sandbox; default-src 'none'`. Takes a single `Range`.
+         */
+        get: operations["get_shared_v1_sessions__session_id__shared__file_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sessions/{session_id}/spoken": {
         parameters: {
             query?: never;
@@ -1945,6 +1968,8 @@ export interface components {
             kind: components["schemas"]["ConversationItemKind"];
             /** Seq */
             seq: number;
+            /** @description shared: the file, for GET /v1/sessions/{id}/shared/{file_id} */
+            shared?: components["schemas"]["SharedFile"] | null;
             status?: components["schemas"]["ItemStatus"] | null;
             /** Text */
             text?: string | null;
@@ -1955,7 +1980,7 @@ export interface components {
          * ConversationItemKind
          * @enum {string}
          */
-        ConversationItemKind: "prompt" | "reply" | "tool" | "approval" | "question" | "result" | "next_step";
+        ConversationItemKind: "prompt" | "reply" | "tool" | "approval" | "question" | "result" | "next_step" | "shared";
         /** Correction */
         Correction: {
             /**
@@ -3627,6 +3652,47 @@ export interface components {
              * @description what applies: once the daemon restarts, where `pending`
              */
             value: unknown;
+        };
+        /**
+         * SharedFile
+         * @description A file an agent shared. Past `expires_at` the file is gone (GET answers 404); the item stays.
+         */
+        SharedFile: {
+            /**
+             * Caption
+             * @description what the agent said about it
+             */
+            caption?: string | null;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Id
+             * @description for GET /v1/sessions/{session_id}/shared/{file_id}
+             */
+            id: string;
+            /**
+             * Media Type
+             * @description its type as guessed from the name; served as such only when inline
+             */
+            media_type: string;
+            /**
+             * Name
+             * @description its file name, as the agent's file was called (made safe)
+             */
+            name: string;
+            /**
+             * Shared At
+             * Format: date-time
+             */
+            shared_at: string;
+            /**
+             * Size
+             * @description bytes
+             */
+            size: number;
         };
         /**
          * SlowRule
@@ -6433,6 +6499,70 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["Screen"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_shared_v1_sessions__session_id__shared__file_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                session_id: string;
+                file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description the file */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": unknown;
+                    "application/pdf": unknown;
+                    "image/*": unknown;
+                    "video/mp4": unknown;
+                    "video/webm": unknown;
+                };
+            };
+            /** @description the part a `Range: bytes=…` header asked for (video seeking) */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description no such file in this session's conversation, or it expired (kept 7 days) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description the session's machine cannot be reached now (a node whose link is down) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description a range outside the file */
+            416: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

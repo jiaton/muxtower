@@ -605,6 +605,17 @@
             "title": "Seq",
             "type": "integer"
           },
+          "shared": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SharedFile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "shared: the file, for GET /v1/sessions/{id}/shared/{file_id}"
+          },
           "status": {
             "anyOf": [
               {
@@ -653,7 +664,8 @@
           "approval",
           "question",
           "result",
-          "next_step"
+          "next_step",
+          "shared"
         ],
         "title": "ConversationItemKind",
         "type": "string"
@@ -4301,6 +4313,63 @@
           "pending"
         ],
         "title": "SettingView",
+        "type": "object"
+      },
+      "SharedFile": {
+        "description": "A file an agent shared. Past `expires_at` the file is gone (GET answers 404); the item stays.",
+        "properties": {
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "what the agent said about it",
+            "title": "Caption"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "description": "for GET /v1/sessions/{session_id}/shared/{file_id}",
+            "title": "Id",
+            "type": "string"
+          },
+          "media_type": {
+            "description": "its type as guessed from the name; served as such only when inline",
+            "title": "Media Type",
+            "type": "string"
+          },
+          "name": {
+            "description": "its file name, as the agent's file was called (made safe)",
+            "title": "Name",
+            "type": "string"
+          },
+          "shared_at": {
+            "format": "date-time",
+            "title": "Shared At",
+            "type": "string"
+          },
+          "size": {
+            "description": "bytes",
+            "title": "Size",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "size",
+          "media_type",
+          "shared_at",
+          "expires_at"
+        ],
+        "title": "SharedFile",
         "type": "object"
       },
       "SlowRule": {
@@ -8865,6 +8934,70 @@
         "summary": "Get Screen",
         "tags": [
           "sessions"
+        ]
+      }
+    },
+    "/v1/sessions/{session_id}/shared/{file_id}": {
+      "get": {
+        "description": "A file the session's agent shared (`ConversationItem.shared`), from the machine it ran on. Served\nwith its own Content-Type and `Content-Disposition: inline` for raster images (not SVG), MP4, WebM and\nPDF; anything else as `application/octet-stream`, `attachment`. Always `X-Content-Type-Options:\nnosniff` and `Content-Security-Policy: sandbox; default-src 'none'`. Takes a single `Range`.",
+        "operationId": "get_shared_v1_sessions__session_id__shared__file_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "title": "File Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {},
+              "application/pdf": {},
+              "image/*": {},
+              "video/mp4": {},
+              "video/webm": {}
+            },
+            "description": "the file"
+          },
+          "206": {
+            "description": "the part a `Range: bytes=\u2026` header asked for (video seeking)"
+          },
+          "404": {
+            "description": "no such file in this session's conversation, or it expired (kept 7 days)"
+          },
+          "409": {
+            "description": "the session's machine cannot be reached now (a node whose link is down)"
+          },
+          "416": {
+            "description": "a range outside the file"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Shared",
+        "tags": [
+          "shared"
         ]
       }
     },
