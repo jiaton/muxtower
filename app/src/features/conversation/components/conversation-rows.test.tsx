@@ -2,6 +2,7 @@ import { render } from '@testing-library/react'
 import { expect, it, vi } from 'vitest'
 import { mergeItems } from '@/lib/api/conversation'
 import type { ConversationItem } from '@/lib/api/types'
+import { wrapper } from '@/test/render'
 import { ConversationView } from './conversation-view'
 
 const drawn = vi.hoisted(() => ({ count: 0 }))
@@ -16,7 +17,8 @@ it('draws only the new row when a long conversation gets one more item', () => {
   let items: ConversationItem[] = []
   for (let seq = 1; seq <= 300; seq++) items = mergeItems(items, [{ seq, kind: 'reply', text: `Reply number ${seq}.` }])
   const source = { daemonId: 'd1', sessionId: 's1' }
-  const { rerender } = render(<ConversationView items={items} source={source} />)
+  // In a query client, as in the app (the gallery reads which shared files are gone from its cache).
+  const { rerender } = render(<ConversationView items={items} source={source} />, { wrapper: wrapper() })
   expect(drawn.count).toBe(300)
   drawn.count = 0
   items = mergeItems(items, [{ seq: 301, kind: 'reply', text: 'One more.' }])

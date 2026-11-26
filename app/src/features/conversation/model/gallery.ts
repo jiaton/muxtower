@@ -29,7 +29,8 @@ export function sharedMedia(file: SharedFile): GalleryMedia | null {
 export const isExpired = (file: SharedFile, now = Date.now()) => Date.parse(file.expires_at) <= now
 
 /** Every picture and video a conversation shows, in its order, each once: what its items show by path and
- *  the files its agent shared (not those already expired). */
+ *  the files its agent shared (not those already expired; those the daemon answers 404 for go once known:
+ *  `withoutGone`). */
 export function conversationMedia(items: ConversationItem[], now = Date.now()): GalleryMedia[] {
   const out = new Map<string, GalleryMedia>()
   for (const item of items) {
@@ -40,6 +41,12 @@ export function conversationMedia(items: ConversationItem[], now = Date.now()): 
     }
   }
   return [...out.values()]
+}
+
+/** The gallery without the shared files the daemon answered 404 for (`gone`, by id): pruned before their
+ *  time, they no longer count. */
+export function withoutGone(media: GalleryMedia[], gone: ReadonlySet<string>): GalleryMedia[] {
+  return gone.size ? media.filter((m) => m.from !== 'shared' || !gone.has(m.file.id)) : media
 }
 
 /** When a file was shared, as the conversation says it: the time today, else the day and the time. */

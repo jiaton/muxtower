@@ -86,3 +86,18 @@ it('a file the daemon answers 404 for is expired too, for a picture and a downlo
   fireEvent.click(screen.getByRole('button', { name: 'Download data.csv' }))
   await waitFor(() => expect(screen.getAllByText('Expired')).toHaveLength(2))
 })
+
+it("a picture the daemon answers 404 for before its time leaves the gallery's count, and its line says only when", async () => {
+  show([
+    shared(1, file('img', 'checklist.png', 'image/png')),
+    shared(2, file('gone', 'pricing-old.png', 'image/png')),
+    shared(3, file('vid', 'flow.webm', 'video/webm')),
+  ])
+  await waitFor(() => expect(screen.getAllByText('Expired')).toHaveLength(1))
+  const lines = screen.getAllByText(/^Shared/)
+  expect(lines[0]).toHaveTextContent('checklist.png · 48 KB')
+  expect(lines[1]).not.toHaveTextContent('pricing-old.png')
+  expect(lines[1]).not.toHaveTextContent('KB')
+  fireEvent.click(await screen.findByRole('button', { name: 'Play flow.webm' }))
+  expect(screen.getByText('2 / 2')).toBeInTheDocument()
+})

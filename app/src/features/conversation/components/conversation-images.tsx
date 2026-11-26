@@ -4,8 +4,8 @@ import { ImageViewer } from '@/components/ui/image-viewer'
 import { VideoPlayer, VideoThumb } from '@/components/ui/video'
 import { useObjectUrl } from '@/lib/use-object-url'
 import { useSessionImage } from '../api/use-session-image'
-import { isGone, useSharedFile } from '../api/use-shared-file'
-import { isExpired, pathMedia, type GalleryMedia } from '../model/gallery'
+import { isGone, useGoneShared, useSharedFile } from '../api/use-shared-file'
+import { isExpired, pathMedia, withoutGone, type GalleryMedia } from '../model/gallery'
 import { Spinner } from '@/components/ui/indicators'
 import { Button } from '@/components/ui/button'
 import { ink, look } from '@/components/ui/intents'
@@ -30,7 +30,7 @@ const Gallery = createContext<((key: string) => void) | null>(null)
 export function ConversationGallery({
   daemonId,
   sessionId,
-  media,
+  media: all,
   children,
 }: {
   daemonId: string
@@ -38,6 +38,9 @@ export function ConversationGallery({
   media: GalleryMedia[]
   children: ReactNode
 }) {
+  // A shared file the daemon answered 404 for (its thumbnail asked) no longer counts.
+  const gone = useGoneShared(daemonId, sessionId)
+  const media = useMemo(() => withoutGone(all, gone), [all, gone])
   const [index, setIndex] = useState<number | null>(null)
   const open = useCallback(
     (key: string) =>

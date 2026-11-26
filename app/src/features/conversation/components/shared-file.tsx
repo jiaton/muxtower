@@ -5,7 +5,7 @@ import { Spinner } from '@/components/ui/indicators'
 import { ink } from '@/components/ui/intents'
 import type { ConversationItem, SharedFile } from '@/lib/api/types'
 import { formatSize, splitName } from '@/lib/file-name'
-import { isGone, useDownloadShared } from '../api/use-shared-file'
+import { isGone, useDownloadShared, useGoneShared } from '../api/use-shared-file'
 import { isExpired, sharedMedia, sharedWhen } from '../model/gallery'
 import { MediaThumb } from './conversation-images'
 import type { ConversationSource } from './conversation-view'
@@ -33,11 +33,26 @@ export function SharedFileItem({ item, source }: { item: ConversationItem; sourc
       ) : (
         <SharedFileCard file={file} source={source} />
       )}
-      <p className={ink.meta}>
-        Shared <time dateTime={file.shared_at}>{sharedWhen(file.shared_at)}</time>
-        {media && !expired ? ` · ${file.name} · ${formatSize(file.size)}` : null}
-      </p>
+      {media && !expired && source ? (
+        <SharedLine file={file} source={source} />
+      ) : (
+        <p className={ink.meta}>
+          Shared <time dateTime={file.shared_at}>{sharedWhen(file.shared_at)}</time>
+        </p>
+      )}
     </div>
+  )
+}
+
+/** A shared picture's or video's line: when, its name and size; only when once the daemon answered 404 for
+ *  it before its time (its thumbnail asked), as its card then says "Expired". */
+function SharedLine({ file, source }: { file: SharedFile; source: ConversationSource }) {
+  const pruned = useGoneShared(source.daemonId, source.sessionId).has(file.id)
+  return (
+    <p className={ink.meta}>
+      Shared <time dateTime={file.shared_at}>{sharedWhen(file.shared_at)}</time>
+      {pruned ? null : ` · ${file.name} · ${formatSize(file.size)}`}
+    </p>
   )
 }
 

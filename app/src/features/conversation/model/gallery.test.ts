@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import type { ConversationItem, SharedFile } from '@/lib/api/types'
-import { conversationMedia, isExpired, sharedWhen } from './gallery'
+import { conversationMedia, isExpired, sharedWhen, withoutGone } from './gallery'
 
 const NOW = Date.parse('2026-11-26T08:00:00Z')
 const file = (id: string, name: string, media_type: string, expires_at = '2026-12-03T08:00:00Z'): SharedFile => ({
@@ -28,6 +28,13 @@ it('lists pictures and videos by path and shared ones in order, each once, witho
     ['shared:f1', 'video'],
     ['/tmp/b.webm', 'video'],
   ])
+})
+
+it('leaves out a shared file the daemon answered 404 for before its time', () => {
+  const items = [shared(1, file('a', 'a.png', 'image/png')), shared(2, file('b', 'b.png', 'image/png')), reply(3, ['/tmp/c.png'])]
+  const media = conversationMedia(items, NOW)
+  expect(withoutGone(media, new Set(['b'])).map((m) => m.key)).toEqual(['shared:a', '/tmp/c.png'])
+  expect(withoutGone(media, new Set())).toBe(media)
 })
 
 it('a shared file expires at its expires_at', () => {
