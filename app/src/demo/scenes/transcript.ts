@@ -1,11 +1,11 @@
-import type { ConversationItem } from '@/lib/api/types'
+import type { ConversationItem, MediaRef } from '@/lib/api/types'
 import { ago, prompt, reply, tool } from './session'
 import { type Line, answered, codexAnswered, codexDid, codexSaid, ran, said } from './terminal'
 
 type ToolTurn = { tool: 'Read' | 'Edit' | 'Write' | 'Bash' | 'Grep'; on: string; description?: string; result: string[] }
 /** One part of a session's earlier work: the owner's message, the agent's answer, or a tool it ran (what
  *  it ran on, a line saying what it is for, and what it printed). */
-export type Turn = { you: string; minutesAgo?: number } | { says: string } | ToolTurn
+export type Turn = ({ you: string; minutesAgo?: number } | { says: string } | ToolTurn) & { media?: MediaRef[] }
 
 export const you = (text: string, minutesAgo?: number): Turn => ({ you: text, minutesAgo })
 export const says = (text: string): Turn => ({ says: text })
@@ -29,6 +29,10 @@ export const bash = (command: string, description: string, ...result: string[]):
   description,
   result,
 })
+
+/** A turn that shows pictures or videos under it (`ConversationItem.media`): files it names, or (a tool's)
+ *  images in its result. The demo serves them by name (`demo/media.ts`). */
+export const showing = (turn: Turn, ...media: MediaRef[]): Turn => ({ ...turn, media })
 
 /** What Claude Code calls each tool on its screen. */
 const CLAUDE_TITLE: Record<string, string> = { Edit: 'Update', Grep: 'Search' }
@@ -54,11 +58,11 @@ export function transcript(agent: 'claude' | 'codex', turns: Turn[], seq = 1) {
       items.push(prompt(n, { text: turn.you, at: turn.minutesAgo === undefined ? null : ago(turn.minutesAgo) }))
     } else if ('says' in turn) {
       history.push(...(agent === 'codex' ? codexAnswered(turn.says) : answered(turn.says)))
-      items.push(reply(n, { text: turn.says, at: after(40) }))
+      items.push(reply(n, { text: turn.says, at: after(40), media: turn.media ?? [] }))
     } else {
       const title = `${CLAUDE_TITLE[turn.tool] ?? turn.tool}(${turn.on})`
       history.push(...(agent === 'codex' ? codexLines(turn) : ran(title, ...turn.result)))
-      items.push(tool(n, { tool_name: turn.tool, text: turn.on, description: turn.description ?? null, status: 'done', at: after(10) }))
+      items.push(tool(n, { tool_name: turn.tool, text: turn.on, description: turn.description ?? null, status: 'done', at: after(10), media: turn.media ?? [] }))
     }
   }
   return { history, items, next: seq + items.length }

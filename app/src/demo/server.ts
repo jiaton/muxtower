@@ -10,6 +10,7 @@ import { dictionary, saveDictionary } from './dictionary'
 import { triggers } from './triggers'
 import { inboxRoute } from './inbox'
 import { planUsage } from './plan-usage'
+import { mediaRoute } from './media'
 import { keptSpoken, speakLatest } from './spoken'
 import { withAttachments } from './upload'
 import type { World } from './world'
@@ -351,6 +352,8 @@ export async function respond(world: World, request: Request): Promise<Response>
   const url = new URL(request.url)
   const { pathname } = url
   const method = request.method.toUpperCase()
+  const media = method === 'GET' ? mediaRoute(world, pathname, url) : null
+  if (media) return media
   const activity = method === 'GET' ? /^\/v1\/projects\/(.+)\/activity$/.exec(pathname) : null
   if (activity) return json(projectActivity(world, decodeURIComponent(activity[1]!)))
   const book = /^\/v1\/playbook\/(.+?)(\/versions|\/revert)?$/.exec(pathname)

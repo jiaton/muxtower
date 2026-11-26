@@ -2,7 +2,7 @@ import type { Scene, Step } from '../world'
 import { HOME, ago, demoSession, reply, tool } from './session'
 import { talk } from './talk'
 import { answered, claudeInput, claudeWelcome, question, ran, working } from './terminal'
-import { bash, edit, grep, read, says, transcript, you } from './transcript'
+import { bash, edit, grep, read, says, showing, transcript, you } from './transcript'
 
 const ASK = 'Which chart library should I use for the usage chart? The app has none yet.'
 const CHOICES: [string, string][] = [
@@ -24,7 +24,13 @@ const EARLIER = transcript('claude', [
   edit('src/billing/page.tsx', 2, 1),
   edit('src/billing/price.test.ts', 22),
   bash('npm test -- billing', 'Run the billing tests', 'Test Files  3 passed (3)', 'Tests  27 passed (27)'),
-  says('EU customers now see the gross price with "incl. VAT". All 27 billing tests pass, 4 of them new.'),
+  showing(read('e2e/shots/billing-before.png', 1), { source: 'inline', kind: 'image', index: 0, media_type: 'image/png' }),
+  bash('npx playwright test e2e/billing.spec.ts', 'Screenshot the billing page and record an upgrade', '2 passed (6.1s)'),
+  showing(
+    says('EU customers now see the gross price with "incl. VAT". All 27 billing tests pass, 4 of them new. The page and an upgrade, as the browser test saw them:'),
+    { source: 'file', kind: 'image', path: 'e2e/shots/billing-vat.png' },
+    { source: 'file', kind: 'video', path: 'e2e/shots/upgrade-flow.webm' },
+  ),
   you('Run the type check and lint too.', 24),
   bash(
     'npm run typecheck && npm run lint',

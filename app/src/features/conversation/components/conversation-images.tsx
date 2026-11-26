@@ -1,24 +1,64 @@
-import { ImageOff } from 'lucide-react'
+import { ImageOff, RotateCw } from 'lucide-react'
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { ImageViewer } from '@/components/ui/image-viewer'
 import { VideoPlayer, VideoThumb } from '@/components/ui/video'
 import { useObjectUrl } from '@/lib/use-object-url'
 import { useSessionImage } from '../api/use-session-image'
-import { isGone, useGoneShared, useSharedFile } from '../api/use-shared-file'
-import { isExpired, pathMedia, withoutGone, type GalleryMedia } from '../model/gallery'
+import { useSessionMedia, useUnshownMedia, type MediaTarget } from '../api/use-session-media'
+import { isGone, useSharedFile } from '../api/use-shared-file'
+import { isExpired, withoutKeys, type GalleryMedia } from '../model/gallery'
+import { mediaProblem, PROBLEM_TEXT, type MediaProblem } from '../model/media-state'
 import { Spinner } from '@/components/ui/indicators'
 import { Button } from '@/components/ui/button'
 import { ink, look } from '@/components/ui/intents'
 
-/** One picture's or video's file, as a URL for <img> or <video> (cached: a thumbnail and its large view
- *  load it once): by its path, or as a file an agent shared. `gone`: a shared file the daemon no longer
- *  keeps (expired, or a 404). */
+const targetOf = (media: GalleryMedia): MediaTarget | undefined =>
+  media.from === 'file' ? { from: 'file', path: media.path } : media.from === 'inline' ? { from: 'inline', seq: media.seq, index: media.index } : undefined
+
+/** The gallery keys that once showed on this page: a 404 for one of them later means it is gone, not that it
+ *  never was (`mediaProblem`). */
+const shownOnce = new Set<string>()
+
+/**
+ * One picture's or video's file, as a URL for <img> or <video> (cached: a thumbnail and its large view load it
+ * once): a file an item names or an image in a tool's result (`useSessionMedia`), an old daemon's image by
+ * path, or a file an agent shared. `gone`: a shared file the daemon no longer keeps (expired, or a 404);
+ * `problem`: why a file or inline image cannot show; `retry` asks again (its machine was away).
+ */
 function useMediaUrl(daemonId: string, sessionId: string, media: GalleryMedia) {
   const expired = media.from === 'shared' && isExpired(media.file)
   const image = useSessionImage(daemonId, sessionId, media.from === 'path' ? media.path : '', media.from === 'path')
   const shared = useSharedFile(daemonId, sessionId, media.from === 'shared' && !expired ? media.file : undefined)
-  const query = media.from === 'path' ? image : shared
-  return { url: useObjectUrl(query.data), failed: query.isError, gone: expired || (media.from === 'shared' && isGone(shared.error)) }
+  const ref = useSessionMedia(daemonId, sessionId, targetOf(media))
+  const query = media.from === 'path' ? image : media.from === 'shared' ? shared : ref
+  const url = useObjectUrl(query.data)
+  if (query.data) shownOnce.add(media.key)
+  const problem: MediaProblem | null = targetOf(media) && ref.isError ? mediaProblem(ref.error, shownOnce.has(media.key)) : null
+  return {
+    url,
+    failed: query.isError,
+    gone: expired || (media.from === 'shared' && isGone(shared.error)),
+    problem,
+    retry: () => void ref.refetch(),
+  }
+}
+
+/** A quiet word in place of a picture or video that cannot show (gone, too large), or that its machine is
+ *  away, with Retry. */
+function Problem({ problem, onRetry, large = false }: { problem: Exclude<MediaProblem, 'hidden' | 'failed'>; onRetry: () => void; large?: boolean }) {
+  return (
+    <span className={`${large ? '' : look.panel} ${ink.meta} flex flex-col items-center justify-center gap-1 px-3 py-2 text-center`}>
+      <span className="flex items-center gap-1.5">
+        <ImageOff className="size-4 shrink-0" aria-hidden />
+        {PROBLEM_TEXT[problem]}
+      </span>
+      {problem === 'unreachable' ? (
+        <Button size="xs" variant="ghost" onClick={onRetry}>
+          <RotateCw aria-hidden /> Retry
+        </Button>
+      ) : null}
+    </span>
+  )
 }
 
 /** Every picture and video a conversation shows, in order, opened large one at a time (`ImageViewer`). */
@@ -38,9 +78,9 @@ export function ConversationGallery({
   media: GalleryMedia[]
   children: ReactNode
 }) {
-  // A shared file the daemon answered 404 for (its thumbnail asked) no longer counts.
-  const gone = useGoneShared(daemonId, sessionId)
-  const media = useMemo(() => withoutGone(all, gone), [all, gone])
+  // What cannot show (its thumbnail asked: gone, too large, not media, its machine away) does not count.
+  const unshown = useUnshownMedia(daemonId, sessionId)
+  const media = useMemo(() => withoutKeys(all, unshown), [all, unshown])
   const [index, setIndex] = useState<number | null>(null)
   const open = useCallback(
     (key: string) =>
@@ -69,8 +109,9 @@ export function ConversationGallery({
 }
 
 function Large({ daemonId, sessionId, media }: { daemonId: string; sessionId: string; media: GalleryMedia }) {
-  const { url, failed, gone } = useMediaUrl(daemonId, sessionId, media)
+  const { url, failed, gone, problem, retry } = useMediaUrl(daemonId, sessionId, media)
   if (gone) return <p className={ink.meta}>Expired</p>
+  if (problem && problem !== 'failed') return problem === 'hidden' ? null : <Problem problem={problem} onRetry={retry} large />
   if (!url) return failed ? <ImageOff className="size-6" aria-label={`${media.name} not available`} /> : <Spinner />
   if (media.kind === 'video') return <VideoPlayer src={url} label={media.name} />
   return <img src={url} alt={media.name} draggable={false} />
@@ -90,8 +131,9 @@ export function MediaThumb({
   gone?: ReactNode
 }) {
   const open = useContext(Gallery)
-  const { url, failed, gone } = useMediaUrl(daemonId, sessionId, media)
+  const { url, failed, gone, problem, retry } = useMediaUrl(daemonId, sessionId, media)
   if (gone) return whenGone
+  if (problem && problem !== 'failed') return problem === 'hidden' ? null : <Problem problem={problem} onRetry={retry} />
   if (!url)
     return (
       <span className={`${look.panel} ${ink.meta} flex h-24 w-32 flex-col items-center justify-center gap-1 px-2 text-center`}>
@@ -117,11 +159,10 @@ export function MediaThumb({
   )
 }
 
-/** The pictures and videos an item shows by path (`ConversationItem.images`), small; one opens large when
- *  tapped, in its conversation's gallery (`ConversationGallery`), or on its own outside one. */
-export function ConversationImages({ daemonId, sessionId, paths }: { daemonId: string; sessionId: string; paths: string[] }) {
+/** The pictures and videos items show (`itemMedia`: their `media`, or an old daemon's `images`), small; one
+ *  opens large when tapped, in its conversation's gallery (`ConversationGallery`), or on its own outside one. */
+export function ConversationImages({ daemonId, sessionId, media }: { daemonId: string; sessionId: string; media: GalleryMedia[] }) {
   const gallery = useContext(Gallery)
-  const media = useMemo(() => paths.map(pathMedia), [paths])
   if (!media.length) return null
   const thumbs = (
     <div className="flex flex-wrap gap-2">

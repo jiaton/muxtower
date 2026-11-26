@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import type { ConversationItem, SharedFile } from '@/lib/api/types'
-import { conversationMedia, isExpired, sharedWhen, withoutGone } from './gallery'
+import { conversationMedia, isExpired, itemMedia, sharedWhen, withoutKeys } from './gallery'
 
 const NOW = Date.parse('2026-11-26T08:00:00Z')
 const file = (id: string, name: string, media_type: string, expires_at = '2026-12-03T08:00:00Z'): SharedFile => ({
@@ -33,8 +33,8 @@ it('lists pictures and videos by path and shared ones in order, each once, witho
 it('leaves out a shared file the daemon answered 404 for before its time', () => {
   const items = [shared(1, file('a', 'a.png', 'image/png')), shared(2, file('b', 'b.png', 'image/png')), reply(3, ['/tmp/c.png'])]
   const media = conversationMedia(items, NOW)
-  expect(withoutGone(media, new Set(['b'])).map((m) => m.key)).toEqual(['shared:a', '/tmp/c.png'])
-  expect(withoutGone(media, new Set())).toBe(media)
+  expect(withoutKeys(media, new Set(['shared:b'])).map((m) => m.key)).toEqual(['shared:a', '/tmp/c.png'])
+  expect(withoutKeys(media, new Set())).toBe(media)
 })
 
 it('a shared file expires at its expires_at', () => {
@@ -46,4 +46,26 @@ it('says the time a file was shared today, and the day too before that', () => {
   const now = new Date(2026, 10, 26, 9, 0)
   expect(sharedWhen(new Date(2026, 10, 26, 7, 30).toISOString(), now)).not.toMatch(/Nov/)
   expect(sharedWhen(new Date(2026, 10, 24, 7, 30).toISOString(), now)).toMatch(/Nov 24/)
+})
+
+const withMedia = (seq: number, media: unknown[], images: string[] = []) => ({ seq, kind: 'reply', images, media }) as unknown as ConversationItem
+
+it("shows an item's media: files by their path as written, a tool's inline images by item and place", () => {
+  const item = withMedia(7, [
+    { source: 'file', kind: 'image', path: '~/shots/home.png' },
+    { source: 'inline', kind: 'image', index: 0, media_type: 'image/png' },
+    { source: 'file', kind: 'video', path: 'demo/flow.webm' },
+    { source: 'inline', kind: 'image' }, // half a reference: left out
+  ])
+  expect(itemMedia(item).map((m) => [m.key, m.kind, m.name])).toEqual([
+    ['file:~/shots/home.png', 'image', 'home.png'],
+    ['inline:7:0', 'image', "Image 1 of a tool's result"],
+    ['file:demo/flow.webm', 'video', 'flow.webm'],
+  ])
+})
+
+it("falls back to an old daemon's images when an item has no media, and lists each file once", () => {
+  expect(itemMedia(withMedia(1, [], ['/tmp/a.png'])).map((m) => [m.key, m.from])).toEqual([['/tmp/a.png', 'path']])
+  const twice = [withMedia(1, [{ source: 'file', kind: 'image', path: 'a.png' }]), withMedia(2, [{ source: 'file', kind: 'image', path: 'a.png' }])]
+  expect(conversationMedia(twice, NOW).map((m) => m.key)).toEqual(['file:a.png'])
 })

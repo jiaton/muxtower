@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { ServerFrame, Session } from '@/lib/api/types'
+import type { ConversationItem, ServerFrame, Session } from '@/lib/api/types'
 import { groupEntries } from '@/features/sessions/model/query'
 import { scenes } from './scenes'
 import { DEMO_ANSWER, DEMO_DAEMON, demoSession } from './scenes/session'
@@ -190,6 +190,16 @@ describe('the demo daemon over HTTP', () => {
     const [started] = await (await call(w, 'POST', '/v1/recovery', { session_ids: ['laptop~migrations', 'docs'] })).json()
     expect([started.id, started.interrupted_at, started.capabilities.screen]).toEqual(['laptop~migrations', null, true])
     expect(await (await call(w, 'POST', '/v1/recovery', { session_ids: ['laptop~migrations'] })).json()).toEqual([])
+  })
+
+  it("shows the web app's screenshots and recording, and nothing its conversation does not show", async () => {
+    const { w } = world()
+    const items = (await (await call(w, 'GET', '/v1/sessions/web-app/conversation')).json()).items as ConversationItem[]
+    const media = items.flatMap((i) => (i.media ?? []).map((m) => (m.source === 'file' ? m.path : `${i.text} #${m.index}`)))
+    expect(media).toEqual(['e2e/shots/billing-before.png #0', 'e2e/shots/billing-vat.png', 'e2e/shots/upgrade-flow.webm'])
+    expect((await call(w, 'GET', `/v1/sessions/web-app/media?path=${encodeURIComponent('/etc/passwd')}`)).status).toBe(404)
+    expect((await call(w, 'GET', '/v1/sessions/web-app/items/1/media/0')).status).toBe(404)
+    expect((await call(w, 'GET', '/v1/sessions/docs/media?path=e2e%2Fshots%2Fbilling-vat.png')).status).toBe(404)
   })
 
   it('reports made-up plan usage, and turns it off', async () => {

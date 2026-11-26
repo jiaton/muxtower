@@ -6,7 +6,7 @@ import { Markdown } from '@/components/ui/markdown'
 import type { ConversationItem } from '@/lib/api/types'
 import { cn } from '@/lib/cn'
 import type { ShownOutgoing } from '@/lib/outbox'
-import { conversationMedia } from '../model/gallery'
+import { conversationMedia, itemMedia } from '../model/gallery'
 import { conversationRows, toolName, toolRunSummary } from '../model/rows'
 import { ConversationGallery, ConversationImages } from './conversation-images'
 import { SharedFileItem } from './shared-file'
@@ -35,9 +35,10 @@ const sameItem = (a: { item: ConversationItem; source?: ConversationSource; focu
 const sameRun = (a: { tools: ConversationItem[]; source?: ConversationSource }, b: typeof a) =>
   a.tools.length === b.tools.length && a.tools.every((t, i) => t === b.tools[i]) && sameSource(a.source, b.source)
 
+/** What these items show under them (`itemMedia`), each once. */
 function Images({ source, items }: { source?: ConversationSource; items: ConversationItem[] }) {
-  const paths = [...new Set(items.flatMap((item) => item.images ?? []))]
-  return source ? <ConversationImages daemonId={source.daemonId} sessionId={source.sessionId} paths={paths} /> : null
+  const media = useMemo(() => [...new Map(items.flatMap(itemMedia).map((m) => [m.key, m])).values()], [items])
+  return source ? <ConversationImages daemonId={source.daemonId} sessionId={source.sessionId} media={media} /> : null
 }
 
 /** A run of tool calls as one line ("Ran 4 commands (2 failed)", or a single call's own description)

@@ -69,9 +69,9 @@ export function demoSession(fields: Pick<Session, 'id' | 'name' | 'cwd'> & Parti
   }
 }
 
-type ItemFields = Omit<ConversationItem, 'seq' | 'kind' | 'actions' | 'images'> & Partial<ConversationItem>
+type ItemFields = Omit<ConversationItem, 'seq' | 'kind' | 'actions' | 'images' | 'media'> & Partial<ConversationItem>
 const item = (kind: ConversationItem['kind']) => (seq: number, fields: ItemFields) =>
-  ({ seq, kind, actions: [], images: [], ...fields }) as ConversationItem
+  ({ seq, kind, actions: [], images: [], media: [], ...fields }) as ConversationItem
 
 export const prompt = item('prompt')
 export const reply = item('reply')
