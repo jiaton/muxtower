@@ -138,10 +138,11 @@ function SessionsLayout() {
               </h1>
             }
             subtitle={loading ? <Skeleton className="w-20" /> : within ? `${within} · ${counted}` : counted}
+            // Without the docked sidebar, the plan-usage chip is here: the account nearest a limit, saying less
+            // as the header narrows, never moving the controls.
+            reading={panes.sidebarDocked ? null : <PlanUsageChip density="compact" />}
             actions={
               <>
-                {/* Without the docked sidebar, the plan-usage chip is here: the account nearest a limit. */}
-                {panes.sidebarDocked ? null : <PlanUsageChip density="compact" />}
                 <ListMenu
                   query={query}
                   unread={visible.filter((e) => e.session.unread)}

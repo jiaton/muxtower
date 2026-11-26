@@ -31,6 +31,17 @@ describe('Pane', () => {
     expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Search' })).toBeInTheDocument()
   })
+
+  it('puts a reading between the title and the controls, in a container of its own that gives way', () => {
+    render(<PaneHeader title={<h1>Sessions</h1>} reading={<span>44%</span>} actions={<button type="button">Add</button>} />)
+    const reading = screen.getByText('44%').parentElement!
+    expect(reading).toHaveClass('@container', 'min-w-0', 'flex-1')
+    // The title keeps its own width first; the controls never shrink.
+    expect(screen.getByRole('heading', { name: 'Sessions' }).parentElement!.parentElement).toHaveClass('shrink')
+    expect(screen.getByRole('button', { name: 'Add' }).parentElement).toHaveClass('shrink-0')
+    const order = [...reading.parentElement!.children]
+    expect(order.indexOf(reading)).toBe(order.indexOf(screen.getByRole('button', { name: 'Add' }).parentElement!) - 1)
+  })
 })
 
 describe('Segmented', () => {

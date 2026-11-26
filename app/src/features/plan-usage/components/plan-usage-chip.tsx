@@ -52,18 +52,22 @@ export function PlanUsageChip({ density }: { density: 'full' | 'compact' }) {
     <Popover
       title="Plan usage"
       trigger={
-        <Button variant="plain" className={density === 'full' ? 'w-full min-w-0' : 'min-w-0'} aria-label="Plan usage">
+        <Button variant="plain" className={density === 'full' ? 'w-full min-w-0' : 'hidden min-w-0 @min-[3rem]:flex'} aria-label="Plan usage">
           <Island
             shape="chip"
             tone={worst(accounts.map((a) => accountTone(a, threshold)))}
             name={out ? undefined : ISLAND}
             className={density === 'full' ? 'w-full' : undefined}
             title={
-              <span className={`grid ${only ? 'grid-cols-[auto_auto]' : 'grid-cols-[auto_auto_auto]'} items-baseline justify-start gap-x-1 gap-y-0.5`}>
-                {shown.map((a) => (
-                  <ChipLine key={`${a.provider}:${a.account}`} account={a} accounts={accounts} now={now} threshold={threshold} only={only} />
-                ))}
-              </span>
+              density === 'compact' ? (
+                <CompactLine account={shown[0]!} accounts={accounts} now={now} threshold={threshold} />
+              ) : (
+                <span className={`grid ${only ? 'grid-cols-[auto_auto]' : 'grid-cols-[auto_auto_auto]'} items-baseline justify-start gap-x-1 gap-y-0.5`}>
+                  {shown.map((a) => (
+                    <ChipLine key={`${a.provider}:${a.account}`} account={a} accounts={accounts} now={now} threshold={threshold} only={only} />
+                  ))}
+                </span>
+              )
             }
           />
         </Button>
@@ -100,6 +104,42 @@ function ChipLine({ account, accounts, now, threshold, only }: { account: PlanAc
       {windows.map((w) => (
         <ChipFigure key={w.id} account={account} w={w} now={now} threshold={threshold} />
       ))}
+    </span>
+  )
+}
+
+/** The compact chip's line, saying less as the room its header leaves it narrows (the header's `reading` is
+ *  an `@container`): the time to reset goes first, then the account's name, then the window's; the percent,
+ *  in its tone, stays. Narrower still, the chip goes (`PlanUsageChip`): the header's controls never move.
+ *  Each part comes at the width it needs, the chip's padding and border included: the percent 46 px; with the
+ *  window's name 66; with the account's 110; with the time to reset 132 to 154 ("2d" to "2h10m": from 152 a
+ *  long one may truncate inside the chip). Limited: "limited · 1h12m" 103, with the name 147. */
+function CompactLine({ account, accounts, now, threshold }: { account: PlanAccount; accounts: PlanAccount[]; now: number; threshold: number }) {
+  const until = limitedUntil(account)
+  const name = (
+    <span className={`${ink.strong} hidden ${until === null ? '@min-[7rem]:inline' : '@min-[9.5rem]:inline'}`}>{accountName(account, accounts)}</span>
+  )
+  if (until !== null)
+    return (
+      <span className="flex items-baseline gap-1">
+        {name}
+        <span className={ink.danger}>
+          limited<span className="hidden @min-[6.5rem]:inline">{` · ${timeLeft(until, now)}`}</span>
+        </span>
+      </span>
+    )
+  const w = chipWindows(account, true)[0]
+  const reset = w ? resetsAt(w) : null
+  return (
+    <span className={`${staleMinutes(account, now) !== null ? ink.quiet : ''} flex items-baseline gap-1`}>
+      {name}
+      {w ? (
+        <span>
+          <span className="hidden @min-[4.25rem]:inline">{windowShort(w)} </span>
+          <span className={toneInk[windowTone(account, w, threshold)]}>{percentText(w)}</span>
+          {reset === null ? null : <span className="hidden @min-[9.5rem]:inline">{`\u2009·\u2009${timeLeft(reset, now)}`}</span>}
+        </span>
+      ) : null}
     </span>
   )
 }
