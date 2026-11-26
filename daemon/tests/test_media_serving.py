@@ -199,3 +199,47 @@ def test_content_decides_the_type() -> None:
     assert sniff(b"GIF89a...") == "image/gif" and sniff(b"\xff\xd8\xff\xe0") == "image/jpeg"
     assert sniff(b"RIFF\x00\x00\x00\x00WEBPVP8 ") == "image/webp"
     assert sniff(b"<svg") is None and sniff(b"%PDF-1.7") is None
+
+
+def test_a_path_named_further_back_than_the_items_kept_is_still_shown(tmp_path: Path, where: tuple[Path, Path]) -> None:
+    from muxtower.claude_conversation import MAX_ITEMS
+
+    home, work = where
+    for name in ("early.png", "late.png", "written.png"):
+        (work / "out" / name).write_bytes(PNG)
+    transcript = (
+        said("user", text("start"))
+        + said("assistant", text("first look: out/early.png"))
+        + said("assistant", tool_use("t1", "Write", {"file_path": "out/written.png", "content": "x"}))
+        + "".join(said("assistant", text(f"step {n}")) for n in range(MAX_ITEMS + 50))
+        + said("assistant", text("last look: out/late.png"))
+    )  # fmt: skip
+    client, sid, items = _served(tmp_path, home, work, transcript)
+    kept = client.get(f"/v1/sessions/{sid}/conversation", params={"limit": 5000}).json()["items"]
+    assert len(kept) <= MAX_ITEMS and not any(i["text"] == "first look: out/early.png" for i in kept)  # not in memory
+    url = f"/v1/sessions/{sid}/media"
+    assert client.get(url, params={"path": "out/late.png"}).status_code == 200  # the latest item
+    assert client.get(url, params={"path": "out/early.png"}).status_code == 200  # read from the transcript
+    assert client.get(url, params={"path": "out/written.png"}).status_code == 404  # a tool's input, there too
+
+
+def test_a_videos_pieces_look_up_the_conversation_once_and_open_the_file_each_time(
+    tmp_path: Path, where: tuple[Path, Path], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from muxtower.sessions import media_reading
+    from muxtower.shared.routes import PIECE_BYTES
+
+    home, work = where
+    (work / "out" / "clip.mp4").write_bytes(MP4)
+    client, sid, _ = _served(tmp_path, home, work, said("assistant", text("recorded out/clip.mp4")))
+    directory = client.app.state.directory  # type: ignore[attr-defined]
+    looked, opened = [], []
+    conversation, read_file = directory.conversation, media_reading.read_file
+    monkeypatch.setattr(directory, "conversation", lambda *a, **k: looked.append(a) or conversation(*a, **k))
+    monkeypatch.setattr(media_reading, "read_file", lambda *a: opened.append(a) or read_file(*a))
+    got = client.get(f"/v1/sessions/{sid}/media", params={"path": "out/clip.mp4"})
+    assert got.status_code == 200 and got.content == MP4
+    assert len(opened) == -(-len(MP4) // PIECE_BYTES) > 1  # every piece opens and checks the file again
+    assert len(looked) == 1  # whether it is shown: looked up once
+    (work / "out" / "clip.mp4").write_text("replaced by text")
+    assert client.get(f"/v1/sessions/{sid}/media", params={"path": "out/clip.mp4"}).status_code == 415

@@ -6,6 +6,7 @@ resolved on the session's machine), and only on that machine. An image inside a 
 the session's transcript or log, and the last few kept decoded while they are being sent."""
 
 import threading
+import time
 from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,8 +16,10 @@ from muxtower.errors import Conflict, NotFound
 from muxtower.sessions.media import MediaInfo, decoded, file_info, read_file, where
 from muxtower.sessions.models import Conversation, MediaSource, Session
 
-SHOWN_ITEMS = 2000  # how far back in a conversation its media can be read
+SHOWN_ITEMS = 2000  # the latest items looked through first (a builder keeps fewer: then the transcript, `shows`)
 KEPT_INLINE = 2  # decoded inline images kept while pieces of them are asked for
+SHOWN_SECONDS = 60.0  # a path found shown is not looked for again for this long (a video is read in many pieces)
+KEPT_SHOWN = 64
 
 
 @dataclass(frozen=True)
@@ -41,10 +44,17 @@ class MediaReading:
     home: Path = Path.home()
     _inline_lock: threading.Lock
     _inline_kept: "OrderedDict[tuple[str, int, int], tuple[MediaInfo, bytes]]"
+    _shown: "OrderedDict[tuple[str, str], float]"  # (session, path) → until when it counts as shown
 
     def _media_init(self) -> None:
         self._inline_lock = threading.Lock()
         self._inline_kept = OrderedDict()
+        self._shown = OrderedDict()
+
+    def _shown_earlier(self, session_id: str, written: str) -> bool:
+        """Whether an item further back than those kept shows it (its transcript, read whole); False where there is
+        none to read."""
+        return False
 
     def get(self, session_id: str) -> Session:
         raise NotImplementedError
@@ -66,13 +76,31 @@ class MediaReading:
         return self._decoded(session_id, ask)[1][offset : offset + max(0, length)]
 
     def _media_path(self, session_id: str, written: str) -> Path:
-        items = self.conversation(session_id, 0, SHOWN_ITEMS).items
-        if not any(m.source == MediaSource.FILE and m.path == written for item in items for m in item.media):
-            raise NotFound("the conversation shows no such image or video")
         session = self.get(session_id)
+        if not self._is_shown(session.id, written):
+            raise NotFound("the conversation shows no such image or video")
         if not session.on_host:
             raise Conflict("the file is on the machine the session runs on, which is not this one")
         return where(written, self.home, session.working_dir or session.cwd)
+
+    def _is_shown(self, session_id: str, written: str) -> bool:
+        """Whether the conversation shows the file: its latest items, else further back. Remembered a minute once
+        found, so the pieces of one video do not look again; the file itself is opened and checked for each."""
+        key, now = (session_id, written), time.monotonic()
+        with self._inline_lock:
+            if self._shown.get(key, 0.0) > now:
+                self._shown.move_to_end(key)
+                return True
+        items = self.conversation(session_id, 0, SHOWN_ITEMS).items
+        found = any(m.source == MediaSource.FILE and m.path == written for item in items for m in item.media)
+        if not found and not self._shown_earlier(session_id, written):
+            return False
+        with self._inline_lock:
+            self._shown[key] = now + SHOWN_SECONDS
+            self._shown.move_to_end(key)
+            while len(self._shown) > KEPT_SHOWN:
+                self._shown.popitem(last=False)
+        return True
 
     def _decoded(self, session_id: str, ask: MediaAsk) -> tuple[MediaInfo, bytes]:
         key = (self.get(session_id).id, ask.seq or 0, ask.index or 0)

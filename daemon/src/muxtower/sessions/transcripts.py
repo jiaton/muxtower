@@ -25,7 +25,7 @@ from muxtower.agents.codex.rollout import RolloutBuilder
 from muxtower.claude_conversation import SLOTS, ConversationBuilder, RawEvent
 from muxtower.errors import NotFound
 from muxtower.infra.bus import EventBus
-from muxtower.sessions.models import Conversation, ConversationItem
+from muxtower.sessions.models import Conversation, ConversationItem, MediaSource
 
 logger = logging.getLogger("muxtower.transcripts")
 WARN_EVERY = 3600.0  # seconds: a transcript that stays unreadable is told of once an hour, not each read
@@ -193,6 +193,25 @@ class Transcripts:
         builder._seq = start - 1
         builder.feed_lines(lines)
         return Conversation(session_id=session_id, items=builder.after(seq - 1, limit), latest_seq=0)
+
+    def shows(self, path: str, written: str) -> bool:
+        """Blocking: whether an item of the whole transcript shows the file `written` (`ConversationItem.media`), by
+        the same rules as the items kept: each line naming it is read as the conversation reads it. For a path named
+        further back than the items kept in memory (MAX_ITEMS)."""
+        needles = {written.encode(), json.dumps(written)[1:-1].encode()}
+        try:
+            with open(path, "rb") as f:
+                for n, raw in enumerate(f, 1):
+                    if not any(needle in raw for needle in needles):
+                        continue
+                    builder = builder_for(path)
+                    builder._seq = n - 1  # type: ignore[attr-defined]
+                    items = builder.feed_lines([raw])
+                    if any(m.source == MediaSource.FILE and m.path == written for i in items for m in i.media):
+                        return True
+        except OSError:
+            return False
+        return False
 
     def inline(self, path: str, seq: int, index: int) -> str:
         """Blocking: the base64 of the `index`th image in the result of the tool call `seq` (`sessions/inline.py`),

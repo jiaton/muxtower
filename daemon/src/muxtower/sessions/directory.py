@@ -286,16 +286,22 @@ class SessionDirectory(OwnerMarks, Sharing, MediaReading):
         """An image its conversation shows, read here if the session runs here (`sessions/images.py`)."""
         return read_shown(path, self.conversation(session_id, 0, IMAGE_ITEMS).items, self.get(session_id).on_host)
 
+    def _transcript_of(self, session: Session) -> str | None:
+        """The transcript its conversation is read from (a pane's, or an archived session's), if any."""
+        if session.archived_at and self.archive_store:
+            record = self.archive_store.record(session.id)
+            return record.transcript if record else None
+        return self.local.transcript_of(session.id) if self.source_of(session.id) is None else None
+
+    def _shown_earlier(self, session_id: str, written: str) -> bool:
+        path = self._transcript_of(self.get(session_id))
+        return bool(path and self.transcripts and self.transcripts.shows(path, written))
+
     def _inline_data(self, session_id: str, seq: int, index: int) -> str:
         """The base64 of an image inside a tool's result, read again where the conversation is: its transcript (a
         pane's, or an archived session's), else its source's log (Remote Control)."""
         session = self.require(session_id, "conversation")
-        path: str | None = None
-        if session.archived_at and self.archive_store:
-            record = self.archive_store.record(session_id)
-            path = record.transcript if record else None
-        elif self.source_of(session_id) is None:
-            path = self.local.transcript_of(session_id)
+        path = self._transcript_of(session)
         if path and self.transcripts:
             return self.transcripts.inline(path, seq, index)
         remote_id = session.remote_id or session_id
