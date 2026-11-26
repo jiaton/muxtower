@@ -22,11 +22,11 @@ export const isGone = (error: unknown) => error instanceof ApiError && error.sta
 /** A picture or video an agent shared (`ConversationItem.shared`), fetched with the daemon's token as a
  *  blob for <img> or <video>. Nothing is asked for without a `file` (one that expired, or not a picture
  *  or video). Kept for the page's life: a shared file never changes. */
-export function useSharedFile(daemonId: string, sessionId: string, file: SharedFile | undefined) {
+export function useSharedFile(daemonId: string, sessionId: string, file: SharedFile | undefined, enabled = true) {
   const client = useDaemonClient(daemonId)
   return useQuery<Blob>({
     queryKey: daemonKey(daemonId, 'shared', sessionId, file?.id),
-    enabled: client !== null && !!file,
+    enabled: enabled && client !== null && !!file,
     staleTime: Infinity,
     retry: false,
     queryFn: () => fetchShared(client!, sessionId, file!.id),

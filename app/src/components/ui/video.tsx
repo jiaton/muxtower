@@ -60,6 +60,21 @@ export function VideoThumb({
 }
 
 /**
+ * A video not loaded, shown for what it is: a ▶, its name and "Video" over a plain ground. Nothing is fetched
+ * for it (a video may be large, and a phone may be on mobile data): the button around it names it and opens
+ * it, and the player loads it then. Not `VideoThumb`: no frame, so no bytes. The caller gives its size.
+ */
+export function VideoTile({ name, className }: { name: string; className?: string }) {
+  return (
+    <span data-video-tile className={cn(box({ ground: 'muted', radius: 'sm' }), 'relative flex flex-col justify-end overflow-hidden px-2.5 py-2 text-left', className)}>
+      <PlayBadge size="md" />
+      <span className={cn(text({ size: 'xs', weight: 'medium' }), 'truncate')}>{name}</span>
+      <span className={text({ size: 'xs', tone: 'muted' })}>Video</span>
+    </span>
+  )
+}
+
+/**
  * A video shown large: the browser's own player (`controls`), inline on phones (`playsInline`), loading
  * only what it needs to show its first frame until played (`preload="metadata"`), never on its own.
  */

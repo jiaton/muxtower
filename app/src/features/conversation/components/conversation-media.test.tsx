@@ -48,14 +48,17 @@ it('shows a file by its path as written, an inline image and a video under their
   expect(await screen.findByRole('img', { name: 'home.png' })).toBeInTheDocument()
   expect(await screen.findByRole('img', { name: "Image 1 of a tool's result" })).toBeInTheDocument()
   const play = await screen.findByRole('button', { name: 'Play flow.webm' })
-  expect(asked.sort()).toEqual(['3/0', 'demo/flow.webm', '~/shots/home.png'])
+  expect(play).toHaveTextContent('flow.webmVideo')
+  expect(asked.sort()).toEqual(['3/0', '~/shots/home.png']) // a video loads only when opened
   fireEvent.click(play)
   expect(screen.getByText('3 / 3')).toBeInTheDocument()
+  expect(await screen.findByLabelText('flow.webm', { selector: 'video' })).toBeInTheDocument()
+  expect(asked).toContain('demo/flow.webm')
 })
 
 it('says a file deleted since or too large quietly, leaves out what is not media, and counts only what shows', async () => {
-  status = { 'gone.png': 410, 'huge.mp4': 413, 'notes.png': 415 }
-  show([reply(1, [file('ok.png'), file('gone.png'), file('huge.mp4', 'video'), file('notes.png'), file('also-ok.png')])])
+  status = { 'gone.png': 410, 'huge.png': 413, 'notes.png': 415 }
+  show([reply(1, [file('ok.png'), file('gone.png'), file('huge.png'), file('notes.png'), file('also-ok.png')])])
   expect(await screen.findByText('File no longer there')).toBeInTheDocument()
   expect(await screen.findByText('Too large to show')).toBeInTheDocument()
   await waitFor(() => expect(asked).toContain('notes.png'))
@@ -63,6 +66,15 @@ it('says a file deleted since or too large quietly, leaves out what is not media
   await screen.findByRole('img', { name: 'also-ok.png' })
   fireEvent.click(await screen.findByRole('img', { name: 'ok.png' }))
   expect(screen.getByText('1 / 2')).toBeInTheDocument() // of five: the other three cannot show
+})
+
+it('says why a video cannot show once it is opened, in the viewer and on its tile, and counts it until then', async () => {
+  status = { 'huge.mp4': 413 }
+  show([reply(1, [file('a.png'), file('huge.mp4', 'video')])])
+  await screen.findByRole('img', { name: 'a.png' })
+  fireEvent.click(await screen.findByRole('button', { name: 'Play huge.mp4' }))
+  expect(screen.getByText('2 / 2')).toBeInTheDocument() // counted until it failed
+  expect(await screen.findAllByText('Too large to show')).not.toHaveLength(0)
 })
 
 it('offers to try again when the machine cannot be reached, and shows it once it can', async () => {

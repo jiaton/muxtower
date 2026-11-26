@@ -16,13 +16,14 @@ export const mediaKey = (daemonId: string, sessionId: string, t: MediaTarget) =>
  * Its bytes, fetched with the daemon's token as a blob (an <img> or <video> could not send it), for an object
  * URL: whole, at most 25 MB (the daemon refuses more, 413), so a video seeks within it with no Range of its
  * own and no token in a URL. A thumbnail and its large view share it. Kept for the page's life; asked again
- * only by `refetch` (its machine was away). Nothing is asked for without a `target`.
+ * only by `refetch` (its machine was away). Nothing is asked for without a `target`, nor while not `enabled`
+ * (a video's tile: what an earlier open found is read all the same).
  */
-export function useSessionMedia(daemonId: string, sessionId: string, target: MediaTarget | undefined) {
+export function useSessionMedia(daemonId: string, sessionId: string, target: MediaTarget | undefined, enabled = true) {
   const client = useDaemonClient(daemonId)
   return useQuery<Blob>({
     queryKey: target ? mediaKey(daemonId, sessionId, target) : daemonKey(daemonId, 'media', sessionId, '-'),
-    enabled: client !== null && target !== undefined,
+    enabled: enabled && client !== null && target !== undefined,
     staleTime: Infinity,
     retry: false,
     queryFn: async () =>

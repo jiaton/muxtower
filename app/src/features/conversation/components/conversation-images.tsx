@@ -1,7 +1,7 @@
 import { ImageOff, RotateCw } from 'lucide-react'
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
 import { ImageViewer } from '@/components/ui/image-viewer'
-import { VideoPlayer, VideoThumb } from '@/components/ui/video'
+import { VideoPlayer, VideoTile } from '@/components/ui/video'
 import { useObjectUrl } from '@/lib/use-object-url'
 import { useSessionImage } from '../api/use-session-image'
 import { useSessionMedia, useUnshownMedia, type MediaTarget } from '../api/use-session-media'
@@ -23,13 +23,14 @@ const shownOnce = new Set<string>()
  * One picture's or video's file, as a URL for <img> or <video> (cached: a thumbnail and its large view load it
  * once): a file an item names or an image in a tool's result (`useSessionMedia`), an old daemon's image by
  * path, or a file an agent shared. `gone`: a shared file the daemon no longer keeps (expired, or a 404);
- * `problem`: why a file or inline image cannot show; `retry` asks again (its machine was away).
+ * `problem`: why a file or inline image cannot show; `retry` asks again (its machine was away). Without
+ * `fetch` (a video's tile) nothing is asked for: only what an earlier open found is read.
  */
-function useMediaUrl(daemonId: string, sessionId: string, media: GalleryMedia) {
+function useMediaUrl(daemonId: string, sessionId: string, media: GalleryMedia, fetch = true) {
   const expired = media.from === 'shared' && isExpired(media.file)
-  const image = useSessionImage(daemonId, sessionId, media.from === 'path' ? media.path : '', media.from === 'path')
-  const shared = useSharedFile(daemonId, sessionId, media.from === 'shared' && !expired ? media.file : undefined)
-  const ref = useSessionMedia(daemonId, sessionId, targetOf(media))
+  const image = useSessionImage(daemonId, sessionId, media.from === 'path' ? media.path : '', fetch && media.from === 'path')
+  const shared = useSharedFile(daemonId, sessionId, media.from === 'shared' && !expired ? media.file : undefined, fetch)
+  const ref = useSessionMedia(daemonId, sessionId, targetOf(media), fetch)
   const query = media.from === 'path' ? image : media.from === 'shared' ? shared : ref
   const url = useObjectUrl(query.data)
   if (query.data) shownOnce.add(media.key)
@@ -117,8 +118,9 @@ function Large({ daemonId, sessionId, media }: { daemonId: string; sessionId: st
   return <img src={url} alt={media.name} draggable={false} />
 }
 
-/** A picture or video small, opening large in its conversation's gallery when tapped. Loading or failed,
- *  a placeholder that says so; a shared file that is gone, `gone` instead (its item says "Expired"). */
+/** A picture or video small, opening large in its conversation's gallery when tapped. A picture loads with
+ *  it (loading or failed, a placeholder that says so); a video is a tile (`VideoTile`) that loads nothing
+ *  until opened, as it may be large. A shared file that is gone, `gone` instead (its item says "Expired"). */
 export function MediaThumb({
   daemonId,
   sessionId,
@@ -131,9 +133,16 @@ export function MediaThumb({
   gone?: ReactNode
 }) {
   const open = useContext(Gallery)
-  const { url, failed, gone, problem, retry } = useMediaUrl(daemonId, sessionId, media)
+  const video = media.kind === 'video'
+  const { url, failed, gone, problem, retry } = useMediaUrl(daemonId, sessionId, media, !video)
   if (gone) return whenGone
   if (problem && problem !== 'failed') return problem === 'hidden' ? null : <Problem problem={problem} onRetry={retry} />
+  if (video)
+    return (
+      <Button variant="plain" title={media.description} aria-label={`Play ${media.name}`} className={`${look.panel} overflow-hidden`} onClick={() => open?.(media.key)}>
+        <VideoTile name={media.name} className="aspect-video h-36" />
+      </Button>
+    )
   if (!url)
     return (
       <span className={`${look.panel} ${ink.meta} flex h-24 w-32 flex-col items-center justify-center gap-1 px-2 text-center`}>
@@ -141,20 +150,9 @@ export function MediaThumb({
         <span className="w-full truncate">{failed ? `${media.name} not available` : media.name}</span>
       </span>
     )
-  const video = media.kind === 'video'
   return (
-    <Button
-      variant="plain"
-      title={media.description}
-      aria-label={video ? `Play ${media.name}` : undefined}
-      className={`${look.panel} overflow-hidden`}
-      onClick={() => open?.(media.key)}
-    >
-      {video ? (
-        <VideoThumb src={url} className="aspect-video h-36" />
-      ) : (
-        <img src={url} alt={media.name} className="block max-h-48 max-w-full object-contain" />
-      )}
+    <Button variant="plain" title={media.description} className={`${look.panel} overflow-hidden`} onClick={() => open?.(media.key)}>
+      <img src={url} alt={media.name} className="block max-h-48 max-w-full object-contain" />
     </Button>
   )
 }

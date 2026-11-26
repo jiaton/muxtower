@@ -48,9 +48,11 @@ it('shows a shared picture and video with their caption and time, in one gallery
   expect(screen.getAllByText(/^Shared/)[0]!.querySelector('time')).toHaveAttribute('datetime', '2026-11-26T07:30:00Z')
   const play = await screen.findByRole('button', { name: 'Play flow.webm' })
   await screen.findByRole('img', { name: 'checklist.png' })
+  expect(asked).toEqual(['img']) // the video is a tile: nothing fetched until it is opened
   fireEvent.click(play)
   expect(screen.getByText('2 / 2')).toBeInTheDocument()
-  expect((screen.getByLabelText('flow.webm', { selector: 'video' }) as HTMLVideoElement).controls).toBe(true)
+  expect(((await screen.findByLabelText('flow.webm', { selector: 'video' })) as HTMLVideoElement).controls).toBe(true)
+  expect(asked).toEqual(['img', 'vid'])
 })
 
 it('a PDF or any other file is a card that downloads it, never opening it', async () => {

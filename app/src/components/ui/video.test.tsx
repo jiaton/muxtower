@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { expect, it } from 'vitest'
-import { VideoPlayer, VideoThumb } from './video'
+import { VideoPlayer, VideoThumb, VideoTile } from './video'
 
 it('a thumbnail is the first frame, still and silent, with a play mark over it', () => {
   const { container } = render(<VideoThumb src="blob:clip" />)
@@ -28,4 +28,11 @@ it('the player is the browser’s own, inline, never playing on its own', () => 
   expect(video.hasAttribute('playsinline')).toBe(true)
   expect(video.getAttribute('preload')).toBe('metadata')
   expect(video.getAttribute('src')).toBe('blob:clip#t=0.1')
+})
+
+it('shows a video not loaded as a tile: its name, "Video" and a play mark, with no video element', () => {
+  const { container } = render(<VideoTile name="upgrade-flow.webm" />)
+  expect(container.querySelector('video')).toBeNull()
+  expect(container).toHaveTextContent('upgrade-flow.webmVideo')
+  expect(container.querySelector('[data-play-badge]')).not.toBeNull()
 })
