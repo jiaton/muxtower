@@ -117,6 +117,8 @@ async def node_link(ws: WebSocket) -> None:
     await ws.send_text(
         protocol.event("hub", {"version": __version__, "protocol": protocol.PROTOCOL, "oldest": protocol.OLDEST})
     )
+    # Whether its machine reads its plans (`subscriptions/`): a node reads none until its hub says so.
+    await ws.send_text(protocol.event("plan_usage", {"enabled": ws.app.state.settings.plan_usage.enabled}))
     try:
         first = parse(await asyncio.wait_for(ws.receive_text(), HELLO_SECONDS)) or {}
         hello = protocol.Hello.model_validate(first.get("data") if first.get("event") == "hello" else {})

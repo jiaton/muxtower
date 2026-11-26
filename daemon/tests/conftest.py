@@ -8,6 +8,17 @@ from fastapi.testclient import TestClient
 from muxtower.app import create_app
 from muxtower.config import load_settings
 from tests.fakes import FakeTmux
+from tests.plan_fakes import NoLogins, refusing_transport
+
+
+@pytest.fixture(autouse=True)
+def no_real_plans(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Every app a test builds reads no sign-in of this machine and reaches no provider (`subscriptions/`)."""
+    from muxtower.subscriptions import wiring
+    from muxtower.subscriptions.provider_client import ProviderClient
+
+    monkeypatch.setattr(wiring, "CliLogins", lambda home: NoLogins())
+    monkeypatch.setattr(wiring, "ProviderClient", lambda: ProviderClient(refusing_transport()))
 
 
 @pytest.fixture

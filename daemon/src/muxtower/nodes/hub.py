@@ -92,6 +92,8 @@ class Nodes:
         # (`NodeSource.listed_as`): its events go out under the id clients know, or not at all.
         self.listed_as: Callable[[str, Session], str | None] = lambda node, s: f"{node}~{s.id}"
         self.linked: list[Callable[[str], None]] = []  # told a node's name each time it connects (event loop)
+        self.plans: Callable[[str, Any], None] | None = None  # a node's `plan_usage` event (event loop)
+        self.removed: list[Callable[[str], None]] = []  # told a node's name when it is removed
 
         # --- membership ---------------------------------------------------------------------------
         self.screen_feed = ScreenFeed()  # the monitor's, set by the app
@@ -153,6 +155,8 @@ class Nodes:
         self.repo.delete(name)
         if node.link is not None and self.loop is not None:
             self.loop.call_soon_threadsafe(node.link.close, CLOSE_REVOKED)
+        for listener in self.removed:
+            listener(name)
         self.bus.publish("sessions", None)
 
     def infos(self) -> list[NodeInfo]:
@@ -283,6 +287,18 @@ class Nodes:
             self._running(name, data)
         elif kind == "usage" and isinstance(data, dict):
             self._usage(name, data)
+        elif kind == "plan_usage" and self.plans is not None:
+            self.plans(name, data)
+
+    def tell_all(self, kind: str, data: Any) -> None:
+        """From any thread: an event to every node linked now."""
+        loop = self.loop
+        if loop is None:
+            return
+        with self._lock:
+            links = [n.link for n in self.nodes.values() if n.link is not None]
+        for link in links:
+            asyncio.run_coroutine_threadsafe(link.tell(kind, data), loop)
 
     def _usage(self, name: str, data: dict[str, Any]) -> None:
         try:

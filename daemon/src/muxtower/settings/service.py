@@ -69,6 +69,7 @@ class SettingsService:
                 except Invalid:
                     pass  # a value this version no longer takes: the default (or the file's) stays
         self.running = {f.key: _get(settings, f.key) for f in FIELDS}  # as the daemon started
+        self.listeners: list[Callable[[str, Any], None]] = []  # (key, value now) after a `now` setting changes
 
     def locked(self, key: str) -> bool:
         return key in self.settings.set_by_file
@@ -111,6 +112,8 @@ class SettingsService:
             if BY_KEY[key].applies == "now":
                 _put(self.settings, key, effective)
                 self.running[key] = effective
+                for listener in self.listeners:
+                    listener(key, effective)
             self.audit.record(actor, "settings", None, f"{key}={json.dumps(value)}")
         return self.views()
 

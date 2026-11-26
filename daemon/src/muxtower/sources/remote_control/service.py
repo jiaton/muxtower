@@ -12,7 +12,9 @@ lock that is never held across a network call.
 import asyncio
 import logging
 import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
+from datetime import datetime
 from typing import Any
 
 from muxtower.errors import LoginExpired, NotFound, Unavailable
@@ -24,6 +26,7 @@ from muxtower.sources.remote_control.actions import EVENTS_PER_PAGE, RcActions
 from muxtower.sources.remote_control.lineage import Lineage
 from muxtower.sources.remote_control.ports import LineageStore, PlaceStore, RawEvent, RemoteControlPort
 from muxtower.sources.remote_control.view import RcSession, to_session
+from muxtower.subscriptions.parse import rate_limit_event
 
 logger = logging.getLogger("muxtower.remote_control")
 
@@ -58,6 +61,9 @@ class RemoteControlSource(RcActions):
         self.places: PlaceStore | None = None  # where each last ran (`_placed`), kept
         self._places: dict[str, tuple[str, str]] | None = None
         self._kept: dict[str, Lineage] | None = None  # what it held at start
+        # A session refused for the plan's limit, or let through again (its `rate_limit_event`): this machine's
+        # Claude plan (`subscriptions/`), whose sign-in Remote Control reads with. Called under the lock.
+        self.on_limit: Callable[[bool, datetime | None], None] | None = None
 
     # --- reading ------------------------------------------------------------------------------
 
@@ -125,6 +131,10 @@ class RemoteControlSource(RcActions):
         """Under the lock: new events and details into the cache; returns the new or changed items."""
         items = rc.builder.feed(events)
         rc.folder.feed(events)
+        if self.on_limit is not None:
+            for event in events:
+                if (limit := rate_limit_event(event.payload)) is not None:
+                    self.on_limit(*limit)
         rc.detail = detail
         for key in ("status", "worker_status"):  # the details are newer than the listing
             if key in detail:

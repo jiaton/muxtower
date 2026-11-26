@@ -98,7 +98,7 @@ from muxtower.sources.codex.service import CodexSource
 from muxtower.sources.codex.shared import SharedCodexSource
 from muxtower.sources.remote_control.lineage_store import SqliteLineageStore, SqlitePlaceStore
 from muxtower.sources.remote_control.service import RemoteControlSource
-from muxtower.subscriptions.service import PlanBook
+from muxtower.subscriptions.wiring import wire_plan_usage
 from muxtower.teams import placing
 from muxtower.teams.remote_places import RemotePlaces
 from muxtower.teams.renaming import ProjectRenames
@@ -232,6 +232,9 @@ def create_app(
     push = PushService(
         SqliteSubscriptionRepository(db), sender, directory, daemon_name, tokens.exists, SqliteShownStore(db)
     )
+    plan_reader, plan_book = wire_plan_usage(
+        settings, daemon_name, hub, nodes, node_api, feature_settings, push, remote_control
+    )
     monitor.after_tick = directory.deliver_held  # the owner's messages held for a dialog go in after it
 
     teams = TeamService(directory, SqliteTeamRepository(db), transcript_of=directory.local.transcript_of)
@@ -278,6 +281,7 @@ def create_app(
                 "attachments": attachments.run_loop(),
                 "shared": shared.run_loop(),
                 "inbox": inbox_schedule.run_loop(),
+                "plan-usage": plan_reader.run_loop(),
             }
             if summaries.available:
 
@@ -403,7 +407,7 @@ def create_app(
         sessions=sessions, monitor=monitor, directory=directory, remote_control=remote_control,
         placements=placements, archiver=archiver, launcher=launcher, nodes=nodes, hub=hub, summaries=summaries,
         concierge=concierge, teams=teams, remote_places=remote_places, team_tasks=team_tasks, usage=usage,
-        plan_book=PlanBook(), recovery=recovery, writes=writes, continuer=continuer,
+        plan_book=plan_book, plan_reader=plan_reader, recovery=recovery, writes=writes, continuer=continuer,
         watches=watches,
         direct=DirectAccess(nodes, node_sessions.call), feature_settings=feature_settings,
         chip_groups=chip_groups, project_order=project_order, playbook=playbook,

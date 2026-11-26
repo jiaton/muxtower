@@ -70,6 +70,10 @@ class HubClient:
         self._ws: ClientConnection | None = None
         self._session: LinkSession | None = None
         self.hub_protocol: int | None = None  # the link protocol the hub speaks, from its `hub` event
+        # Whether this machine reads its plans (`subscriptions/`), as the hub last said; None: it never said (an
+        # older hub), so none are read. Kept over a dropped link: the next one says it again.
+        self.plan_usage: bool | None = None
+        self.plan_usage_told: list[Callable[[], None]] = []
         self.started = time.monotonic()
         self.down_since: datetime | None = datetime.now().astimezone()  # since when it has had no link
 
@@ -114,6 +118,9 @@ class HubClient:
         if self.store.load() is None:
             raise Conflict("this daemon has not joined a hub")
         self.store.clear()
+        self.plan_usage = None  # its own setting again
+        for told in self.plan_usage_told:
+            told()
         self._poke()
 
     def _poke(self) -> None:
@@ -192,6 +199,11 @@ class HubClient:
         """What the hub tells this node unasked: its version (`update.py`)."""
         if kind == "hub" and isinstance(data, dict) and isinstance(data.get("protocol"), int):
             self.hub_protocol = data["protocol"]
+        if kind == "plan_usage" and isinstance(data, dict) and isinstance(data.get("enabled"), bool):
+            if data["enabled"] != self.plan_usage:
+                self.plan_usage = data["enabled"]
+                for told in self.plan_usage_told:
+                    told()
         following = self._following is not None and not self._following.done()
         if kind == "hub" and (target := self.updater.heard(data)) and not following:
             self._following = asyncio.create_task(self._follow(target))

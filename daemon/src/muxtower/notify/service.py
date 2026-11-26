@@ -94,8 +94,12 @@ class PushService:
         per item."""
         return self._to_all("inbox", title[:80], body[:300], inbox_item=item_id)
 
+    def notify_plan(self, title: str, body: str) -> int:
+        """A Claude or Codex plan is rate-limited (`subscriptions/`): to every device, once per limit."""
+        return self._to_all("plan_usage", title[:80], body[:300])
+
     def _to_all(
-        self, kind: Literal["login", "recovery", "trigger", "inbox"], title: str, body: str,
+        self, kind: Literal["login", "recovery", "trigger", "inbox", "plan_usage"], title: str, body: str,
         trigger: str | None = None, inbox_item: int | None = None,
     ) -> int:  # fmt: skip
         sent = 0

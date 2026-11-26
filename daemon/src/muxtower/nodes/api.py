@@ -24,6 +24,7 @@ from muxtower.sessions.models import CreateSession, Session, UpdateSession
 from muxtower.sessions.placement import Placements
 from muxtower.sessions.ports import ClaudeProcessPort
 from muxtower.settings.service import SettingsService
+from muxtower.subscriptions.reader import PlanReader
 from muxtower.teams.checkout import checkout
 from muxtower.terminal.models import Resize, SendInput
 from muxtower.usage.models import MachineUsage
@@ -50,6 +51,7 @@ class NodeApi:
     ) -> None:  # fmt: skip
         self.processes = processes
         self.usage_now: Callable[[], MachineUsage] | None = None  # set once the usage sampler runs
+        self.plans: PlanReader | None = None  # this machine's plans (`subscriptions/`), sent to the hub
         self.recover: Callable[[list[str]], list[Session]] | None = None  # set by the recovery service
         self.resume_archived: Callable[[str, str | None], Session] | None = None  # likewise
         self.search: Callable[[str, int], list[dict[str, Any]]] | None = None  # full-text, set by the app

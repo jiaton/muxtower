@@ -45,6 +45,15 @@ class NodeLink:
         except Exception as exc:  # noqa: BLE001 - logged; the caller has moved on
             logger.info("%s on %s failed: %s", method, self.name, exc)
 
+    async def tell(self, kind: str, data: Any) -> None:
+        """An event, unanswered (`protocol.event`); a link gone meanwhile is let be."""
+        if self.closed:
+            return
+        try:
+            await self._send(protocol.event(kind, data))
+        except Exception as exc:  # noqa: BLE001 - it may be gone already
+            logger.debug("telling %s %s: %s", self.name, kind, exc)
+
     def answered(self, frame: dict[str, Any]) -> None:
         answer = self._pending.get(frame.get("id", -1))
         if answer is None or answer.done():

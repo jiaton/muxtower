@@ -14,11 +14,13 @@ from muxtower.nodes import protocol
 from muxtower.nodes.api import CHANGES_LIST, NodeApi
 from muxtower.nodes.link import NodeLink, parse
 from muxtower.sessions.monitor import Monitor
+from muxtower.subscriptions.models import PlanReports
 
 logger = logging.getLogger("muxtower.hub")
 
 RESEND_SECONDS = 60.0
 PROCESS_SECONDS = 5.0
+PLANS_SECONDS = 2.0  # how often it looks whether its plans were read again (memory only)
 USAGE_SECONDS = 10.0  # how often its Claude Code processes are looked at (files, no network)
 DEBOUNCE_SECONDS = 0.3
 
@@ -48,7 +50,7 @@ class LinkSession:
         bus.subscribe("sessions", self.queue)
         bus.subscribe("conversation:*", self.queue)
         self.dirty.set()
-        loops = (self.read(), self.pump(), self.report(), self.processes(), self.usage())
+        loops = (self.read(), self.pump(), self.report(), self.processes(), self.usage(), self.plans())
         tasks = [asyncio.create_task(t) for t in loops]
         try:
             done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
@@ -91,6 +93,19 @@ class LinkSession:
             if (usage := self.api.usage()) is not None:
                 await self.ws.send(protocol.event("usage", usage.model_dump(mode="json")))
             await asyncio.sleep(USAGE_SECONDS)
+
+    async def plans(self) -> None:
+        """The plans this machine read (`subscriptions/`), whole: on every link, then each time they change."""
+        reader, sent = self.api.plans, None
+        if reader is None:
+            await asyncio.Event().wait()  # none here: nothing to send, ever
+            return
+        while True:
+            if reader.version != sent:
+                sent = reader.version
+                reports = PlanReports(reports=reader.reports()).model_dump(mode="json")
+                await self.ws.send(protocol.event("plan_usage", reports))
+            await asyncio.sleep(PLANS_SECONDS)
 
     async def pump(self) -> None:
         while True:
