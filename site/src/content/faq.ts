@@ -24,7 +24,7 @@ export const questions = [
   },
   {
     q: 'Which agents does it support?',
-    a: 'Claude Code and Codex fully: state from their hooks, approvals and questions from your phone. Any other terminal agent can be watched and typed into, and taught its dialogs with screen rules.',
+    a: 'Claude Code and Codex fully: state from their hooks, and their questions answered from your phone. Any other terminal agent can be watched and typed into, and taught its dialogs with screen rules.',
   },
   {
     q: 'Is the hosted app safe to pair with my daemons?',

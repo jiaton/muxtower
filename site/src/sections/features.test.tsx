@@ -11,8 +11,8 @@ describe('Features', () => {
       'Start at your desk',
       'Update the hub only',
       'Build your own client',
-      'Talk instead of type',
-      'Reply without the mouse',
+      'Talk, and listen',
+      'Keyboard all the way',
     ])
       expect(screen.getByRole('heading', { level: 3, name: title })).toBeInTheDocument()
     expect(screen.getByText('Done: retries with backoff, 3 attempts')).toBeInTheDocument()

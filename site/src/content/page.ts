@@ -37,7 +37,8 @@ export const team = {
   facts: [
     'A role is plain text: pm, worker, reviewer.',
     'A project is its git remote, on any machine.',
-    'A task waits while its receiver waits on you.',
+    'Open a project’s team: who is on it, and the tasks sent lately.',
+    'A playbook, in your words, tells every team how you work.',
   ],
   clip: 'A team on two machines: the PM sets roles, the tech lead splits the work and watches, reports come back',
 }

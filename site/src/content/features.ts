@@ -10,7 +10,7 @@ export const featureCells = {
   },
   assistant: {
     title: 'One assistant over all of them',
-    text: 'Ask one session on the hub instead of each. It reads, sums up and answers for you.',
+    text: 'Turn it on and ask one session on the hub instead of each. It reads, sums up and answers for you.',
     ask: 'Anything waiting on me?',
     answer: 'One: shop on the server has a question for you. api finished its migration.',
   },
@@ -22,12 +22,12 @@ export const featureCells = {
   updates: {
     title: 'Update the hub only',
     text: 'Machines joined to it follow. A daemon restart never stops a running agent.',
-    version: '0.1.47',
+    version: '0.1.221',
     machines: ['server', 'vps', 'macbook', 'pc'],
   },
   live: {
-    title: 'Talk instead of type',
-    text: 'Live writes what you say into the open session.',
+    title: 'Talk, and listen',
+    text: 'Live writes what you say into the open session. Read aloud sums up each finished turn, out loud.',
     points: [
       'Follows you from session to session',
       'Say “send”, “pause”, “resume”: no tapping',
@@ -37,8 +37,8 @@ export const featureCells = {
     clip: 'Live: speaking into one session, then another, and saying send',
   },
   keys: {
-    title: 'Reply without the mouse',
-    text: 'Select a line, Reply, answer it, Enter. In the conversation or on the live terminal.',
+    title: 'Keyboard all the way',
+    text: '⌘K opens any session or command, and searches every conversation on every machine. Select a line, Reply, Enter.',
     clip: 'Replying to a selected line from the keyboard, on the live terminal',
   },
   api: {
