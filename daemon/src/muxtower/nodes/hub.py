@@ -216,12 +216,18 @@ class Nodes:
     # --- links (event loop) -------------------------------------------------------------------
 
     async def attach(self, name: str, link: NodeLink, hello: Hello) -> None:
-        """A node connected (a newer link replaces an older one): watched screens are watched again."""
+        """A node connected (a newer link replaces an older one): `take`, then `welcome`, waited for."""
+        if (watched := self.take(name, link, hello)) is not None:
+            await self.welcome(name, link, watched)
+
+    def take(self, name: str, link: NodeLink, hello: Hello) -> dict[str, list[int]] | None:
+        """On the event loop, at once: the link is this node's now (an older one is closed). The screens it had
+        watched, for `welcome`; None for a node this hub does not know."""
         self.loop = asyncio.get_running_loop()
         with self._lock:
             node = self.nodes.get(name)
             if node is None:
-                return
+                return None
             old, node.link = node.link, link
             node.record.version = hello.version
             node.record.runtimes = [r.model_dump(mode="json") for r in hello.runtimes]
@@ -233,6 +239,16 @@ class Nodes:
         if old is not None:
             old.close()
         self.persist(node.record)
+        logger.info("node %s connected (%s)", name, hello.version)
+        for told in self.linked:
+            told(name)
+        self.bus.publish("sessions", None)
+        return watched
+
+    async def welcome(self, name: str, link: NodeLink, watched: dict[str, list[int]]) -> None:
+        """What a new link is asked first: screens watched again, devices revoked while it was away. It waits on
+        the node's answers and the database, so the link's frames must be read meanwhile: the hub runs it beside
+        its reading (`routes.py`), never before it (an unread frame stops the reading, and the node's pings)."""
         for session_id, histories in watched.items():
             for history in histories:
                 await link.notify("watch_screen", {"session_id": session_id, "history": history})
@@ -245,10 +261,6 @@ class Nodes:
                     logger.warning("could not revoke %s on %s yet: %s", token_name, name, exc)
                     continue
             await asyncio.to_thread(self.repo.revoked, name, token_name)
-        logger.info("node %s connected (%s)", name, hello.version)
-        for told in self.linked:
-            told(name)
-        self.bus.publish("sessions", None)
 
     def detach(self, name: str, link: NodeLink) -> None:
         link.close()

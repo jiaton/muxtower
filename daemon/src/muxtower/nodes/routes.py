@@ -128,7 +128,13 @@ async def node_link(ws: WebSocket) -> None:
         await ws.close(code=protocol.CLOSE_INCOMPATIBLE, reason=f"protocol {spoken} only")
         return
     link = NodeLink(name, ws.send_text, lambda code: ws.close(code=code))
-    await nodes.attach(name, link, hello)
+    watched = nodes.take(name, link, hello)
+    # Beside the reading, not before it: uvicorn stops reading a socket while a frame waits unread, so a
+    # welcome waiting on the database (or on the node's answers, which only this loop reads) would leave the
+    # node's pings unanswered and its link dropped.
+    welcome = asyncio.create_task(nodes.welcome(name, link, watched)) if watched is not None else None
+    if welcome is not None:
+        welcome.add_done_callback(_logged)
     try:
         while not link.closed:
             frame = parse(await ws.receive_text())
@@ -143,7 +149,14 @@ async def node_link(ws: WebSocket) -> None:
     except (WebSocketDisconnect, RuntimeError):  # gone, or hung up from here (removed, replaced)
         pass
     finally:
+        if welcome is not None:
+            welcome.cancel()
         nodes.detach(name, link)
+
+
+def _logged(task: "asyncio.Task[None]") -> None:
+    if not task.cancelled() and (exc := task.exception()) is not None:
+        logger.warning("welcoming a node failed: %s", exc, exc_info=exc)
 
 
 class DirectUrl(BaseModel):

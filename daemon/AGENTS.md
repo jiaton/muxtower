@@ -113,6 +113,9 @@ Split a file past 250 lines or once it mixes two domains.
 - No thread of the daemon gets a lower OS priority (`nice`, the idle IO class): it shares the GIL and the locks
   with the event loop, and a thread the OS seldom runs while it holds one holds up the whole daemon while the
   machine is busy. A background job keeps to a share of the time by pausing instead (`search/indexer.py`).
+- A WebSocket handler keeps reading its frames: whatever waits (the database, a peer's answer) runs beside the
+  reading as a task, never before it or between reads. uvicorn stops reading a socket while a frame waits unread,
+  so the peer's pings go unanswered and its link drops (`nodes/routes.py`: a node's welcome).
 - A loop's stop reason is distinguishable: crashed (logged with traceback by a done-callback), cancelled at shutdown, or finished.
 - One capture loop serves every consumer (list, stream, push, auto-approve) through a shared in-memory cache owned by `terminal/`; consumers never call tmux on their own cadence. A session source works the same way: one poll loop fills its cache, everything else reads it. A cache shared by a loop thread and request threads is guarded by a lock that is never held across I/O.
 - A source routes nothing itself: `sessions/directory.py` checks capabilities and dispatches; routes call the directory, never a source.
