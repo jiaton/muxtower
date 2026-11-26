@@ -1,4 +1,4 @@
-.PHONY: glyphs contract contract-check check wheel site public-app
+.PHONY: glyphs contract contract-check check wheel site site-deploy public-app
 
 contract:
 	cd daemon && poetry run python -c "from muxtower.cli.serve import print_openapi; print_openapi()" > ../openapi.json
@@ -33,10 +33,19 @@ site:
 	cd app && npm ci
 	cd site && npm ci && npm run build
 
+# Deploy the website (site/deploy/): tagged releases only, like public-app. Its hostname comes from
+# MUXTOWER_SITE_DOMAIN and the public app's link from MUXTOWER_SITE_APP_URL (unset: workers.dev, no link).
+site-deploy:
+	@git describe --exact-match --tags HEAD >/dev/null 2>&1 || { echo "site-deploy deploys tagged releases only: check out a vX.Y.Z tag"; exit 1; }
+	@git diff --quiet HEAD -- || { echo "site-deploy deploys the tag as it is: the working tree has uncommitted changes"; exit 1; }
+	$(MAKE) site
+	cd site/deploy && npm ci && npx cf deploy
+
 # The public hosted copy of the web app (app/deploy/): tagged releases only, and no preset daemons, since
 # anyone can load it. Its hostname comes from MUXTOWER_APP_DOMAIN at deploy time (unset: workers.dev).
 public-app:
 	@git describe --exact-match --tags HEAD >/dev/null 2>&1 || { echo "public-app deploys tagged releases only: check out a vX.Y.Z tag"; exit 1; }
+	@git diff --quiet HEAD -- || { echo "public-app deploys the tag as it is: the working tree has uncommitted changes"; exit 1; }
 	@test -z "$$MUXTOWER_APP_CONFIG" || { echo "the public app ships no preset daemons: unset MUXTOWER_APP_CONFIG"; exit 1; }
 	cd app && npm ci && npm run build
 	cd app/deploy && npm ci && npx cf deploy

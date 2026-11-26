@@ -11,7 +11,7 @@
     "preview": "astro preview",
     "typecheck": "astro check && tsc --noEmit",
     "lint": "oxlint --react-plugin -D react/rules-of-hooks src && node scripts/check-tokens.mjs && node scripts/check-styles.mjs",
-    "deploy": "npm run build && cd deploy && npm ci && cf deploy",
+    "deploy": "npm run build && cd deploy && npm ci && npx cf deploy",
     "test": "vitest run",
     "format": "prettier --write src scripts",
     "ui:add": "shadcn add",

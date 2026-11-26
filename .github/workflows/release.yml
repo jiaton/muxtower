@@ -2,7 +2,8 @@ name: release
 # A tag vX.Y.Z (the version in daemon/pyproject.toml) publishes that release to PyPI, through PyPI's
 # trusted publishing (no token stored here): the wheel carries the built web and glasses apps.
 # Then, only once that succeeded and only where the repository variable DEPLOY_PUBLIC_APP is "true",
-# the public hosted app is deployed from the same tag (app/deploy/README.md).
+# the public hosted app is deployed from the same tag (app/deploy/README.md); and likewise, where
+# DEPLOY_SITE is "true", the website (site/AGENTS.md › Deploy).
 on:
   push:
     tags: ["v*"]
@@ -69,5 +70,37 @@ jobs:
         env:
           MUXTOWER_APP_DOMAIN: ${{ vars.PUBLIC_APP_DOMAIN }}
           MUXTOWER_APP_ANALYTICS_TOKEN: ${{ vars.CLOUDFLARE_WEB_ANALYTICS_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+  site:
+    # Opt-in like public-app, so a fork's tags deploy nothing. Its environment holds the Cloudflare token,
+    # the account, the domain and the public app's URL (none in this file), and only tags may deploy from it.
+    needs: pypi
+    if: vars.DEPLOY_SITE == 'true'
+    runs-on: ubuntu-latest
+    environment: site
+    permissions:
+      contents: read
+    concurrency:
+      group: site
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # the tag itself, which `make site-deploy` checks HEAD is on
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: |
+            app/package-lock.json
+            site/package-lock.json
+            site/deploy/package-lock.json
+      - name: Deploy the website from this tag
+        run: make site-deploy
+        env:
+          MUXTOWER_SITE_DOMAIN: ${{ vars.SITE_DOMAIN }}
+          MUXTOWER_SITE_APP_URL: ${{ vars.SITE_APP_URL }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
