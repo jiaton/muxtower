@@ -27,7 +27,7 @@ interface PushPayload {
   client_ref: string
   session_id?: string | null // none for news of the daemon itself (its Claude login expired)
   session_name?: string | null
-  kind?: 'attention' | 'done' | 'login' | 'recovery' | 'trigger' | 'clear' | 'inbox'
+  kind?: 'attention' | 'done' | 'login' | 'recovery' | 'trigger' | 'clear' | 'inbox' | 'plan_usage' // plan_usage: a Claude or Codex plan is limited
   trigger?: string | null // the trigger a `trigger` push is about
   inbox_item?: number | null // the Inbox item an `inbox` push is about (due, handed, or due and not handed)
   title: string

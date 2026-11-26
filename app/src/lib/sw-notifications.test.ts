@@ -64,3 +64,13 @@ it("an Inbox push is one notification per item, replaced by the item's next, and
   expect(pushUrl('/', 'd1', { session_id: 's 1', kind: 'done' })).toBe('/d/d1/s/s%201')
   expect(pushUrl('/', 'd1', { kind: 'login' })).toBe('/')
 })
+
+it("a plan's limit is one notification per daemon, the newest replacing the last, and a tap opens Plan usage", () => {
+  const limited = pushTag('d1', { kind: 'plan_usage' })
+  expect(limited).toBe(sessionTag('d1', 'plan_usage'))
+  expect(pushTag('d1', { kind: 'plan_usage' })).toBe(limited)
+  expect(limited).not.toBe(pushTag('d1', { kind: 'login' }))
+  expect(pushTag('d2', { kind: 'plan_usage' })).not.toBe(limited)
+  expect(alertsAgain('plan_usage')).toBe(true) // a new limit alerts, even replacing the last one's notification
+  expect(pushUrl('/app/', 'd1', { kind: 'plan_usage' })).toBe('/app/daemons#plan-usage')
+})

@@ -36,12 +36,13 @@ export function pushTag(ref: string, data: PushRef): string {
   return sessionTag(ref, data.kind ?? 'news')
 }
 
-/** Where a tap on it goes, under the app's base path: the session; the Inbox, with that item shown; else the
- *  app. */
+/** Where a tap on it goes, under the app's base path: the session; the Inbox, with that item shown; a plan's
+ *  limit, Daemons › Plan usage; else the app. */
 export function pushUrl(base: string, ref: string, data: PushRef): string {
   const item = inboxItemOf(data)
   if (data.session_id) return `${base}d/${encodeURIComponent(ref)}/s/${encodeURIComponent(data.session_id)}`
   if (item !== null) return `${base}inbox?item=${item}`
+  if (data.kind === 'plan_usage') return `${base}daemons#plan-usage`
   return base
 }
 
@@ -88,4 +89,4 @@ export async function closeSessions(
 
 /** Whether a notification that replaces one of the same session alerts again: only when the owner is
  *  needed (a finished turn after a finished turn updates it quietly). */
-export const alertsAgain = (kind: string | undefined) => kind === 'attention' || kind === 'trigger' || kind === 'inbox'
+export const alertsAgain = (kind: string | undefined) => kind === 'attention' || kind === 'trigger' || kind === 'inbox' || kind === 'plan_usage'
