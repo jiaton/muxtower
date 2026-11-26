@@ -14,6 +14,7 @@ from muxtower.errors import Invalid
 from muxtower.infra.audit import AuditLog
 from muxtower.nodes.attachments import NodeUploads
 from muxtower.nodes.direct import TOKEN_PREFIX
+from muxtower.nodes.media import media_step
 from muxtower.nodes.processes import report
 from muxtower.nodes.shared import shared_step
 from muxtower.sessions.archiving import Archiver
@@ -113,6 +114,8 @@ class NodeApi:
                 return result
             case "shared":
                 return shared_step(d, sid, params)
+            case "media":
+                return media_step(d, sid, params)
             case "accept_suggestion":
                 d.accept_suggestion(sid, str(params.get("text", "")))
             case "resize":

@@ -14,6 +14,7 @@ from typing import Any
 
 from muxtower.agent_text import describe_tool_input, tool_description
 from muxtower.claude_next_step import WRAP_UP_TOOLS, next_step
+from muxtower.sessions.inline import Finding, inline_images
 from muxtower.sessions.models import ConversationItem, ConversationItemKind, ItemStatus
 from muxtower.shared.items import as_shared, output_text
 
@@ -130,7 +131,7 @@ def _answers(payload: dict[str, Any]) -> list[str] | None:
 
 
 @dataclass
-class ConversationBuilder:
+class ConversationBuilder(Finding):
     items: dict[int, ConversationItem] = field(default_factory=dict)
     latest_event_seq: int = 0
     _tools: dict[str, int] = field(default_factory=dict)  # tool_use_id -> item seq
@@ -207,10 +208,11 @@ class ConversationBuilder:
                         if shared := as_shared(called, output_text(block.get("content"))):
                             out.append(shared)
                             continue
-                    if seq is not None and (
-                        done := self._set_status(seq, ItemStatus.ERROR if block.get("is_error") else ItemStatus.DONE)
-                    ):
-                        out.append(done)
+                    if seq is not None:
+                        done = self._set_status(seq, ItemStatus.ERROR if block.get("is_error") else ItemStatus.DONE)
+                        images = inline_images(block.get("content"))
+                        if done := self._inline(done or (self.items.get(seq) if images else None), seq, images):
+                            out.append(done)
                 elif block.get("type") == "text" and not (payload.get("isSynthetic") or payload.get("isMeta")):
                     if text := _typed(str(block.get("text") or "").strip()):
                         texts.append(text)

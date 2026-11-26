@@ -7,7 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 
 from muxtower.runtimes.models import AgentState, Option, PendingQuestion
-from muxtower.sessions.images import shown_images
+from muxtower.sessions.images import is_video, shown_images, shown_media
 from muxtower.sessions.ports import SessionSource
 from muxtower.shared.models import SharedFile
 
@@ -406,7 +406,10 @@ class ConversationItem(BaseModel):
         if not self.images:
             self.images = shown_images(self.kind, self.tool_name, self.text)
         if not self.media:
-            self.media = [MediaRef(source=MediaSource.FILE, kind=MediaKind.IMAGE, path=p) for p in self.images]
+            self.media = [
+                MediaRef(source=MediaSource.FILE, kind=MediaKind.VIDEO if is_video(p) else MediaKind.IMAGE, path=p)
+                for p in shown_media(self.kind, self.tool_name, self.text)
+            ]
         return self
 
 

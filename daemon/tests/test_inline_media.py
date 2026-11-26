@@ -3,11 +3,12 @@
 import dataclasses
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from muxtower.app import create_app
 from muxtower.config import load_settings
-from muxtower.errors import Gone, NotMedia, status_of
+from muxtower.errors import Gone, NotFound, NotMedia, status_of
 from muxtower.nodes.protocol import error_of
 from muxtower.nodes.protocol import status_of as link_status
 from muxtower.sessions.models import ConversationItem, ConversationItemKind, MediaKind, MediaRef, MediaSource
@@ -64,3 +65,44 @@ def test_the_media_routes_serve_only_what_the_conversation_shows(tmp_path: Path)
     assert client.get(f"/v1/sessions/{sid}/media", params={"path": "/etc/passwd"}).status_code == 404
     assert client.get(f"/v1/sessions/{sid}/items/{items[-1]['seq']}/media/0").status_code == 404
     assert TestClient(app).get(f"/v1/sessions/{sid}/media", params={"path": str(shot)}).status_code == 401
+
+
+def test_which_paths_an_item_shows() -> None:
+    from muxtower.sessions.images import shown_images, shown_media
+
+    reply = (
+        "截图在/srv/截图/a.png，对比 (/srv/b.webp) 和 `/srv/b.webp`; ~/c.png, x/d.png, ./e.mp4, bare.png, /e.png.bak, "
+        "https://example.test/y/z.png ![shot](out.webm) ![web](https://example.test/c.png) "
+        "![d](data:image/png;base64,AA.png)"
+    )
+    assert shown_media("reply", None, reply) == [
+        "/srv/截图/a.png", "/srv/b.webp", "~/c.png", "x/d.png", "./e.mp4", "out.webm",
+    ]  # fmt: skip
+    assert shown_images("reply", None, reply) == ["/srv/截图/a.png", "/srv/b.webp"]  # older apps: as before
+    assert shown_media("prompt", None, "see shots/k.avif") == ["shots/k.avif"]
+    assert shown_media("tool", "Read", "~/shots/k.png") == ["~/shots/k.png"]
+    for tool, written in (("Bash", "cp ~/a.png out/b.png"), ("Write", "/srv/out/b.png"), ("Edit", "./c.png")):
+        assert shown_media("tool", tool, written) == []  # a tool's input is not a picture to look at
+    assert shown_media("approval", None, "/srv/a.png") == []
+
+
+def test_a_remote_control_sessions_inline_image_is_read_again_from_its_log() -> None:
+    import base64
+
+    from muxtower.claude_conversation import SLOTS, RawEvent
+    from muxtower.sources.remote_control.service import RemoteControlSource
+    from tests.rc_fakes import FakeRemoteControl
+
+    port = FakeRemoteControl()
+    data = base64.b64encode(PNG).decode()
+    port.events["rc1"] = [
+        RawEvent(seq=7, created_at=None, source="worker", payload={"type": "assistant", "message": {"content": [
+            {"type": "tool_use", "id": "t1", "name": "mcp__browser__screenshot", "input": {}}]}}),
+        RawEvent(seq=9, created_at=None, source="client", payload={"type": "user", "message": {"content": [
+            {"type": "tool_result", "tool_use_id": "t1", "content": [
+                {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": data}}]}]}}),
+    ]  # fmt: skip
+    source = RemoteControlSource(port, {})
+    assert source.inline("rc1", 7 * SLOTS, 0) == data
+    with pytest.raises(NotFound):
+        source.inline("rc1", 7 * SLOTS, 1)

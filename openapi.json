@@ -8799,6 +8799,9 @@
             },
             "description": "the image, typed by its content"
           },
+          "206": {
+            "description": "the part a single `Range: bytes=\u2026` asked for"
+          },
           "404": {
             "description": "the conversation shows no such image or video"
           },
@@ -8813,6 +8816,9 @@
           },
           "415": {
             "description": "not an image or a video by its content (whatever its name says), or not a regular file"
+          },
+          "416": {
+            "description": "a range outside the image"
           },
           "422": {
             "content": {

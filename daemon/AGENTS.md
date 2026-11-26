@@ -25,6 +25,8 @@ src/muxtower/
               change); transcripts.py: a tmux session's conversation, read from that transcript;
               transcript_cwd.py: where its agent works now (`working_dir`), its transcript's latest folder, read
               once per version of the file (then only what was appended);
+              images.py / inline.py / media.py / media_reading.py / media_routes.py: the images and videos a
+              conversation shows (paths it writes, images inside tool results), served by content, only those;
               marks.py: the owner's marks (unread, hidden, notify level); decorate.py: what the directory fills in; archive.py / archiving.py: archived sessions (ended, kept
               to read); placement.py: where the owner says a session runs; merged.py: a tmux pane and its Remote Control session as one entry; turns.py: finished turns;
               former_bridges.py: Remote Control sessions on their own that a live session's conversation ran before, found by

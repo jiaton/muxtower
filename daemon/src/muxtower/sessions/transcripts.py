@@ -23,6 +23,7 @@ from typing import Any, Protocol
 
 from muxtower.agents.codex.rollout import RolloutBuilder
 from muxtower.claude_conversation import SLOTS, ConversationBuilder, RawEvent
+from muxtower.errors import NotFound
 from muxtower.infra.bus import EventBus
 from muxtower.sessions.models import Conversation, ConversationItem
 
@@ -37,6 +38,8 @@ POLL_SECONDS = 1.5
 KINDS = {"user", "assistant"}
 
 
+INLINE_BATCH = 50  # lines read at a time looking for a tool's result
+INLINE_LINES = 5000  # how far after its call a tool's result is looked for
 WINDOW_BEFORE = 40  # lines read before a searched-for item: the tool calls it answers, if any
 
 
@@ -190,6 +193,33 @@ class Transcripts:
         builder._seq = start - 1
         builder.feed_lines(lines)
         return Conversation(session_id=session_id, items=builder.after(seq - 1, limit), latest_seq=0)
+
+    def inline(self, path: str, seq: int, index: int) -> str:
+        """Blocking: the base64 of the `index`th image in the result of the tool call `seq` (`sessions/inline.py`),
+        read again from the transcript: from that call's line on, until its result. NotFound when there is none."""
+        rollout = os.path.basename(path).startswith("rollout-")
+        line = seq if rollout else seq // SLOTS
+        builder = RolloutBuilder() if rollout else ClaudeTranscript()
+        builder._seq, builder.inline_for = line - 1, seq
+        batch: list[bytes] = []
+        try:
+            with open(path, "rb") as f:
+                for n, raw in enumerate(f, 1):
+                    if n < line:
+                        continue
+                    batch.append(raw)
+                    if len(batch) >= INLINE_BATCH or n >= line + INLINE_LINES:
+                        builder.feed_lines(batch)
+                        batch = []
+                        if builder.inline_found is not None or n >= line + INLINE_LINES:
+                            break
+                builder.feed_lines(batch)
+        except OSError as exc:
+            raise NotFound("the transcript cannot be read") from exc
+        found = builder.inline_found or []
+        if not 0 <= index < len(found):
+            raise NotFound("the conversation shows no such image")
+        return found[index][1]
 
     def poll(self, paths: dict[str, str]) -> dict[str, list[ConversationItem]]:
         """Blocking. New items of the transcripts being followed (`paths`: session id → its transcript now);

@@ -18,6 +18,7 @@ from datetime import datetime
 from typing import Any
 
 from muxtower.agent_text import describe_tool_input, truncate
+from muxtower.sessions.inline import Finding, inline_images
 from muxtower.sessions.models import ConversationItem, ConversationItemKind, ItemStatus
 from muxtower.shared.items import as_shared
 
@@ -106,7 +107,7 @@ def tool_of(payload: dict[str, Any]) -> tuple[str, str | None]:
     return name, truncate(str(args)) if args else None
 
 
-class RolloutBuilder:
+class RolloutBuilder(Finding):
     """Rollout lines → conversation items, in the order written; a tool call's item is sent again once
     its output tells how it ended."""
 
@@ -206,5 +207,10 @@ class RolloutBuilder:
             if seq is not None and (call := self.items.get(seq)) and (shared := as_shared(call, output)):
                 return [shared]
             failed = FAILED.search(output)
-            return self._finish(payload.get("call_id"), ItemStatus.ERROR if failed else ItemStatus.DONE)
+            finished = self._finish(payload.get("call_id"), ItemStatus.ERROR if failed else ItemStatus.DONE)
+            images = inline_images(payload.get("output"))
+            if seq is None or not images:
+                return finished
+            item = self._inline(finished[0] if finished else self.items.get(seq), seq, images)
+            return [item] if item else []
         return []

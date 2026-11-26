@@ -17,6 +17,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any
 
+from muxtower.claude_conversation import SLOTS, ConversationBuilder
 from muxtower.errors import LoginExpired, NotFound, Unavailable
 from muxtower.infra.bus import EventBus
 from muxtower.sessions.endable import CLOUD
@@ -102,6 +103,23 @@ class RemoteControlSource(RcActions):
             items = builder.after(after, limit)
             latest = max(builder.items, default=0)
         return Conversation(session_id=session_id, items=items, latest_seq=latest)
+
+    def inline(self, session_id: str, seq: int, index: int) -> str:
+        """Network: the base64 of the `index`th image in the result of the tool call `seq` (`sessions/inline.py`),
+        read again from the session's log, from that call's event on."""
+        builder = ConversationBuilder()
+        builder.inline_for = seq
+        after = seq // SLOTS - 1
+        for _ in range(MAX_EVENT_PAGES):
+            page = self.port.events_after(session_id, after, EVENTS_PER_PAGE)
+            builder.feed(page)
+            if builder.inline_found is not None or len(page) < EVENTS_PER_PAGE:
+                break
+            after = max(e.seq for e in page)
+        found = builder.inline_found or []
+        if not 0 <= index < len(found):
+            raise NotFound("the conversation shows no such image")
+        return found[index][1]
 
     # --- fetching (network; no lock held) -----------------------------------------------------
 

@@ -208,6 +208,10 @@ class NodeSource:
         """One step of a file's upload to its node (`attachments.py`)."""
         return self._call(session_id, "attachment", params)
 
+    def media_step(self, session_id: str, params: dict[str, Any]) -> Any:
+        """An image or a video its session's conversation shows there (`sessions/media_reading.py`)."""
+        return self._call(session_id, "media", params)
+
     def shared_step(self, session_id: str, params: dict[str, Any]) -> Any:
         """A file its session shared there (`shared/`): `stat`, or `read` one piece."""
         return self._call(session_id, "shared", params)

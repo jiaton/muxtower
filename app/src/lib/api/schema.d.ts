@@ -6429,6 +6429,13 @@ export interface operations {
                     "video/webm": unknown;
                 };
             };
+            /** @description the part a single `Range: bytes=…` asked for */
+            206: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description the conversation shows no such image or video */
             404: {
                 headers: {
@@ -6459,6 +6466,13 @@ export interface operations {
             };
             /** @description not an image or a video by its content (whatever its name says), or not a regular file */
             415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description a range outside the image */
+            416: {
                 headers: {
                     [name: string]: unknown;
                 };

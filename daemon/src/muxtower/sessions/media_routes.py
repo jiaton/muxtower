@@ -3,13 +3,17 @@ on: a file the conversation names, by that path, or an image inside a tool's res
 what the conversation shows, only images and videos by their content, never more than 25 MB."""
 
 import asyncio
+from collections.abc import AsyncIterator
 from typing import Any
 
 from fastapi import APIRouter, Request, Response
+from fastapi.responses import StreamingResponse
 
 from muxtower.auth.deps import CurrentDevice
-from muxtower.errors import NotFound
+from muxtower.sessions.directory import SessionDirectory
+from muxtower.sessions.media_reading import MediaAsk
 from muxtower.sessions.routes import Directory
+from muxtower.shared.routes import PIECE_BYTES, wanted_range
 
 router = APIRouter(prefix="/v1", tags=["sessions"])
 
@@ -46,16 +50,48 @@ async def get_media(session_id: str, path: str, _: CurrentDevice, directory: Dir
     machine it runs on. Typed by its content: PNG, JPEG, GIF, WebP, AVIF, MP4 or WebM, nothing else (no SVG).
     Always `X-Content-Type-Options: nosniff` and `Content-Security-Policy: sandbox; default-src 'none'`. Takes a
     single `Range`."""
-    image = await asyncio.to_thread(directory.image, session_id, path)  # images by absolute path, until step 2
-    return Response(image.data, media_type=image.media_type, headers=SAFE_HEADERS)
+    return await _served(directory, session_id, MediaAsk(path=path), request.headers.get("range"))
 
 
 @router.get(
     "/sessions/{session_id}/items/{seq}/media/{index}",
     response_class=Response,
-    responses={200: {"content": MEDIA_TYPES, "description": "the image, typed by its content"}, **_ANSWERS},
+    responses={
+        200: {"content": MEDIA_TYPES, "description": "the image, typed by its content"},
+        206: {"description": "the part a single `Range: bytes=…` asked for"},
+        416: {"description": "a range outside the image"},
+        **_ANSWERS,
+    },
 )
-async def get_inline_media(session_id: str, seq: int, index: int, _: CurrentDevice, directory: Directory) -> Response:
+async def get_inline_media(
+    session_id: str, seq: int, index: int, _: CurrentDevice, directory: Directory, request: Request
+) -> Response:
     """An image inside a tool's result (`MediaRef.index` of the item `seq`), as the conversation holds it, from the
     machine the session runs on. The same types and headers as a file."""
-    raise NotFound(_SHOWN)
+    return await _served(directory, session_id, MediaAsk(seq=seq, index=index), request.headers.get("range"))
+
+
+async def _served(directory: SessionDirectory, session_id: str, ask: MediaAsk, range_header: str | None) -> Response:
+    info = await asyncio.to_thread(directory.media_info, session_id, ask)
+    headers = {**SAFE_HEADERS, "Accept-Ranges": "bytes", "Content-Disposition": "inline"}
+    try:
+        asked = wanted_range(range_header, info.size)
+    except ValueError:
+        return Response(status_code=416, headers={**headers, "Content-Range": f"bytes */{info.size}"})
+    start, end = asked if asked is not None else (0, info.size - 1)
+    if asked is not None:
+        headers["Content-Range"] = f"bytes {start}-{end}/{info.size}"
+    headers["Content-Length"] = str(max(end - start + 1, 0))
+
+    async def pieces() -> AsyncIterator[bytes]:
+        offset = start
+        while offset <= end:
+            length = min(PIECE_BYTES, end - offset + 1)
+            data = await asyncio.to_thread(directory.read_media, session_id, ask, offset, length)
+            if not data:  # it got shorter while being sent
+                return
+            yield data
+            offset += len(data)
+
+    status = 206 if asked is not None else 200
+    return StreamingResponse(pieces(), status_code=status, media_type=info.media_type, headers=headers)

@@ -9,11 +9,15 @@ from typing import Any, TypeVar
 from muxtower.attachments.ports import Upload
 from muxtower.errors import Conflict, Unavailable
 from muxtower.nodes.attachments import NodeUpload
+from muxtower.nodes.media import node_read as media_read
+from muxtower.nodes.media import node_stat as media_stat
 from muxtower.nodes.processes import NodeProcesses
 from muxtower.nodes.shared import node_read, node_stat
 from muxtower.nodes.source import NodeSource
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.images import ImageFile
+from muxtower.sessions.media import MediaInfo
+from muxtower.sessions.media_reading import MediaAsk
 from muxtower.sessions.models import Conversation, Session, UpdateSession
 from muxtower.sessions.names import NameSeen
 from muxtower.sessions.titles import ClaudeTitles
@@ -105,6 +109,16 @@ class HubDirectory(SessionDirectory):
         if not self._on_node(session_id):
             return super().read_shared(session_id, file_id, offset, length)
         return self._reach_node(session_id, lambda: node_read(self.nodes, session_id, file_id, offset, length))
+
+    def media_info(self, session_id: str, ask: MediaAsk) -> MediaInfo:
+        if not self._on_node(session_id):
+            return super().media_info(session_id, ask)
+        return self._reach_node(session_id, lambda: media_stat(self.nodes, session_id, ask))
+
+    def read_media(self, session_id: str, ask: MediaAsk, offset: int, length: int) -> bytes:
+        if not self._on_node(session_id):
+            return super().read_media(session_id, ask, offset, length)
+        return self._reach_node(session_id, lambda: media_read(self.nodes, session_id, ask, offset, length))
 
     def _reach_node(self, session_id: str, ask: Callable[[], T]) -> T:
         """Asked of its node; Conflict when the node cannot be reached now (offline, or its link fails)."""

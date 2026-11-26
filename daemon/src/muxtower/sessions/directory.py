@@ -24,6 +24,7 @@ from muxtower.sessions.archive import SessionArchive
 from muxtower.sessions.decorate import decorate
 from muxtower.sessions.images import ImageFile, read_shown
 from muxtower.sessions.marks import SessionMarks
+from muxtower.sessions.media_reading import MediaReading
 from muxtower.sessions.merged import merged
 from muxtower.sessions.models import AlsoWriting, Conversation, Session, UpdateSession
 from muxtower.sessions.names import CODEX, REMOTE_CONTROL, NameSeen, SessionNames
@@ -74,7 +75,7 @@ PROMPT_STATES = frozenset(
 )
 
 
-class SessionDirectory(OwnerMarks, Sharing):
+class SessionDirectory(OwnerMarks, Sharing, MediaReading):
     def __init__(
         self,
         local: SessionService,
@@ -99,6 +100,7 @@ class SessionDirectory(OwnerMarks, Sharing):
         self.marks = marks
         self.transcripts = transcripts
         self.archive_store = archive
+        self._media_init()
         self.anchors = ProjectAnchors()
         self._bridges_noted: set[tuple[str, str]] = set()  # (session, bridge) already kept (`note_remote_ids`)
         self.name_store: SessionNames | None = None  # every name a session went by (`names.py`), set by the app
@@ -283,6 +285,24 @@ class SessionDirectory(OwnerMarks, Sharing):
     def image(self, session_id: str, path: str) -> ImageFile:
         """An image its conversation shows, read here if the session runs here (`sessions/images.py`)."""
         return read_shown(path, self.conversation(session_id, 0, IMAGE_ITEMS).items, self.get(session_id).on_host)
+
+    def _inline_data(self, session_id: str, seq: int, index: int) -> str:
+        """The base64 of an image inside a tool's result, read again where the conversation is: its transcript (a
+        pane's, or an archived session's), else its source's log (Remote Control)."""
+        session = self.require(session_id, "conversation")
+        path: str | None = None
+        if session.archived_at and self.archive_store:
+            record = self.archive_store.record(session_id)
+            path = record.transcript if record else None
+        elif self.source_of(session_id) is None:
+            path = self.local.transcript_of(session_id)
+        if path and self.transcripts:
+            return self.transcripts.inline(path, seq, index)
+        remote_id = session.remote_id or session_id
+        source = self.source_of(remote_id)
+        if source is not None and callable(inline := getattr(source, "inline", None)):
+            return str(inline(remote_id, seq, index))
+        raise NotFound("the conversation shows no such image")
 
     def transcript_paths(self) -> dict[str, str]:
         """Local sessions and the transcript their conversation is read from."""
