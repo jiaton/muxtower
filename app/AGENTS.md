@@ -7,6 +7,11 @@
 - Install: `npm ci`
 - Dev server: `npm run dev` (proxies `/v1` to `MUXTOWER_DEV_DAEMON`, default `http://127.0.0.1:8741`: the dev daemon, `muxtower serve --dev`, so it is same-origin; never the real hub on 8731)
 - Tests: `npm test` (Vitest) · E2E: `npm run e2e` (Playwright)
+- E2E stability: wait for the page's own state, never a fixed sleep (a chip chosen, a drawer open, a "Picked up"
+  announcement, a row's place settled after a fold); never retry an action that toggles (Alt+F, a chip: retrying
+  flips it back), so click a chip or open a drawer only while it isn't already chosen/open; dispatch a fast
+  series (a trackpad swipe, wheel notches) from inside the page, as one round trip per event is stretched by a
+  loaded runner; read a list's order with `expect.poll`, not once.
 - Lint/typecheck: `npm run lint && npm run typecheck` (includes `npm run check:tokens`)
 - Regenerate API types: `npm run gen:api` (reads `../openapi.json`)
 - Route tree: `npm run routes` (also run by build/typecheck; `src/routeTree.gen.ts` is committed)

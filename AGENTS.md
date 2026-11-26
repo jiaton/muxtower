@@ -24,6 +24,15 @@ The machine you work on may run the real hub (port 8731) and other projects' ser
 - Stopping: by the PID you started (save it: `cmd & echo $! > server.pid`), or the process group you started it in. Never `pkill`/`killall`, never `pkill -f '<pattern>'`, and never a `kill $(pgrep|ps|lsof …)` you did not just check: a pattern also matches the hub and other projects' processes (a `pkill -f "port 8731"` once stopped the hub for every session).
 - Stop what you started before you report, and leave no dev server running.
 
+## Tests on a shared machine
+
+- Vitest runs at most 3 workers and 15 s per test (the configs say so: don't override them); run checks under
+  `nice -n 10`, and only the tests you need until the final run.
+- A failure that is only a timeout while the machine's load is high (vitest workers that can't start, a 30 s
+  Playwright timeout) is load: rerun at a quieter moment. A failed assertion with a wrong value is real, even
+  when it shows up only on CI: find the cause, don't widen a margin to hide it.
+- Run Prettier from the package that owns the file (`app/`, `glasses/` and `site/` have their own configs).
+
 ## Rules for every change
 
 - This repo is generic, public-facing software. No personal names, hostnames, domains, IPs, tokens, or references to any predecessor project in code, docs, tests, fixtures, or commit messages. Examples use `example.com`, `app.example`, `127.0.0.1`.
