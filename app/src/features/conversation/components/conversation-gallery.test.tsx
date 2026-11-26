@@ -4,9 +4,12 @@ import type { ConversationItem } from '@/lib/api/types'
 import { wrapper } from '@/test/render'
 import { ConversationView } from './conversation-view'
 
-vi.mock('../api/use-session-image', () => ({
-  useSessionImage: (_d: string, _s: string, path: string) => ({ data: new Blob([path]), isError: false }),
-}))
+// One blob per path, as the query cache gives: a new one each render would make a new URL each render.
+vi.mock('../api/use-session-image', () => {
+  const blobs = new Map<string, Blob>()
+  const blob = (path: string) => blobs.get(path) ?? blobs.set(path, new Blob([path])).get(path)!
+  return { useSessionImage: (_d: string, _s: string, path: string) => ({ data: blob(path), isError: false }) }
+})
 URL.createObjectURL = (b: Blob) => `blob:${(b as Blob & { size: number }).size}`
 URL.revokeObjectURL = () => {}
 
