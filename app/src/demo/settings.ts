@@ -2,7 +2,7 @@ import type { MachineSettings, SettingView } from '@/lib/api/types'
 
 type Row = Omit<SettingView, 'source' | 'pending' | 'value'> & { value?: unknown; file?: boolean }
 const row = (key: string, section: string, label: string, kind: SettingView['kind'], applies: SettingView['applies'],
-  fallback: unknown, more: Partial<Row> = {}): Row => ({ key, section, label, kind, applies, default: fallback, help: '', choices: [], hub_only: /^(triggers|listen|tts)\./.test(key), ...more }) // prettier-ignore
+  fallback: unknown, more: Partial<Row> = {}): Row => ({ key, section, label, kind, applies, default: fallback, help: '', choices: [], hub_only: /^(triggers|listen|tts|plan_usage)\./.test(key), ...more }) // prettier-ignore
 
 /** A daemon's feature settings, as `GET /v1/settings` lists them (one set by its config file). */
 const ROWS: Row[] = [
@@ -27,6 +27,9 @@ const ROWS: Row[] = [
   row('asr.language', 'Voice input', 'Language', 'text', 'restart', '', { help: 'e.g. zh; empty: detected per recording' }),
   row('usage.cpu_percent', 'Usage alerts', 'CPU above (% of one core, 1 min)', 'number', 'now', 20),
   row('usage.rss_mb', 'Usage alerts', 'Memory above (MB)', 'number', 'now', 500),
+  row('plan_usage.enabled', 'Plan usage', 'Read Claude and Codex plan usage', 'bool', 'now', true, {
+    help: 'every machine reads the plans its own CLIs are signed into, every 5 minutes; off: no machine reads them',
+  }),
   row('triggers.start_mode', 'Triggers', 'Sessions a trigger starts: permission mode', 'per_runtime', 'now', { 'claude-code': 'auto', codex: 'on-request' }, {
     help: 'per agent; never above its New sessions default unless agents may start sessions above it',
     runtime_choices: {
@@ -47,6 +50,12 @@ export class DemoSettings {
       return { ...r, value: now, source: file ? 'config_file' : mine ? 'app' : 'default', pending: r.applies === 'restart' && mine }
     })
     return { machine, settings }
+  }
+
+  /** A setting's value now. */
+  value(key: string): unknown {
+    const r = ROWS.find((x) => x.key === key)
+    return r?.file ? r.value : this.changed.has(key) ? this.changed.get(key) : r?.default
   }
 
   change(values: Record<string, unknown>): string | null {

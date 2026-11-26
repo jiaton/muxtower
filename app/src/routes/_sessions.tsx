@@ -42,6 +42,7 @@ import { useUnpairedDaemons } from '@/lib/daemons/store'
 import { usePanes } from '@/lib/layout-prefs'
 import { ink, look } from '@/components/ui/intents'
 import { PanesLead } from './-panes'
+import { PlanUsageChip } from '@/features/plan-usage/components/plan-usage-chip'
 
 export const Route = createFileRoute('/_sessions')({ validateSearch: parseListSearch, component: SessionsLayout })
 
@@ -139,6 +140,8 @@ function SessionsLayout() {
             subtitle={loading ? <Skeleton className="w-20" /> : within ? `${within} · ${counted}` : counted}
             actions={
               <>
+                {/* Without the docked sidebar, the plan-usage chip is here: the account nearest a limit. */}
+                {panes.sidebarDocked ? null : <PlanUsageChip density="compact" />}
                 <ListMenu
                   query={query}
                   unread={visible.filter((e) => e.session.unread)}

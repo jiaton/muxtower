@@ -29,6 +29,8 @@ import { useDrawerHistory, useLayoutDrawer } from '@/lib/layout-drawer'
 import { useLayoutShortcut, usePanes } from '@/lib/layout-prefs'
 import { PanesSwitch } from './-panes'
 import { ink, look } from '@/components/ui/intents'
+import { PlanUsageChip } from '@/features/plan-usage/components/plan-usage-chip'
+import { PlanUsageIsland } from '@/features/plan-usage/components/plan-usage-island'
 
 export const Route = createRootRoute({ component: RootLayout })
 
@@ -49,6 +51,12 @@ function Sidebar({ inDrawer = false }: { inDrawer?: boolean }) {
         )}
         <WebUsageMark />
       </div>
+      {/* Docked, the sidebar's head holds the plan-usage chip, a line per account; otherwise the list's header has it. */}
+      {inDrawer ? null : (
+        <div className="flex shrink-0 px-2 pb-2 empty:hidden">
+          <PlanUsageChip density="full" />
+        </div>
+      )}
       <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-2 pb-4">
         <InboxEntry replace={inDrawer} />
         <SessionsNav replace={inDrawer} />
@@ -132,6 +140,7 @@ function RootLayout() {
       <NewSessionHost />
       <PaletteHost />
       <QuickAdd />
+      <PlanUsageIsland />
       {panes.sidebarDocked ? (
         <aside className={`${look.bar.side} flex w-56 shrink-0 flex-col xl:w-64`} aria-label="Navigation" data-component="sidebar">
           <Sidebar />

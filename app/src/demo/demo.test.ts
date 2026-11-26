@@ -192,6 +192,15 @@ describe('the demo daemon over HTTP', () => {
     expect(await (await call(w, 'POST', '/v1/recovery', { session_ids: ['laptop~migrations'] })).json()).toEqual([])
   })
 
+  it('reports made-up plan usage, and turns it off', async () => {
+    const { w } = world()
+    const usage = await (await call(w, 'GET', '/v1/plan-usage')).json()
+    expect([usage.enabled, usage.accounts.map((a: { provider: string }) => a.provider)]).toEqual([true, ['claude', 'codex']])
+    expect((await call(w, 'PATCH', '/v1/settings', { values: { 'plan_usage.enabled': false } })).status).toBe(200)
+    expect(await (await call(w, 'GET', '/v1/plan-usage')).json()).toEqual({ enabled: false, accounts: [] })
+    await call(w, 'PATCH', '/v1/settings', { values: { 'plan_usage.enabled': null } }) // back to the default for the next test
+  })
+
   it("keeps the owner's order of projects, not by name, and shows them in it, a PM and a lead first in each", async () => {
     const { w } = world()
     expect(await (await call(w, 'GET', '/v1/project-order')).json()).toEqual({ projects: ['acme/web-app', 'acme/shop-api', 'acme/infra'] })

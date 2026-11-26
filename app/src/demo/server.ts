@@ -9,6 +9,7 @@ import { DemoSettings } from './settings'
 import { dictionary, saveDictionary } from './dictionary'
 import { triggers } from './triggers'
 import { inboxRoute } from './inbox'
+import { planUsage } from './plan-usage'
 import { keptSpoken, speakLatest } from './spoken'
 import { withAttachments } from './upload'
 import type { World } from './world'
@@ -257,6 +258,7 @@ const ROUTES: Record<string, (world: World, body: Record<string, unknown>, url: 
     CHIP_GROUPS.set(world, Array.isArray(body.groups) ? (body.groups as ChipGroup[]) : [])
     return json({ groups: chipGroups(world) })
   },
+  'GET /v1/plan-usage': (world) => json(planUsage(world, SETTINGS.value('plan_usage.enabled') !== false)),
   'GET /v1/project-order': (world) => json({ projects: projectOrder(world) }),
   'PUT /v1/project-order': (world, body) => {
     const projects = Array.isArray(body.projects) ? body.projects.filter((p): p is string => typeof p === 'string') : []

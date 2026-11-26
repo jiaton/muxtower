@@ -19,6 +19,7 @@ import { ShareDevicesDialog } from '@/features/pairing/components/share-devices-
 import { PushToggle } from '@/features/push/components/push-toggle'
 import { useOwnDaemons, usePairedDaemons } from '@/lib/daemons/store'
 import { ink } from '@/components/ui/intents'
+import { PlanUsageSection } from '@/features/plan-usage/components/plan-usage-section'
 
 export const Route = createFileRoute('/daemons')({ component: DaemonsPage })
 
@@ -43,6 +44,7 @@ function DaemonsPage() {
       <PaneBody>
         <div className="mx-auto flex w-full max-w-2xl flex-col gap-4 p-4">
           <PresetWarning />
+          <PlanUsageSection />
           {daemons.length ? (
             <div className="flex flex-col gap-3">
               {daemons.map((d) => (

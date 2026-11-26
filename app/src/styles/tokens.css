@@ -273,3 +273,25 @@
   transform: none !important;
   min-width: 0 !important;
 }
+
+/* An island growing or settling (`components/ui/island.tsx`, `morph`): its box moves like a spring, a
+   little past and back; what it says is not stretched with it, only cross-faded, centred and clipped to
+   the box. The rest of the page crossfades quickly. Under reduced motion `morph` makes no transition. */
+::view-transition-group(plan-usage-island) {
+  animation-duration: 560ms;
+  animation-timing-function: cubic-bezier(0.32, 1.32, 0.48, 1);
+  border-radius: 1.5rem;
+  overflow: clip;
+}
+::view-transition-old(plan-usage-island),
+::view-transition-new(plan-usage-island) {
+  width: 100%;
+  height: 100%;
+  object-fit: none;
+  object-position: center;
+  animation-duration: 260ms;
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 200ms;
+}
