@@ -2740,6 +2740,111 @@
         "title": "Placement",
         "type": "object"
       },
+      "PlanAccount": {
+        "description": "An account, as the newest report of it says, and every machine using it.",
+        "properties": {
+          "account": {
+            "description": "the account's key (a hash): show a short form of it, if any",
+            "title": "Account",
+            "type": "string"
+          },
+          "limited_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Limited Until"
+          },
+          "machines": {
+            "items": {
+              "$ref": "#/components/schemas/PlanMachine"
+            },
+            "title": "Machines",
+            "type": "array"
+          },
+          "observed_at": {
+            "description": "when the newest report was read: an old one is said with its age",
+            "format": "date-time",
+            "title": "Observed At",
+            "type": "string"
+          },
+          "plan": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Plan"
+          },
+          "provider": {
+            "$ref": "#/components/schemas/Provider"
+          },
+          "windows": {
+            "items": {
+              "$ref": "#/components/schemas/UsageWindow"
+            },
+            "title": "Windows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "provider",
+          "account",
+          "observed_at"
+        ],
+        "title": "PlanAccount",
+        "type": "object"
+      },
+      "PlanMachine": {
+        "properties": {
+          "machine": {
+            "description": "a machine signed into the account: this daemon's name or a node's",
+            "title": "Machine",
+            "type": "string"
+          },
+          "reported_at": {
+            "description": "when that machine last read the account",
+            "format": "date-time",
+            "title": "Reported At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "machine",
+          "reported_at"
+        ],
+        "title": "PlanMachine",
+        "type": "object"
+      },
+      "PlanUsage": {
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/PlanAccount"
+            },
+            "title": "Accounts",
+            "type": "array"
+          },
+          "enabled": {
+            "description": "off (the setting plan_usage.enabled): no machine reads its plans",
+            "title": "Enabled",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enabled"
+        ],
+        "title": "PlanUsage",
+        "type": "object"
+      },
       "Playbook": {
         "properties": {
           "effective": {
@@ -3013,6 +3118,14 @@
         ],
         "title": "ProjectOrder",
         "type": "object"
+      },
+      "Provider": {
+        "enum": [
+          "claude",
+          "codex"
+        ],
+        "title": "Provider",
+        "type": "string"
       },
       "PutPlaybook": {
         "properties": {
@@ -5812,6 +5925,79 @@
         "title": "UsageAlert",
         "type": "object"
       },
+      "UsageWindow": {
+        "properties": {
+          "id": {
+            "description": "stable within its account: session, weekly, weekly:<model>, or <seconds>s",
+            "title": "Id",
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/WindowKind"
+          },
+          "label": {
+            "description": "in full, e.g. \"5-hour session\", \"Week, all models\", \"Week, Opus\"",
+            "title": "Label",
+            "type": "string"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "weekly_scoped: the model it counts",
+            "title": "Model"
+          },
+          "percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "used, 0 to 100; null: the reply had no such figure",
+            "title": "Percent"
+          },
+          "resets_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null: not said",
+            "title": "Resets At"
+          },
+          "seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "its length, when the provider says it",
+            "title": "Seconds"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "label"
+        ],
+        "title": "UsageWindow",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -5864,6 +6050,16 @@
         ],
         "title": "VapidKey",
         "type": "object"
+      },
+      "WindowKind": {
+        "enum": [
+          "session",
+          "weekly",
+          "weekly_scoped",
+          "other"
+        ],
+        "title": "WindowKind",
+        "type": "string"
       }
     }
   },
@@ -6907,6 +7103,28 @@
         "summary": "Create Pair Code",
         "tags": [
           "devices"
+        ]
+      }
+    },
+    "/v1/plan-usage": {
+      "get": {
+        "description": "The Claude and Codex plans the machines here are signed into, each with how much is used and which\nmachines use it; read every five minutes while the setting is on. Asking costs nothing.",
+        "operationId": "plan_usage_v1_plan_usage_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlanUsage"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Plan Usage",
+        "tags": [
+          "plan-usage"
         ]
       }
     },

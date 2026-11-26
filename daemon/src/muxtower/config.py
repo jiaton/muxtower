@@ -277,6 +277,13 @@ class UsageSettings(BaseModel):
     rss_mb: float = 500.0
 
 
+class PlanUsageSettings(BaseModel):
+    """`[plan_usage]`: the Claude and Codex plans this machine's CLIs are signed into (`subscriptions/`). The
+    hub's applies to every machine: a node reads its plans only while its hub says so."""
+
+    enabled: bool = True
+
+
 class Settings(BaseModel):
     name: str | None = None  # display name in the app; defaults to the hostname
     host: str = "127.0.0.1"
@@ -304,6 +311,7 @@ class Settings(BaseModel):
     asr: AsrSettings = Field(default_factory=AsrSettings)
     concierge: ConciergeSettings = Field(default_factory=ConciergeSettings)
     usage: UsageSettings = Field(default_factory=UsageSettings)
+    plan_usage: PlanUsageSettings = Field(default_factory=PlanUsageSettings)
     recovery: RecoverySettings = Field(default_factory=RecoverySettings)
     archive: ArchiveSettings = Field(default_factory=ArchiveSettings)
     search: SearchSettings = Field(default_factory=SearchSettings)

@@ -430,6 +430,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/plan-usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Plan Usage
+         * @description The Claude and Codex plans the machines here are signed into, each with how much is used and which
+         *     machines use it; read every five minutes while the setting is on. Asking costs nothing.
+         */
+        get: operations["plan_usage_v1_plan_usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/playbook": {
         parameters: {
             query?: never;
@@ -2940,6 +2961,56 @@ export interface components {
              */
             machine?: string | null;
         };
+        /**
+         * PlanAccount
+         * @description An account, as the newest report of it says, and every machine using it.
+         */
+        PlanAccount: {
+            /**
+             * Account
+             * @description the account's key (a hash): show a short form of it, if any
+             */
+            account: string;
+            /** Limited Until */
+            limited_until?: string | null;
+            /** Machines */
+            machines?: components["schemas"]["PlanMachine"][];
+            /**
+             * Observed At
+             * Format: date-time
+             * @description when the newest report was read: an old one is said with its age
+             */
+            observed_at: string;
+            /** Plan */
+            plan?: string | null;
+            provider: components["schemas"]["Provider"];
+            /** Windows */
+            windows?: components["schemas"]["UsageWindow"][];
+        };
+        /** PlanMachine */
+        PlanMachine: {
+            /**
+             * Machine
+             * @description a machine signed into the account: this daemon's name or a node's
+             */
+            machine: string;
+            /**
+             * Reported At
+             * Format: date-time
+             * @description when that machine last read the account
+             */
+            reported_at: string;
+        };
+        /** PlanUsage */
+        PlanUsage: {
+            /** Accounts */
+            accounts?: components["schemas"]["PlanAccount"][];
+            /**
+             * Enabled
+             * @description off (the setting plan_usage.enabled): no machine reads its plans
+             */
+            enabled: boolean;
+        };
         /** Playbook */
         Playbook: {
             /**
@@ -3056,6 +3127,11 @@ export interface components {
              */
             projects: string[];
         };
+        /**
+         * Provider
+         * @enum {string}
+         */
+        Provider: "claude" | "codex";
         /** PutPlaybook */
         PutPlaybook: {
             /**
@@ -4286,6 +4362,40 @@ export interface components {
             /** Value */
             value: number;
         };
+        /** UsageWindow */
+        UsageWindow: {
+            /**
+             * Id
+             * @description stable within its account: session, weekly, weekly:<model>, or <seconds>s
+             */
+            id: string;
+            kind: components["schemas"]["WindowKind"];
+            /**
+             * Label
+             * @description in full, e.g. "5-hour session", "Week, all models", "Week, Opus"
+             */
+            label: string;
+            /**
+             * Model
+             * @description weekly_scoped: the model it counts
+             */
+            model?: string | null;
+            /**
+             * Percent
+             * @description used, 0 to 100; null: the reply had no such figure
+             */
+            percent?: number | null;
+            /**
+             * Resets At
+             * @description null: not said
+             */
+            resets_at?: string | null;
+            /**
+             * Seconds
+             * @description its length, when the provider says it
+             */
+            seconds?: number | null;
+        };
         /** ValidationError */
         ValidationError: {
             /** Context */
@@ -4304,6 +4414,11 @@ export interface components {
             /** Public Key */
             public_key: string;
         };
+        /**
+         * WindowKind
+         * @enum {string}
+         */
+        WindowKind: "session" | "weekly" | "weekly_scoped" | "other";
     };
     responses: never;
     parameters: never;
@@ -5071,6 +5186,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PairCode"];
+                };
+            };
+        };
+    };
+    plan_usage_v1_plan_usage_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlanUsage"];
                 };
             };
         };

@@ -28,7 +28,7 @@ class Field:
         return self.key.startswith(HUB_ONLY)
 
 
-HUB_ONLY = ("triggers.", "listen.", "tts.", "inbox.")
+HUB_ONLY = ("triggers.", "listen.", "tts.", "inbox.", "plan_usage.")
 
 FIELDS: tuple[Field, ...] = (
     Field("recovery.mode", "After a restart", "Interrupted sessions", "choice", "now",
@@ -105,6 +105,9 @@ FIELDS: tuple[Field, ...] = (
     Field("usage.cpu_percent", "Usage alerts", "CPU above (% of one core, 1 min)", "number", "now"),
     Field("usage.tick_ms", "Usage alerts", "Screen capture slower than (ms)", "number", "now"),
     Field("usage.rss_mb", "Usage alerts", "Memory above (MB)", "number", "now"),
+    Field("plan_usage.enabled", "Plan usage", "Read Claude and Codex plan usage", "bool", "now",
+          "every machine reads the plans its own CLIs are signed into, every 5 minutes, without ever signing them in "
+          "again; off: no machine reads them"),
     Field("triggers.start_mode", "Triggers", "Sessions a trigger starts: permission mode", "per_runtime", "now",
           "per agent; never above its New sessions default unless agents may start sessions above it"),
     Field("inbox.cleanup", "Inbox", "Weekly: the concierge asks you about stale items", "bool", "now",

@@ -8,12 +8,15 @@ Three kinds of frame, in both directions:
 The node speaks first (`hello`), then sends `sessions` (every one of its sessions, whole, whenever any
 changes: idempotent, so a reconnect needs no catching up), `conversation` (new items, as its own stream
 has them), `screen` (frames of the screens the hub watches) and `running` (which Remote Control
-sessions have their Claude Code process there: `processes.py`); a peer ignores events it does not
-know. The hub asks the node to act on its sessions with requests named like the daemon's own API
-(`METHODS`), and tells it first which version it runs (`hub`: `update.py`). Errors travel as
-HTTP statuses and come out on the other side as the same exception, so a 409 from a node is a 409
-from the hub. Since protocol 2 the node asks the hub too (`HUB_METHODS`): its sessions' team tools
-(`my_team`, `send_task`…) are answered by the hub, which sees every session.
+sessions have their Claude Code process there: `processes.py`), `usage` (what its daemon uses) and
+`plan_usage` (the plans its CLIs are signed into, `subscriptions/`: `PlanReports`, whole each time); a peer
+ignores events it does not know. The hub tells it `plan_usage` too (`PlanUsageSetting`: whether to read them
+at all; a node whose hub never said reads none, so an older hub is never sent what it cannot keep).
+The hub asks the node to act on its sessions with requests named like the daemon's own API (`METHODS`), and
+tells it first which version it runs (`hub`: `update.py`). Errors travel as HTTP statuses and come out on
+the other side as the same exception, so a 409 from a node is a 409 from the hub. Since protocol 2 the node
+asks the hub too (`HUB_METHODS`): its sessions' team tools (`my_team`, `send_task`…) are answered by the hub,
+which sees every session.
 
 PROTOCOL is raised only by a change an older peer cannot read (a new event or field is not one). A side
 may keep speaking older protocols, back to OLDEST: the link speaks the older of the two sides'

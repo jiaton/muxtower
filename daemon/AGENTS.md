@@ -50,6 +50,9 @@ src/muxtower/
   shared/     files agents share with the owner (`share_file`, a session's own MCP tool): copied into the session's
               machine's store (`store.py`), shown as the call's own `shared` item (`items.py`), served with safe headers
               and byte ranges; a node's pulled by the hub in pieces (`nodes/shared.py`)
+  subscriptions/ plan usage: the Claude and Codex plans this machine's CLIs are signed into, read from their providers
+              (never signing in again), told to the hub (`plan_usage` event), kept there per account (`GET /v1/plan-usage`);
+              not `usage/`, which is what the daemon process uses
   summaries/  short versions of long replies: a Summarizer port (claude/codex CLI adapters), SQLite cache, background loop
   asr/        speech to text for voice replies: a Transcriber port (OpenAI-compatible adapter: Groq, OpenAI)
   concierge/  the owner's assistant: a Claude Code session kept running, its MCP config, watched sessions

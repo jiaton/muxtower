@@ -98,6 +98,7 @@ from muxtower.sources.codex.service import CodexSource
 from muxtower.sources.codex.shared import SharedCodexSource
 from muxtower.sources.remote_control.lineage_store import SqliteLineageStore, SqlitePlaceStore
 from muxtower.sources.remote_control.service import RemoteControlSource
+from muxtower.subscriptions.service import PlanBook
 from muxtower.teams import placing
 from muxtower.teams.remote_places import RemotePlaces
 from muxtower.teams.renaming import ProjectRenames
@@ -402,7 +403,7 @@ def create_app(
         sessions=sessions, monitor=monitor, directory=directory, remote_control=remote_control,
         placements=placements, archiver=archiver, launcher=launcher, nodes=nodes, hub=hub, summaries=summaries,
         concierge=concierge, teams=teams, remote_places=remote_places, team_tasks=team_tasks, usage=usage,
-        recovery=recovery, writes=writes, continuer=continuer,
+        plan_book=PlanBook(), recovery=recovery, writes=writes, continuer=continuer,
         watches=watches,
         direct=DirectAccess(nodes, node_sessions.call), feature_settings=feature_settings,
         chip_groups=chip_groups, project_order=project_order, playbook=playbook,
