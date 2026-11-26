@@ -116,13 +116,12 @@ function Updates() {
     <div className={`${ink.codeSmall} flex w-full flex-col gap-2`}>
       <p className={`${look.highlightCard} flex items-center justify-between px-3 py-2`}>
         <span className={ink.heading}>nas · hub</span>
-        <span className={ink.accent}>{c.updates.version}</span>
       </p>
       {c.updates.machines.map((m) => (
         <p key={m} className="flex items-center justify-between px-3">
           <span>{m}</span>
           <span className={`${ink.quiet} flex items-center gap-1`}>
-            <Check className={`${ink.success} size-3`} aria-hidden /> {c.updates.version}
+            <Check className={`${ink.success} size-3`} aria-hidden />
           </span>
         </p>
       ))}

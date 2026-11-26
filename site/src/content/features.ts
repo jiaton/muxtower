@@ -22,7 +22,6 @@ export const featureCells = {
   updates: {
     title: 'Update the hub only',
     text: 'Machines joined to it follow. A daemon restart never stops a running agent.',
-    version: '0.1.221',
     machines: ['server', 'vps', 'macbook', 'pc'],
   },
   live: {
