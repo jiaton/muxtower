@@ -47,6 +47,9 @@ src/muxtower/
               `claude_conversation` for its transcript and whether a process still holds it); the Remote Control entry
               folds into the pane session, its marks, team, names and chips carried (`carry.py`); each run kept
               (`continued_sessions`), so a second click or a Retry never archives or starts twice
+  shared/     files agents share with the owner (`share_file`, a session's own MCP tool): copied into the session's
+              machine's store (`store.py`), shown as the call's own `shared` item (`items.py`), served with safe headers
+              and byte ranges; a node's pulled by the hub in pieces (`nodes/shared.py`)
   summaries/  short versions of long replies: a Summarizer port (claude/codex CLI adapters), SQLite cache, background loop
   asr/        speech to text for voice replies: a Transcriber port (OpenAI-compatible adapter: Groq, OpenAI)
   concierge/  the owner's assistant: a Claude Code session kept running, its MCP config, watched sessions

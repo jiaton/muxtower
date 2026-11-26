@@ -32,6 +32,7 @@ from muxtower.sessions.owner_marks import OwnerMarks
 from muxtower.sessions.ports import ClaudeProcessPort, SessionSource, SessionSourcePort
 from muxtower.sessions.service import SessionService
 from muxtower.sessions.transcripts import Transcripts
+from muxtower.shared.directory import Sharing
 from muxtower.summaries.service import SummaryService
 from muxtower.teams.ports import Checkout, TeamRecord
 from muxtower.terminal.models import Resize, Screen, SendInput
@@ -73,7 +74,7 @@ PROMPT_STATES = frozenset(
 )
 
 
-class SessionDirectory(OwnerMarks):
+class SessionDirectory(OwnerMarks, Sharing):
     def __init__(
         self,
         local: SessionService,

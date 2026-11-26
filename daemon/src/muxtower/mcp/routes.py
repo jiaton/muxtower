@@ -15,7 +15,7 @@ from muxtower.auth.deps import DAEMON_AUTH_HEADER, get_token_service
 from muxtower.auth.routes import Audit
 from muxtower.auth.service import TokenService
 from muxtower.concierge.service import TOKEN_NAME as CONCIERGE_TOKEN
-from muxtower.errors import Conflict, Forbidden, Invalid, NotFound, Unavailable
+from muxtower.errors import Conflict, Forbidden, Invalid, NotFound, TooLarge, Unavailable
 from muxtower.infra.audit import AuditLog
 from muxtower.infra.tmux import TmuxError
 from muxtower.mcp.caller import CALLER, Caller, parse_session_token
@@ -27,7 +27,7 @@ router = APIRouter(prefix="/v1", tags=["mcp"])
 
 PROTOCOL_VERSIONS = ("2025-06-18", "2025-03-26", "2024-11-05")
 PARSE_ERROR, INVALID_REQUEST, METHOD_NOT_FOUND, INVALID_PARAMS = -32700, -32600, -32601, -32602
-TOOL_ERRORS = (NotFound, Conflict, Invalid, Forbidden, Unavailable, TmuxError)
+TOOL_ERRORS = (NotFound, Conflict, Invalid, Forbidden, TooLarge, Unavailable, TmuxError)
 
 
 def _tools(request: Request) -> McpTools:

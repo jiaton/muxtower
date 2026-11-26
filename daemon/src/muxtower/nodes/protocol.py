@@ -49,10 +49,11 @@ METHODS = frozenset({
     "release_size", "update", "terminate", "archive", "mark_read", "detect_folder", "create", "image", "recover",
     "resume_archived", "search", "search_status", "accept_suggestion",
     "settings", "set_settings", "mint_token", "revoke_token", "names", "default_folder", "ended_bridges",
-    "carries", "attachment", "place", "claude_conversation",
+    "carries", "attachment", "place", "claude_conversation", "shared",
 })  # fmt: skip
 
 # place: the project a folder there belongs to, read from git there (`teams/remote_places.py`); read only.
+# shared: a file one of its sessions shared (`shared/`): `stat`, or `read` a piece of at most 1 MB; read only.
 # claude_conversation: a Remote Control session's conversation there, before it is continued in a terminal
 # (`continuing/place.py`); read only.
 

@@ -22,6 +22,7 @@ from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.launcher import Launcher
 from muxtower.sessions.models import ConversationItemKind, ItemStatus, Session
 from muxtower.sessions.watches import SessionWatches
+from muxtower.shared.tool import ShareTool
 from muxtower.teams.service import TeamService
 from muxtower.teams.tasks import TaskService
 from muxtower.terminal.models import SendInput
@@ -109,6 +110,8 @@ class McpTools:
         self.session_tools = SessionTools(directory, launcher, hub, machines, teams, archiver)
         tools += self.session_tools.tools()
         tools += watch_tools(WatchTools(concierge, watches), SessionArg, EventsArgs)
+        self.share = ShareTool(lambda session_id, path, caption: self.directory.share(session_id, path, caption))
+        tools.append(self.share.tool())
         if teams is not None:
             self.team_tools = TeamTools(teams, team_tasks, forward)
             tools += self.team_tools.tools()

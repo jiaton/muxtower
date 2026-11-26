@@ -50,6 +50,32 @@ def _folder_name(session_id: str) -> str:
     return re.sub(r"[^A-Za-z0-9_-]", "_", session_id) or "_"
 
 
+def prune_kept(directory: Path, days: int, lock: threading.Lock) -> None:
+    """In each session's folder under `directory`: files older than `days` go (unfinished ones too), then
+    folders left empty, under `lock` (so one is not removed under a new file). Attachments and shared files."""
+    if not directory.is_dir():
+        return
+    old = time.time() - days * 86_400
+    for folder in directory.iterdir():
+        if not folder.is_dir():
+            continue
+        for path in folder.iterdir():
+            if path.is_file() and path.stat().st_mtime < old:
+                path.unlink(missing_ok=True)
+        with lock:
+            if not any(folder.iterdir()):
+                folder.rmdir()
+
+
+def private_folder(directory: Path, session_id: str) -> Path:
+    """A session's folder under `directory`, both 0700, made when missing."""
+    folder = directory / _folder_name(session_id)
+    for made in (directory, folder):
+        made.mkdir(mode=0o700, exist_ok=True)
+        made.chmod(0o700)
+    return folder
+
+
 class LocalUpload:
     def __init__(self, store: "AttachmentStore", session_id: str, name: str, media_type: str) -> None:
         self.max_bytes = store.max_bytes()
@@ -85,11 +111,7 @@ class AttachmentStore:
         self._lock = threading.Lock()  # a folder found empty is not removed under a new upload
 
     def folder(self, session_id: str) -> Path:
-        folder = self.directory / _folder_name(session_id)
-        for made in (self.directory, folder):
-            made.mkdir(mode=0o700, exist_ok=True)
-            made.chmod(0o700)
-        return folder
+        return private_folder(self.directory, session_id)
 
     def begin(self, session_id: str, name: str, media_type: str) -> LocalUpload:
         self.prune()
@@ -111,18 +133,7 @@ class AttachmentStore:
 
     def prune(self) -> None:
         """Files older than `KEPT_DAYS` (and uploads left unfinished as long) go, then folders left empty."""
-        if not self.directory.is_dir():
-            return
-        old = time.time() - KEPT_DAYS * 86_400
-        for folder in self.directory.iterdir():
-            if not folder.is_dir():
-                continue
-            for path in folder.iterdir():
-                if path.is_file() and path.stat().st_mtime < old:
-                    path.unlink(missing_ok=True)
-            with self._lock:
-                if not any(folder.iterdir()):
-                    folder.rmdir()
+        prune_kept(self.directory, KEPT_DAYS, self._lock)
 
     async def run_loop(self) -> None:
         """Prunes every hour, for as long as the daemon runs (uploads prune too)."""

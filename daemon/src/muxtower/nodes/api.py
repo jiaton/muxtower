@@ -15,6 +15,7 @@ from muxtower.infra.audit import AuditLog
 from muxtower.nodes.attachments import NodeUploads
 from muxtower.nodes.direct import TOKEN_PREFIX
 from muxtower.nodes.processes import report
+from muxtower.nodes.shared import shared_step
 from muxtower.sessions.archiving import Archiver
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.former_bridges import carrying
@@ -108,6 +109,8 @@ class NodeApi:
                 if params.get("step") == "finish":  # its name and size; never what is in it
                     self.audit.record("hub", "attachment", sid, f"name={result['name']} size={result['size']}")
                 return result
+            case "shared":
+                return shared_step(d, sid, params)
             case "accept_suggestion":
                 d.accept_suggestion(sid, str(params.get("text", "")))
             case "resize":

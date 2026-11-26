@@ -208,6 +208,10 @@ class NodeSource:
         """One step of a file's upload to its node (`attachments.py`)."""
         return self._call(session_id, "attachment", params)
 
+    def shared_step(self, session_id: str, params: dict[str, Any]) -> Any:
+        """A file its session shared there (`shared/`): `stat`, or `read` one piece."""
+        return self._call(session_id, "shared", params)
+
     def accept_suggestion(self, session_id: str, text: str) -> None:
         self._call(session_id, "accept_suggestion", {"text": text})
 

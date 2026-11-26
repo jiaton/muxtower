@@ -19,6 +19,7 @@ from typing import Any
 
 from muxtower.agent_text import describe_tool_input, truncate
 from muxtower.sessions.models import ConversationItem, ConversationItemKind, ItemStatus
+from muxtower.shared.items import as_shared
 
 MAX_ITEMS = 2000
 TOOL_CALLS = {"function_call", "custom_tool_call", "local_shell_call", "web_search_call"}
@@ -200,6 +201,10 @@ class RolloutBuilder:
                 self._calls[str(call_id)] = self._seq
             return [self._item(ConversationItemKind.TOOL, at, tool_name=name, text=what, status=status)]
         if sub in TOOL_OUTPUTS:
-            failed = FAILED.search(_output_text(payload.get("output")))
+            output = _output_text(payload.get("output"))
+            seq = self._calls.get(str(payload.get("call_id")))
+            if seq is not None and (call := self.items.get(seq)) and (shared := as_shared(call, output)):
+                return [shared]
+            failed = FAILED.search(output)
             return self._finish(payload.get("call_id"), ItemStatus.ERROR if failed else ItemStatus.DONE)
         return []

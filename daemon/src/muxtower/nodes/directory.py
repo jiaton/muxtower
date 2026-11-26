@@ -3,20 +3,24 @@ source cannot do (a screen, input as typed, resizing, renaming, stopping) goes t
 
 Every daemon is built with it; one that no node has joined behaves exactly as `SessionDirectory`."""
 
-from collections.abc import Sequence
-from typing import Any
+from collections.abc import Callable, Sequence
+from typing import Any, TypeVar
 
 from muxtower.attachments.ports import Upload
-from muxtower.errors import Conflict
+from muxtower.errors import Conflict, Unavailable
 from muxtower.nodes.attachments import NodeUpload
 from muxtower.nodes.processes import NodeProcesses
+from muxtower.nodes.shared import node_read, node_stat
 from muxtower.nodes.source import NodeSource
 from muxtower.sessions.directory import SessionDirectory
 from muxtower.sessions.images import ImageFile
 from muxtower.sessions.models import Conversation, Session, UpdateSession
 from muxtower.sessions.names import NameSeen
 from muxtower.sessions.titles import ClaudeTitles
+from muxtower.shared.models import SharedFile
 from muxtower.terminal.models import Resize, Screen, SendInput
+
+T = TypeVar("T")
 
 
 class HubDirectory(SessionDirectory):
@@ -91,6 +95,26 @@ class HubDirectory(SessionDirectory):
         if session.offline or session.archived_at:
             raise Conflict(f"{session.node} is offline" if session.offline else "this session is archived")
         return NodeUpload(self.nodes, session_id, name, media_type)  # saved there, by its node's rules
+
+    def shared_file(self, session_id: str, file_id: str) -> SharedFile:
+        if not self._on_node(session_id):
+            return super().shared_file(session_id, file_id)
+        return self._reach_node(session_id, lambda: node_stat(self.nodes, session_id, file_id))
+
+    def read_shared(self, session_id: str, file_id: str, offset: int, length: int) -> bytes:
+        if not self._on_node(session_id):
+            return super().read_shared(session_id, file_id, offset, length)
+        return self._reach_node(session_id, lambda: node_read(self.nodes, session_id, file_id, offset, length))
+
+    def _reach_node(self, session_id: str, ask: Callable[[], T]) -> T:
+        """Asked of its node; Conflict when the node cannot be reached now (offline, or its link fails)."""
+        session = self.get(session_id)
+        if session.offline:
+            raise Conflict(f"{session.node} is offline")
+        try:
+            return ask()
+        except Unavailable as exc:
+            raise Conflict(f"{session.node} cannot be reached now: {exc}") from exc
 
     def resize(self, session_id: str, body: Resize) -> None:
         if self._on_node(session_id):

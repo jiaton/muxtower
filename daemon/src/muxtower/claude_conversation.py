@@ -15,6 +15,7 @@ from typing import Any
 from muxtower.agent_text import describe_tool_input, tool_description
 from muxtower.claude_next_step import WRAP_UP_TOOLS, next_step
 from muxtower.sessions.models import ConversationItem, ConversationItemKind, ItemStatus
+from muxtower.shared.items import as_shared, output_text
 
 
 @dataclass(frozen=True)
@@ -201,6 +202,11 @@ class ConversationBuilder:
             for block in _blocks(payload):
                 if block.get("type") == "tool_result":
                     seq = self._tools.get(str(block.get("tool_use_id")))
+                    called = self.items.get(seq) if seq is not None else None
+                    if called is not None and not block.get("is_error"):
+                        if shared := as_shared(called, output_text(block.get("content"))):
+                            out.append(shared)
+                            continue
                     if seq is not None and (
                         done := self._set_status(seq, ItemStatus.ERROR if block.get("is_error") else ItemStatus.DONE)
                     ):

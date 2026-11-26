@@ -93,6 +93,7 @@ from muxtower.sessions.transcripts import Transcripts
 from muxtower.sessions.turns import TurnWatcher
 from muxtower.sessions.watches import SessionWatches
 from muxtower.settings.service import SettingsService
+from muxtower.shared.store import SharedStore
 from muxtower.sources.codex.service import CodexSource
 from muxtower.sources.codex.shared import SharedCodexSource
 from muxtower.sources.remote_control.lineage_store import SqliteLineageStore, SqlitePlaceStore
@@ -184,6 +185,8 @@ def create_app(
         sessions, terminal, approvals, sources, summaries, daemon_name, processes,
         marks, transcripts, archive, Accounts(), nodes=node_sessions, node_processes=node_processes,
     )  # fmt: skip
+    shared = SharedStore(settings.state_dir / "shared", lambda: settings.attachments.max_mb * 1024 * 1024)
+    directory.shared = shared  # files agents share (`share_file`), kept here for this daemon's sessions
     launcher = Launcher(directory, [codex] if codex else [], node_sessions)
     archiver = Archiver(directory, archive)
     placements = Placements(directory, marks)
@@ -272,6 +275,7 @@ def create_app(
                 "search-index": _indexing(indexer),
                 "listen": listen.run_loop(bus),
                 "attachments": attachments.run_loop(),
+                "shared": shared.run_loop(),
                 "inbox": inbox_schedule.run_loop(),
             }
             if summaries.available:
@@ -321,6 +325,8 @@ def create_app(
     )  # fmt: skip
     mcp.session_tools.may_escalate = lambda: settings.launch.agents_may_escalate
     mcp.session_tools.audit = audit
+    mcp.share.audit = audit
+    mcp.share.changed = lambda _: bus.publish("sessions", None)  # unread now, as after a finished reply
     mcp.session_tools.resume_archived = recovery.resume
     tts = TtsService(lambda: settings.tts, settings.state_dir)
     listen = ListenService(
