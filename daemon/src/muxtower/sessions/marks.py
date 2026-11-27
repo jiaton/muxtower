@@ -20,7 +20,9 @@ read state. Marking it unread by hand still holds.
 
 Placed: where the owner says it runs (a machine, a folder), for sessions whose source does not say.
 
-Kept in memory, written through to SQLite.
+Kept in memory, written through to SQLite one column at a time: a write sets only the marks it changes, so
+another writer's older copy of the rest (a thread a moment behind, another instance on the database) never
+puts them back.
 """
 
 import sqlite3
@@ -47,7 +49,9 @@ class Marks:
 
 class MarksRepository(Protocol):
     def load(self) -> dict[str, Marks]: ...
-    def save(self, session_id: str, record: Marks) -> None: ...
+    def save(self, session_id: str, changes: dict[str, object]) -> None:
+        """Writes only the columns in `changes` (fields of `Marks`), in one transaction."""
+        ...
 
 
 def _time(value: str | None) -> datetime | None:
@@ -56,6 +60,30 @@ def _time(value: str | None) -> datetime | None:
 
 def _text(value: datetime | None) -> str | None:
     return value.isoformat() if value else None
+
+
+def _upsert(column: str) -> str:
+    return (
+        f"INSERT INTO session_marks (session_id, {column}) VALUES (?, ?) "  # noqa: S608 - fixed names only
+        f"ON CONFLICT(session_id) DO UPDATE SET {column} = excluded.{column}"
+    )
+
+
+# One statement per column, built once from the fixed column names: a write sets its own column(s) and
+# nothing else, so a stale copy of the other marks (another thread, another process) never writes them back.
+_UPSERT = {
+    name: _upsert(name)
+    for name in ("finished_at", "seen_at", "marked_unread", "hidden", "machine", "folder", "notify", "pinned",
+                 "auto_read")
+}  # fmt: skip
+
+
+def _column_value(value: object) -> object:
+    if isinstance(value, datetime):
+        return _text(value)
+    if isinstance(value, bool):
+        return int(value)
+    return value
 
 
 class SqliteMarksRepository:
@@ -72,30 +100,10 @@ class SqliteMarksRepository:
         with self.db.connect() as conn:
             return {r["session_id"]: record(r) for r in conn.execute("SELECT * FROM session_marks")}
 
-    def save(self, session_id: str, record: Marks) -> None:
+    def save(self, session_id: str, changes: dict[str, object]) -> None:
         with self.db.connect() as conn:
-            conn.execute(
-                """INSERT INTO session_marks
-                       (session_id, finished_at, seen_at, marked_unread, hidden, machine, folder, notify, pinned,
-                        auto_read)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                   ON CONFLICT(session_id) DO UPDATE SET finished_at = excluded.finished_at,
-                       seen_at = excluded.seen_at, marked_unread = excluded.marked_unread, hidden = excluded.hidden,
-                       machine = excluded.machine, folder = excluded.folder, notify = excluded.notify,
-                       pinned = excluded.pinned, auto_read = excluded.auto_read""",
-                (
-                    session_id,
-                    _text(record.finished_at),
-                    _text(record.seen_at),
-                    int(record.marked_unread),
-                    int(record.hidden),
-                    record.machine,
-                    record.folder,
-                    record.notify,
-                    int(record.pinned),
-                    int(record.auto_read),
-                ),  # fmt: skip
-            )
+            for column, value in changes.items():
+                conn.execute(_UPSERT[column], (session_id, _column_value(value)))
 
 
 class SessionMarks:
@@ -105,10 +113,12 @@ class SessionMarks:
         self._records = repo.load()
 
     def _change(self, session_id: str, **changes: object) -> None:
+        # Only the changed columns are written: writes of other marks, built from this copy a moment before
+        # or by another process, can land in any order and never undo this one.
         with self._lock:
             record = replace(self._records.get(session_id, Marks()), **changes)  # type: ignore[arg-type]
             self._records[session_id] = record
-        self.repo.save(session_id, record)
+        self.repo.save(session_id, changes)
 
     def get(self, session_id: str) -> Marks:
         with self._lock:
@@ -137,9 +147,19 @@ class SessionMarks:
 
     def carry(self, old: str, new: str, unread: bool) -> None:
         """A session that goes on as another (Continue in terminal): hidden, pinned, its pushes and auto-read
-        as they were, and unread if it was (else read now)."""
-        was = self.get(old)
-        self._change(new, hidden=was.hidden, pinned=was.pinned, notify=was.notify, auto_read=was.auto_read)
+        as they were, and unread if it was (else read now). Marks the new session already has of its own stay:
+        a carry only adds hidden, pinned or auto-read, and gives its pushes only to one at the default."""
+        if old == new:
+            return
+        was, now = self.get(old), self.get(new)
+        changes: dict[str, object] = {}
+        for name in ("hidden", "pinned", "auto_read"):
+            if getattr(was, name) and not getattr(now, name):
+                changes[name] = True
+        if now.notify == Marks.notify and was.notify != now.notify:
+            changes["notify"] = was.notify
+        if changes:
+            self._change(new, **changes)
         if unread:
             self.mark_unread(new)
         else:
