@@ -188,6 +188,26 @@ it('holds the controls once the loop plays, "playing" all along, and lets all of
   expect(logged.find((e) => e.e === 'state')).toMatchObject({ playback: 'playing', meta: 'listening' })
 })
 
+it("while Live's call path is open, no silent loop and no media hold (nothing of the page is media); back when it closes", async () => {
+  const { useLive, useSpeech } = await load()
+  const { useCallRoute } = await import('./call-audio')
+  holdPlays = true
+  useSpeech.setState({ readAloud: true, front: { key: 'd/s', name: 'web-app', reply: null } })
+  useCallRoute.setState({ open: true })
+  useLive.setState({ phase: 'listening' })
+  expect(loops()).toHaveLength(0) // the keep-alive is not played during Live on the call path
+  expect(session.metadata).toBeNull()
+  expect(handlers.play ?? null).toBeNull()
+  useCallRoute.setState({ open: false }) // the setting turned off: as before
+  expect(loops()).toHaveLength(1)
+  useCallRoute.setState({ open: true }) // on again: the loop let go at once
+  expect(loops()[0]!.paused).toBe(true)
+  useLive.setState({ phase: 'off' })
+  useCallRoute.setState({ open: false })
+  const log = await events()
+  expect(log).toEqual(expect.arrayContaining(['log-start', 'loop-start', 'loop-stop', 'log-stop'])) // logged while Live was on
+})
+
 it('a loop the browser will not play still holds the controls (for the hub voice), and says why in the log', async () => {
   const { useLive, useSpeech, useAudioStatus } = await load()
   refusePlays = true

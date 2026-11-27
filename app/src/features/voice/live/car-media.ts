@@ -4,6 +4,7 @@ import { holdMedia, reassertMedia, runMediaAction, setMediaKeeper } from './medi
 import { errorFields, logMedia, logTo, startMediaLog, stopMediaLog } from './media-log'
 import { phoneVoiceSpeaking, useSpeech } from './speech'
 import { useAudioStatus } from './status'
+import { useCallRoute } from './call-audio'
 
 /**
  * While Live and Read aloud are both on, this page stays the phone's media, so a car's dash keeps its
@@ -186,22 +187,30 @@ interface Wiring {
 let wired: Wiring | null = null
 let shown: string | null = null // what was last held: the same again is not told the phone again
 
-/** Holds the media controls while Live and Read aloud are on; lets them go when either is off. */
+/**
+ * Holds the media controls while Live and Read aloud are on; lets them go when either is off. Not while
+ * Live's call path is open (`call-audio.ts`): then nothing of this page is media (the silent loop would be
+ * an element playing as media, against the phone's hands-free mode), and the car shows the call. The media
+ * log runs while Live is on, either way.
+ */
 export function syncCarMedia() {
   if (!wired) return
   const { phase } = wired.live.getState()
   const { readAloud, front } = useSpeech.getState()
-  const on = readAloud && phase !== 'off' && phase !== 'error' && typeof navigator !== 'undefined' && 'mediaSession' in navigator
+  const live = phase !== 'off' && phase !== 'error'
+  if (live) {
+    startMediaLog(front?.daemonId ?? null)
+    logTo(front?.daemonId ?? null)
+  }
+  const on = live && readAloud && !useCallRoute.getState().open && typeof navigator !== 'undefined' && 'mediaSession' in navigator
   if (!on) {
     stopLoop()
     setMediaKeeper(null)
     if (shown !== null) holdMedia(null)
     shown = null
-    stopMediaLog()
+    if (!live) stopMediaLog()
     return
   }
-  startMediaLog(front?.daemonId ?? null)
-  logTo(front?.daemonId ?? null)
   setMediaKeeper(keepLoop)
   startLoop()
   if (loop?.state === 'starting') return // held once it plays
@@ -221,5 +230,6 @@ export function wireCarMedia(wiring: Wiring) {
   wiring.live.subscribe(syncCarMedia)
   useSpeech.subscribe(syncCarMedia)
   useLiveAudio.subscribe(syncCarMedia)
+  useCallRoute.subscribe(syncCarMedia)
   syncCarMedia()
 }

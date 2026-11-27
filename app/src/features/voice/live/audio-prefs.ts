@@ -9,6 +9,9 @@ import { mergeWithDefaults } from '@/lib/persist-merge'
  * - `processing`: the browser's voice processing (echo cancellation, noise suppression, auto gain). On, as
  *   always before; off, Chrome on Android need not put the phone in call mode, so a car may stay on media.
  * - `nextTrack`: what a car's ⏭ does while Live and Read aloud are on: Read all, or Live's send.
+ * - `callAudio`: while Live is on, Read aloud and the cues play through the call path (WebRTC, `call-audio.ts`)
+ *   and the microphone stays open while it speaks, so the phone stays in hands-free mode throughout; off,
+ *   as before: the microphone let go while it speaks, and what it says played as media.
  */
 export type MicSource = 'default' | 'phone' | 'bluetooth'
 export type NextTrack = 'read' | 'send'
@@ -17,9 +20,11 @@ interface LiveAudioPrefs {
   mic: MicSource
   processing: boolean
   nextTrack: NextTrack
+  callAudio: boolean
   setMic: (mic: MicSource) => void
   setProcessing: (on: boolean) => void
   setNextTrack: (next: NextTrack) => void
+  setCallAudio: (on: boolean) => void
 }
 
 export const useLiveAudio = create<LiveAudioPrefs>()(
@@ -28,15 +33,17 @@ export const useLiveAudio = create<LiveAudioPrefs>()(
       mic: 'default',
       processing: true,
       nextTrack: 'read',
+      callAudio: true,
       setMic: (mic) => set({ mic }),
       setProcessing: (processing) => set({ processing }),
       setNextTrack: (nextTrack) => set({ nextTrack }),
+      setCallAudio: (callAudio) => set({ callAudio }),
     }),
     {
       name: 'muxtower.live.audio',
       version: 1,
       merge: mergeWithDefaults,
-      partialize: (s) => ({ mic: s.mic, processing: s.processing, nextTrack: s.nextTrack }),
+      partialize: (s) => ({ mic: s.mic, processing: s.processing, nextTrack: s.nextTrack, callAudio: s.callAudio }),
     },
   ),
 )

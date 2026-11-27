@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { useLiveAudio } from './audio-prefs'
-import { chooseMic, micClosed, micConstraints, openMic, type Device } from './mic'
+import { chooseMic, micClosed, micConstraints, openMic, vadStreamOptions, type Device } from './mic'
 import { useAudioStatus } from './status'
 
 // What Chrome on Android lists once the microphone is allowed, plus a car's hands-free (made up).
@@ -118,4 +118,30 @@ it('the default: opened as it is, with voice processing as set', async () => {
   expect(asked).toEqual([micConstraints(null, true)])
   micClosed()
   expect(useAudioStatus.getState().input).toBeNull()
+})
+
+describe('while Read aloud speaks', () => {
+  const stream = () => {
+    const track = { readyState: 'live', stop() { this.readyState = 'ended' } } // prettier-ignore
+    return { track, stream: { getTracks: () => [track], getAudioTracks: () => [track] } as unknown as MediaStream }
+  }
+
+  it("keeps the microphone open with Live's call path (the phone stays in hands-free mode), and takes it again as it is", async () => {
+    const opened: MediaStream[] = []
+    const { track, stream: mine } = stream()
+    const hooks = vadStreamOptions(() => true, async () => (opened.push(stream().stream), opened.at(-1)!))
+    await hooks.pauseStream(mine)
+    expect(track.readyState).toBe('live')
+    expect(await hooks.resumeStream(mine)).toBe(mine)
+    expect(opened).toEqual([])
+  })
+
+  it('without it, lets the microphone go and opens it again after, as before', async () => {
+    const opened: MediaStream[] = []
+    const { track, stream: mine } = stream()
+    const hooks = vadStreamOptions(() => false, async () => (opened.push(stream().stream), opened.at(-1)!))
+    await hooks.pauseStream(mine)
+    expect(track.readyState).toBe('ended')
+    expect(await hooks.resumeStream(mine)).toBe(opened[0])
+  })
 })

@@ -1,5 +1,5 @@
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { heardSummary, pieces, readAll, sayFound, speakable, stopSpeaking, useSpeech } from './speech'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { forgetVoiceElement, heardSummary, pieces, readAll, sayFound, setCallPlayer, setHubVoice, speak, speakable, stopSpeaking, useSpeech } from './speech'
 
 const said: string[] = []
 beforeEach(() => {
@@ -81,4 +81,56 @@ it('is quiet while it speaks and for a tail after, and knows what overlapped tha
   expect(quiet()).toBe(false)
   expect(overlapsSpeech(12_000 + TAIL_MS + 1, 14_000)).toBe(false)
   vi.useRealTimers()
+})
+
+describe("the hub's voice in Live", () => {
+  const audios: string[] = []
+  beforeEach(() => {
+    audios.length = 0
+    forgetVoiceElement()
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL: () => 'blob:mp3', revokeObjectURL: () => {} }))
+    vi.stubGlobal(
+      'Audio',
+      class {
+        src = ''
+        onended: (() => void) | null = null
+        paused = true
+        constructor() {
+          audios.push('made')
+        }
+        play() {
+          this.paused = false
+          setTimeout(() => this.onended?.(), 0)
+          return Promise.resolve()
+        }
+        pause() {
+          this.paused = true
+        }
+      },
+    )
+    setHubVoice(async () => new Blob([new Uint8Array([1])], { type: 'audio/mpeg' }))
+  })
+  afterEach(() => {
+    setHubVoice(null)
+    setCallPlayer(null)
+  })
+
+  it("plays through Live's call path while it is open: no media element; stopping stops it", async () => {
+    const played: Blob[] = []
+    const player = { play: vi.fn(async (b: Blob) => void played.push(b)), stop: vi.fn() }
+    setCallPlayer(() => player)
+    speak('Done. Both tests pass.')
+    await vi.waitFor(() => expect(useSpeech.getState().speaking).toBe(false))
+    expect(played).toHaveLength(1)
+    expect(audios).toEqual([]) // never an <audio> element: nothing played as media
+    stopSpeaking()
+    expect(player.stop).toHaveBeenCalled()
+  })
+
+  it('plays as media through its <audio> element when the call path is not open (outside Live, or turned off)', async () => {
+    setCallPlayer(() => null)
+    speak('Done. Both tests pass.')
+    await vi.waitFor(() => expect(useSpeech.getState().speaking).toBe(false))
+    expect(audios).toEqual(['made'])
+  })
 })

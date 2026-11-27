@@ -1,4 +1,5 @@
 import { useLiveAudio, type MicSource } from './audio-prefs'
+import { logMedia } from './media-log'
 import { useAudioStatus } from './status'
 
 /**
@@ -98,11 +99,37 @@ export async function openMic(): Promise<MediaStream> {
 function report(stream: MediaStream, asked: boolean, note: string | null) {
   const track = stream.getAudioTracks()[0]
   const settings = track?.getSettings?.() ?? {}
+  // The media log (Live's audio route): what was applied, never the device's name.
+  logMedia('mic', {
+    ev: 'open',
+    echoCancellation: settings.echoCancellation ?? null,
+    noiseSuppression: settings.noiseSuppression ?? null,
+    autoGainControl: settings.autoGainControl ?? null,
+    chosen: useLiveAudio.getState().mic,
+    fallback: note !== null,
+  })
   useAudioStatus.setState({
     input: track?.label || 'Microphone',
     processing: typeof settings.echoCancellation === 'boolean' ? settings.echoCancellation : asked,
     note,
   })
+}
+
+/**
+ * How the VAD lets the microphone go while Read aloud speaks (`engine.ts` hands these to MicVAD), and takes
+ * it again. `keep()` true (Live's call path, `call-audio.ts`): it stays open, the VAD only stops listening
+ * to it, so the phone stays in hands-free mode; taken again as it is while its track is live. False: as
+ * vad-web does by default, its tracks stopped, and the microphone opened again after (`openMic`).
+ */
+export function vadStreamOptions(keep: () => boolean, open: () => Promise<MediaStream> = openMic) {
+  return {
+    pauseStream: async (stream: MediaStream) => {
+      if (keep()) return
+      release(stream)
+    },
+    resumeStream: async (stream: MediaStream) =>
+      keep() && stream.getAudioTracks().some((t) => t.readyState === 'live') ? stream : (release(stream), open()),
+  }
 }
 
 /** Live is off: no microphone in use. */

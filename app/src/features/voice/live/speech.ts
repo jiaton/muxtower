@@ -167,6 +167,17 @@ export function setHubVoice(voice: HubVoice | null) {
 
 let playing: HTMLAudioElement | null = null
 
+/** Where the hub's voice plays while Live's call path is open (`call-audio.ts`): WebRTC audio, the phone
+ *  kept in hands-free mode. None: an <audio> element, as media (and the phone's media controls show it). */
+interface CallPlayer {
+  play: (blob: Blob) => Promise<void>
+  stop: () => void
+}
+let callPlayer: (() => CallPlayer | null) | null = null
+export function setCallPlayer(player: (() => CallPlayer | null) | null) {
+  callPlayer = player
+}
+
 /** The phone's media controls while the hub's voice plays (`media.ts`): what is said, by which session.
  *  Only for the hub's audio: the phone's own voice is no media the system shows. */
 function showMedia(caption: Caption | null) {
@@ -296,6 +307,7 @@ export function speak(text: string, about: { title?: string; kind?: Caption['kin
   if (!text.trim() || (!hubVoice && !synth())) return
   synth()?.cancel()
   playing?.pause()
+  callPlayer?.()?.stop()
   const mine = ++run
   const queue = pieces(text)
   const language = about.language ?? languageOf(text)
@@ -316,10 +328,18 @@ export function speak(text: string, about: { title?: string; kind?: Caption['kin
       next = local ? Promise.resolve(null) : fetchOf(queue[i + 1]) // fetched while this one plays
       if (mine !== run) return
       try {
-        if (audio) {
+        const call = audio ? (callPlayer?.() ?? null) : null
+        if (audio && call) {
+          // Live's call path: no media, no media controls; the phone stays in hands-free mode.
+          if (i === 0) logMedia('route', { ev: 'say', path: 'webrtc', pieces: queue.length })
+          await call.play(audio)
+        } else if (audio) {
+          if (i === 0) logMedia('route', { ev: 'say', path: 'media', pieces: queue.length })
           if (i === 0) showMedia(caption)
           await playAudio(audio)
         } else {
+          // The phone's own voice: Android's TTS plays it as it will, which the page cannot route (logged).
+          if (i === 0) logMedia('route', { ev: 'say', path: 'phone-voice', pieces: queue.length })
           showMedia(null) // the phone's own voice: nothing for the system to show
           if (!local && hubVoice) {
             local = true // the hub did not answer: the phone's voice from here on
@@ -345,6 +365,7 @@ export function stopSpeaking() {
   run += 1
   synth()?.cancel()
   phoneVoiceDone('cancelled')
+  callPlayer?.()?.stop()
   playing?.pause()
   playing = null
   ended()

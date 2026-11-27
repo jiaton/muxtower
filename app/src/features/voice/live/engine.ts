@@ -4,10 +4,12 @@ import { useDaemonsStore } from '@/lib/daemons/store'
 import type { Command } from './commands'
 import { chosenLanguages, startSpotter, type Spotter } from './kws'
 import { enabledPacks } from './packs'
-import { heardSummary, overlapsSpeech, quiet, readAll, stopSpeaking, TAIL_MS, useSpeech } from './speech'
+import { heardSummary, overlapsSpeech, quiet, readAll, setCallPlayer, stopSpeaking, TAIL_MS, useSpeech } from './speech'
+import { callAudio, liveChanged, useCallRoute } from './call-audio'
+import { logMedia } from './media-log'
 import { play } from './play'
 import { wireCarMedia } from './car-media'
-import { micClosed, openMic } from './mic'
+import { micClosed, openMic, vadStreamOptions } from './mic'
 import { spokenListeners } from '@/lib/api/streams'
 import { entryKey } from '@/features/sessions/model/facets'
 import { LivePipeline, SHORT_MS, type Ask, type BoxOps, type Cue, type Heard, type Target } from './pipeline'
@@ -178,10 +180,11 @@ export async function toggleLive() {
         ort.env.logLevel = 'error'
         ort.env.wasm.numThreads = 1
       },
-      // The microphone chosen, with voice processing on or off (`mic.ts`): opened again each time Read
-      // aloud has spoken (the VAD lets it go while it speaks).
+      // The microphone chosen, with voice processing on or off (`mic.ts`). While Read aloud speaks the VAD
+      // stops listening: with Live's call path open the microphone stays open meanwhile (the phone stays in
+      // hands-free mode); without, it is let go and opened again after, as before.
       getStream: openMic,
-      resumeStream: openMic,
+      ...vadStreamOptions(() => callAudio() !== null),
       redemptionMs: PAUSE_MS,
       minSpeechMs: MIN_SPEECH_MS,
       preSpeechPadMs: LEAD_MS,
@@ -252,6 +255,9 @@ export async function toggleLive() {
     await vad.start()
     pipeline.state = 'listening'
     useLive.setState({ phase: 'listening' })
+    logMedia('live', { ev: 'start' })
+    watchDevices(true)
+    await liveChanged(true) // Live's call path, when the setting says so (`call-audio.ts`)
     await holdScreen()
   } catch (error) {
     await stopLive()
@@ -273,7 +279,40 @@ export async function stopLive() {
   await wakeLock?.release().catch(() => undefined)
   wakeLock = null
   micClosed()
+  watchDevices(false)
+  await liveChanged(false)
+  logMedia('live', { ev: 'stop' })
   useLive.setState({ phase: 'off', speaking: false })
+}
+
+// Read aloud's hub voice goes through Live's call path while it is open (`call-audio.ts`).
+setCallPlayer(callAudio)
+
+/** The audio devices as the browser lists them, logged when they change while Live is on (a car's
+ *  Bluetooth coming or going): how many of each, and whether one is Bluetooth; never their names. */
+async function logDevices(ev: string) {
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices()
+    const bluetooth = (kind: MediaDeviceKind) => devices.some((d) => d.kind === kind && /bluetooth|hands-?free|\bsco\b|\bhfp\b/i.test(d.label))
+    logMedia('devices', {
+      ev,
+      inputs: devices.filter((d) => d.kind === 'audioinput').length,
+      outputs: devices.filter((d) => d.kind === 'audiooutput').length,
+      bluetoothIn: bluetooth('audioinput'),
+      bluetoothOut: bluetooth('audiooutput'),
+    })
+  } catch {
+    // no device list here
+  }
+}
+const onDeviceChange = () => void logDevices('change')
+function watchDevices(on: boolean) {
+  const media = typeof navigator !== 'undefined' ? navigator.mediaDevices : undefined
+  if (!media?.addEventListener) return
+  if (on) {
+    media.addEventListener('devicechange', onDeviceChange)
+    void logDevices('live-start')
+  } else media.removeEventListener('devicechange', onDeviceChange)
 }
 
 // --- a command said on its own, caught at the speaker's pause -----------------------------------------------
@@ -498,6 +537,14 @@ export function wav(audio: Float32Array, rate = RATE): Blob {
 
 let cues: AudioContext | null = null
 
+// While Live's call path is open the cues play through it; this context, made on Live's tap before the
+// microphone opened, would hold an output Chrome made as media for as long as it runs (Chromium picks an
+// output's usage once, when it is made: `call-audio.ts`), so it is suspended meanwhile.
+useCallRoute.subscribe(({ open }) => {
+  if (open) void cues?.suspend().catch(() => undefined)
+  else if (useLive.getState().phase !== 'off') void cues?.resume().catch(() => undefined)
+})
+
 /** Made on the tap that turns Live on: a browser lets a page play sound only after a gesture. */
 function unlockCues() {
   try {
@@ -534,17 +581,21 @@ const TONES: Record<Cue, [number, number][]> = {
 }
 
 export function playCue(cue: Cue) {
-  if (!cues) return
-  let at = cues.currentTime
+  // Through Live's call path while it is open, like Read aloud; else the page's own context.
+  const call = callAudio()
+  const context = call?.context ?? cues
+  if (!context) return
+  const out = call?.input ?? context.destination
+  let at = context.currentTime
   for (const [hz, s] of TONES[cue]) {
-    const osc = cues.createOscillator()
-    const gain = cues.createGain()
+    const osc = context.createOscillator()
+    const gain = context.createGain()
     osc.type = cue === 'empty' || cue === 'error' ? 'triangle' : 'sine'
     osc.frequency.value = hz
     gain.gain.setValueAtTime(0.0001, at)
     gain.gain.exponentialRampToValueAtTime(0.12, at + 0.01) // subtle
     gain.gain.exponentialRampToValueAtTime(0.0001, at + s)
-    osc.connect(gain).connect(cues.destination)
+    osc.connect(gain).connect(out)
     osc.start(at)
     osc.stop(at + s + 0.02)
     at += s + 0.04
