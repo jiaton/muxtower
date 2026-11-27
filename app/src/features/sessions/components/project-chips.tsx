@@ -50,6 +50,7 @@ import { TeamCard, TeamPanel } from './team-card'
 import { Button } from '@/components/ui/button'
 import { bleedRow } from '@/components/ui/list-row'
 import { ScrollRow } from '@/components/ui/scroll-row'
+import { Skeleton } from '@/components/ui/skeleton'
 import { chip } from '@/components/ui/chip'
 import { lifted as liftedLook, liftedFrom } from '@/components/ui/intents'
 
@@ -77,6 +78,7 @@ export const ProjectChips = memo(function ProjectChips({
   search,
   entries,
   groups,
+  loading = false,
   onChoose,
   className,
 }: {
@@ -84,6 +86,8 @@ export const ProjectChips = memo(function ProjectChips({
   search: ListSearch
   entries: SessionEntry[]
   groups: ChipGroup[]
+  /** The groups are not known yet (`useChipGroupsState`): placeholders, not the projects shown without groups. */
+  loading?: boolean
   /** A chip clicked (`''`: let go): chooses it, and may open a session with it (`useChipSwitch`). */
   onChoose?: (event: MouseEvent, chip: string) => void
   className?: string
@@ -136,6 +140,7 @@ export const ProjectChips = memo(function ProjectChips({
     () => new Map((chips ?? []).map((chip) => [chip.id, filterEntries(entries, { view: query.view, group: query.group, chip }).length])),
     [chips, entries, query.view, query.group],
   )
+  if (loading) return <ChipsLoading className={className} />
   if (!chips) return null
   const count = (chip: ProjectChip) => counts.get(chip.id) ?? 0
   const liftedChip = lifted ? chips.find((c) => c.id === lifted) : undefined
@@ -388,5 +393,21 @@ function SortableChip({
         },
       })}
     </span>
+  )
+}
+
+/** The row while the owner's groups are not known yet: chip-shaped placeholders, as tall as the row. */
+function ChipsLoading({ className }: { className?: string }) {
+  return (
+    <nav aria-label="Projects" aria-busy data-component="projects row" className={cn(bleedRow.outer, className)}>
+      <div className={cn(bleedRow.inner, 'flex gap-1.5')}>
+        <span role="status" className="sr-only">
+          Loading groups…
+        </span>
+        {['w-16', 'w-20', 'w-14'].map((width) => (
+          <Skeleton key={width} shape="badge" className={width} />
+        ))}
+      </div>
+    </nav>
   )
 }

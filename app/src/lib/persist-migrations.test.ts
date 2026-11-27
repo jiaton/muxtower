@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useListPrefs, useNewSessionPrefs, useSessionViews } from '@/features/sessions/store'
 import { useDrafts, useTerminalPrefs } from '@/features/terminal/store'
+import { useKeptChipGroups } from '@/features/sessions/api/kept-chip-groups'
 import { useLayoutPrefs } from './layout-prefs'
 
 /** What an older (or broken) version left in localStorage, read back the way an app start reads it. */
@@ -42,6 +43,15 @@ describe('persisted stores from older versions load', () => {
     await kept('muxtower.new-session', { runtime: null })
     await useNewSessionPrefs.persist.rehydrate()
     expect(typeof useNewSessionPrefs.getState().runtime).toBe('string')
+  })
+  it('kept chip groups: only well-formed lists of groups', async () => {
+    const group = { id: 'g1', name: 'Launch', projects: ['acme'] }
+    await kept('muxtower.chip-groups', { byDaemon: { d1: [group], d2: 'x', d3: [{ id: 3 }] } })
+    await useKeptChipGroups.persist.rehydrate()
+    expect(useKeptChipGroups.getState().byDaemon).toEqual({ d1: [{ ...group, sessions: [] }] })
+    await kept('muxtower.chip-groups', { byDaemon: [] })
+    await useKeptChipGroups.persist.rehydrate()
+    expect(useKeptChipGroups.getState().byDaemon).toEqual({})
   })
   it('something that is no JSON object at all: the defaults', async () => {
     localStorage.setItem('muxtower.list', '"broken"')

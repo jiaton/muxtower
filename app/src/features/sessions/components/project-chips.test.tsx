@@ -322,3 +322,22 @@ it("a chip's menu picks its items by their keys while it is open: E edits, X del
   fireEvent.keyDown(await open(), { key: 'x', code: 'KeyX' })
   await waitFor(() => expect(put.at(-1)).toEqual(['two', 'three'])) // One deleted
 })
+
+it('while the groups are not known yet: placeholders, not the projects shown without groups', async () => {
+  server.use(http.get(`${DAEMON_URL}/v1/sessions`, () => HttpResponse.json([])))
+  addDaemon()
+  const root = createRootRoute({
+    component: () => <ProjectChips query={{ view: 'all', group: 'status' }} search={{}} entries={entries} groups={[]} loading />,
+  })
+  const router = createRouter({ routeTree: root, history: createMemoryHistory({ initialEntries: ['/'] }) })
+  const Wrapper = wrapper()
+  render(
+    <Wrapper>
+      <RouterProvider router={router} />
+    </Wrapper>,
+  )
+  const row = await screen.findByRole('navigation', { name: 'Projects' })
+  expect(row.getAttribute('aria-busy')).toBe('true')
+  expect(within(row).queryAllByRole('link')).toHaveLength(0)
+  expect(within(row).getByRole('status').textContent).toBe('Loading groups…')
+})

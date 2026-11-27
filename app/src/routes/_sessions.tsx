@@ -31,7 +31,7 @@ import { filterEntries, groupEntries, queryTitle } from '@/features/sessions/mod
 import { foldForks } from '@/features/sessions/model/forks'
 import { foldSideChats } from '@/features/sessions/model/side-chats'
 import { parseListSearch, toQuery } from '@/features/sessions/model/search'
-import { useChipGroups } from '@/features/sessions/api/use-chip-groups'
+import { useChipGroupsState } from '@/features/sessions/api/use-chip-groups'
 import { useProjectOrder, useSaveProjectOrder } from '@/features/sessions/api/use-project-order'
 import { byRole, chipMembers } from '@/features/sessions/model/chip-groups'
 import { searchTerms } from '@/features/sessions/model/filter'
@@ -53,7 +53,7 @@ export const Route = createFileRoute('/_sessions')({ validateSearch: parseListSe
  */
 function SessionsLayout() {
   const search = Route.useSearch()
-  const chipGroups = useChipGroups()
+  const { groups: chipGroups, known: chipGroupsKnown } = useChipGroupsState()
   const projectOrder = useProjectOrder()
   const saveOrder = useSaveProjectOrder()
   const group = useListPrefs((s) => s.group)
@@ -126,10 +126,18 @@ function SessionsLayout() {
   return (
     <div className="flex min-w-0 flex-1">
       <Drawer drawer={asDrawer} open={drawerOpen} onOpenChange={setDrawer} onPull={setPull} wide={withSidebar} label="Sessions">
-        {withSidebar ? <div ref={setSidebarSlot} className={`${look.bar.side} flex w-56 shrink-0 flex-col pt-[env(safe-area-inset-top)]`} /> : null}
+        {withSidebar ? (
+          <div ref={setSidebarSlot} className={`${look.bar.side} flex w-56 shrink-0 flex-col pt-[env(safe-area-inset-top)]`} />
+        ) : null}
         {/* Beside a session: the list's own widths. In its drawer: the rest of the drawer's width (a 20rem list
             left an empty strip in it between md and xl, as on a car's screen). */}
-        <Pane ref={listPane} ruled className={asDrawer ? 'flex min-w-0 flex-1' : 'flex w-full md:w-80 md:shrink-0 xl:w-96'} aria-label="Sessions" data-component="session list">
+        <Pane
+          ref={listPane}
+          ruled
+          className={asDrawer ? 'flex min-w-0 flex-1' : 'flex w-full md:w-80 md:shrink-0 xl:w-96'}
+          aria-label="Sessions"
+          data-component="session list"
+        >
           <PaneHeader
             leading={panes.sidebarAlone ? <PanesLead list={false} /> : null}
             title={
@@ -162,7 +170,14 @@ function SessionsLayout() {
           >
             <SearchField search={search} />
             <ListChips query={query} search={search} facets={facets} className="lg:hidden" />
-            <ProjectChips query={query} search={search} entries={entries} groups={chipGroups} onChoose={chooseChip} />
+            <ProjectChips
+              query={query}
+              search={search}
+              entries={entries}
+              groups={chipGroups}
+              loading={!chipGroupsKnown}
+              onChoose={chooseChip}
+            />
             <ScopeChip query={query} search={search} />
           </PaneHeader>
           <PaneBody ref={listRef}>
