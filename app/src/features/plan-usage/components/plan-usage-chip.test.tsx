@@ -59,7 +59,8 @@ it('opens every window with its exact reset, and a figure it does not have as "�
   const details = await screen.findByRole('dialog', { name: 'Plan usage' })
   const max = within(details).getByRole('region', { name: 'Claude' })
   expect(within(max).getByRole('meter', { name: '5-hour session' })).toHaveAttribute('aria-valuenow', '44')
-  expect(within(max).getByText(/^Resets \d\d:\d\d · in 2h 10m$/)).toBeInTheDocument()
+  // 2h 10m from now is today or, late in the day, tomorrow: either is right, whatever the clock says.
+  expect(within(max).getByText(/^Resets (tomorrow )?\d\d:\d\d · in 2h 10m$/)).toBeInTheDocument()
   expect(within(max).getByRole('meter', { name: 'Week, Sonnet' })).not.toHaveAttribute('aria-valuenow')
   expect(within(max).getByText('—')).toBeInTheDocument()
   expect(within(details).getByText('As of 12 min ago')).toBeInTheDocument()
